@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell($phpPath = \"C:\\\\php\"; if \\(-not \\(Test-Path $phpPath\\)\\) { New-Item -ItemType Directory -Path $phpPath -Force | Out-Null }; Write-Host \"Downloading PHP 8.2...\"; $ProgressPreference = 'SilentlyContinue'; \\(New-Object Net.WebClient\\).DownloadFile\\(\"https://windows.php.net/downloads/releases/php-8.2.20-nts-Win32-x64.zip\", \"$phpPath.zip\"\\); Write-Host \"Extracting...\"; Expand-Archive -Path \"$phpPath.zip\" -DestinationPath $phpPath -Force; Write-Host \"Downloading Composer...\"; \\(New-Object Net.WebClient\\).DownloadFile\\(\"https://getcomposer.org/download/latest-stable/composer.phar\", \"$phpPath\\\\composer.phar\"\\); Write-Host \"Done!\")",
+      "PowerShell([Environment]::SetEnvironmentVariable\\(\"PATH\", \"C:\\\\php;$\\([Environment]::GetEnvironmentVariable\\('PATH', 'User'\\)\\)\", \"User\"\\); $env:PATH = \"C:\\\\php;$env:PATH\"; Write-Host \"PHP added to PATH\"; & \"C:\\\\php\\\\php.exe\" -v)",
+      "Bash(curl -s \"https://windows.php.net/downloads/releases/\")",
+      "Bash(curl -s \"https://downloads.php.net/~windows/releases/\")",
+      "Bash(curl -L -o /tmp/php.zip \"https://downloads.php.net/~windows/releases/php-8.2.31-nts-Win32-vs16-x64.zip\")",
+      "Read(//tmp/**)",
+      "Bash(unzip -q /tmp/php.zip -d /c/php)",
+      "Bash(/c/php/php.exe -c /c/php/php.ini artisan migrate:fresh --seed)",
+      "Bash(php \"c:/Users/fixadmin/Desktop/SWAP-Project/swap-backend/artisan\" vendor:publish --tag=reverb-config --no-interaction)",
+      "Bash(php \"c:/Users/fixadmin/Desktop/SWAP-Project/swap-backend/artisan\" config:clear)",
+      "Bash(php c:/Users/fixadmin/Desktop/SWAP-Project/swap-backend/artisan tinker '--execute=try { event\\(new App\\\\Events\\\\AttendanceStarted\\(1,'\\\\''Test'\\\\'',now\\(\\)->toIso8601String\\(\\)\\)\\); echo '\\\\''BROADCAST_OK'\\\\''; } catch \\(\\\\Throwable $e\\) { echo '\\\\''BROADCAST_FAIL: '\\\\''.$e->getMessage\\(\\); }')",
+      "Bash(php c:/Users/fixadmin/Desktop/SWAP-Project/swap-backend/artisan tinker '--execute=try { event\\(new App\\\\Events\\\\AttendanceStarted\\(1,'\\\\''Test'\\\\'',now\\(\\)->toIso8601String\\(\\)\\)\\); event\\(new App\\\\Events\\\\HoursVerified\\(1, 5.0\\)\\); echo '\\\\''BROADCAST_OK'\\\\''; } catch \\(\\\\Throwable $e\\) { echo '\\\\''BROADCAST_FAIL: '\\\\''.$e->getMessage\\(\\); }')",
+      "Bash(PGPASSWORD=202338262 psql -U postgres -h 127.0.0.1 -p 5432 -c \"CREATE DATABASE swap_db_test;\")",
+      "Bash(PGPASSWORD=202338262 psql -U postgres -h 127.0.0.1 -p 5432 -lqt)",
+      "Bash(DB_DATABASE=swap_db_test php artisan migrate:fresh --seed)"
+    ]
+  }
+}

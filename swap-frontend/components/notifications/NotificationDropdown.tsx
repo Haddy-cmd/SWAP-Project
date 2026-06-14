@@ -1,0 +1,85 @@
+'use client'
+
+import Link from 'next/link'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { formatDistanceToNow } from 'date-fns'
+import { CheckCheck, ArrowRight } from 'lucide-react'
+import { notificationsApi as notificationApi } from '@/lib/api/notifications.api'
+import type { Notification } from '@/types/notification.types'
+
+interface NotificationDropdownProps {
+  notifications: Notification[]
+  onClose: () => void
+}
+
+export function NotificationDropdown({ notifications, onClose }: NotificationDropdownProps) {
+  const queryClient = useQueryClient()
+
+  const markAll = useMutation({
+    mutationFn: () => notificationApi.markAllAsRead(),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  })
+
+  const markOne = useMutation({
+    mutationFn: (id: string) => notificationApi.markAsRead(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+  })
+
+  const recent = notifications.slice(0, 5)
+
+  return (
+    <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border border-[#E2E8F0] bg-white shadow-lg z-50">
+      <div className="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-3">
+        <p className="text-sm font-semibold text-[#1E293B]">Notifications</p>
+        <button
+          onClick={() => markAll.mutate()}
+          disabled={markAll.isPending}
+          className="flex items-center gap-1 text-xs font-medium text-[#1B4F72] hover:text-[#2980B9] disabled:opacity-50 transition-colors"
+        >
+          <CheckCheck className="h-3.5 w-3.5" />
+          All read
+        </button>
+      </div>
+
+      {recent.length === 0 ? (
+        <p className="px-4 py-6 text-center text-xs text-[#94A3B8]">No notifications</p>
+      ) : (
+        <ul>
+          {recent.map((n) => (
+            <li
+              key={n.id}
+              onClick={() => !n.is_read && markOne.mutate(n.id)}
+              className={`cursor-pointer border-b border-[#F1F5F9] px-4 py-3 last:border-0 hover:bg-[#F8FAFC] transition-colors ${
+                !n.is_read ? 'bg-[#EBF5FB]' : ''
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                {!n.is_read && (
+                  <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[#1B4F72]" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-[#1E293B]">{n.data.title}</p>
+                  <p className="mt-0.5 truncate text-xs text-[#64748B]">{n.data.message}</p>
+                  <p className="mt-1 text-[10px] text-[#94A3B8]">
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                  </p>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="border-t border-[#E2E8F0] px-4 py-2.5">
+        <Link
+          href="/notifications"
+          onClick={onClose}
+          className="flex items-center justify-center gap-1.5 text-xs font-medium text-[#1B4F72] hover:text-[#2980B9] transition-colors"
+        >
+          View all notifications
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+    </div>
+  )
+}

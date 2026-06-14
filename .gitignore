@@ -1,0 +1,4 @@
+node_modules/
+swap-frontend/node_modules/
+.next/
+.env
