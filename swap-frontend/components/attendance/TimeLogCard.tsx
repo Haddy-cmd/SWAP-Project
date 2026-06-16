@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Clock, FileText } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/StatusBadge'
-import { formatDateTime, formatHours as fmtH } from '@/lib/utils/formatDate'
+import { formatDateTime } from '@/lib/utils/formatDate'
 import { formatHours } from '@/lib/utils/formatHours'
 import type { TimeLog } from '@/types/attendance.types'
 

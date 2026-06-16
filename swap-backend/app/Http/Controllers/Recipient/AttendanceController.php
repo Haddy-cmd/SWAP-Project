@@ -12,6 +12,15 @@ class AttendanceController extends Controller
 {
     public function __construct(private readonly AttendanceService $attendanceService) {}
 
+    public function current(Request $request): JsonResponse
+    {
+        $log = $this->attendanceService->getOpenLog($request->user());
+
+        return response()->json([
+            'data' => $log ? new TimeLogResource($log) : null,
+        ]);
+    }
+
     public function timeIn(Request $request): JsonResponse
     {
         $request->validate([

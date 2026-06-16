@@ -34,6 +34,8 @@ export default function VerificationsPage() {
           {students.map((s, i) => {
             const userId = String(s.user_id ?? s.id ?? '')
             const user = (s.user ?? {}) as Record<string, unknown>
+            const office = (s.office ?? {}) as Record<string, unknown>
+            const pendingCount = Number(s.pending_logs_count ?? 0)
             return (
               <Link
                 key={i}
@@ -42,11 +44,17 @@ export default function VerificationsPage() {
               >
                 <div>
                   <p className="font-semibold text-[#1E293B]">{String(user.name ?? '—')}</p>
-                  <p className="text-xs text-[#64748B]">{String(s.office_name ?? '—')}</p>
+                  <p className="text-xs text-[#64748B]">{String(office.name ?? s.office_name ?? '—')}</p>
                 </div>
-                <span className="rounded-full bg-[#F39C12]/10 px-3 py-1 text-xs font-bold text-[#F39C12]">
-                  Review Logs
-                </span>
+                {pendingCount > 0 ? (
+                  <span className="rounded-full bg-[#F39C12]/10 px-3 py-1 text-xs font-bold text-[#F39C12]">
+                    {pendingCount} pending
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[#F1F5F9] px-3 py-1 text-xs font-bold text-[#94A3B8]">
+                    No pending
+                  </span>
+                )}
               </Link>
             )
           })}

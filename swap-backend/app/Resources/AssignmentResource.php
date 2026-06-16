@@ -24,6 +24,7 @@ class AssignmentResource extends JsonResource
             'rendered_hours' => $this->rendered_hours,
             'verified_hours' => $this->verified_hours,
             'remaining_hours' => $this->remaining_hours,
+            'pending_logs_count' => (int) ($this->pending_logs_count ?? 0),
             'created_at' => $this->created_at->toISOString(),
             'user' => $this->whenLoaded('user', fn () => new UserResource($this->user)),
             'office' => $this->whenLoaded('office', fn () => [

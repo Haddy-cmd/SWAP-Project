@@ -57,10 +57,10 @@ class User extends Authenticatable
         return $this->hasMany(TimeLog::class);
     }
 
-    public function notifications(): HasMany
+    public function notifications(): MorphMany
     {
-        return $this->hasMany(Notification::class, 'notifiable_id')
-            ->where('notifiable_type', self::class);
+        return $this->morphMany(Notification::class, 'notifiable')
+            ->latest();
     }
 
     public function stipendHistory(): HasMany

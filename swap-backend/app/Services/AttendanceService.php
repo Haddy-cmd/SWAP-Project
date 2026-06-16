@@ -31,6 +31,10 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('This QR code does not belong to your assignment.');
         }
 
+        if ($assignment->required_hours > 0 && $assignment->verified_hours >= $assignment->required_hours) {
+            throw new ConflictHttpException('You have already completed your required service hours.');
+        }
+
         $existingOpenLog = $this->timeLogRepository->findOpenLogForToday($user->id);
         if ($existingOpenLog) {
             throw new ConflictHttpException('You already have an open attendance log for today.');
@@ -93,6 +97,13 @@ class AttendanceService
         ))->toOthers();
 
         return $updated;
+    }
+
+    public function getOpenLog(User $user): ?TimeLog
+    {
+        $log = $this->timeLogRepository->findOpenLogForToday($user->id);
+
+        return $log?->load(['assignment.office', 'narrativeReport']);
     }
 
     public function getHoursSummary(User $user): array

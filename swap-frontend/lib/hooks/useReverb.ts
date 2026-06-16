@@ -10,14 +10,14 @@ import { toast } from '@/components/ui/use-toast'
 declare global {
   interface Window {
     Pusher: typeof Pusher
-    Echo: Echo
+    Echo: Echo<'reverb'>
   }
 }
 
 export function useReverb() {
   const { user, token } = useAuthStore()
   const queryClient = useQueryClient()
-  const echoRef = useRef<Echo | null>(null)
+  const echoRef = useRef<Echo<'reverb'> | null>(null)
 
   useEffect(() => {
     if (!user || !token) return

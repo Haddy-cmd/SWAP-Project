@@ -15,7 +15,13 @@
       "Bash(php c:/Users/fixadmin/Desktop/SWAP-Project/swap-backend/artisan tinker '--execute=try { event\\(new App\\\\Events\\\\AttendanceStarted\\(1,'\\\\''Test'\\\\'',now\\(\\)->toIso8601String\\(\\)\\)\\); event\\(new App\\\\Events\\\\HoursVerified\\(1, 5.0\\)\\); echo '\\\\''BROADCAST_OK'\\\\''; } catch \\(\\\\Throwable $e\\) { echo '\\\\''BROADCAST_FAIL: '\\\\''.$e->getMessage\\(\\); }')",
       "Bash(PGPASSWORD=202338262 psql -U postgres -h 127.0.0.1 -p 5432 -c \"CREATE DATABASE swap_db_test;\")",
       "Bash(PGPASSWORD=202338262 psql -U postgres -h 127.0.0.1 -p 5432 -lqt)",
-      "Bash(DB_DATABASE=swap_db_test php artisan migrate:fresh --seed)"
+      "Bash(DB_DATABASE=swap_db_test php artisan migrate:fresh --seed)",
+      "Bash(php artisan *)",
+      "Bash(curl -s -o /dev/null -w \"server up: HTTP %{http_code}\\\\n\" http://localhost:8000/api/chatbot/query?message=hello)",
+      "Bash(npx vitest *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"backend :8000 -> HTTP %{http_code}\\\\n\" \"http://localhost:8000/api/chatbot/query?message=hello\")",
+      "PowerShell(php artisan migrate)"
     ]
   }
 }

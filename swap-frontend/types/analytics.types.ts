@@ -11,6 +11,7 @@ export interface AdminOverview {
   avg_completion_rate: number
   total_offices: number
   office_distribution: OfficeDistribution[]
+  office_distribution_all: OfficeDistribution[]
   monthly_stats: MonthlyStats[]
   stipend_summary: StipendSummary
 }

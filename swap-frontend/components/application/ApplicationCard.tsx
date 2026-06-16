@@ -24,9 +24,11 @@ export function ApplicationCard({ application, href }: ApplicationCardProps) {
             <p className="truncate font-semibold text-[#1E293B]">
               {application.academic_year} — {application.semester}
             </p>
-            <p className="mt-0.5 truncate text-sm text-[#8A6A6A]">
-              {application.program} · {application.year_level}
-            </p>
+            {application.user?.name && (
+              <p className="mt-0.5 truncate text-sm text-[#8A6A6A]">
+                {application.user.name}
+              </p>
+            )}
           </div>
         </div>
         <StatusBadge status={application.status} />

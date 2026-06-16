@@ -3,6 +3,9 @@ import type { TimeLog, HoursSummary, NarrativeReport, StoreNarrativeData, Verify
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
 export const attendanceApi = {
+  getCurrentLog: () =>
+    apiClient.get<{ data: TimeLog | null }>('/recipient/attendance/current').then((r) => r.data.data),
+
   timeIn: (qrToken: string) =>
     apiClient.post<ApiResponse<TimeLog>>('/recipient/attendance/time-in', { qr_token: qrToken }).then((r) => r.data),
 
@@ -22,8 +25,11 @@ export const attendanceApi = {
   getSupervisorStudents: () =>
     apiClient.get('/supervisor/students').then((r) => r.data),
 
+  getStudentSummary: (studentId: number) =>
+    apiClient.get<{ data: HoursSummary; student: { id: number; name: string } }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+
   getStudentLogs: (studentId: number, params?: Record<string, string>) =>
-    apiClient.get<PaginatedResponse<TimeLog>>(`/supervisor/students/${studentId}/logs`, { params }).then((r) => r.data),
+    apiClient.get<PaginatedResponse<TimeLog> & { student?: { id: number; name: string } }>(`/supervisor/students/${studentId}/logs`, { params }).then((r) => r.data),
 
   verifyLog: (logId: number, data: VerifyLogData) =>
     apiClient.put<ApiResponse<TimeLog>>(`/supervisor/verifications/${logId}`, data).then((r) => r.data),

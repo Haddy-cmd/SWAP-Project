@@ -1,0 +1,65 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Notification;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
+use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\MakesSwapData;
+use Tests\TestCase;
+
+class NotificationTest extends TestCase
+{
+    use RefreshDatabase, MakesSwapData;
+
+    private function makeNotification(User $user, array $attrs = []): Notification
+    {
+        return Notification::create(array_merge([
+            'id' => (string) Str::uuid(),
+            'type' => 'App\\Notifications\\Generic',
+            'notifiable_type' => User::class,
+            'notifiable_id' => $user->id,
+            'data' => ['title' => 'Test', 'message' => 'Hello'],
+            'read_at' => null,
+        ], $attrs));
+    }
+
+    public function test_user_fetches_their_notifications(): void
+    {
+        $user = $this->makeUser('recipient');
+        $this->makeNotification($user);
+        $this->makeNotification($user);
+
+        Sanctum::actingAs($user);
+        $res = $this->getJson('/api/notifications')->assertStatus(200);
+
+        $this->assertEquals(2, $res->json('meta.total'));
+        $this->assertEquals(2, $res->json('meta.unread_count'));
+    }
+
+    public function test_mark_one_as_read(): void
+    {
+        $user = $this->makeUser('recipient');
+        $n = $this->makeNotification($user);
+
+        Sanctum::actingAs($user);
+        $this->putJson("/api/notifications/{$n->id}/read")->assertStatus(200);
+
+        $this->assertNotNull($n->fresh()->read_at);
+    }
+
+    public function test_mark_all_as_read(): void
+    {
+        $user = $this->makeUser('recipient');
+        $this->makeNotification($user);
+        $this->makeNotification($user);
+
+        Sanctum::actingAs($user);
+        $this->putJson('/api/notifications/read-all')->assertStatus(200);
+
+        $res = $this->getJson('/api/notifications')->assertStatus(200);
+        $this->assertEquals(0, $res->json('meta.unread_count'));
+    }
+}

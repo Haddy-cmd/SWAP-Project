@@ -38,14 +38,30 @@ describe('LoginPage', () => {
     expect(screen.getByPlaceholderText(/••••/)).toBeInTheDocument()
   })
 
-  it('shows validation error for invalid email', async () => {
+  it('rejects an invalid email and does not call the login API', async () => {
+    const { authApi } = await import('@/lib/api/auth.api')
     await renderLoginPage()
     const emailInput = screen.getByPlaceholderText(/student@/i)
     const submitBtn = screen.getByRole('button', { name: /sign in/i })
+
     await userEvent.type(emailInput, 'invalid')
-    fireEvent.click(submitBtn)
+    await userEvent.type(screen.getByPlaceholderText(/••••/), 'Password@123')
+    await userEvent.click(submitBtn)
+
+    // Client-side validation (native email + Zod) must block the request.
     await waitFor(() => {
-      expect(screen.getByText(/valid email/i)).toBeInTheDocument()
+      expect(vi.mocked(authApi.login)).not.toHaveBeenCalled()
+    })
+  })
+
+  it('shows a Zod validation error when a required field is empty', async () => {
+    await renderLoginPage()
+    // Valid email passes native validation, so submit reaches Zod, which flags
+    // the empty password — proving error messages render.
+    await userEvent.type(screen.getByPlaceholderText(/student@/i), 'student@msumarawi.edu.ph')
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
+    await waitFor(() => {
+      expect(screen.getByText(/password is required/i)).toBeInTheDocument()
     })
   })
 

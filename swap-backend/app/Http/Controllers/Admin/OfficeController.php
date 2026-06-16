@@ -27,7 +27,7 @@ class OfficeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'code' => ['required', 'string', 'max:20', 'unique:offices,code'],
             'description' => ['nullable', 'string', 'max:500'],
@@ -36,7 +36,7 @@ class OfficeController extends Controller
             'max_recipients' => ['required', 'integer', 'min:1'],
         ]);
 
-        $office = Office::create($request->validated());
+        $office = Office::create($validated);
 
         return response()->json(['data' => $office, 'message' => 'Office created.'], 201);
     }
@@ -45,7 +45,7 @@ class OfficeController extends Controller
     {
         $office = Office::findOrFail($id);
 
-        $request->validate([
+        $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:150'],
             'code' => ['sometimes', 'string', 'max:20', "unique:offices,code,{$id}"],
             'description' => ['nullable', 'string', 'max:500'],
@@ -55,7 +55,7 @@ class OfficeController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
-        $office->update($request->validated());
+        $office->update($validated);
 
         return response()->json(['data' => $office, 'message' => 'Office updated.']);
     }

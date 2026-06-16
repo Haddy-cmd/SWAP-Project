@@ -118,4 +118,12 @@ class TimeLogRepository implements TimeLogRepositoryInterface
             ->where('status', 'pending_verification')
             ->count();
     }
+
+    public function getVerifiedThisWeekCount(int $supervisorId): int
+    {
+        return TimeLog::whereHas('assignment', fn ($q) => $q->where('supervisor_id', $supervisorId))
+            ->where('status', 'verified')
+            ->where('verified_at', '>=', Carbon::now()->startOfWeek())
+            ->count();
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Application;
 use App\Models\Assignment;
+use App\Models\Office;
 use App\Models\StipendHistory;
 use App\Models\TimeLog;
 use App\Models\User;
@@ -19,11 +20,6 @@ class AnalyticsService
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
-
-        $activeRecipients = Assignment::where('academic_year', $academicYear)
-            ->where('semester', $semester)
-            ->where('status', 'active')
-            ->count();
 
         $totalVerifiedHours = TimeLog::whereHas('assignment', fn ($q) =>
             $q->where('academic_year', $academicYear)->where('semester', $semester)
@@ -70,8 +66,36 @@ class AnalyticsService
             ->pluck('total', 'status')
             ->toArray();
 
+        // System-wide totals for the dashboard headline cards (not period-scoped),
+        // so they always reflect the current state across all academic years.
+        $totalApplicationsAll = Application::count();
+        $activeRecipientsAll = Assignment::where('status', 'active')->count();
+        $pendingApplicationsAll = Application::whereIn('status', [
+            'submitted', 'under_review', 'interview_scheduled',
+        ])->count();
+        $totalOffices = Office::where('is_active', true)->count();
+
+        $officeDistributionAll = Assignment::with('office')
+            ->where('status', 'active')
+            ->selectRaw('office_id, COUNT(*) as recipient_count')
+            ->groupBy('office_id')
+            ->get()
+            ->map(fn ($row) => [
+                'office_name' => $row->office?->name ?? 'Unknown',
+                'recipient_count' => (int) $row->recipient_count,
+            ])
+            ->values()
+            ->toArray();
+
+        $requiredHoursAll = (float) Assignment::where('status', 'active')->sum('required_hours');
+        $verifiedHoursAll = (float) TimeLog::where('status', 'verified')->sum('duration_hours');
+        $avgCompletionRate = $requiredHoursAll > 0
+            ? round(min(($verifiedHoursAll / $requiredHoursAll) * 100, 100), 1)
+            : 0.0;
+
         return [
             'total_applicants' => array_sum($statusCounts),
+            'total_applications' => $totalApplicationsAll,
             'approved' => (int) ($statusCounts['approved'] ?? 0),
             'rejected' => (int) ($statusCounts['rejected'] ?? 0),
             'pending' => (int) (
@@ -79,10 +103,14 @@ class AnalyticsService
                 ($statusCounts['under_review'] ?? 0) +
                 ($statusCounts['interview_scheduled'] ?? 0)
             ),
-            'active_recipients' => $activeRecipients,
+            'pending_applications' => $pendingApplicationsAll,
+            'active_recipients' => $activeRecipientsAll,
+            'total_offices' => $totalOffices,
+            'avg_completion_rate' => $avgCompletionRate,
             'total_verified_hours' => (float) $totalVerifiedHours,
             'pending_verifications' => $pendingVerifications,
             'office_distribution' => $officeDistribution,
+            'office_distribution_all' => $officeDistributionAll,
             'monthly_stats' => $monthlyStats,
             'stipend_summary' => [
                 'total_released' => (float) ($stipendSummary['released'] ?? 0),

@@ -17,21 +17,45 @@ class StudentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $assignments = Assignment::with(['user.profile', 'office'])
+            ->withCount(['timeLogs as pending_logs_count' => fn ($q) => $q->where('status', 'pending_verification')])
             ->where('supervisor_id', $request->user()->id)
             ->where('status', 'active')
             ->get();
 
-        $pendingCount = $this->timeLogRepository->getPendingVerificationsCount($request->user()->id);
-
         return response()->json([
             'data' => AssignmentResource::collection($assignments),
-            'meta' => ['pending_verifications' => $pendingCount],
+            'meta' => [
+                'pending_verifications' => $this->timeLogRepository->getPendingVerificationsCount($request->user()->id),
+                'verified_this_week' => $this->timeLogRepository->getVerifiedThisWeekCount($request->user()->id),
+            ],
+        ]);
+    }
+
+    public function summary(Request $request, int $studentId): JsonResponse
+    {
+        $assignment = Assignment::with('user.profile')
+            ->where('user_id', $studentId)
+            ->where('supervisor_id', $request->user()->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        return response()->json([
+            'data' => $this->timeLogRepository->getHoursSummary($studentId),
+            'student' => [
+                'id' => $assignment->user->id,
+                'name' => $assignment->user->profile?->full_name ?? $assignment->user->name,
+            ],
         ]);
     }
 
     public function logs(Request $request, int $studentId): JsonResponse
     {
-        $assignment = Assignment::where('user_id', $studentId)
+        $assignment = Assignment::with('user.profile')
+            ->where('user_id', $studentId)
             ->where('supervisor_id', $request->user()->id)
             ->where('status', 'active')
             ->first();
@@ -47,6 +71,10 @@ class StudentController extends Controller
 
         return response()->json([
             'data' => TimeLogResource::collection($logs->items()),
+            'student' => [
+                'id' => $assignment->user->id,
+                'name' => $assignment->user->profile?->full_name ?? $assignment->user->name,
+            ],
             'meta' => [
                 'current_page' => $logs->currentPage(),
                 'last_page' => $logs->lastPage(),

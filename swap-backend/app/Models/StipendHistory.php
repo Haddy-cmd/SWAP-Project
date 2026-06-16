@@ -10,6 +10,8 @@ class StipendHistory extends Model
 {
     use HasFactory;
 
+    protected $table = 'stipend_history';
+
     protected $fillable = [
         'user_id',
         'amount',

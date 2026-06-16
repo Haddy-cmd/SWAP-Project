@@ -24,11 +24,15 @@ export default function StudentLogsPage() {
   const verify = useMutation({
     mutationFn: ({ logId, action, fb }: { logId: number; action: 'verified' | 'rejected'; fb: string }) =>
       attendanceApi.verifyLog(logId, { action, feedback: fb }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['student-logs', studentId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['student-logs', studentId] })
+      queryClient.invalidateQueries({ queryKey: ['student-summary', studentId] })
+      queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
+    },
   })
 
   const logs = logsData?.data ?? []
-  const pending = logs.filter((l) => l.status === 'pending_verification')
+  const studentName = logsData?.student?.name
 
   return (
     <div className="space-y-6">
@@ -40,7 +44,7 @@ export default function StudentLogsPage() {
           <ArrowLeft className="h-4 w-4" />
           Back
         </Link>
-        <h1 className="text-xl font-bold text-[#1E293B]">Attendance Logs — Student #{studentId}</h1>
+        <h1 className="text-xl font-bold text-[#1E293B]">Attendance Logs — {studentName ?? `Student #${studentId}`}</h1>
       </div>
 
       {isLoading ? (

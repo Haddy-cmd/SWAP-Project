@@ -33,11 +33,12 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response?.status === 422) {
-      const validationError = new Error('Validation failed') as Error & {
+      const data = error.response.data
+      const validationError = new Error(data?.message || 'Validation failed') as Error & {
         errors: Record<string, string[]>
         status: number
       }
-      validationError.errors = error.response.data?.errors ?? {}
+      validationError.errors = data?.errors ?? {}
       validationError.status = 422
       return Promise.reject(validationError)
     }

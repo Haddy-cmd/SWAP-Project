@@ -30,9 +30,9 @@ export function ApplicationTimeline({ application }: ApplicationTimelineProps) {
     },
     {
       label: 'Interview Scheduled',
-      date: application.interview_date ?? null,
+      date: application.interview?.scheduled_at ?? null,
       icon: <Calendar className="h-4 w-4" />,
-      active: application.status === 'interview_scheduled' || application.interview_date != null,
+      active: application.status === 'interview_scheduled' || application.interview?.scheduled_at != null,
     },
     {
       label: application.status === 'rejected' ? 'Rejected' : 'Approved',

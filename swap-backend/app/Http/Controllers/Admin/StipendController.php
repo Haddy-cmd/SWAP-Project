@@ -31,7 +31,7 @@ class StipendController extends Controller
 
     public function release(Request $request): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'academic_year' => ['required', 'string'],
@@ -40,7 +40,7 @@ class StipendController extends Controller
             'remarks' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $stipend = $this->stipendService->release($request->validated(), $request->user());
+        $stipend = $this->stipendService->release($validated, $request->user());
 
         return response()->json([
             'data' => new StipendResource($stipend),

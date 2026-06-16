@@ -11,9 +11,9 @@ use Illuminate\Http\Request;
 
 class NarrativeController extends Controller
 {
-    public function store(StoreNarrativeRequest $request, int $logId): JsonResponse
+    public function store(StoreNarrativeRequest $request): JsonResponse
     {
-        $log = TimeLog::where('id', $logId)
+        $log = TimeLog::where('id', $request->integer('time_log_id'))
             ->where('user_id', $request->user()->id)
             ->first();
 

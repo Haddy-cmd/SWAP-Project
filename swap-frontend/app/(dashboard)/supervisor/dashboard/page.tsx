@@ -14,8 +14,18 @@ export default function SupervisorDashboard() {
     queryFn: () => attendanceApi.getSupervisorStudents(),
   })
 
-  const students = (studentsData as { data?: unknown[] })?.data ?? []
+  type StudentRow = {
+    user?: { name?: string }
+    name?: string
+    office_name?: string
+    user_id?: number
+    id?: number
+  }
+  const typed = studentsData as { data?: StudentRow[]; meta?: { pending_verifications?: number; verified_this_week?: number } } | undefined
+  const students = (typed?.data ?? []) as StudentRow[]
   const studentCount = students.length
+  const pendingVerifications = typed?.meta?.pending_verifications ?? '—'
+  const verifiedThisWeek = typed?.meta?.verified_this_week ?? '—'
 
   return (
     <div className="space-y-6">
@@ -27,11 +37,11 @@ export default function SupervisorDashboard() {
       <div className="grid gap-4 sm:grid-cols-3">
         {[
           { icon: <Users className="h-5 w-5 text-[#7D1A1A]" />, label: 'My Students', value: studentCount, href: '/supervisor/students' },
-          { icon: <Clock className="h-5 w-5 text-[#F39C12]" />, label: 'Pending Verifications', value: '—', href: '/supervisor/verifications' },
-          { icon: <CheckSquare className="h-5 w-5 text-[#27AE60]" />, label: 'Verified This Week', value: '—', href: '/supervisor/verifications' },
+          { icon: <Clock className="h-5 w-5 text-[#F39C12]" />, label: 'Pending Verifications', value: pendingVerifications, href: '/supervisor/verifications' },
+          { icon: <CheckSquare className="h-5 w-5 text-[#27AE60]" />, label: 'Verified This Week', value: verifiedThisWeek, href: '/supervisor/verifications' },
         ].map((card) => (
           <Link
-            key={card.href}
+            key={card.label}
             href={card.href}
             className="flex items-center gap-4 rounded-2xl border border-[#EAD9D9] bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
           >
@@ -57,7 +67,7 @@ export default function SupervisorDashboard() {
           <p className="text-sm text-[#B09A9A]">No students assigned yet.</p>
         ) : (
           <ul className="space-y-2">
-            {(students as Array<Record<string, unknown>>).slice(0, 5).map((s, i) => (
+            {students.slice(0, 5).map((s, i) => (
               <li key={i} className="flex items-center justify-between rounded-lg border border-[#F5EDEC] px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-[#1E293B]">{String(s.user?.name ?? s.name ?? '—')}</p>

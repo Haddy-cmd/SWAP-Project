@@ -30,7 +30,7 @@ export default function AdminDashboard() {
     rejected: m.rejected,
   }))
 
-  const officeData = (overview?.office_distribution ?? []).map((o) => ({
+  const officeData = (overview?.office_distribution_all ?? []).map((o) => ({
     office: o.office_name,
     count: o.recipient_count,
   }))

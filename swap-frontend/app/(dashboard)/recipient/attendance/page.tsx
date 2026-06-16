@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogIn, LogOut, CheckCircle, AlertTriangle } from 'lucide-react'
+import Link from 'next/link'
+import { LogIn, LogOut, CheckCircle, AlertTriangle, FileText } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { HoursProgress } from '@/components/attendance/HoursProgress'
 import { formatDateTime } from '@/lib/utils/formatDate'
@@ -20,12 +21,25 @@ export default function AttendancePage() {
     queryFn: () => attendanceApi.getHoursSummary(),
   })
 
+  // Restore clock-in state from the server so an open log survives reloads / re-login.
+  const { data: currentLog } = useQuery({
+    queryKey: ['attendance-current'],
+    queryFn: () => attendanceApi.getCurrentLog(),
+  })
+
+  useEffect(() => {
+    if (currentLog) {
+      setOpenLogId(currentLog.id)
+    }
+  }, [currentLog])
+
   const timeIn = useMutation({
     mutationFn: () => attendanceApi.timeIn(qrToken),
     onSuccess: (res) => {
       setOpenLogId(res.data.id)
       setMessage({ type: 'success', text: `Time-in recorded at ${formatDateTime(res.data.time_in)}` })
       queryClient.invalidateQueries({ queryKey: ['hours-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
       setQrToken('')
     },
     onError: (err: { message?: string }) => {
@@ -42,6 +56,7 @@ export default function AttendancePage() {
       setOpenLogId(null)
       setMessage({ type: 'success', text: `Time-out recorded at ${formatDateTime(res.data.time_out!)}` })
       queryClient.invalidateQueries({ queryKey: ['hours-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
       setQrToken('')
     },
     onError: (err: { message?: string }) => {
@@ -50,6 +65,7 @@ export default function AttendancePage() {
   })
 
   const mode: AttendanceMode = openLogId ? 'clocked-in' : 'idle'
+  const completed = !!summary && summary.required > 0 && summary.remaining <= 0
 
   return (
     <div className="space-y-6">
@@ -104,11 +120,43 @@ export default function AttendancePage() {
             />
           </div>
 
+          {mode === 'clocked-in' && (
+            currentLog?.has_narrative ? (
+              <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-[#27AE60]">
+                <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                Narrative report submitted — you can clock out.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                <span className="flex items-center gap-2 font-medium text-[#92400E]">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  A narrative report is required before you can clock out.
+                </span>
+                {openLogId && (
+                  <Link
+                    href={`/recipient/narrative/${openLogId}`}
+                    className="inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#1B4F72] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2980B9] transition-colors"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Submit Narrative
+                  </Link>
+                )}
+              </div>
+            )
+          )}
+
+          {mode === 'idle' && completed && (
+            <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-[#27AE60]">
+              <CheckCircle className="h-4 w-4 flex-shrink-0" />
+              You have completed all your required service hours. No further clock-ins are needed.
+            </div>
+          )}
+
           <div className="flex gap-3">
             {mode === 'idle' ? (
               <button
                 onClick={() => timeIn.mutate()}
-                disabled={timeIn.isPending || !qrToken.trim()}
+                disabled={timeIn.isPending || !qrToken.trim() || completed}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
                 <LogIn className="h-4 w-4" />
@@ -117,7 +165,7 @@ export default function AttendancePage() {
             ) : (
               <button
                 onClick={() => timeOut.mutate()}
-                disabled={timeOut.isPending || !qrToken.trim()}
+                disabled={timeOut.isPending || !qrToken.trim() || !currentLog?.has_narrative}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#E74C3C] px-6 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
                 <LogOut className="h-4 w-4" />

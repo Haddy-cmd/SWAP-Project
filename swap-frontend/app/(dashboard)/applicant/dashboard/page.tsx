@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, FileText, Clock } from 'lucide-react'
+import { Plus, FileText, Clock, CheckCircle } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { ApplicationCard } from '@/components/application/ApplicationCard'
@@ -17,6 +17,7 @@ export default function ApplicantDashboard() {
   })
 
   const latest = applications?.[0]
+  const hasApproved = applications?.some((a) => a.status === 'approved') ?? false
 
   return (
     <div className="space-y-6">
@@ -40,20 +41,39 @@ export default function ApplicantDashboard() {
         </div>
       )}
 
-      {/* Actions */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/applicant/application/new"
-          className="flex items-center gap-3 rounded-2xl border border-[#EAD9D9] bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FEF0F0]">
-            <Plus className="h-5 w-5 text-[#7D1A1A]" />
+      {/* Approved — awaiting office assignment */}
+      {hasApproved && (
+        <div className="flex items-start gap-3 rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-5 shadow-sm">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#DCFCE7]">
+            <CheckCircle className="h-5 w-5 text-[#16A34A]" />
           </div>
           <div>
-            <p className="font-semibold text-[#1E293B]">New Application</p>
-            <p className="text-xs text-[#8A6A6A]">Apply for this semester</p>
+            <p className="font-semibold text-[#166534]">Application Approved — Awaiting Office Assignment</p>
+            <p className="mt-1 text-sm text-[#15803D]">
+              Congratulations! Your application has been approved. Please wait for further announcement
+              regarding your office assignment. You&apos;ll be notified once an office and supervisor have
+              been assigned to you. New applications are unavailable while your assignment is being processed.
+            </p>
           </div>
-        </Link>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {!hasApproved && (
+          <Link
+            href="/applicant/application/new"
+            className="flex items-center gap-3 rounded-2xl border border-[#EAD9D9] bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#FEF0F0]">
+              <Plus className="h-5 w-5 text-[#7D1A1A]" />
+            </div>
+            <div>
+              <p className="font-semibold text-[#1E293B]">New Application</p>
+              <p className="text-xs text-[#8A6A6A]">Apply for this semester</p>
+            </div>
+          </Link>
+        )}
 
         <Link
           href="/applicant/documents"

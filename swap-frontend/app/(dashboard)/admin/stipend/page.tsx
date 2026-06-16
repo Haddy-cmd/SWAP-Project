@@ -101,7 +101,7 @@ export default function AdminStipendPage() {
               {records.map((r: StipendRecord) => (
                 <tr key={r.id} className="border-b border-[#F1F5F9] last:border-0">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-[#1E293B]">{(r as Record<string, unknown> & typeof r).user?.name ?? `User #${r.user_id}`}</p>
+                    <p className="font-medium text-[#1E293B]">{r.recipient?.name ?? `User #${r.user_id}`}</p>
                   </td>
                   <td className="px-4 py-3 font-semibold text-[#1B4F72]">{PHP.format(r.amount)}</td>
                   <td className="px-4 py-3 text-[#64748B]">{r.academic_year} — {r.semester}</td>

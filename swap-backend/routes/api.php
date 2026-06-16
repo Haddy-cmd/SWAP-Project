@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ─── RECIPIENT ────────────────────────────────────────────────────────────
     Route::middleware('role:recipient')->prefix('recipient')->group(function () {
+        Route::get('/attendance/current', [AttendanceController::class, 'current']);
         Route::post('/attendance/time-in', [AttendanceController::class, 'timeIn']);
         Route::post('/attendance/time-out', [AttendanceController::class, 'timeOut']);
         Route::post('/narratives', [NarrativeController::class, 'store'])->withoutMiddleware('role:recipient');
@@ -69,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // ─── SUPERVISOR ───────────────────────────────────────────────────────────
     Route::middleware('role:supervisor')->prefix('supervisor')->group(function () {
         Route::get('/students', [StudentController::class, 'index']);
+        Route::get('/students/{id}/summary', [StudentController::class, 'summary']);
         Route::get('/students/{id}/logs', [StudentController::class, 'logs']);
         Route::put('/verifications/{logId}', [VerificationController::class, 'update']);
     });

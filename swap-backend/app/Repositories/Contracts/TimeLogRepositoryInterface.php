@@ -24,4 +24,6 @@ interface TimeLogRepositoryInterface
     public function getHoursSummary(int $userId): array;
 
     public function getPendingVerificationsCount(int $supervisorId): int;
+
+    public function getVerifiedThisWeekCount(int $supervisorId): int;
 }

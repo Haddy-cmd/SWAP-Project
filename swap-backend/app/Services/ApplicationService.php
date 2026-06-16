@@ -23,6 +23,14 @@ class ApplicationService
 
     public function submitApplication(User $user, array $data): Application
     {
+        // Once an application is approved, the applicant is in the pipeline waiting for
+        // an office assignment and may not submit further applications.
+        if ($this->applicationRepository->findByUser($user->id)->contains('status', 'approved')) {
+            throw new ConflictHttpException(
+                'Your application has already been approved. Please wait for the office assignment announcement.'
+            );
+        }
+
         $existing = $this->applicationRepository->findForUserAndPeriod(
             $user->id,
             $data['academic_year'],
