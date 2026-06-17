@@ -28,6 +28,13 @@ export interface Office {
   location: string | null
   max_recipients: number
   is_active: boolean
+  latitude: number | string | null
+  longitude: number | string | null
+  radius_meters: number | null
+  geofence_enabled: boolean
+  qr_code?: string | null
+  active_recipients?: number
+  supervisors_count?: number
 }
 
 export interface CreateAssignmentData {

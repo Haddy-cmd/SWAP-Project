@@ -47,3 +47,13 @@ export interface StipendRecord {
   created_at: string
   recipient?: import('./auth.types').User
 }
+
+export interface EligibleStipend {
+  user_id: number
+  name: string
+  academic_year: string
+  semester: string
+  required_hours: number
+  verified_hours: number
+  suggested_amount: number
+}

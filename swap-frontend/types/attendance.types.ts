@@ -12,10 +12,25 @@ export interface TimeLog {
   verified_by: number | null
   verified_at: string | null
   rejection_reason: string | null
+  clocked_out_reason?: 'manual' | 'auto' | 'auto_stale' | null
+  location_flagged?: boolean
+  time_in_accuracy?: number | string | null
+  time_out_accuracy?: number | string | null
   has_narrative: boolean
   created_at: string
   narrative_report?: NarrativeReport | null
   verifications?: Verification[]
+  office?: TimeLogOffice | null
+  user?: { id: number; name: string }
+}
+
+export interface TimeLogOffice {
+  id: number
+  name: string
+  latitude: number | string | null
+  longitude: number | string | null
+  radius_meters: number | null
+  geofence_enabled: boolean
 }
 
 export interface HoursSummary {

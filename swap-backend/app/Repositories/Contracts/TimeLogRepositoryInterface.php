@@ -17,6 +17,8 @@ interface TimeLogRepositoryInterface
 
     public function paginateForSupervisor(int $supervisorId, array $filters = [], int $perPage = 15): LengthAwarePaginator;
 
+    public function paginateForUser(int $userId, array $filters = [], int $perPage = 15): LengthAwarePaginator;
+
     public function create(array $data): TimeLog;
 
     public function update(TimeLog $log, array $data): TimeLog;

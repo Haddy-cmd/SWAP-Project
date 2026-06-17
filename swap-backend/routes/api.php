@@ -24,10 +24,11 @@ use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
-Route::post('/auth/register', [AuthController::class, 'register']);
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPassword']);
-Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword']);
+// Throttle sensitive auth endpoints to deter brute-force and email-flooding.
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPassword'])->middleware('throttle:3,1');
+Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:6,1');
 Route::get('/chatbot/query', [ChatbotController::class, 'query']);
 Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
 Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
@@ -55,9 +56,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ─── RECIPIENT ────────────────────────────────────────────────────────────
     Route::middleware('role:recipient')->prefix('recipient')->group(function () {
+        Route::get('/assignment', [AttendanceController::class, 'assignment']);
         Route::get('/attendance/current', [AttendanceController::class, 'current']);
-        Route::post('/attendance/time-in', [AttendanceController::class, 'timeIn']);
+        Route::get('/attendance/logs', [AttendanceController::class, 'logs']);
+        Route::post('/attendance/time-in-geofence', [AttendanceController::class, 'timeInGeofence']);
         Route::post('/attendance/time-out', [AttendanceController::class, 'timeOut']);
+        Route::post('/attendance/auto-clock-out', [AttendanceController::class, 'autoClockOut']);
         Route::post('/narratives', [NarrativeController::class, 'store'])->withoutMiddleware('role:recipient');
         Route::get('/narratives/{logId}', [NarrativeController::class, 'show']);
         Route::get('/hours/summary', [HoursController::class, 'summary']);
@@ -70,8 +74,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // ─── SUPERVISOR ───────────────────────────────────────────────────────────
     Route::middleware('role:supervisor')->prefix('supervisor')->group(function () {
         Route::get('/students', [StudentController::class, 'index']);
+        Route::get('/students/clocked-in', [StudentController::class, 'clockedIn']);
         Route::get('/students/{id}/summary', [StudentController::class, 'summary']);
         Route::get('/students/{id}/logs', [StudentController::class, 'logs']);
+        Route::post('/verifications/bulk', [VerificationController::class, 'bulkVerify']);
         Route::put('/verifications/{logId}', [VerificationController::class, 'update']);
     });
 
@@ -92,12 +98,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/offices', [OfficeController::class, 'store']);
         Route::put('/offices/{id}', [OfficeController::class, 'update']);
         Route::delete('/offices/{id}', [OfficeController::class, 'destroy']);
+        Route::post('/offices/{id}/qr', [OfficeController::class, 'qr']);
+        Route::get('/offices/{id}/supervisors', [OfficeController::class, 'supervisors']);
+        Route::post('/offices/{id}/supervisors', [OfficeController::class, 'assignSupervisor']);
+        Route::delete('/offices/{id}/supervisors/{supervisorId}', [OfficeController::class, 'removeSupervisor']);
 
         Route::get('/users', [UserController::class, 'index']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
 
         Route::get('/stipend', [StipendController::class, 'index']);
+        Route::get('/stipend/eligible', [StipendController::class, 'eligible']);
         Route::post('/stipend/release', [StipendController::class, 'release']);
 
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);

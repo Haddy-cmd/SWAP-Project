@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Users, CheckSquare, Clock } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
 
 export default function SupervisorDashboard() {
   const { user } = useAuthStore()
@@ -12,6 +13,13 @@ export default function SupervisorDashboard() {
   const { data: studentsData } = useQuery({
     queryKey: ['supervisor-students'],
     queryFn: () => attendanceApi.getSupervisorStudents(),
+  })
+
+  // Live view of students currently on the clock — refreshed every 20s.
+  const { data: clockedIn = [] } = useQuery({
+    queryKey: ['supervisor-clocked-in'],
+    queryFn: () => attendanceApi.getClockedInStudents(),
+    refetchInterval: 20_000,
   })
 
   type StudentRow = {
@@ -55,6 +63,34 @@ export default function SupervisorDashboard() {
           </Link>
         ))}
       </div>
+
+      {clockedIn.length > 0 && (
+        <div className="rounded-2xl border border-green-200 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center gap-2">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#27AE60]" />
+            <h2 className="font-semibold text-[#1E293B]">Currently Clocked In</h2>
+            <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-[#27AE60]">{clockedIn.length}</span>
+          </div>
+          <div className="space-y-2">
+            {clockedIn.map((log) => (
+              <Link
+                key={log.id}
+                href={`/supervisor/students/${log.user_id}/logs`}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[#F1F5F9] px-4 py-3 hover:bg-[#F8FAFC] transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[#1E293B]">{log.user?.name ?? 'Recipient'}</p>
+                  <p className="text-xs text-[#8A6A6A]">
+                    {log.office?.name ?? '—'}
+                    {log.location_flagged && <span className="ml-2 font-medium text-[#92400E]">· location unverified</span>}
+                  </p>
+                </div>
+                {log.time_in && <LiveTimerChip timeIn={log.time_in} />}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-2xl border border-[#EAD9D9] bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">

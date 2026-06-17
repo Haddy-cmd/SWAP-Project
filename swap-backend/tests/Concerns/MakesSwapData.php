@@ -56,9 +56,24 @@ trait MakesSwapData
         ], $attrs));
     }
 
+    protected function makeGeofencedOffice(array $attrs = []): Office
+    {
+        return $this->makeOffice(array_merge([
+            'geofence_enabled' => true,
+            'latitude' => 8.0,
+            'longitude' => 124.0,
+            'radius_meters' => 100,
+        ], $attrs));
+    }
+
     protected function qrFor(Assignment $assignment): string
     {
         return app(QrCodeService::class)->generateForAssignment($assignment->fresh());
+    }
+
+    protected function qrForOffice(Office $office): string
+    {
+        return app(QrCodeService::class)->generateForOffice($office->fresh());
     }
 
     protected function makeOpenLog(Assignment $assignment, User $recipient, ?Carbon $timeIn = null): TimeLog

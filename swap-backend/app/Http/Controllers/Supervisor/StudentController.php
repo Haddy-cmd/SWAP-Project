@@ -31,9 +31,22 @@ class StudentController extends Controller
         ]);
     }
 
+    public function clockedIn(Request $request): JsonResponse
+    {
+        $logs = \App\Models\TimeLog::with(['user.profile', 'assignment.office'])
+            ->where('status', 'open')
+            ->whereHas('assignment', fn ($q) => $q->where('supervisor_id', $request->user()->id))
+            ->orderBy('time_in')
+            ->get();
+
+        return response()->json([
+            'data' => TimeLogResource::collection($logs),
+        ]);
+    }
+
     public function summary(Request $request, int $studentId): JsonResponse
     {
-        $assignment = Assignment::with('user.profile')
+        $assignment = Assignment::with(['user.profile', 'office'])
             ->where('user_id', $studentId)
             ->where('supervisor_id', $request->user()->id)
             ->where('status', 'active')
@@ -48,6 +61,11 @@ class StudentController extends Controller
             'student' => [
                 'id' => $assignment->user->id,
                 'name' => $assignment->user->profile?->full_name ?? $assignment->user->name,
+                'email' => $assignment->user->email,
+                'office' => $assignment->office?->name,
+                'academic_year' => $assignment->academic_year,
+                'semester' => $assignment->semester,
+                'required_hours' => $assignment->required_hours,
             ],
         ]);
     }

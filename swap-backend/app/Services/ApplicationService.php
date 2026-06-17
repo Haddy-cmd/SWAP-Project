@@ -31,6 +31,18 @@ class ApplicationService
             );
         }
 
+        // An applicant with an application still in progress (submitted, under review, or
+        // scheduled for interview) may not submit another until it is decided.
+        $inProgress = $this->applicationRepository->findByUser($user->id)
+            ->whereIn('status', ['submitted', 'under_review', 'interview_scheduled'])
+            ->first();
+
+        if ($inProgress) {
+            throw new ConflictHttpException(
+                'You already have an application in progress. Please wait for it to be reviewed before submitting another.'
+            );
+        }
+
         $existing = $this->applicationRepository->findForUserAndPeriod(
             $user->id,
             $data['academic_year'],
@@ -85,9 +97,18 @@ class ApplicationService
         return $updated;
     }
 
+    /** Default venue for in-person interviews. */
+    public const DSA_OFFICE_LOCATION = 'Office of the Dean of Students Affairs (DSA)';
+
     public function scheduleInterview(Application $application, array $interviewData, User $admin): Application
     {
         $old = $application->only(['status']);
+
+        // In-person interviews are always held at the DSA office, so the applicant must
+        // know the venue. Fall back to the DSA office when no specific location is given.
+        if (($interviewData['mode'] ?? null) === 'in_person' && empty($interviewData['location'])) {
+            $interviewData['location'] = self::DSA_OFFICE_LOCATION;
+        }
 
         $application->interview()->updateOrCreate(
             ['application_id' => $application->id],

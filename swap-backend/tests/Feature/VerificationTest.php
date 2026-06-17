@@ -72,4 +72,25 @@ class VerificationTest extends TestCase
 
         $this->assertEquals('pending_verification', $log->fresh()->status);
     }
+
+    public function test_bulk_verify_verifies_owned_pending_and_skips_others(): void
+    {
+        $supervisor = $this->makeUser('supervisor');
+        $mine1 = $this->pendingLog($this->makeUser('recipient'), $supervisor);
+        $mine2 = $this->pendingLog($this->makeUser('recipient'), $supervisor);
+        $other = $this->pendingLog($this->makeUser('recipient'), $this->makeUser('supervisor'));
+
+        Sanctum::actingAs($supervisor);
+        $res = $this->postJson('/api/supervisor/verifications/bulk', [
+            'log_ids' => [$mine1->id, $mine2->id, $other->id],
+        ]);
+
+        $res->assertStatus(200)
+            ->assertJsonPath('meta.verified', 2)
+            ->assertJsonPath('meta.skipped', 1);
+
+        $this->assertEquals('verified', $mine1->fresh()->status);
+        $this->assertEquals('verified', $mine2->fresh()->status);
+        $this->assertEquals('pending_verification', $other->fresh()->status);
+    }
 }

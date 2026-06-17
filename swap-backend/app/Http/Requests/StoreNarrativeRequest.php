@@ -15,8 +15,8 @@ class StoreNarrativeRequest extends FormRequest
     {
         return [
             'time_log_id' => ['required', 'integer', 'exists:time_logs,id'],
-            'content' => ['required', 'string', 'min:50', 'max:5000'],
-            'activities_done' => ['required', 'string', 'min:20', 'max:3000'],
+            'content' => ['required', 'string', 'min:10', 'max:5000'],
+            'activities_done' => ['required', 'string', 'min:10', 'max:3000'],
             'challenges' => ['nullable', 'string', 'max:2000'],
         ];
     }

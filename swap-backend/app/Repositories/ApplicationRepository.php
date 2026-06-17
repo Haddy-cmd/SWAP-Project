@@ -40,6 +40,10 @@ class ApplicationRepository implements ApplicationRepositoryInterface
             $query->where('status', $filters['status']);
         }
 
+        if (!empty($filters['exclude_status'])) {
+            $query->whereNotIn('status', (array) $filters['exclude_status']);
+        }
+
         if (!empty($filters['academic_year'])) {
             $query->where('academic_year', $filters['academic_year']);
         }

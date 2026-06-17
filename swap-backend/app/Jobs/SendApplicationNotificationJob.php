@@ -5,6 +5,8 @@ namespace App\Jobs;
 use App\Models\User;
 use App\Notifications\ApplicationApprovedNotification;
 use App\Notifications\ApplicationRejectedNotification;
+use App\Notifications\ApplicationSubmittedNotification;
+use App\Notifications\HoursPendingVerificationNotification;
 use App\Notifications\HoursRejectedNotification;
 use App\Notifications\HoursVerifiedNotification;
 use App\Notifications\InterviewScheduledNotification;
@@ -36,11 +38,13 @@ class SendApplicationNotificationJob implements ShouldQueue
         }
 
         $notification = match ($this->type) {
+            'application_submitted' => new ApplicationSubmittedNotification($this->data),
             'application_approved' => new ApplicationApprovedNotification($this->data),
             'application_rejected' => new ApplicationRejectedNotification($this->data),
             'interview_scheduled' => new InterviewScheduledNotification($this->data),
             'hours_verified' => new HoursVerifiedNotification($this->data),
             'hours_rejected' => new HoursRejectedNotification($this->data),
+            'supervisor_time_out' => new HoursPendingVerificationNotification($this->data),
             'stipend_released' => new StipendReleasedNotification($this->data),
             default => null,
         };

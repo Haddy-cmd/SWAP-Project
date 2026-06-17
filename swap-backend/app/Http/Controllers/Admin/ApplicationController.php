@@ -17,7 +17,7 @@ class ApplicationController extends Controller
     public function index(Request $request): JsonResponse
     {
         $applications = $this->applicationService->paginateForAdmin($request->only([
-            'status', 'academic_year', 'semester', 'search',
+            'status', 'exclude_status', 'academic_year', 'semester', 'search',
         ]));
 
         return response()->json([

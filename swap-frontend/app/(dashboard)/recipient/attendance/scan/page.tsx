@@ -6,6 +6,7 @@ import { CheckCircle, AlertTriangle } from 'lucide-react'
 import { QrScanner } from '@/components/attendance/QrScanner'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
+import { getCurrentPosition } from '@/lib/utils/geolocation'
 
 export default function ScanAttendancePage() {
   const queryClient = useQueryClient()
@@ -13,7 +14,15 @@ export default function ScanAttendancePage() {
   const [scanned, setScanned] = useState(false)
 
   const timeIn = useMutation({
-    mutationFn: (token: string) => attendanceApi.timeIn(token),
+    mutationFn: async (token: string) => {
+      let coords
+      try {
+        coords = await getCurrentPosition()
+      } catch {
+        coords = undefined
+      }
+      return attendanceApi.timeInGeofence(token, coords)
+    },
     onSuccess: (res) => {
       setResult({
         type: 'success',

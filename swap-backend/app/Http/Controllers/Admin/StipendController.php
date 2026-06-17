@@ -29,6 +29,13 @@ class StipendController extends Controller
         ]);
     }
 
+    public function eligible(): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->stipendService->eligibleRecipients(),
+        ]);
+    }
+
     public function release(Request $request): JsonResponse
     {
         $validated = $request->validate([

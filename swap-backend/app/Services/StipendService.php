@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Events\StipendReleased;
+use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\StipendHistory;
 use App\Models\User;
@@ -10,6 +11,42 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class StipendService
 {
+    /** Default monthly stipend (PHP) suggested when releasing — admin can override. */
+    private const DEFAULT_STIPEND_AMOUNT = 1500;
+
+    /**
+     * Recipients whose active assignment has met its required verified hours and who have
+     * not yet been paid for that academic period.
+     */
+    public function eligibleRecipients(): array
+    {
+        $assignments = Assignment::with('user.profile')
+            ->where('status', 'active')
+            ->where('required_hours', '>', 0)
+            ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
+            ->get()
+            ->filter(fn ($a) => (float) ($a->verified_sum ?? 0) >= (float) $a->required_hours);
+
+        $releasedKeys = StipendHistory::where('status', 'released')
+            ->get(['user_id', 'academic_year', 'semester'])
+            ->map(fn ($s) => "{$s->user_id}|{$s->academic_year}|{$s->semester}")
+            ->flip();
+
+        return $assignments
+            ->reject(fn ($a) => $releasedKeys->has("{$a->user_id}|{$a->academic_year}|{$a->semester}"))
+            ->map(fn ($a) => [
+                'user_id' => $a->user_id,
+                'name' => $a->user->profile?->full_name ?? $a->user->name,
+                'academic_year' => $a->academic_year,
+                'semester' => $a->semester,
+                'required_hours' => (float) $a->required_hours,
+                'verified_hours' => (float) ($a->verified_sum ?? 0),
+                'suggested_amount' => self::DEFAULT_STIPEND_AMOUNT,
+            ])
+            ->values()
+            ->all();
+    }
+
     public function getHistory(User $user, int $perPage = 15): LengthAwarePaginator
     {
         return StipendHistory::where('user_id', $user->id)

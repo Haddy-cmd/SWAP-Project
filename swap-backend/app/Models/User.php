@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -21,6 +22,7 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
+        'office_id',
     ];
 
     protected $hidden = [
@@ -40,6 +42,12 @@ class User extends Authenticatable
     public function profile(): HasOne
     {
         return $this->hasOne(StudentProfile::class);
+    }
+
+    /** The office this supervisor is assigned to (supervisors only). */
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class);
     }
 
     public function applications(): HasMany

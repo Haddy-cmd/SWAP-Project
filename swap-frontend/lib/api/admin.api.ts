@@ -1,6 +1,6 @@
 import apiClient from './axios'
 import type { User } from '@/types/auth.types'
-import type { StipendRecord } from '@/types/analytics.types'
+import type { StipendRecord, EligibleStipend } from '@/types/analytics.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
 export const adminApi = {
@@ -15,6 +15,9 @@ export const adminApi = {
 
   getStipendRecords: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<StipendRecord>>('/admin/stipend', { params }).then((r) => r.data),
+
+  getEligibleStipends: () =>
+    apiClient.get<{ data: EligibleStipend[] }>('/admin/stipend/eligible').then((r) => r.data.data),
 
   releaseStipend: (data: {
     user_id: number

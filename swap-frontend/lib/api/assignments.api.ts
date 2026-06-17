@@ -26,4 +26,16 @@ export const assignmentsApi = {
 
   deleteOffice: (id: number) =>
     apiClient.delete(`/admin/offices/${id}`).then((r) => r.data),
+
+  generateOfficeQr: (id: number) =>
+    apiClient.post<ApiResponse<{ qr_code: string }>>(`/admin/offices/${id}/qr`).then((r) => r.data),
+
+  getOfficeSupervisors: (id: number) =>
+    apiClient.get<{ data: import('@/types/auth.types').User[] }>(`/admin/offices/${id}/supervisors`).then((r) => r.data.data),
+
+  assignSupervisorToOffice: (id: number, supervisorId: number) =>
+    apiClient.post(`/admin/offices/${id}/supervisors`, { supervisor_id: supervisorId }).then((r) => r.data),
+
+  removeSupervisorFromOffice: (id: number, supervisorId: number) =>
+    apiClient.delete(`/admin/offices/${id}/supervisors/${supervisorId}`).then((r) => r.data),
 }

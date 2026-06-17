@@ -11,8 +11,8 @@ import { attendanceApi } from '@/lib/api/attendance.api'
 import type { ApiError } from '@/types/api.types'
 
 const schema = z.object({
-  content: z.string().min(20, 'Please write at least 20 characters'),
-  activities_done: z.string().min(10, 'Describe your activities'),
+  content: z.string().min(10, 'Please write at least 10 characters'),
+  activities_done: z.string().min(10, 'Please write at least 10 characters'),
   challenges: z.string().optional(),
 })
 

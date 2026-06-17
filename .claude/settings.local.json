@@ -21,7 +21,8 @@
       "Bash(npx vitest *)",
       "Bash(npm run *)",
       "Bash(curl -s -o /dev/null -w \"backend :8000 -> HTTP %{http_code}\\\\n\" \"http://localhost:8000/api/chatbot/query?message=hello\")",
-      "PowerShell(php artisan migrate)"
+      "PowerShell(php artisan migrate)",
+      "PowerShell(php artisan migrate 2>&1)"
     ]
   }
 }

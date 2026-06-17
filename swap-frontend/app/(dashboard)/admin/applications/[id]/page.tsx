@@ -14,9 +14,10 @@ export default function AdminApplicationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
+  const DSA_OFFICE = 'Office of the Dean of Students Affairs (DSA)'
   const [remarks, setRemarks] = useState('')
   const [interviewDate, setInterviewDate] = useState('')
-  const [location, setLocation] = useState('')
+  const [location, setLocation] = useState(DSA_OFFICE)
   const [mode, setMode] = useState<'in_person' | 'online'>('in_person')
 
   const { data: application, isLoading } = useQuery({
@@ -140,15 +141,30 @@ export default function AdminApplicationDetailPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-[#64748B]">Mode</label>
-                  <select value={mode} onChange={(e) => setMode(e.target.value as 'in_person' | 'online')}
+                  <select value={mode} onChange={(e) => {
+                    const next = e.target.value as 'in_person' | 'online'
+                    setMode(next)
+                    // Default an in-person venue to the DSA office; clear it for online links.
+                    if (next === 'in_person' && (!location || location === '')) setLocation(DSA_OFFICE)
+                    if (next === 'online' && location === DSA_OFFICE) setLocation('')
+                  }}
                     className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
                     <option value="in_person">In Person</option>
                     <option value="online">Online</option>
                   </select>
                 </div>
               </div>
-              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Location / meeting link"
-                className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+              <div>
+                <label className="mb-1 block text-xs font-medium text-[#64748B]">
+                  {mode === 'in_person' ? 'Venue' : 'Meeting link'}
+                </label>
+                <input value={location} onChange={(e) => setLocation(e.target.value)}
+                  placeholder={mode === 'in_person' ? 'Office of the Dean of Students Affairs (DSA)' : 'https://meet.example.com/…'}
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+                {mode === 'in_person' && (
+                  <p className="mt-1 text-xs text-[#64748B]">In-person interviews are held at the DSA office. Leave as-is unless it changes.</p>
+                )}
+              </div>
               <button onClick={() => scheduleInterview.mutate()} disabled={scheduleInterview.isPending || !interviewDate}
                 className="flex items-center gap-2 rounded-xl bg-[#1B4F72] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2980B9] disabled:opacity-50 transition-colors">
                 <Calendar className="h-4 w-4" />

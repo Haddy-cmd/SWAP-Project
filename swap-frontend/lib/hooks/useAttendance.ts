@@ -4,16 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import type { StoreNarrativeData, VerifyLogData } from '@/types/attendance.types'
 
-export function useTimeIn() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (qrToken: string) => attendanceApi.timeIn(qrToken),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['hours'] })
-    },
-  })
-}
-
 export function useTimeOut() {
   const qc = useQueryClient()
   return useMutation({

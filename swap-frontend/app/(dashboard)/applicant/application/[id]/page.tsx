@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Download } from 'lucide-react'
+import { ArrowLeft, Download, Calendar, MapPin, Video } from 'lucide-react'
 import Link from 'next/link'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -96,6 +96,57 @@ export default function ApplicationDetailPage() {
               )}
             </dl>
           </div>
+
+          {/* Interview schedule */}
+          {application.interview && (
+            <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] p-6 shadow-sm">
+              <div className="mb-4 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-[#1B4F72]" />
+                <h2 className="font-semibold text-[#1B4F72]">Interview Scheduled</h2>
+              </div>
+              <dl className="space-y-3 text-sm">
+                <div className="flex items-start gap-2">
+                  <Calendar className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1B4F72]" />
+                  <div>
+                    <dt className="text-[#64748B]">Date &amp; Time</dt>
+                    <dd className="font-semibold text-[#1E293B]">{formatDateTime(application.interview.scheduled_at)}</dd>
+                  </div>
+                </div>
+
+                {application.interview.mode === 'online' ? (
+                  <div className="flex items-start gap-2">
+                    <Video className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1B4F72]" />
+                    <div className="min-w-0">
+                      <dt className="text-[#64748B]">Mode — Online</dt>
+                      <dd className="font-semibold text-[#1E293B] break-words">
+                        {application.interview.location
+                          ? application.interview.location
+                          : 'A meeting link will be shared with you.'}
+                      </dd>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1B4F72]" />
+                    <div>
+                      <dt className="text-[#64748B]">Mode — In Person · Venue</dt>
+                      <dd className="font-semibold text-[#1E293B]">
+                        {application.interview.location ?? 'Office of the Dean of Students Affairs (DSA)'}
+                      </dd>
+                      <dd className="mt-0.5 text-xs text-[#64748B]">Please arrive at the DSA office on time and bring a valid ID.</dd>
+                    </div>
+                  </div>
+                )}
+
+                {application.interview.notes && (
+                  <div className="rounded-lg border border-[#BFDBFE] bg-white px-3 py-2">
+                    <dt className="mb-0.5 text-xs text-[#64748B]">Notes</dt>
+                    <dd className="text-[#1E293B]">{application.interview.notes}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
 
           {/* Documents */}
           {application.documents && application.documents.length > 0 && (

@@ -63,6 +63,20 @@ class TimeLogRepository implements TimeLogRepositoryInterface
         return $query->paginate($perPage);
     }
 
+    public function paginateForUser(int $userId, array $filters = [], int $perPage = 15): LengthAwarePaginator
+    {
+        $query = TimeLog::with(['assignment.office', 'narrativeReport', 'verifications.verifier'])
+            ->where('user_id', $userId)
+            ->orderByDesc('date')
+            ->orderByDesc('time_in');
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        return $query->paginate($perPage);
+    }
+
     public function create(array $data): TimeLog
     {
         return TimeLog::create($data);

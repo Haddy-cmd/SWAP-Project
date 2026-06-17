@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { Users } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { formatHours } from '@/lib/utils/formatHours'
 
 export default function SupervisorStudentsPage() {
   const { data, isLoading } = useQuery({
@@ -52,7 +53,7 @@ export default function SupervisorStudentsPage() {
                     </td>
                     <td className="px-4 py-3 text-[#64748B]">{String(s.office_name ?? '—')}</td>
                     <td className="px-4 py-3 font-medium text-[#27AE60]">
-                      {Number(s.verified_hours ?? 0).toFixed(1)} hrs
+                      {formatHours(Number(s.verified_hours ?? 0))}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Link

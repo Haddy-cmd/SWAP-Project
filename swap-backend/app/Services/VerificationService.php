@@ -55,6 +55,34 @@ class VerificationService
         return $updated;
     }
 
+    /**
+     * Approve many pending logs at once. Logs not owned by the supervisor or not pending
+     * are skipped (not fatal), so one bad id doesn't abort the batch.
+     */
+    public function bulkVerify(array $logIds, User $supervisor): array
+    {
+        $verified = 0;
+        $skipped = 0;
+
+        foreach ($logIds as $id) {
+            $log = $this->timeLogRepository->findById((int) $id);
+
+            if (!$log) {
+                $skipped++;
+                continue;
+            }
+
+            try {
+                $this->verify($log, $supervisor, 'verified', null);
+                $verified++;
+            } catch (\Throwable) {
+                $skipped++;
+            }
+        }
+
+        return ['verified' => $verified, 'skipped' => $skipped];
+    }
+
     private function assertSupervisorOwnsLog(TimeLog $log, User $supervisor): void
     {
         if ($log->assignment->supervisor_id !== $supervisor->id) {

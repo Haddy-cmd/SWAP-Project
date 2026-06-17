@@ -6,6 +6,8 @@ export interface User {
   email: string
   role: UserRole
   is_active: boolean
+  office_id?: number | null
+  office_name?: string | null
   email_verified_at: string | null
   created_at: string
   profile?: StudentProfile

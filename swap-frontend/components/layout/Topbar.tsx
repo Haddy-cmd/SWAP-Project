@@ -1,18 +1,37 @@
 'use client'
 
 import Link from 'next/link'
-import { Bell } from 'lucide-react'
+import { Bell, Menu } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useNotifications } from '@/lib/hooks/useNotifications'
+import { useUIStore } from '@/lib/store/uiStore'
 
 export function Topbar() {
   const { user } = useAuthStore()
   const { data } = useNotifications()
   const unread = data?.meta?.unread_count ?? 0
+  const { toggleDesktopSidebar, toggleMobileSidebar } = useUIStore()
+
+  // One button: collapse the column on desktop, open the drawer on mobile.
+  const toggleSidebar = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+      toggleDesktopSidebar()
+    } else {
+      toggleMobileSidebar()
+    }
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#EAD9D9] bg-white px-6 shadow-sm">
       <div className="flex items-center gap-3">
+        <button
+          onClick={toggleSidebar}
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#7D1A1A] hover:bg-[#FEF0F0] active:scale-95 transition-all"
+          aria-label="Toggle menu"
+          title="Toggle menu"
+        >
+          <Menu className="h-[22px] w-[22px]" />
+        </button>
         <div className="h-5 w-[3px] rounded-full bg-[#7D1A1A]" />
         <div>
           <p className="text-sm font-semibold text-[#1E293B] capitalize">

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
+import { Search, CheckCircle2, ArrowRight } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDate } from '@/lib/utils/formatDate'
@@ -19,7 +19,9 @@ export default function AdminApplicationsPage() {
       applicationsApi.adminListApplications({
         page: String(page),
         ...(search && { search }),
-        ...(status && { status }),
+        // Approved applicants graduate to the Assignments queue, so hide them from the
+        // review list by default. They remain reachable via the "Approved" filter.
+        ...(status ? { status } : { exclude_status: 'approved' }),
       }),
   })
 
@@ -31,6 +33,21 @@ export default function AdminApplicationsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#1E293B]">Applications</h1>
       </div>
+
+      {/* Approved applicants move to the assignment queue */}
+      <Link
+        href="/admin/assignments"
+        className="flex items-center justify-between gap-3 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-3 text-sm transition-colors hover:bg-[#DCFCE7]"
+      >
+        <span className="flex items-center gap-2 font-medium text-[#166534]">
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+          Approved applicants move to the Assignments queue, ready to be onboarded to an office.
+        </span>
+        <span className="flex flex-shrink-0 items-center gap-1 font-semibold text-[#166534]">
+          Go to Assignments
+          <ArrowRight className="h-4 w-4" />
+        </span>
+      </Link>
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -48,7 +65,7 @@ export default function AdminApplicationsPage() {
           onChange={(e) => { setStatus(e.target.value); setPage(1) }}
           className="rounded-xl border border-[#DCC5C5] bg-white px-4 py-2.5 text-sm text-[#1E293B] focus:border-[#7D1A1A] focus:outline-none"
         >
-          <option value="">All Status</option>
+          <option value="">All Active</option>
           <option value="submitted">Submitted</option>
           <option value="under_review">Under Review</option>
           <option value="interview_scheduled">Interview Scheduled</option>

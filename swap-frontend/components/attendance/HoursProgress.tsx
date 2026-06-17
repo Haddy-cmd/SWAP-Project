@@ -1,4 +1,4 @@
-import { toPercent, formatHours } from '@/lib/utils/formatHours'
+import { toPercent, formatPercent, formatHours } from '@/lib/utils/formatHours'
 import type { HoursSummary } from '@/types/attendance.types'
 
 interface HoursProgressProps {
@@ -7,11 +7,13 @@ interface HoursProgressProps {
 
 function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = toPercent(value, max)
+  // Keep a faint visible sliver for any non-zero progress so short sessions still register.
+  const width = pct > 0 && pct < 1.5 ? 1.5 : pct
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-[#E2E8F0]">
       <div
         className={`h-full rounded-full transition-all duration-500 ${color}`}
-        style={{ width: `${pct}%` }}
+        style={{ width: `${width}%` }}
       />
     </div>
   )
@@ -26,7 +28,7 @@ export function HoursProgress({ summary }: HoursProgressProps) {
         <div className="mb-1 flex justify-between text-sm">
           <span className="font-medium text-[#1E293B]">Verified Hours</span>
           <span className="text-[#27AE60] font-semibold">
-            {formatHours(verified)} / {formatHours(required)} ({toPercent(verified, required)}%)
+            {formatHours(verified)} / {formatHours(required)} ({formatPercent(verified, required)}%)
           </span>
         </div>
         <ProgressBar value={verified} max={required} color="bg-[#27AE60]" />

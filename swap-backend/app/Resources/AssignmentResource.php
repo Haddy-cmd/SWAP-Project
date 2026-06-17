@@ -34,6 +34,7 @@ class AssignmentResource extends JsonResource
                 'location' => $this->office->location,
                 'head_name' => $this->office->head_name,
             ]),
+            'office_name' => $this->whenLoaded('office', fn () => $this->office?->name),
             'supervisor' => $this->whenLoaded('supervisor', fn () => new UserResource($this->supervisor)),
         ];
     }

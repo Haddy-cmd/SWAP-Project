@@ -55,11 +55,13 @@ class AssignmentController extends Controller
             'status' => ['sometimes', 'string', 'in:active,completed,suspended'],
             'required_hours' => ['sometimes', 'integer', 'min:1'],
             'end_date' => ['nullable', 'date'],
+            'office_id' => ['sometimes', 'integer', 'exists:offices,id'],
+            'supervisor_id' => ['sometimes', 'integer', 'exists:users,id'],
         ]);
 
         $updated = $this->assignmentService->updateAssignment(
             $assignment,
-            $request->only(['status', 'required_hours', 'end_date']),
+            $request->only(['status', 'required_hours', 'end_date', 'office_id', 'supervisor_id']),
             $request->user()
         );
 

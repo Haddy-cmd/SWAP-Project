@@ -13,14 +13,17 @@ class AttendanceTest extends TestCase
 {
     use RefreshDatabase, MakesSwapData;
 
-    public function test_time_in_with_valid_qr_opens_a_log(): void
+    public function test_geofenced_time_in_within_premises_opens_a_log(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
-        $token = $this->qrFor($assignment);
+        $office = $this->makeGeofencedOffice();
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $token = $this->qrForOffice($office);
 
         Sanctum::actingAs($recipient);
-        $res = $this->postJson('/api/recipient/attendance/time-in', ['qr_token' => $token]);
+        $res = $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ]);
 
         $res->assertStatus(201)->assertJsonPath('data.status', 'open');
         $this->assertNull($res->json('data.time_out'));
@@ -32,23 +35,56 @@ class AttendanceTest extends TestCase
     public function test_second_time_in_same_day_conflicts(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
-        $token = $this->qrFor($assignment);
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $token = $this->qrForOffice($office);
+        $payload = ['qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0];
 
         Sanctum::actingAs($recipient);
-        $this->postJson('/api/recipient/attendance/time-in', ['qr_token' => $token])->assertStatus(201);
-        $this->postJson('/api/recipient/attendance/time-in', ['qr_token' => $token])->assertStatus(409);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', $payload)->assertStatus(201);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', $payload)->assertStatus(409);
     }
 
-    public function test_time_in_with_tampered_qr_is_rejected(): void
+    public function test_time_in_outside_geofence_is_rejected(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
-        $token = $this->qrFor($assignment);
-        $tampered = substr($token, 0, -1).'X';
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $token = $this->qrForOffice($office);
 
         Sanctum::actingAs($recipient);
-        $this->postJson('/api/recipient/attendance/time-in', ['qr_token' => $tampered])->assertStatus(422);
+        // Coordinates on another continent — well outside the 100m radius.
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $token, 'latitude' => 40.0, 'longitude' => -74.0,
+        ])->assertStatus(422);
+    }
+
+    public function test_time_in_with_tampered_office_qr_is_rejected(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $tampered = substr($this->qrForOffice($office), 0, -1).'X';
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $tampered, 'latitude' => 8.0, 'longitude' => 124.0,
+        ])->assertStatus(422);
+    }
+
+    public function test_poor_gps_accuracy_flags_the_log(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $token = $this->qrForOffice($office);
+
+        Sanctum::actingAs($recipient);
+        $res = $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 250,
+        ]);
+
+        $res->assertStatus(201)->assertJsonPath('data.location_flagged', true);
     }
 
     /**
@@ -115,6 +151,27 @@ class AttendanceTest extends TestCase
         $this->postJson('/api/recipient/attendance/time-out', [
             'log_id' => $log->id, 'qr_token' => $token,
         ])->assertStatus(200)->assertJsonPath('data.status', 'pending_verification');
+    }
+
+    public function test_close_stale_command_closes_old_open_logs_and_caps_duration(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $stale = $this->makeOpenLog($assignment, $recipient, now()->subHours(15));
+
+        // A recent (<12h) open log for a different recipient must be left untouched.
+        $fresh = $this->makeUser('recipient');
+        $freshAssignment = $this->makeAssignment($fresh, $this->makeUser('supervisor'));
+        $freshLog = $this->makeOpenLog($freshAssignment, $fresh, now()->subHours(2));
+
+        $this->artisan('attendance:close-stale', ['--hours' => 12])->assertExitCode(0);
+
+        $staleFresh = $stale->fresh();
+        $this->assertSame('pending_verification', $staleFresh->status);
+        $this->assertSame('auto_stale', $staleFresh->clocked_out_reason);
+        $this->assertEquals(12.0, (float) $staleFresh->duration_hours); // capped at time_in + 12h
+
+        $this->assertSame('open', $freshLog->fresh()->status);
     }
 
     public function test_hours_summary_returns_expected_keys(): void

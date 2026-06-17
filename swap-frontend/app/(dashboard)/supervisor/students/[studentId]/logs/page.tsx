@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, MapPinOff } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDateTime } from '@/lib/utils/formatDate'
@@ -14,6 +14,7 @@ export default function StudentLogsPage() {
   const { studentId } = useParams<{ studentId: string }>()
   const queryClient = useQueryClient()
   const [feedback, setFeedback] = useState<Record<number, string>>({})
+  const [selected, setSelected] = useState<Set<number>>(new Set())
 
   const { data: logsData, isLoading } = useQuery({
     queryKey: ['student-logs', studentId],
@@ -21,18 +22,38 @@ export default function StudentLogsPage() {
     enabled: !!studentId,
   })
 
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ['student-logs', studentId] })
+    queryClient.invalidateQueries({ queryKey: ['student-summary', studentId] })
+    queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
+  }
+
   const verify = useMutation({
     mutationFn: ({ logId, action, fb }: { logId: number; action: 'verified' | 'rejected'; fb: string }) =>
       attendanceApi.verifyLog(logId, { action, feedback: fb }),
+    onSuccess: invalidate,
+  })
+
+  const bulkVerify = useMutation({
+    mutationFn: (logIds: number[]) => attendanceApi.verifyLogsBulk(logIds),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['student-logs', studentId] })
-      queryClient.invalidateQueries({ queryKey: ['student-summary', studentId] })
-      queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
+      setSelected(new Set())
+      invalidate()
     },
   })
 
   const logs = logsData?.data ?? []
   const studentName = logsData?.student?.name
+  const pendingIds = logs.filter((l) => l.status === 'pending_verification').map((l) => l.id)
+  const allSelected = pendingIds.length > 0 && pendingIds.every((id) => selected.has(id))
+
+  const toggle = (id: number) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pendingIds))
 
   return (
     <div className="space-y-6">
@@ -55,16 +76,51 @@ export default function StudentLogsPage() {
         <p className="text-sm text-[#94A3B8]">No logs yet.</p>
       ) : (
         <div className="space-y-3">
+          {pendingIds.length > 0 && (
+            <div className="flex items-center justify-between rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-2.5">
+              <label className="flex items-center gap-2 text-sm font-medium text-[#1E293B]">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 accent-[#27AE60]" />
+                Select all pending ({pendingIds.length})
+              </label>
+              <button
+                onClick={() => bulkVerify.mutate([...selected])}
+                disabled={selected.size === 0 || bulkVerify.isPending}
+                className="flex items-center gap-1.5 rounded-lg bg-[#27AE60] px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+              >
+                <CheckCircle className="h-3.5 w-3.5" />
+                {bulkVerify.isPending ? 'Verifying…' : `Verify selected (${selected.size})`}
+              </button>
+            </div>
+          )}
           {logs.map((log) => (
             <div key={log.id} className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="flex items-start gap-3">
+                  {log.status === 'pending_verification' && (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(log.id)}
+                      onChange={() => toggle(log.id)}
+                      className="mt-1 h-4 w-4 accent-[#27AE60]"
+                    />
+                  )}
+                  <div>
                   <p className="font-semibold text-[#1E293B]">{log.date}</p>
                   <p className="mt-0.5 text-sm text-[#64748B]">
                     {formatDateTime(log.time_in)}
                     {log.time_out && ` → ${formatDateTime(log.time_out)}`}
                     {log.duration_hours != null && ` · ${formatHours(log.duration_hours)}`}
                   </p>
+                  {log.location_flagged && (
+                    <span
+                      title="The GPS reading at clock-in/out was weak or untrusted. Review before verifying."
+                      className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-[#92400E]"
+                    >
+                      <MapPinOff className="h-3 w-3" />
+                      Location unverified
+                    </span>
+                  )}
+                  </div>
                 </div>
                 <StatusBadge status={log.status} />
               </div>

@@ -25,6 +25,14 @@ class TimeLog extends Model
         'verified_by',
         'verified_at',
         'rejection_reason',
+        'clocked_out_reason',
+        'time_in_lat',
+        'time_in_lng',
+        'time_out_lat',
+        'time_out_lng',
+        'time_in_accuracy',
+        'time_out_accuracy',
+        'location_flagged',
     ];
 
     protected function casts(): array
@@ -35,6 +43,13 @@ class TimeLog extends Model
             'time_out' => 'datetime',
             'verified_at' => 'datetime',
             'duration_hours' => 'decimal:2',
+            'time_in_lat' => 'decimal:8',
+            'time_in_lng' => 'decimal:8',
+            'time_out_lat' => 'decimal:8',
+            'time_out_lng' => 'decimal:8',
+            'time_in_accuracy' => 'decimal:2',
+            'time_out_accuracy' => 'decimal:2',
+            'location_flagged' => 'boolean',
         ];
     }
 
