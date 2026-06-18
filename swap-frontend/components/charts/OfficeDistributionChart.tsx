@@ -8,6 +8,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
+import { EmptyChart } from './EmptyChart'
 
 interface OfficeDataPoint {
   office: string
@@ -30,6 +31,7 @@ const COLORS = [
 ]
 
 export function OfficeDistributionChart({ data }: OfficeDistributionChartProps) {
+  if (!data.length) return <EmptyChart message="No recipients assigned this period" />
   return (
     <ResponsiveContainer width="100%" height={300}>
       <PieChart>

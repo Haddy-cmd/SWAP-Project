@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { EmptyChart } from './EmptyChart'
 
 interface StipendDataPoint {
   month: string
@@ -23,6 +24,9 @@ interface StipendSummaryChartProps {
 const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 })
 
 export function StipendSummaryChart({ data }: StipendSummaryChartProps) {
+  if (!data.length || data.every((d) => d.released === 0 && d.pending === 0)) {
+    return <EmptyChart message="No stipend disbursed this period" />
+  }
   return (
     <ResponsiveContainer width="100%" height={300}>
       <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>

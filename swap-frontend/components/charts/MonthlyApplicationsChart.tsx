@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+import { EmptyChart } from './EmptyChart'
 
 interface MonthlyDataPoint {
   month: string
@@ -23,6 +24,7 @@ interface MonthlyApplicationsChartProps {
 }
 
 export function MonthlyApplicationsChart({ data }: MonthlyApplicationsChartProps) {
+  if (!data.length) return <EmptyChart message="No applications this period" />
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>

@@ -47,15 +47,32 @@ class AnalyticsService
 
         $monthlyStats = Application::where('academic_year', $academicYear)
             ->where('semester', $semester)
-            ->selectRaw("DATE_TRUNC('month', created_at) as month, COUNT(*) as total_applications, SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved, SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected")
-            ->groupByRaw("DATE_TRUNC('month', created_at)")
-            ->orderByRaw("DATE_TRUNC('month', created_at)")
+            ->selectRaw("TO_CHAR(created_at, 'Mon YYYY') as month, COUNT(*) as total_applications, SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved, SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected")
+            ->groupByRaw("TO_CHAR(created_at, 'Mon YYYY')")
+            ->orderByRaw("MIN(created_at)")
             ->get()
             ->map(fn ($row) => [
                 'month' => $row->month,
                 'total_applications' => (int) $row->total_applications,
                 'approved' => (int) $row->approved,
                 'rejected' => (int) $row->rejected,
+            ])
+            ->toArray();
+
+        // Weekly verified vs. pending hours for the trend chart (previously had no data source).
+        $weeklyHours = TimeLog::whereHas('assignment', fn ($q) =>
+            $q->where('academic_year', $academicYear)->where('semester', $semester)
+        )
+            ->whereNotNull('time_out')
+            ->whereIn('status', ['verified', 'pending_verification'])
+            ->selectRaw("TO_CHAR(DATE_TRUNC('week', date), 'Mon DD') as week, SUM(CASE WHEN status = 'verified' THEN duration_hours ELSE 0 END) as verified, SUM(CASE WHEN status = 'pending_verification' THEN duration_hours ELSE 0 END) as pending")
+            ->groupByRaw("TO_CHAR(DATE_TRUNC('week', date), 'Mon DD')")
+            ->orderByRaw("MIN(date)")
+            ->get()
+            ->map(fn ($row) => [
+                'week' => $row->week,
+                'verified' => (float) $row->verified,
+                'pending' => (float) $row->pending,
             ])
             ->toArray();
 
@@ -112,6 +129,7 @@ class AnalyticsService
             'office_distribution' => $officeDistribution,
             'office_distribution_all' => $officeDistributionAll,
             'monthly_stats' => $monthlyStats,
+            'weekly_hours' => $weeklyHours,
             'stipend_summary' => [
                 'total_released' => (float) ($stipendSummary['released'] ?? 0),
                 'total_pending' => (float) ($stipendSummary['pending'] ?? 0),

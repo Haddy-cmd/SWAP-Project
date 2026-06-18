@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="2160" viewBox="0 0 1200 2160" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <linearGradient id="maroon" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7A1717"/>
+      <stop offset="1" stop-color="#531010"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#D8B65A"/>
+      <stop offset="1" stop-color="#B8901F"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="11" flood-color="#2B2522" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="2160" fill="#FFFFFF"/>
+  <text x="0" y="0" font-size="0"> </text>
+
+  <!-- ===== TOP UTILITY BAR ===== -->
+  <rect x="0" y="0" width="1200" height="34" fill="#531010"/>
+  <text x="80" y="22" font-size="11.5" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.85">Mindanao State University — Marawi City, Lanao del Sur</text>
+  <text x="1120" y="22" font-size="11.5" font-family="Arial, sans-serif" fill="#D8B65A" text-anchor="end">Office of Student Affairs · swap@msumain.edu.ph</text>
+
+  <!-- ===== NAV ===== -->
+  <rect x="0" y="34" width="1200" height="74" fill="#FFFFFF"/>
+  <line x1="0" y1="108" x2="1200" y2="108" stroke="#E5DCD2"/>
+  <!-- seal small -->
+  <circle cx="98" cy="71" r="22" fill="#7A1717"/>
+  <circle cx="98" cy="71" r="22" fill="none" stroke="url(#gold)" stroke-width="2"/>
+  <path d="M86 70 l12 -6 l12 6 l-12 6 z" fill="#D8B65A"/>
+  <path d="M98 76 v6 M104 73 v6" stroke="#D8B65A" stroke-width="1.2"/>
+  <text x="132" y="66" font-size="17" font-weight="700" fill="#7A1717">SWAP Portal</text>
+  <text x="132" y="84" font-size="11" font-family="Arial, sans-serif" letter-spacing="1" fill="#7A6E68">STUDENT WELFARE ASSISTANTSHIP PROGRAM</text>
+  <g font-family="Arial, sans-serif" font-size="13.5" fill="#4A3F3A">
+    <text x="724" y="76">About</text>
+    <text x="800" y="76">Eligibility</text>
+    <text x="892" y="76">Process</text>
+    <text x="966" y="76">FAQ</text>
+  </g>
+  <rect x="1018" y="52" width="102" height="36" rx="6" fill="#7A1717"/>
+  <text x="1069" y="75" font-size="13" font-family="Arial, sans-serif" font-weight="700" fill="#FFFFFF" text-anchor="middle">Apply Now</text>
+
+  <!-- ===== HERO ===== -->
+  <rect x="0" y="108" width="1200" height="486" fill="url(#maroon)"/>
+  <!-- subtle frame -->
+  <rect x="40" y="148" width="1120" height="406" rx="4" fill="none" stroke="#D8B65A" stroke-opacity="0.22"/>
+  <!-- seal large -->
+  <circle cx="600" cy="216" r="44" fill="#531010"/>
+  <circle cx="600" cy="216" r="44" fill="none" stroke="url(#gold)" stroke-width="2.5"/>
+  <circle cx="600" cy="216" r="36" fill="none" stroke="#D8B65A" stroke-opacity="0.4" stroke-width="1"/>
+  <path d="M576 214 l24 -12 l24 12 l-24 12 z" fill="#D8B65A"/>
+  <path d="M600 226 v12 M612 220 v11" stroke="#D8B65A" stroke-width="1.6"/>
+  <text x="600" y="294" font-size="12.5" font-family="Arial, sans-serif" letter-spacing="3" fill="#D8B65A" text-anchor="middle">OFFICE OF STUDENT AFFAIRS · EST. 2014</text>
+  <text x="600" y="348" font-size="40" font-weight="700" fill="#FFFFFF" text-anchor="middle">Student Welfare Assistantship Program</text>
+  <line x1="560" y1="372" x2="640" y2="372" stroke="url(#gold)" stroke-width="2"/>
+  <text x="600" y="408" font-size="16" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.78" text-anchor="middle">An institutional financial-assistance program providing deserving students a monthly</text>
+  <text x="600" y="430" font-size="16" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.78" text-anchor="middle">stipend in exchange for service rendered in university offices.</text>
+  <!-- CTAs -->
+  <rect x="446" y="468" width="186" height="50" rx="6" fill="url(#gold)"/>
+  <text x="539" y="499" font-size="14" font-family="Arial, sans-serif" font-weight="700" fill="#531010" text-anchor="middle">Apply for Assistance</text>
+  <rect x="648" y="468" width="120" height="50" rx="6" fill="none" stroke="#FFFFFF" stroke-opacity="0.4"/>
+  <text x="708" y="499" font-size="14" font-family="Arial, sans-serif" font-weight="600" fill="#FFFFFF" text-anchor="middle">Sign In</text>
+
+  <!-- ===== ABOUT THE PROGRAM ===== -->
+  <text x="80" y="694" font-size="13" font-family="Arial, sans-serif" letter-spacing="2" fill="#B8901F">ABOUT THE PROGRAM</text>
+  <text x="80" y="734" font-size="30" font-weight="700" fill="#2B2522">A mandate of student welfare</text>
+  <g font-family="Arial, sans-serif" font-size="14.5" fill="#6E5F5A">
+    <text x="80" y="778">The Student Welfare Assistantship Program (SWAP) is administered by the</text>
+    <text x="80" y="802">Office of Student Affairs to support academically deserving and financially</text>
+    <text x="80" y="826">challenged students. Beneficiaries render service in partner university offices</text>
+    <text x="80" y="850">and receive a monthly stipend upon verification of their rendered hours.</text>
+  </g>
+
+  <!-- glance card -->
+  <g filter="url(#soft)"><rect x="700" y="660" width="420" height="232" rx="10" fill="#F7F3EC" stroke="#E5DCD2"/></g>
+  <text x="728" y="696" font-size="16" font-weight="700" fill="#7A1717">Program at a Glance</text>
+  <line x1="728" y1="712" x2="1092" y2="712" stroke="#E5DCD2"/>
+  <g font-family="Arial, sans-serif">
+    <text x="728" y="744" font-size="13" fill="#6E5F5A">Monthly Stipend</text>
+    <text x="1092" y="744" font-size="14" font-weight="700" fill="#2B2522" text-anchor="end">₱1,500.00</text>
+    <text x="728" y="780" font-size="13" fill="#6E5F5A">Required Service</text>
+    <text x="1092" y="780" font-size="14" font-weight="700" fill="#2B2522" text-anchor="end">240 hours / semester</text>
+    <text x="728" y="816" font-size="13" fill="#6E5F5A">Governing Office</text>
+    <text x="1092" y="816" font-size="14" font-weight="700" fill="#2B2522" text-anchor="end">Office of Student Affairs</text>
+    <text x="728" y="852" font-size="13" fill="#6E5F5A">Partner Offices</text>
+    <text x="1092" y="852" font-size="14" font-weight="700" fill="#2B2522" text-anchor="end">20+ university units</text>
+  </g>
+  <line x1="728" y1="760" x2="1092" y2="760" stroke="#ECE4D9"/>
+  <line x1="728" y1="796" x2="1092" y2="796" stroke="#ECE4D9"/>
+  <line x1="728" y1="832" x2="1092" y2="832" stroke="#ECE4D9"/>
+
+  <!-- ===== ELIGIBILITY ===== -->
+  <rect x="0" y="948" width="1200" height="312" fill="#F7F3EC"/>
+  <text x="600" y="1018" font-size="13" font-family="Arial, sans-serif" letter-spacing="2" fill="#B8901F" text-anchor="middle">QUALIFICATIONS</text>
+  <text x="600" y="1058" font-size="30" font-weight="700" fill="#2B2522" text-anchor="middle">Eligibility Requirements</text>
+
+  <g font-family="Arial, sans-serif" font-size="14.5" fill="#3A322E">
+    <!-- col 1 -->
+    <circle cx="232" cy="1116" r="11" fill="url(#gold)"/><path d="M227 1116 l3.5 3.5 l6 -7" stroke="#531010" stroke-width="1.8" fill="none"/>
+    <text x="254" y="1121">Regular MSU Marawi undergraduate student</text>
+    <circle cx="232" cy="1160" r="11" fill="url(#gold)"/><path d="M227 1160 l3.5 3.5 l6 -7" stroke="#531010" stroke-width="1.8" fill="none"/>
+    <text x="254" y="1165">GWA of 2.25 or better, no incomplete grades</text>
+    <circle cx="232" cy="1204" r="11" fill="url(#gold)"/><path d="M227 1204 l3.5 3.5 l6 -7" stroke="#531010" stroke-width="1.8" fill="none"/>
+    <text x="254" y="1209">Family income below the poverty threshold</text>
+    <!-- col 2 -->
+    <circle cx="648" cy="1116" r="11" fill="url(#gold)"/><path d="M643 1116 l3.5 3.5 l6 -7" stroke="#531010" stroke-width="1.8" fill="none"/>
+    <text x="670" y="1121">Certificate of indigency / income documents</text>
+    <circle cx="648" cy="1160" r="11" fill="url(#gold)"/><path d="M643 1160 l3.5 3.5 l6 -7" stroke="#531010" stroke-width="1.8" fill="none"/>
+    <text x="670" y="1165">Endorsement and good moral certification</text>
+    <circle cx="648" cy="1204" r="11" fill="url(#gold)"/><path d="M643 1204 l3.5 3.5 l6 -7" stroke="#531010" stroke-width="1.8" fill="none"/>
+    <text x="670" y="1209">Re-application required each semester</text>
+  </g>
+
+  <!-- ===== APPLICATION PROCESS ===== -->
+  <text x="600" y="1346" font-size="13" font-family="Arial, sans-serif" letter-spacing="2" fill="#B8901F" text-anchor="middle">HOW TO PROCEED</text>
+  <text x="600" y="1386" font-size="30" font-weight="700" fill="#2B2522" text-anchor="middle">Application Process</text>
+
+  <!-- timeline -->
+  <line x1="195" y1="1470" x2="1005" y2="1470" stroke="#E5DCD2" stroke-width="2"/>
+  <g font-family="Arial, sans-serif" text-anchor="middle">
+    <!-- node 1 -->
+    <circle cx="195" cy="1470" r="26" fill="#7A1717"/><circle cx="195" cy="1470" r="26" fill="none" stroke="url(#gold)" stroke-width="2"/>
+    <text x="195" y="1476" font-size="16" font-weight="700" fill="#FFFFFF">1</text>
+    <text x="195" y="1524" font-size="15" font-weight="700" fill="#2B2522">Submit Application</text>
+    <text x="195" y="1548" font-size="12.5" fill="#6E5F5A">Complete the form and</text>
+    <text x="195" y="1566" font-size="12.5" fill="#6E5F5A">upload requirements.</text>
+    <!-- node 2 -->
+    <circle cx="465" cy="1470" r="26" fill="#7A1717"/><circle cx="465" cy="1470" r="26" fill="none" stroke="url(#gold)" stroke-width="2"/>
+    <text x="465" y="1476" font-size="16" font-weight="700" fill="#FFFFFF">2</text>
+    <text x="465" y="1524" font-size="15" font-weight="700" fill="#2B2522">Review &amp; Interview</text>
+    <text x="465" y="1548" font-size="12.5" fill="#6E5F5A">Screening and interview</text>
+    <text x="465" y="1566" font-size="12.5" fill="#6E5F5A">by the SWAP office.</text>
+    <!-- node 3 -->
+    <circle cx="735" cy="1470" r="26" fill="#7A1717"/><circle cx="735" cy="1470" r="26" fill="none" stroke="url(#gold)" stroke-width="2"/>
+    <text x="735" y="1476" font-size="16" font-weight="700" fill="#FFFFFF">3</text>
+    <text x="735" y="1524" font-size="15" font-weight="700" fill="#2B2522">Render Service</text>
+    <text x="735" y="1548" font-size="12.5" fill="#6E5F5A">Serve and track hours</text>
+    <text x="735" y="1566" font-size="12.5" fill="#6E5F5A">via QR and geofencing.</text>
+    <!-- node 4 -->
+    <circle cx="1005" cy="1470" r="26" fill="#7A1717"/><circle cx="1005" cy="1470" r="26" fill="none" stroke="url(#gold)" stroke-width="2"/>
+    <text x="1005" y="1476" font-size="16" font-weight="700" fill="#FFFFFF">4</text>
+    <text x="1005" y="1524" font-size="15" font-weight="700" fill="#2B2522">Receive Stipend</text>
+    <text x="1005" y="1548" font-size="12.5" fill="#6E5F5A">Disbursed upon verified</text>
+    <text x="1005" y="1566" font-size="12.5" fill="#6E5F5A">hours each semester.</text>
+  </g>
+
+  <!-- ===== FAQ ===== -->
+  <rect x="0" y="1632" width="1200" height="372" fill="#F7F3EC"/>
+  <text x="600" y="1704" font-size="30" font-weight="700" fill="#2B2522" text-anchor="middle">Frequently Asked Questions</text>
+
+  <g filter="url(#soft)"><rect x="300" y="1740" width="600" height="104" rx="8" fill="#FFFFFF" stroke="#E5DCD2"/></g>
+  <text x="328" y="1772" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#2B2522">Who is eligible for SWAP?</text>
+  <text x="872" y="1772" font-size="14" fill="#7A1717" text-anchor="end">—</text>
+  <line x1="328" y1="1790" x2="872" y2="1790" stroke="#ECE4D9"/>
+  <text x="328" y="1816" font-size="12.5" font-family="Arial, sans-serif" fill="#6E5F5A">Regular MSU Marawi students with a GWA of 2.25 or better, no incomplete grades, and</text>
+  <text x="328" y="1834" font-size="12.5" font-family="Arial, sans-serif" fill="#6E5F5A">family income below the poverty threshold.</text>
+
+  <g filter="url(#soft)"><rect x="300" y="1860" width="600" height="46" rx="8" fill="#FFFFFF" stroke="#E5DCD2"/></g>
+  <text x="328" y="1888" font-size="15" font-family="Arial, sans-serif" font-weight="600" fill="#2B2522">How many hours must I render per semester?</text>
+  <text x="872" y="1888" font-size="16" fill="#7A6E68" text-anchor="end">+</text>
+
+  <g filter="url(#soft)"><rect x="300" y="1922" width="600" height="46" rx="8" fill="#FFFFFF" stroke="#E5DCD2"/></g>
+  <text x="328" y="1950" font-size="15" font-family="Arial, sans-serif" font-weight="600" fill="#2B2522">How is the stipend computed and released?</text>
+  <text x="872" y="1950" font-size="16" fill="#7A6E68" text-anchor="end">+</text>
+
+  <!-- ===== CONTACT ===== -->
+  <rect x="0" y="2004" width="1200" height="80" fill="#7A1717"/>
+  <g font-family="Arial, sans-serif" fill="#FFFFFF">
+    <text x="80" y="2038" font-size="12" letter-spacing="1.5" fill="#D8B65A">VISIT</text>
+    <text x="80" y="2062" font-size="13" fill-opacity="0.9">OSA Bldg., MSU Main Campus, Marawi City</text>
+    <text x="480" y="2038" font-size="12" letter-spacing="1.5" fill="#D8B65A">CONTACT</text>
+    <text x="480" y="2062" font-size="13" fill-opacity="0.9">swap@msumain.edu.ph · (063) 000-0000</text>
+    <text x="860" y="2038" font-size="12" letter-spacing="1.5" fill="#D8B65A">OFFICE HOURS</text>
+    <text x="860" y="2062" font-size="13" fill-opacity="0.9">Mon–Fri · 8:00 AM – 5:00 PM</text>
+  </g>
+
+  <!-- ===== FOOTER ===== -->
+  <rect x="0" y="2084" width="1200" height="76" fill="#3E0C0C"/>
+  <circle cx="600" cy="2114" r="14" fill="none" stroke="url(#gold)" stroke-width="1.5"/>
+  <path d="M593 2113 l7 -3.5 l7 3.5 l-7 3.5 z" fill="#D8B65A"/>
+  <text x="600" y="2140" font-size="11.5" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.7" text-anchor="middle">© 2026 Mindanao State University — Marawi · In coordination with CHED</text>
+</svg>

@@ -27,7 +27,9 @@ export default function AdminAnalyticsPage() {
     rejected: m.rejected,
   }))
 
-  const offices = (overview?.office_distribution ?? []).map((o) => ({
+  // Use the all-active distribution (same as the Admin Dashboard) so it matches the
+  // "Active Recipients" KPI, rather than scoping to the selected period.
+  const offices = (overview?.office_distribution_all ?? []).map((o) => ({
     office: o.office_name,
     count: o.recipient_count,
   }))
@@ -40,7 +42,11 @@ export default function AdminAnalyticsPage() {
       }]
     : []
 
-  const weekly: Array<{ week: string; verified: number; pending: number }> = []
+  const weekly = (overview?.weekly_hours ?? []).map((w) => ({
+    week: w.week,
+    verified: w.verified,
+    pending: w.pending,
+  }))
 
   return (
     <div className="space-y-6">

@@ -6,19 +6,38 @@ interface UIStore {
   desktopSidebarOpen: boolean
   /** Mobile: whether the sidebar drawer overlay is showing (ephemeral). */
   mobileSidebarOpen: boolean
+  /** Desktop auto-hide: temporary hover-reveal of the sidebar (ephemeral). */
+  sidebarRevealed: boolean
   toggleDesktopSidebar: () => void
   toggleMobileSidebar: () => void
   setMobileSidebarOpen: (open: boolean) => void
+  revealSidebar: () => void
+  scheduleHideSidebar: () => void
 }
+
+// Module-level timer for the auto-hide delay (kept out of persisted state).
+let hideTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useUIStore = create<UIStore>()(
   persist(
     (set) => ({
       desktopSidebarOpen: true,
       mobileSidebarOpen: false,
+      sidebarRevealed: false,
       toggleDesktopSidebar: () => set((s) => ({ desktopSidebarOpen: !s.desktopSidebarOpen })),
       toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
       setMobileSidebarOpen: (mobileSidebarOpen) => set({ mobileSidebarOpen }),
+      revealSidebar: () => {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null }
+        set({ sidebarRevealed: true })
+      },
+      scheduleHideSidebar: () => {
+        if (hideTimer) clearTimeout(hideTimer)
+        hideTimer = setTimeout(() => {
+          set({ sidebarRevealed: false })
+          hideTimer = null
+        }, 250)
+      },
     }),
     {
       name: 'swap-ui',

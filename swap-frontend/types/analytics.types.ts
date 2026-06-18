@@ -13,7 +13,14 @@ export interface AdminOverview {
   office_distribution: OfficeDistribution[]
   office_distribution_all: OfficeDistribution[]
   monthly_stats: MonthlyStats[]
+  weekly_hours: WeeklyHours[]
   stipend_summary: StipendSummary
+}
+
+export interface WeeklyHours {
+  week: string
+  verified: number
+  pending: number
 }
 
 export interface OfficeDistribution {

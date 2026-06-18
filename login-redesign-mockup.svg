@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" font-family="Georgia, 'Times New Roman', serif">
+  <defs>
+    <linearGradient id="maroon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8E1B1B"/>
+      <stop offset="0.55" stop-color="#5C1010"/>
+      <stop offset="1" stop-color="#7A1717"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#D8B65A"/>
+      <stop offset="1" stop-color="#B8901F"/>
+    </linearGradient>
+    <radialGradient id="blob" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#D8B65A" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#D8B65A" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="card" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="24" flood-color="#5C1010" flood-opacity="0.16"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#2B2522" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="760" fill="#F7F3EC"/>
+
+  <!-- ============ LEFT — BRANDING ============ -->
+  <rect x="0" y="0" width="600" height="760" fill="url(#maroon)"/>
+  <circle cx="500" cy="120" r="240" fill="url(#blob)"/>
+  <circle cx="90" cy="660" r="200" fill="url(#blob)"/>
+  <rect x="40" y="40" width="520" height="680" rx="6" fill="none" stroke="#D8B65A" stroke-opacity="0.2"/>
+
+  <!-- seal -->
+  <circle cx="300" cy="232" r="52" fill="#531010"/>
+  <circle cx="300" cy="232" r="52" fill="none" stroke="url(#gold)" stroke-width="2.5"/>
+  <circle cx="300" cy="232" r="43" fill="none" stroke="#D8B65A" stroke-opacity="0.4"/>
+  <path d="M272 230 l28 -14 l28 14 l-28 14 z" fill="#D8B65A"/>
+  <path d="M300 244 v14 M314 237 v13" stroke="#D8B65A" stroke-width="1.8" fill="none"/>
+
+  <text x="300" y="332" font-size="38" font-weight="700" fill="#FFFFFF" text-anchor="middle">SWAP Portal</text>
+  <text x="300" y="360" font-size="12.5" font-family="Arial, sans-serif" letter-spacing="2.5" fill="#D8B65A" text-anchor="middle">MINDANAO STATE UNIVERSITY — MARAWI</text>
+  <line x1="260" y1="384" x2="340" y2="384" stroke="url(#gold)" stroke-width="2"/>
+
+  <text x="300" y="424" font-size="14" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.72" text-anchor="middle">Digital monitoring and application system for the</text>
+  <text x="300" y="446" font-size="14" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.72" text-anchor="middle">Student Welfare Assistantship Program.</text>
+
+  <!-- stats -->
+  <line x1="120" y1="520" x2="480" y2="520" stroke="#FFFFFF" stroke-opacity="0.18"/>
+  <g text-anchor="middle">
+    <text x="180" y="572" font-size="30" font-weight="700" fill="#D8B65A">500+</text>
+    <text x="180" y="594" font-size="12" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.55">Recipients</text>
+    <text x="300" y="572" font-size="30" font-weight="700" fill="#D8B65A">20+</text>
+    <text x="300" y="594" font-size="12" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.55">Offices</text>
+    <text x="420" y="572" font-size="30" font-weight="700" fill="#D8B65A">10+</text>
+    <text x="420" y="594" font-size="12" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.55">Years</text>
+  </g>
+  <text x="300" y="690" font-size="11.5" font-family="Arial, sans-serif" fill="#FFFFFF" fill-opacity="0.4" text-anchor="middle">Office of Student Affairs · swap@msumain.edu.ph</text>
+
+  <!-- ============ RIGHT — FORM CARD ============ -->
+  <g filter="url(#card)">
+    <rect x="700" y="120" width="420" height="520" rx="18" fill="#FFFFFF"/>
+  </g>
+
+  <text x="732" y="186" font-size="12" font-family="Arial, sans-serif" letter-spacing="2" fill="#B8901F">WELCOME BACK</text>
+  <text x="732" y="222" font-size="26" font-weight="700" fill="#2B2522">Sign in to your account</text>
+  <text x="732" y="248" font-size="13.5" font-family="Arial, sans-serif" fill="#7A6E68">Use your MSU credentials to continue.</text>
+
+  <!-- email -->
+  <text x="732" y="294" font-size="12.5" font-family="Arial, sans-serif" font-weight="600" fill="#3A322E">Email</text>
+  <rect x="732" y="304" width="356" height="46" rx="10" fill="#FAF7F2" stroke="#E5DCD2"/>
+  <!-- mail icon -->
+  <rect x="750" y="320" width="16" height="12" rx="2" fill="none" stroke="#B8901F" stroke-width="1.4"/>
+  <path d="M750 321 l8 6 l8 -6" fill="none" stroke="#B8901F" stroke-width="1.4"/>
+  <text x="778" y="332" font-size="13.5" font-family="Arial, sans-serif" fill="#A99B92">student@msumarawi.edu.ph</text>
+
+  <!-- password -->
+  <text x="732" y="382" font-size="12.5" font-family="Arial, sans-serif" font-weight="600" fill="#3A322E">Password</text>
+  <rect x="732" y="392" width="356" height="46" rx="10" fill="#FFFFFF" stroke="#7A1717"/>
+  <!-- lock icon -->
+  <rect x="750" y="409" width="13" height="10" rx="2" fill="none" stroke="#B8901F" stroke-width="1.4"/>
+  <path d="M752.5 409 v-3 a4 4 0 0 1 8 0 v3" fill="none" stroke="#B8901F" stroke-width="1.4"/>
+  <text x="776" y="420" font-size="14" font-family="Arial, sans-serif" fill="#2B2522">••••••••••</text>
+  <!-- eye toggle -->
+  <path d="M1060 415 a10 7 0 0 1 18 0 a10 7 0 0 1 -18 0 z" fill="none" stroke="#A99B92" stroke-width="1.4"/>
+  <circle cx="1069" cy="415" r="2.4" fill="#A99B92"/>
+
+  <!-- remember + forgot -->
+  <rect x="732" y="458" width="15" height="15" rx="4" fill="#FFFFFF" stroke="#C9BCB0"/>
+  <text x="756" y="470" font-size="12.5" font-family="Arial, sans-serif" fill="#5A4F49">Remember me</text>
+  <text x="1088" y="470" font-size="12.5" font-family="Arial, sans-serif" font-weight="600" fill="#7A1717" text-anchor="end">Forgot password?</text>
+
+  <!-- sign in -->
+  <rect x="732" y="498" width="356" height="50" rx="10" fill="#7A1717"/>
+  <path d="M905 517 h14 M913 511 l6 6 l-6 6" stroke="#FFFFFF" stroke-width="1.6" fill="none"/>
+  <text x="900" y="528" font-size="15" font-family="Arial, sans-serif" font-weight="700" fill="#FFFFFF" text-anchor="end">Sign In</text>
+
+  <!-- divider -->
+  <line x1="732" y1="582" x2="1088" y2="582" stroke="#ECE4D9"/>
+  <rect x="876" y="572" width="68" height="20" fill="#FFFFFF"/>
+  <text x="910" y="587" font-size="11.5" font-family="Arial, sans-serif" fill="#A99B92" text-anchor="middle">New here?</text>
+
+  <text x="910" y="616" font-size="13" font-family="Arial, sans-serif" fill="#7A6E68" text-anchor="middle">Don&#8217;t have an account?  <tspan font-weight="700" fill="#7A1717">Register</tspan></text>
+</svg>

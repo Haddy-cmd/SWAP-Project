@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts'
+import { EmptyChart } from './EmptyChart'
 
 interface WeeklyDataPoint {
   week: string
@@ -22,6 +23,7 @@ interface WeeklyHoursTrendChartProps {
 }
 
 export function WeeklyHoursTrendChart({ data }: WeeklyHoursTrendChartProps) {
+  if (!data.length) return <EmptyChart message="No service hours recorded this period" />
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
