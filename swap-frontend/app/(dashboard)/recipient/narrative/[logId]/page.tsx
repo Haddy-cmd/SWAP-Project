@@ -43,7 +43,10 @@ export default function NarrativePage() {
     mutationFn: (data: FormData) => attendanceApi.submitNarrative(Number(logId), data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['narrative', logId] })
-      router.push('/recipient/hours')
+      // Refresh the open log so the attendance page knows the narrative is in and clock-out is unlocked.
+      queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
+      // Send the recipient to attendance to clock out now that the narrative is submitted.
+      router.push('/recipient/attendance')
     },
     onError: (err: ApiError) => {
       if (err.errors) {
