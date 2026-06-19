@@ -54,7 +54,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <div
         className={cn(
           'flex h-full flex-col overflow-hidden transition-[margin] duration-200 ease-in-out',
-          revealed ? 'md:ml-64' : 'md:ml-0',
+          revealed ? 'md:ml-24' : 'md:ml-0',
         )}
       >
         <Topbar />

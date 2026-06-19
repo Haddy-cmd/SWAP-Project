@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { QueryProvider } from '@/lib/providers/QueryProvider'
 import { EchoProvider } from '@/lib/providers/EchoProvider'
+import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget'
 import '@/app/globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className} suppressHydrationWarning>
         <QueryProvider>
           <EchoProvider>{children}</EchoProvider>
+          <ChatbotWidget />
         </QueryProvider>
       </body>
     </html>

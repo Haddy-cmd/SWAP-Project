@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle, XCircle, MapPinOff } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, MapPinOff, FileText } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDateTime } from '@/lib/utils/formatDate'
@@ -124,6 +124,41 @@ export default function StudentLogsPage() {
                 </div>
                 <StatusBadge status={log.status} />
               </div>
+
+              {/* Narrative report */}
+              {log.narrative_report ? (
+                <details className="group mt-3 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC]">
+                  <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-xs font-semibold text-[#1B4F72]">
+                    <span className="flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5" />
+                      View narrative report
+                    </span>
+                    <span className="text-[#94A3B8] transition-transform group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="space-y-2.5 border-t border-[#E2E8F0] px-3 py-3 text-xs">
+                    <div>
+                      <p className="font-semibold text-[#64748B]">Summary of work</p>
+                      <p className="mt-0.5 whitespace-pre-line text-[#1E293B]">{log.narrative_report.content}</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-[#64748B]">Activities done</p>
+                      <p className="mt-0.5 whitespace-pre-line text-[#1E293B]">{log.narrative_report.activities_done}</p>
+                    </div>
+                    {log.narrative_report.challenges && (
+                      <div>
+                        <p className="font-semibold text-[#64748B]">Challenges</p>
+                        <p className="mt-0.5 whitespace-pre-line text-[#1E293B]">{log.narrative_report.challenges}</p>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              ) : (
+                log.status !== 'open' && (
+                  <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-[#92400E]">
+                    No narrative report submitted for this log.
+                  </p>
+                )
+              )}
 
               {log.status === 'pending_verification' && (
                 <div className="mt-3 space-y-2">

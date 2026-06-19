@@ -58,7 +58,7 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('Location access is required to clock in at this office.');
         }
 
-        if (!$this->geofenceService->isWithin($office, $latitude, $longitude)) {
+        if (!$this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
             throw new UnprocessableEntityHttpException('You must be on the office premises to clock in.');
         }
 
@@ -75,9 +75,23 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('No open attendance log found with this ID.');
         }
 
-        // Accept either the assignment QR or the office QR for the clock-out.
-        if (!$this->qrCodeService->validate($qrToken) && !$this->qrCodeService->validateOffice($qrToken)) {
+        // Accept either the office QR or the assignment QR — but it must be the recipient's OWN
+        // office/assignment, not just any valid code.
+        $office = $this->qrCodeService->validateOffice($qrToken);
+        $assignment = $office ? null : $this->qrCodeService->validate($qrToken);
+
+        if (!$office && !$assignment) {
             throw new UnprocessableEntityHttpException('Invalid or tampered QR code.');
+        }
+
+        $matchesOwn =
+            ($office && $office->id === $log->assignment->office_id)
+            || ($assignment && $assignment->id === $log->assignment_id);
+
+        if (!$matchesOwn) {
+            throw new UnprocessableEntityHttpException(
+                'This QR code is for a different office. Please scan your assigned office QR to clock out.'
+            );
         }
 
         if (!$log->hasNarrative()) {

@@ -52,7 +52,7 @@ export default function AdminUsersPage() {
         {isLoading ? (
           <div className="p-6 space-y-3">{[1,2,3,4].map(n => <div key={n} className="h-12 animate-pulse rounded-lg bg-[#EAD9D9]" />)}</div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
             <thead className="border-b border-[#EAD9D9] bg-[#FAF7F7]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#8A6A6A]">User</th>
@@ -99,7 +99,7 @@ export default function AdminUsersPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
         {meta && meta.last_page > 1 && (
           <div className="flex items-center justify-between border-t border-[#EAD9D9] px-4 py-3">

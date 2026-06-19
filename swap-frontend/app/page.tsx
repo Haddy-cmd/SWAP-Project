@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ChevronRight, MessageCircle, Check, MapPin, Mail, Clock } from 'lucide-react'
+import { AskChatbotButton } from '@/components/chatbot/AskChatbotButton'
 
 const STEPS = [
   { title: 'Submit Application', desc: 'Complete the application form and upload the required documents.' },
@@ -45,10 +46,10 @@ function Seal({ size = 88 }: { size?: number }) {
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-white text-[#2B2522]">
+    <div className="min-h-screen overflow-x-hidden bg-white text-[#2B2522]">
       {/* Utility bar */}
       <div className="bg-[#531010] text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-2 text-[11.5px]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 text-[11px] sm:px-6 sm:text-[11.5px]">
           <span className="text-white/85">Mindanao State University — Marawi City, Lanao del Sur</span>
           <span className="hidden text-[#D8B65A] sm:inline">Office of Student Affairs · swap@msumain.edu.ph</span>
         </div>
@@ -56,15 +57,15 @@ export default function LandingPage() {
 
       {/* Nav */}
       <nav className="sticky top-0 z-30 border-b border-[#E5DCD2] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-3">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <Seal size={42} />
-            <div>
+            <div className="min-w-0">
               <p className="font-serif text-[17px] font-bold leading-tight text-[#7D1A1A]">SWAP Portal</p>
-              <p className="text-[10px] uppercase tracking-[0.12em] text-[#7A6E68]">Student Welfare Assistantship Program</p>
+              <p className="truncate text-[10px] uppercase tracking-[0.12em] text-[#7A6E68]">Student Welfare Assistantship Program</p>
             </div>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-shrink-0 items-center gap-3 sm:gap-5">
             <div className="hidden items-center gap-5 text-sm text-[#4A3F3A] md:flex">
               <a href="#about" className="hover:text-[#7D1A1A] transition-colors">About</a>
               <a href="#eligibility" className="hover:text-[#7D1A1A] transition-colors">Eligibility</a>
@@ -81,17 +82,17 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section
-        className="px-6 py-20 text-center text-white"
+        className="px-4 py-14 text-center text-white sm:px-6 sm:py-20"
         style={{ background: 'linear-gradient(180deg, #7A1717 0%, #531010 100%)' }}
       >
-        <div className="mx-auto max-w-4xl rounded-sm border border-[#D8B65A]/25 px-6 py-12">
+        <div className="mx-auto max-w-4xl rounded-sm border border-[#D8B65A]/25 px-4 py-10 sm:px-8 sm:py-12">
           <div className="flex justify-center">
             <Seal size={88} />
           </div>
-          <p className="mt-6 text-xs font-medium uppercase tracking-[0.28em] text-[#D8B65A]">
+          <p className="mt-6 text-[11px] font-medium uppercase tracking-[0.22em] text-[#D8B65A] sm:text-xs sm:tracking-[0.28em]">
             Office of Student Affairs · Est. 2014
           </p>
-          <h1 className="mt-4 font-serif text-4xl font-bold leading-tight sm:text-5xl">
+          <h1 className="mt-4 break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
             Student Welfare Assistantship Program
           </h1>
           <div className="mx-auto mt-5 h-px w-20 bg-[#D8B65A]" />
@@ -211,10 +212,10 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="mt-8 text-center">
-            <Link href="/chatbot" className="inline-flex items-center gap-2 text-sm font-medium text-[#7D1A1A] hover:text-[#5C1010] transition-colors">
+            <AskChatbotButton className="inline-flex items-center gap-2 text-sm font-medium text-[#7D1A1A] hover:text-[#5C1010] transition-colors">
               <MessageCircle className="h-4 w-4" />
-              More questions? Ask our chatbot
-            </Link>
+              More questions? Ask our assistant
+            </AskChatbotButton>
           </div>
         </div>
       </section>

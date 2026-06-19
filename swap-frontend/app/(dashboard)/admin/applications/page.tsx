@@ -84,7 +84,7 @@ export default function AdminApplicationsPage() {
           <p className="p-8 text-center text-sm text-[#B09A9A]">No applications found.</p>
         ) : (
           <>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
               <thead className="border-b border-[#EAD9D9] bg-[#FAF7F7]">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-[#8A6A6A]">Applicant</th>
@@ -119,7 +119,7 @@ export default function AdminApplicationsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
 
             {/* Pagination */}
             {meta && meta.last_page > 1 && (

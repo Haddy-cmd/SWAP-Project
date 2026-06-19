@@ -34,7 +34,7 @@ export default function DocumentsPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-[#EAD9D9] bg-white shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
             <thead className="border-b border-[#EAD9D9] bg-[#FAF7F7]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#8A6A6A]">Document</th>
@@ -73,7 +73,7 @@ export default function DocumentsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>

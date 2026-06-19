@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import Link from 'next/link'
 import { LogIn, LogOut, CheckCircle, AlertTriangle, FileText, MapPin } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { HoursProgress } from '@/components/attendance/HoursProgress'
 import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
+import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { getCurrentPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
 
@@ -21,6 +21,7 @@ export default function AttendancePage() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [qrToken, setQrToken] = useState('')
   const [geoWarning, setGeoWarning] = useState<string | null>(null)
+  const [narrativeOpen, setNarrativeOpen] = useState(false)
   const outsideSinceRef = useRef<number | null>(null)
 
   const { data: summary } = useQuery({
@@ -104,6 +105,15 @@ export default function AttendancePage() {
     },
   })
 
+  // Clock out: if a narrative is already in, go straight out; otherwise pop the narrative form first.
+  const handleClockOut = () => {
+    if (currentLog?.has_narrative) {
+      timeOut.mutate()
+    } else {
+      setNarrativeOpen(true)
+    }
+  }
+
   const mode: AttendanceMode = openLogId ? 'clocked-in' : 'idle'
   const completed = !!summary && summary.required > 0 && summary.remaining <= 0
   const office = currentLog?.office ?? null
@@ -118,7 +128,8 @@ export default function AttendancePage() {
     try {
       const pos = await getCurrentPosition()
       const dist = distanceMeters(pos.latitude, pos.longitude, Number(office.latitude), Number(office.longitude))
-      const inside = dist <= (office.radius_meters ?? 100)
+      // Allow the GPS uncertainty (capped) as tolerance, matching the server-side geofence check.
+      const inside = dist <= (office.radius_meters ?? 100) + Math.min(pos.accuracy ?? 0, 100)
       if (inside) {
         outsideSinceRef.current = null
         setGeoWarning(null)
@@ -212,28 +223,12 @@ export default function AttendancePage() {
           </div>
 
           {mode === 'clocked-in' && (
-            currentLog?.has_narrative ? (
-              <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-[#27AE60]">
-                <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                Narrative report submitted — you can clock out.
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <span className="flex items-center gap-2 font-medium text-[#92400E]">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                  A narrative report is required before you can clock out.
-                </span>
-                {openLogId && (
-                  <Link
-                    href={`/recipient/narrative/${openLogId}`}
-                    className="inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#1B4F72] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#2980B9] transition-colors"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    Submit Narrative
-                  </Link>
-                )}
-              </div>
-            )
+            <p className="flex items-center gap-2 text-xs text-[#64748B]">
+              <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+              {currentLog?.has_narrative
+                ? 'Narrative report submitted — ready to clock out.'
+                : 'You will be asked for a short narrative report when you clock out.'}
+            </p>
           )}
 
           {mode === 'idle' && completed && (
@@ -255,8 +250,8 @@ export default function AttendancePage() {
               </button>
             ) : (
               <button
-                onClick={() => timeOut.mutate()}
-                disabled={timeOut.isPending || !qrToken.trim() || !currentLog?.has_narrative}
+                onClick={handleClockOut}
+                disabled={timeOut.isPending || !qrToken.trim()}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#E74C3C] px-6 py-3 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
@@ -272,6 +267,20 @@ export default function AttendancePage() {
           <h2 className="mb-4 font-semibold text-[#1E293B]">Hours Summary</h2>
           <HoursProgress summary={summary} />
         </div>
+      )}
+
+      {/* Narrative pops up at clock-out time, then proceeds to clock out. */}
+      {narrativeOpen && openLogId && (
+        <NarrativeModal
+          logId={openLogId}
+          clockingOut={timeOut.isPending}
+          onClose={() => setNarrativeOpen(false)}
+          onSubmitted={() => {
+            setNarrativeOpen(false)
+            queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
+            timeOut.mutate()
+          }}
+        />
       )}
     </div>
   )

@@ -31,7 +31,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t border-[#E2E8F0] p-4">
+    <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t border-[#EAD9D9] p-4">
       <textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -39,12 +39,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         placeholder="Ask about SWAP eligibility, application steps…"
         rows={2}
         disabled={disabled}
-        className="flex-1 resize-none rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:border-[#1B4F72] focus:outline-none focus:ring-2 focus:ring-[#1B4F72]/20 disabled:opacity-50"
+        className="flex-1 resize-none rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2.5 text-sm text-[#1E293B] placeholder-[#B09A9A] focus:border-[#7D1A1A] focus:outline-none focus:ring-2 focus:ring-[#7D1A1A]/15 disabled:opacity-50"
       />
       <button
         type="submit"
         disabled={disabled || !value.trim()}
-        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#1B4F72] text-white hover:bg-[#2980B9] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#7D1A1A] text-white hover:bg-[#A52020] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         <Send className="h-4 w-4" />
       </button>

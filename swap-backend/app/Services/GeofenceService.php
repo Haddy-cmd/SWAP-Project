@@ -8,11 +8,17 @@ class GeofenceService
 {
     private const EARTH_RADIUS_METERS = 6_371_000;
 
+    /** Cap on how much GPS-accuracy slack we allow, so a very coarse fix can't defeat the fence. */
+    private const MAX_ACCURACY_BUFFER_METERS = 100;
+
     /**
      * Whether the given coordinates fall within the office's geofence.
      * Offices without geofencing enabled (or missing coordinates) always pass.
+     *
+     * The device's GPS accuracy (uncertainty radius, in meters) is added as tolerance — consumer
+     * GPS is routinely 20–50m off, so a correct location with a coarse fix should still pass.
      */
-    public function isWithin(Office $office, float $latitude, float $longitude): bool
+    public function isWithin(Office $office, float $latitude, float $longitude, ?float $accuracy = null): bool
     {
         if (!$office->geofence_enabled || $office->latitude === null || $office->longitude === null) {
             return true;
@@ -25,7 +31,9 @@ class GeofenceService
             $longitude
         );
 
-        return $distance <= (float) $office->radius_meters;
+        $tolerance = min((float) ($accuracy ?? 0), self::MAX_ACCURACY_BUFFER_METERS);
+
+        return $distance <= ((float) $office->radius_meters + $tolerance);
     }
 
     /**

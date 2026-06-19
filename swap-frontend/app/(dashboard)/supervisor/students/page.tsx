@@ -32,7 +32,7 @@ export default function SupervisorStudentsPage() {
         </div>
       ) : (
         <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
             <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#64748B]">Student</th>
@@ -67,7 +67,7 @@ export default function SupervisorStudentsPage() {
                 )
               })}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>

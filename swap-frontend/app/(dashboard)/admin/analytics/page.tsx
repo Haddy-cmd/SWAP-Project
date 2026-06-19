@@ -52,13 +52,13 @@ export default function AdminAnalyticsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-[#1E293B]">Analytics</h1>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <select value={year} onChange={(e) => setYear(e.target.value)}
-            className="rounded-xl border border-[#DCC5C5] bg-white px-4 py-2.5 text-sm focus:border-[#7D1A1A] focus:outline-none">
+            className="min-w-0 flex-1 rounded-xl border border-[#DCC5C5] bg-white px-4 py-2.5 text-sm focus:border-[#7D1A1A] focus:outline-none sm:flex-none">
             {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <select value={semester} onChange={(e) => setSemester(e.target.value)}
-            className="rounded-xl border border-[#DCC5C5] bg-white px-4 py-2.5 text-sm focus:border-[#7D1A1A] focus:outline-none">
+            className="min-w-0 flex-1 rounded-xl border border-[#DCC5C5] bg-white px-4 py-2.5 text-sm focus:border-[#7D1A1A] focus:outline-none sm:flex-none">
             {SEMESTERS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>

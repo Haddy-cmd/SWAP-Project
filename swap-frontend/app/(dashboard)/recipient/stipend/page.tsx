@@ -54,7 +54,7 @@ export default function StipendPage() {
             <p className="text-sm font-medium text-[#94A3B8]">No disbursements yet</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
             <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#64748B]">Period</th>
@@ -92,7 +92,7 @@ export default function StipendPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

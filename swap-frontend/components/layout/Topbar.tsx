@@ -27,30 +27,30 @@ export function Topbar() {
   const onButtonLeave = () => { if (!desktopSidebarOpen) scheduleHideSidebar() }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#EAD9D9] bg-white px-6 shadow-sm">
-      <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#EAD9D9] bg-white px-4 shadow-sm md:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         <button
           onClick={toggleSidebar}
           onMouseEnter={onButtonEnter}
           onMouseLeave={onButtonLeave}
-          className="flex h-9 w-9 items-center justify-center rounded-lg text-[#7D1A1A] hover:bg-[#FEF0F0] active:scale-95 transition-all"
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[#7D1A1A] hover:bg-[#FEF0F0] active:scale-95 transition-all"
           aria-label="Toggle menu"
           title="Toggle menu"
         >
           <Menu className="h-[22px] w-[22px]" />
         </button>
-        <div className="h-5 w-[3px] rounded-full bg-[#7D1A1A]" />
-        <div>
-          <p className="text-sm font-semibold text-[#1E293B] capitalize">
+        <div className="h-5 w-[3px] flex-shrink-0 rounded-full bg-[#7D1A1A]" />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-[#1E293B] capitalize">
             {user?.role} Portal
           </p>
-          <p className="text-xs text-[#8A6A6A]">
+          <p className="hidden truncate text-xs text-[#8A6A6A] sm:block">
             {process.env.NEXT_PUBLIC_APP_NAME ?? 'SWAP Portal'} — MSU Marawi
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
         <NotificationBell />
 
         <Link

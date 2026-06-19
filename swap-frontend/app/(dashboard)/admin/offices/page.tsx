@@ -41,7 +41,7 @@ function OfficeForm({ initial, onSave, onCancel, loading }: {
   return (
     <div className="rounded-2xl border border-[#EAD9D9] bg-white p-6 shadow-sm space-y-4">
       <h2 className="font-semibold text-[#1E293B]">{initial?.id ? 'Edit Office' : 'New Office'}</h2>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {([['name','Name'], ['code','Code'], ['head_name','Head Name'], ['location','Location']] as const).map(([k, label]) => (
           <div key={k}>
             <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">{label}</label>
@@ -71,7 +71,7 @@ function OfficeForm({ initial, onSave, onCancel, loading }: {
 
         {form.geofence_enabled && (
           <>
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="grid grid-cols-1 gap-3 pt-2 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">Latitude (-90 to 90)</label>
                 <input

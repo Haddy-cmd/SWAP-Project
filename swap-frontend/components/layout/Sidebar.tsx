@@ -5,11 +5,13 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { useNotifications } from '@/lib/hooks/useNotifications'
+import { Seal } from '@/components/shared/Seal'
 import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
-  BarChart2, Building2, Banknote, Bell, User, BookOpen,
-  ClipboardList, LogOut, GraduationCap, Calendar, X,
+  BarChart2, Building2, Banknote, Bell, BookOpen,
+  ClipboardList, LogOut, Calendar, X,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
@@ -17,7 +19,7 @@ type NavLink = { label: string; href: string; icon: LucideIcon }
 const ROLE_NAV: Record<string, NavLink[]> = {
   applicant: [
     { label: 'Dashboard', href: '/applicant/dashboard', icon: LayoutDashboard },
-    { label: 'My Application', href: '/applicant/application/new', icon: FileText },
+    { label: 'Application', href: '/applicant/application/new', icon: FileText },
     { label: 'Documents', href: '/applicant/documents', icon: BookOpen },
   ],
   recipient: [
@@ -30,14 +32,14 @@ const ROLE_NAV: Record<string, NavLink[]> = {
   ],
   supervisor: [
     { label: 'Dashboard', href: '/supervisor/dashboard', icon: LayoutDashboard },
-    { label: 'My Students', href: '/supervisor/students', icon: Users },
-    { label: 'Verifications', href: '/supervisor/verifications', icon: CheckSquare },
+    { label: 'Students', href: '/supervisor/students', icon: Users },
+    { label: 'Verify', href: '/supervisor/verifications', icon: CheckSquare },
   ],
   admin: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Applications', href: '/admin/applications', icon: FileText },
     { label: 'Interviews', href: '/admin/interviews', icon: Calendar },
-    { label: 'Assignments', href: '/admin/assignments', icon: GraduationCap },
+    { label: 'Assignments', href: '/admin/assignments', icon: Users },
     { label: 'Offices', href: '/admin/offices', icon: Building2 },
     { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Stipend', href: '/admin/stipend', icon: Banknote },
@@ -47,47 +49,30 @@ const ROLE_NAV: Record<string, NavLink[]> = {
   ],
 }
 
-const COMMON_NAV: NavLink[] = [
-  { label: 'Notifications', href: '/notifications', icon: Bell },
-  { label: 'Profile', href: '/profile', icon: User },
-]
-
-function NavRow({ item, active, onNavigate }: { item: NavLink; active: boolean; onNavigate?: () => void }) {
+function RailItem({ item, active, onNavigate }: { item: NavLink; active: boolean; onNavigate?: () => void }) {
   const Icon = item.icon
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
+      title={item.label}
       className={cn(
-        'group relative flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm transition-all duration-150',
-        active
-          ? 'bg-white/[0.13] font-semibold text-white shadow-sm'
-          : 'font-medium text-white/60 hover:bg-white/[0.07] hover:text-white',
+        'group flex flex-col items-center gap-1 rounded-xl px-1 py-2.5 text-center transition-colors',
+        active ? 'bg-white/[0.14] text-white' : 'text-white/55 hover:bg-white/[0.07] hover:text-white',
       )}
     >
-      {active && <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[#F5C842]" />}
-      <span
-        className={cn(
-          'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg transition-colors',
-          active ? 'bg-white/15 text-[#F5C842]' : 'text-white/70 group-hover:text-white',
-        )}
-      >
-        <Icon className="h-[18px] w-[18px]" />
-      </span>
-      <span className="truncate">{item.label}</span>
+      <Icon className={cn('h-[22px] w-[22px] flex-shrink-0', active && 'text-[#D8B65A]')} />
+      <span className="line-clamp-2 text-[10px] font-medium leading-[1.15]">{item.label}</span>
     </Link>
   )
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="px-3 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35">{children}</p>
 }
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const { user } = useAuthStore()
-  // Full logout: revokes the server token, clears cached data, and redirects to /login immediately.
-  const { logout: handleLogout, isLoggingOut } = useAuth()
+  const { logout, isLoggingOut } = useAuth()
+  const { data: notif } = useNotifications()
+  const unread = notif?.meta?.unread_count ?? 0
 
   const roleNav = user?.role ? ROLE_NAV[user.role] ?? [] : []
 
@@ -96,66 +81,70 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <aside
-      className="flex h-full w-64 flex-col border-r border-black/20 text-white"
-      style={{ background: 'linear-gradient(170deg, #8E1B1B 0%, #6B1212 55%, #520D0D 100%)' }}
+      className="relative flex h-full w-24 flex-col border-r border-black/20"
+      style={{ background: 'linear-gradient(180deg, #8E1B1B 0%, #6B1212 55%, #520D0D 100%)' }}
     >
+      {/* Close (mobile drawer only) */}
+      <button
+        onClick={onNavigate}
+        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg text-white/60 hover:bg-white/10 hover:text-white transition-colors md:hidden"
+        aria-label="Close menu"
+      >
+        <X className="h-4 w-4" />
+      </button>
+
       {/* Brand */}
-      <div className="flex items-center gap-3 px-5 py-5">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#F5C842] to-[#D9A520] shadow-md">
-          <GraduationCap className="h-5 w-5 text-[#6B1212]" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="truncate text-[15px] font-bold tracking-wide text-white">SWAP Portal</p>
-          <p className="truncate text-xs text-white/45">MSU Marawi</p>
-        </div>
-        <button
-          onClick={onNavigate}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white transition-colors md:hidden"
-          aria-label="Close menu"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+      <Link href={roleNav[0]?.href ?? '/'} onClick={onNavigate} className="flex flex-col items-center gap-1 pt-5 pb-3">
+        <Seal size={38} />
+        <span className="text-[10px] font-bold tracking-[0.15em] text-[#D8B65A]">SWAP</span>
+      </Link>
 
-      {/* Nav */}
-      <nav className="sidebar-scroll flex-1 overflow-y-auto px-3 pb-4">
-        <SectionLabel>Menu</SectionLabel>
-        <div className="space-y-1">
-          {roleNav.map((item) => (
-            <NavRow key={item.href} item={item} active={isActive(item.href)} onNavigate={onNavigate} />
-          ))}
-        </div>
-
-        <div className="my-3 h-px bg-white/10" />
-
-        <SectionLabel>General</SectionLabel>
-        <div className="space-y-1">
-          {COMMON_NAV.map((item) => (
-            <NavRow key={item.href} item={item} active={isActive(item.href)} onNavigate={onNavigate} />
-          ))}
-        </div>
+      {/* Nav rail */}
+      <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-2 py-2">
+        {roleNav.map((item) => (
+          <RailItem key={item.href} item={item} active={isActive(item.href)} onNavigate={onNavigate} />
+        ))}
       </nav>
 
-      {/* Profile card */}
-      <div className="p-3">
-        <div className="flex items-center gap-3 rounded-2xl bg-white/[0.06] p-2.5 ring-1 ring-white/10">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#F5C842] to-[#D9A520] text-sm font-bold text-[#6B1212]">
-            {user?.name?.charAt(0).toUpperCase() ?? '?'}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">{user?.name}</p>
-            <p className="truncate text-xs capitalize text-white/50">{user?.role}</p>
-          </div>
-          <button
-            onClick={() => handleLogout()}
-            disabled={isLoggingOut}
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-white/55 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
-            aria-label="Sign out"
-            title="Sign out"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
+      {/* Utility */}
+      <div className="flex flex-col items-center gap-2 border-t border-white/10 px-2 py-3">
+        <Link
+          href="/notifications"
+          onClick={onNavigate}
+          title="Notifications"
+          aria-label="Notifications"
+          className={cn(
+            'relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
+            isActive('/notifications') ? 'bg-white/[0.14] text-[#D8B65A]' : 'text-white/60 hover:bg-white/10 hover:text-white',
+          )}
+        >
+          <Bell className="h-5 w-5" />
+          {unread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E74C3C] px-1 text-[9px] font-bold text-white">
+              {unread > 9 ? '9+' : unread}
+            </span>
+          )}
+        </Link>
+
+        <Link
+          href="/profile"
+          onClick={onNavigate}
+          title={user?.name ?? 'Profile'}
+          aria-label="Profile"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#D8B65A] to-[#B8901F] text-sm font-bold text-[#531010] ring-2 ring-white/10 transition hover:brightness-105"
+        >
+          {user?.name?.charAt(0).toUpperCase() ?? '?'}
+        </Link>
+
+        <button
+          onClick={() => logout()}
+          disabled={isLoggingOut}
+          title="Sign out"
+          aria-label="Sign out"
+          className="flex h-9 w-9 items-center justify-center rounded-xl text-white/55 hover:bg-white/10 hover:text-white disabled:opacity-50 transition-colors"
+        >
+          <LogOut className="h-[18px] w-[18px]" />
+        </button>
       </div>
     </aside>
   )

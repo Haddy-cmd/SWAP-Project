@@ -47,7 +47,7 @@ export default function AuditLogsPage() {
           </div>
         ) : (
           <>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
               <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-[#64748B]">Action</th>
@@ -82,7 +82,7 @@ export default function AuditLogsPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
             {meta && meta.last_page > 1 && (
               <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3">
                 <p className="text-xs text-[#64748B]">Page {meta.current_page} of {meta.last_page} · {meta.total} total</p>

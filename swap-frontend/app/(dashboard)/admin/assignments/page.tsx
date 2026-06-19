@@ -184,7 +184,7 @@ export default function AdminAssignmentsPage() {
         {!filteredPending.length ? (
           <p className="p-8 text-center text-sm text-[#94A3B8]">No approved applicants awaiting assignment.</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
             <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#64748B]">Applicant</th>
@@ -212,7 +212,7 @@ export default function AdminAssignmentsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
@@ -227,7 +227,7 @@ export default function AdminAssignmentsPage() {
         ) : !filteredAssignments.length ? (
           <p className="p-8 text-center text-sm text-[#94A3B8]">No assignments yet.</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
             <thead className="border-b border-[#E2E8F0] bg-[#F8FAFC]">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-[#64748B]">Recipient</th>
@@ -275,14 +275,14 @@ export default function AdminAssignmentsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
       {/* Assign modal */}
       {assignFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeModal}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <h2 className="font-semibold text-[#1E293B]">Assign to Office</h2>
@@ -293,7 +293,7 @@ export default function AdminAssignmentsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-[#64748B]">Office</label>
                 <select value={officeId} onChange={(e) => pickOffice(e.target.value, setOfficeId, setSupervisorId)}
@@ -364,7 +364,7 @@ export default function AdminAssignmentsPage() {
       {/* Change office / supervisor modal */}
       {editFor && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditFor(null)}>
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <h2 className="font-semibold text-[#1E293B]">Change Office</h2>
@@ -375,7 +375,7 @@ export default function AdminAssignmentsPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="mb-1 block text-xs font-medium text-[#64748B]">Office</label>
                 <select value={editOfficeId} onChange={(e) => pickOffice(e.target.value, setEditOfficeId, setEditSupervisorId)}

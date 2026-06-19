@@ -8,11 +8,15 @@ interface UIStore {
   mobileSidebarOpen: boolean
   /** Desktop auto-hide: temporary hover-reveal of the sidebar (ephemeral). */
   sidebarRevealed: boolean
+  /** Floating chatbot widget open/closed (ephemeral). */
+  chatOpen: boolean
   toggleDesktopSidebar: () => void
   toggleMobileSidebar: () => void
   setMobileSidebarOpen: (open: boolean) => void
   revealSidebar: () => void
   scheduleHideSidebar: () => void
+  toggleChat: () => void
+  setChatOpen: (open: boolean) => void
 }
 
 // Module-level timer for the auto-hide delay (kept out of persisted state).
@@ -24,6 +28,9 @@ export const useUIStore = create<UIStore>()(
       desktopSidebarOpen: true,
       mobileSidebarOpen: false,
       sidebarRevealed: false,
+      chatOpen: false,
+      toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
+      setChatOpen: (chatOpen) => set({ chatOpen }),
       toggleDesktopSidebar: () => set((s) => ({ desktopSidebarOpen: !s.desktopSidebarOpen })),
       toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
       setMobileSidebarOpen: (mobileSidebarOpen) => set({ mobileSidebarOpen }),

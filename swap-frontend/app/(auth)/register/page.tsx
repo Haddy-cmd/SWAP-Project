@@ -98,7 +98,7 @@ export default function RegisterPage() {
       )}
 
       <form onSubmit={handleSubmit((d) => signup.mutate(d))} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="First Name" error={errors.first_name?.message ?? fieldErrors.first_name}>
             <input {...register('first_name')} placeholder="Juan" className={INPUT} />
           </Field>
@@ -119,7 +119,7 @@ export default function RegisterPage() {
           <input {...register('email')} type="email" placeholder="student@msumarawi.edu.ph" className={INPUT} />
         </Field>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="College" error={errors.college?.message ?? fieldErrors.college}>
             <input {...register('college')} placeholder="e.g. CSET" className={INPUT} />
           </Field>
