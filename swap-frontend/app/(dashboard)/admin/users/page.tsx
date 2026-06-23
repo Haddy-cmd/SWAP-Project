@@ -203,7 +203,7 @@ export default function AdminUsersPage() {
                     <button
                       onClick={() => toggle.mutate({ id: user.id, is_active: !user.is_active })}
                       disabled={toggle.isPending}
-                      className={`flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      className={`ml-auto inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         user.is_active
                           ? 'border-red-200 text-[#E74C3C] hover:bg-red-50'
                           : 'border-green-200 text-[#27AE60] hover:bg-green-50'
