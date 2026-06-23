@@ -110,6 +110,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/offices/{id}/supervisors/{supervisorId}', [OfficeController::class, 'removeSupervisor']);
 
         Route::get('/users', [UserController::class, 'index']);
+        Route::post('/users', [UserController::class, 'store']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
 

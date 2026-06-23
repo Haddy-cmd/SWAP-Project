@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
@@ -12,6 +13,37 @@ use Illuminate\Http\Request;
 class UserController extends Controller
 {
     public function __construct(private readonly UserRepositoryInterface $userRepository) {}
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8'],
+            'role' => ['required', 'string', 'in:applicant,recipient,supervisor,admin'],
+            'office_id' => ['nullable', 'integer', 'exists:offices,id'],
+        ]);
+
+        // office_id only applies to supervisors; ignore it for other roles.
+        $officeId = $validated['role'] === 'supervisor' ? ($validated['office_id'] ?? null) : null;
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => $validated['password'], // auto-hashed by the User model cast
+            'role' => $validated['role'],
+            'office_id' => $officeId,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        AuditLog::record('created', $user);
+
+        return response()->json([
+            'data' => new UserResource($user),
+            'message' => 'User created.',
+        ], 201);
+    }
 
     public function index(Request $request): JsonResponse
     {

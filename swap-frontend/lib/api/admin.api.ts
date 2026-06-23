@@ -7,6 +7,9 @@ export const adminApi = {
   getUsers: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<User>>('/admin/users', { params }).then((r) => r.data),
 
+  createUser: (data: { name: string; email: string; password: string; role: string; office_id?: number | null }) =>
+    apiClient.post<ApiResponse<User>>('/admin/users', data).then((r) => r.data.data),
+
   updateUser: (id: number, data: { role?: string; is_active?: boolean }) =>
     apiClient.put<ApiResponse<User>>(`/admin/users/${id}`, data).then((r) => r.data.data),
 
