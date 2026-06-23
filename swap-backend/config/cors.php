@@ -20,7 +20,11 @@ return [
         'http://localhost:3000',
     ])),
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => [
+        // Allow this project's Vercel deployments (production + preview URLs),
+        // so CORS works even if FRONTEND_URL is unset/misconfigured.
+        '#^https://swap-project.*\.vercel\.app$#',
+    ],
 
     'allowed_headers' => ['*'],
 
