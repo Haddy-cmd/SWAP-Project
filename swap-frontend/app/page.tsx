@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ChevronRight, MessageCircle, Check, MapPin, Mail, Clock } from 'lucide-react'
 import { AskChatbotButton } from '@/components/chatbot/AskChatbotButton'
 
+// Landing page for SWAP Portal
 const STEPS = [
   { title: 'Submit Application', desc: 'Complete the application form and upload the required documents.' },
   { title: 'Review & Interview', desc: 'The SWAP office screens applications and schedules a qualifying interview.' },
