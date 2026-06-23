@@ -2,21 +2,22 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { RefreshCw, Search, Building2, X, MapPin } from 'lucide-react'
+import { Search, Building2, X, MapPin, Sparkles, Target } from 'lucide-react'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { adminApi } from '@/lib/api/admin.api'
 import { applicationsApi } from '@/lib/api/applications.api'
-import { QrDisplay } from '@/components/attendance/QrDisplay'
+import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import type { Application } from '@/types/application.types'
 import type { Assignment } from '@/types/assignment.types'
 
 export default function AdminAssignmentsPage() {
   const queryClient = useQueryClient()
-  const [qrView, setQrView] = useState<{ id: number; token: string } | null>(null)
   const [search, setSearch] = useState('')
   const [assignFor, setAssignFor] = useState<Application | null>(null)
   const [editFor, setEditFor] = useState<Assignment | null>(null)
+  const [bonusFor, setBonusFor] = useState<Assignment | null>(null)
+  const [hoursFor, setHoursFor] = useState<Assignment | null>(null)
 
   // Assign form fields
   const [officeId, setOfficeId] = useState('')
@@ -51,11 +52,19 @@ export default function AdminAssignmentsPage() {
     enabled: !!assignFor || !!editFor,
   })
 
-  const regenQr = useMutation({
-    mutationFn: (id: number) => assignmentsApi.regenerateQr(id),
-    onSuccess: (res, id) => {
+  const addBonus = useMutation({
+    mutationFn: (v: { hours: number; date: string; reason: string }) => assignmentsApi.addManualHours(bonusFor!.id, v),
+    onSuccess: () => {
+      setBonusFor(null)
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] })
-      setQrView({ id, token: res.data.qr_code })
+    },
+  })
+
+  const setReq = useMutation({
+    mutationFn: (hours: number) => assignmentsApi.requestRequiredHours(hoursFor!.id, hours),
+    onSuccess: () => {
+      setHoursFor(null)
+      queryClient.invalidateQueries({ queryKey: ['admin-assignments'] })
     },
   })
 
@@ -159,22 +168,6 @@ export default function AdminAssignmentsPage() {
         </button>
       </form>
 
-      {qrView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setQrView(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-4 flex items-start justify-between">
-              <h2 className="font-semibold text-[#1E293B]">QR Code — Assignment #{qrView.id}</h2>
-              <button onClick={() => setQrView(null)} className="text-[#94A3B8] hover:text-[#E74C3C] transition-colors">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex justify-center">
-              <QrDisplay value={qrView.token} size={200} caption={`Assignment #${qrView.id}`} />
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Pending Assignment — approved applicants without an assignment */}
       <div className="rounded-2xl border border-[#E2E8F0] bg-white shadow-sm overflow-hidden">
         <div className="flex items-center justify-between border-b border-[#E2E8F0] bg-[#FFFBEB] px-4 py-3">
@@ -244,31 +237,37 @@ export default function AdminAssignmentsPage() {
                     <p className="font-medium text-[#1E293B]">{a.user?.name ?? '—'}</p>
                   </td>
                   <td className="px-4 py-3 text-[#64748B]">{a.office?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-[#64748B]">{a.required_hours} hrs</td>
+                  <td className="px-4 py-3 text-[#64748B]">
+                    {a.required_hours} hrs
+                    {a.pending_required_hours != null && (
+                      <span className="ml-1 inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-[#92400E]" title="Awaiting supervisor approval">
+                        → {a.pending_required_hours}h pending
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3"><StatusBadge status={a.status} /></td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => setBonusFor(a)}
+                        className="flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Bonus
+                      </button>
+                      <button
+                        onClick={() => setHoursFor(a)}
+                        className="flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors"
+                      >
+                        <Target className="h-3.5 w-3.5" />
+                        Hours
+                      </button>
                       <button
                         onClick={() => openEdit(a)}
                         className="flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors"
                       >
                         <MapPin className="h-3.5 w-3.5" />
                         Change Office
-                      </button>
-                      <button
-                        onClick={() => a.qr_code && setQrView({ id: a.id, token: a.qr_code })}
-                        disabled={!a.qr_code}
-                        className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#1B4F72] hover:bg-[#EBF5FB] disabled:opacity-40 transition-colors"
-                      >
-                        View QR
-                      </button>
-                      <button
-                        onClick={() => regenQr.mutate(a.id)}
-                        disabled={regenQr.isPending}
-                        className="flex items-center gap-1 rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#F39C12] hover:bg-yellow-50 disabled:opacity-40 transition-colors"
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        Regen QR
                       </button>
                     </div>
                   </td>
@@ -427,6 +426,27 @@ export default function AdminAssignmentsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {bonusFor && (
+        <ManualHoursModal
+          studentName={bonusFor.user?.name}
+          requiresApproval
+          isPending={addBonus.isPending}
+          error={addBonus.isError ? ((addBonus.error as { message?: string })?.message ?? 'Could not add hours.') : null}
+          onClose={() => setBonusFor(null)}
+          onSubmit={(v) => addBonus.mutate(v)}
+        />
+      )}
+      {hoursFor && (
+        <RequiredHoursModal
+          current={hoursFor.required_hours}
+          requiresApproval
+          isPending={setReq.isPending}
+          error={setReq.isError ? ((setReq.error as { message?: string })?.message ?? 'Could not update.') : null}
+          onClose={() => setHoursFor(null)}
+          onSubmit={(h) => setReq.mutate(h)}
+        />
       )}
     </div>
   )

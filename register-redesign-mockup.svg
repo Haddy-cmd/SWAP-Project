@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="660" viewBox="0 0 1000 660" font-family="Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="14" flood-color="#5C1010" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+  <rect width="1000" height="660" fill="#F7F3EC"/>
+
+  <!-- caption -->
+  <text x="24" y="22" font-size="12" font-weight="700" fill="#7D1A1A">STEP 1 · Personal</text>
+  <text x="516" y="22" font-size="12" font-weight="700" fill="#7D1A1A">STEP 2 · Academic &amp; Security</text>
+
+  <!-- ============ CARD 1 (Step 1) ============ -->
+  <g filter="url(#soft)"><rect x="24" y="34" width="460" height="600" rx="20" fill="#FFFFFF"/></g>
+
+  <text x="56" y="78" font-size="22" font-weight="800" fill="#1E293B">Create your account</text>
+  <text x="56" y="100" font-size="13" fill="#8A6A6A">Apply for the SWAP program at MSU Marawi</text>
+
+  <!-- stepper -->
+  <circle cx="68" cy="132" r="12" fill="#7D1A1A"/><text x="68" y="137" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">1</text>
+  <text x="86" y="136" font-size="12.5" font-weight="700" fill="#7D1A1A">Personal</text>
+  <line x1="168" y1="132" x2="300" y2="132" stroke="#E5E0DA" stroke-width="2"/>
+  <circle cx="312" cy="132" r="12" fill="#F1EBE4" stroke="#E0D6CE"/><text x="312" y="137" font-size="12" font-weight="700" fill="#B8AFA8" text-anchor="middle">2</text>
+  <text x="330" y="136" font-size="12.5" font-weight="600" fill="#B8AFA8">Academic</text>
+
+  <!-- First / Last -->
+  <text x="56" y="174" font-size="12" font-weight="600" fill="#475569">First Name</text>
+  <rect x="56" y="184" width="192" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <circle cx="76" cy="202" r="4" fill="none" stroke="#B09A9A" stroke-width="1.5"/><path d="M70 212 a6 5 0 0 1 12 0" fill="none" stroke="#B09A9A" stroke-width="1.5"/>
+  <text x="90" y="211" font-size="13" fill="#B09A9A">Juan</text>
+  <text x="260" y="174" font-size="12" font-weight="600" fill="#475569">Last Name</text>
+  <rect x="260" y="184" width="192" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <circle cx="280" cy="202" r="4" fill="none" stroke="#B09A9A" stroke-width="1.5"/><path d="M274 212 a6 5 0 0 1 12 0" fill="none" stroke="#B09A9A" stroke-width="1.5"/>
+  <text x="294" y="211" font-size="13" fill="#B09A9A">dela Cruz</text>
+
+  <!-- Full name -->
+  <text x="56" y="256" font-size="12" font-weight="600" fill="#475569">Full Name (as per records)</text>
+  <rect x="56" y="266" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <rect x="70" y="278" width="14" height="11" rx="2" fill="none" stroke="#B09A9A" stroke-width="1.4"/><circle cx="74" cy="282" r="1.6" fill="#B09A9A"/>
+  <text x="94" y="293" font-size="13" fill="#B09A9A">Juan A. dela Cruz</text>
+
+  <!-- Student ID -->
+  <text x="56" y="338" font-size="12" font-weight="600" fill="#475569">Student ID Number</text>
+  <rect x="56" y="348" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <text x="70" y="375" font-size="14" font-weight="700" fill="#B09A9A">#</text>
+  <text x="92" y="375" font-size="13" fill="#B09A9A">20XX-XXXXX</text>
+
+  <!-- Email -->
+  <text x="56" y="420" font-size="12" font-weight="600" fill="#475569">Email Address</text>
+  <rect x="56" y="430" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <rect x="69" y="445" width="16" height="12" rx="2" fill="none" stroke="#B09A9A" stroke-width="1.4"/><path d="M69 446 l8 6 l8 -6" fill="none" stroke="#B09A9A" stroke-width="1.4"/>
+  <text x="94" y="457" font-size="13" fill="#B09A9A">student@msumarawi.edu.ph</text>
+
+  <!-- Continue button -->
+  <rect x="56" y="506" width="396" height="50" rx="13" fill="#7D1A1A"/>
+  <text x="246" y="537" font-size="14.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">Continue  →</text>
+
+  <text x="254" y="588" font-size="12.5" fill="#8A6A6A" text-anchor="middle">Already have an account?  <tspan font-weight="700" fill="#7D1A1A">Sign in</tspan></text>
+
+  <!-- ============ CARD 2 (Step 2) ============ -->
+  <g filter="url(#soft)"><rect x="516" y="34" width="460" height="600" rx="20" fill="#FFFFFF"/></g>
+
+  <text x="548" y="78" font-size="22" font-weight="800" fill="#1E293B">Create your account</text>
+  <text x="548" y="100" font-size="13" fill="#8A6A6A">Almost done — your academic details</text>
+
+  <!-- stepper (step 2 active) -->
+  <circle cx="560" cy="132" r="12" fill="#27AE60"/><path d="M555 132 l3.5 3.5 l6 -7" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="578" y="136" font-size="12.5" font-weight="600" fill="#1E8E50">Personal</text>
+  <line x1="660" y1="132" x2="792" y2="132" stroke="#7D1A1A" stroke-width="2"/>
+  <circle cx="804" cy="132" r="12" fill="#7D1A1A"/><text x="804" y="137" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">2</text>
+  <text x="822" y="136" font-size="12.5" font-weight="700" fill="#7D1A1A">Academic</text>
+
+  <!-- College dropdown -->
+  <text x="548" y="174" font-size="12" font-weight="600" fill="#475569">College</text>
+  <rect x="548" y="184" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <path d="M562 196 h12 v12 h-12 z M562 200 h12" fill="none" stroke="#B09A9A" stroke-width="1.3"/>
+  <text x="586" y="211" font-size="13" fill="#475569">CICS — Information and Computing Sciences</text>
+  <path d="M922 200 l6 7 l6 -7" fill="none" stroke="#8A6A6A" stroke-width="1.6"/>
+
+  <!-- Program dropdown -->
+  <text x="548" y="256" font-size="12" font-weight="600" fill="#475569">Program</text>
+  <rect x="548" y="266" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <path d="M561 290 v-12 l7 -3 v12 z" fill="none" stroke="#B09A9A" stroke-width="1.3"/>
+  <text x="586" y="293" font-size="13" fill="#475569">BS Computer Science</text>
+  <path d="M922 282 l6 7 l6 -7" fill="none" stroke="#8A6A6A" stroke-width="1.6"/>
+
+  <!-- Year level dropdown -->
+  <text x="548" y="338" font-size="12" font-weight="600" fill="#475569">Year Level</text>
+  <rect x="548" y="348" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <text x="568" y="375" font-size="13" fill="#475569">3rd Year</text>
+  <path d="M922 364 l6 7 l6 -7" fill="none" stroke="#8A6A6A" stroke-width="1.6"/>
+
+  <!-- Password + eye -->
+  <text x="548" y="420" font-size="12" font-weight="600" fill="#475569">Password</text>
+  <rect x="548" y="430" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <rect x="562" y="446" width="12" height="9" rx="2" fill="none" stroke="#B09A9A" stroke-width="1.4"/><path d="M564 446 v-2 a4 4 0 0 1 8 0 v2" fill="none" stroke="#B09A9A" stroke-width="1.4"/>
+  <text x="586" y="457" font-size="14" fill="#B09A9A" letter-spacing="2">••••••••</text>
+  <path d="M916 452 q8 -7 16 0 q-8 7 -16 0 z" fill="none" stroke="#8A6A6A" stroke-width="1.4"/><circle cx="924" cy="452" r="2.2" fill="#8A6A6A"/>
+
+  <!-- Confirm password -->
+  <text x="548" y="502" font-size="12" font-weight="600" fill="#475569">Confirm Password</text>
+  <rect x="548" y="512" width="396" height="44" rx="11" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <rect x="562" y="528" width="12" height="9" rx="2" fill="none" stroke="#B09A9A" stroke-width="1.4"/><path d="M564 528 v-2 a4 4 0 0 1 8 0 v2" fill="none" stroke="#B09A9A" stroke-width="1.4"/>
+  <text x="586" y="539" font-size="14" fill="#B09A9A" letter-spacing="2">••••••••</text>
+
+  <!-- Back + Create buttons -->
+  <rect x="548" y="578" width="120" height="50" rx="13" fill="#FFFFFF" stroke="#DCC5C5"/>
+  <text x="608" y="609" font-size="14" font-weight="600" fill="#7D1A1A" text-anchor="middle">←  Back</text>
+  <rect x="680" y="578" width="264" height="50" rx="13" fill="#7D1A1A"/>
+  <text x="812" y="609" font-size="14.5" font-weight="700" fill="#FFFFFF" text-anchor="middle">Create Account</text>
+</svg>

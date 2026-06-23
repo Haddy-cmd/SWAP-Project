@@ -12,6 +12,31 @@ use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
 {
+    /**
+     * Distinct academic-year / semester periods that actually have data
+     * (from applications or assignments), most recent first.
+     */
+    public function getAvailablePeriods(): array
+    {
+        $fromApplications = Application::select('academic_year', 'semester')->distinct();
+
+        $periods = Assignment::select('academic_year', 'semester')
+            ->distinct()
+            ->union($fromApplications)
+            ->get()
+            ->map(fn ($row) => [
+                'academic_year' => $row->academic_year,
+                'semester' => $row->semester,
+            ])
+            ->unique(fn ($p) => $p['academic_year'].'|'.$p['semester'])
+            // Year desc, then 2nd Semester before 1st within the same year.
+            ->sortByDesc(fn ($p) => $p['academic_year'].'|'.$p['semester'])
+            ->values()
+            ->toArray();
+
+        return $periods;
+    }
+
     public function getAdminOverview(string $academicYear, string $semester): array
     {
         $statusCounts = Application::where('academic_year', $academicYear)
@@ -56,6 +81,20 @@ class AnalyticsService
                 'total_applications' => (int) $row->total_applications,
                 'approved' => (int) $row->approved,
                 'rejected' => (int) $row->rejected,
+            ])
+            ->toArray();
+
+        // Applicants grouped by their college (from the student profile), period-scoped.
+        $applicantsByCollege = Application::where('academic_year', $academicYear)
+            ->where('semester', $semester)
+            ->join('student_profiles', 'student_profiles.user_id', '=', 'applications.user_id')
+            ->selectRaw('student_profiles.college as college, COUNT(*) as applicant_count')
+            ->groupBy('student_profiles.college')
+            ->orderByDesc('applicant_count')
+            ->get()
+            ->map(fn ($row) => [
+                'college' => $row->college,
+                'applicant_count' => (int) $row->applicant_count,
             ])
             ->toArray();
 
@@ -129,6 +168,7 @@ class AnalyticsService
             'office_distribution' => $officeDistribution,
             'office_distribution_all' => $officeDistributionAll,
             'monthly_stats' => $monthlyStats,
+            'applicants_by_college' => $applicantsByCollege,
             'weekly_hours' => $weeklyHours,
             'stipend_summary' => [
                 'total_released' => (float) ($stipendSummary['released'] ?? 0),

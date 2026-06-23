@@ -18,6 +18,8 @@ class Assignment extends Model
         'academic_year',
         'semester',
         'required_hours',
+        'pending_required_hours',
+        'pending_required_by',
         'start_date',
         'end_date',
         'status',
@@ -31,6 +33,7 @@ class Assignment extends Model
             'start_date' => 'date',
             'end_date' => 'date',
             'required_hours' => 'integer',
+            'pending_required_hours' => 'integer',
         ];
     }
 

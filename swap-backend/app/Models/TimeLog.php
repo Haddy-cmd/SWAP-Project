@@ -33,6 +33,9 @@ class TimeLog extends Model
         'time_in_accuracy',
         'time_out_accuracy',
         'location_flagged',
+        'is_manual',
+        'manual_reason',
+        'recorded_by',
     ];
 
     protected function casts(): array
@@ -50,6 +53,7 @@ class TimeLog extends Model
             'time_in_accuracy' => 'decimal:2',
             'time_out_accuracy' => 'decimal:2',
             'location_flagged' => 'boolean',
+            'is_manual' => 'boolean',
         ];
     }
 

@@ -17,6 +17,21 @@ class VerificationController extends Controller
         private readonly TimeLogRepositoryInterface $timeLogRepository
     ) {}
 
+    /** Pending attendance logs across this supervisor's students (for the dashboard action center). */
+    public function pending(Request $request): JsonResponse
+    {
+        $logs = $this->timeLogRepository->paginateForSupervisor(
+            $request->user()->id,
+            ['status' => 'pending_verification'],
+            50,
+        );
+
+        return response()->json([
+            'data' => TimeLogResource::collection($logs->items()),
+            'meta' => ['total' => $logs->total()],
+        ]);
+    }
+
     public function update(VerifyLogRequest $request, int $logId): JsonResponse
     {
         $log = $this->timeLogRepository->findById($logId);

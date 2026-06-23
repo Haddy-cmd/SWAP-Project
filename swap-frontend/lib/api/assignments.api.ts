@@ -15,6 +15,12 @@ export const assignmentsApi = {
   regenerateQr: (id: number) =>
     apiClient.post<ApiResponse<{ qr_code: string }>>(`/admin/assignments/${id}/regenerate-qr`).then((r) => r.data),
 
+  addManualHours: (id: number, data: { hours: number; date: string; reason: string }) =>
+    apiClient.post(`/admin/assignments/${id}/manual-hours`, data).then((r) => r.data),
+
+  requestRequiredHours: (id: number, required_hours: number) =>
+    apiClient.post(`/admin/assignments/${id}/required-hours`, { required_hours }).then((r) => r.data),
+
   getOffices: () =>
     apiClient.get<{ data: Office[] }>('/admin/offices').then((r) => r.data),
 

@@ -7,12 +7,25 @@ use App\Models\Assignment;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use App\Resources\AssignmentResource;
 use App\Resources\TimeLogResource;
+use App\Services\AttendanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class StudentController extends Controller
 {
-    public function __construct(private readonly TimeLogRepositoryInterface $timeLogRepository) {}
+    public function __construct(
+        private readonly TimeLogRepositoryInterface $timeLogRepository,
+        private readonly AttendanceService $attendanceService,
+    ) {}
+
+    /** Resolve the student's active assignment owned by this supervisor, or null. */
+    private function ownedAssignment(int $supervisorId, int $studentId): ?Assignment
+    {
+        return Assignment::where('user_id', $studentId)
+            ->where('supervisor_id', $supervisorId)
+            ->where('status', 'active')
+            ->first();
+    }
 
     public function index(Request $request): JsonResponse
     {
@@ -92,6 +105,8 @@ class StudentController extends Controller
             'student' => [
                 'id' => $assignment->user->id,
                 'name' => $assignment->user->profile?->full_name ?? $assignment->user->name,
+                'required_hours' => $assignment->required_hours,
+                'pending_required_hours' => $assignment->pending_required_hours,
             ],
             'meta' => [
                 'current_page' => $logs->currentPage(),
@@ -100,5 +115,75 @@ class StudentController extends Controller
                 'total' => $logs->total(),
             ],
         ]);
+    }
+
+    /** Grant manual/bonus hours to a student in this supervisor's office. */
+    public function addManualHours(Request $request, int $studentId): JsonResponse
+    {
+        $assignment = $this->ownedAssignment($request->user()->id, $studentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        $data = $request->validate([
+            'hours' => ['required', 'numeric', 'min:0.25', 'max:24'],
+            'date' => ['required', 'date', 'before_or_equal:today'],
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        $log = $this->attendanceService->addManualHours(
+            $assignment, (float) $data['hours'], $data['date'], $data['reason'], $request->user()
+        );
+
+        return response()->json([
+            'data' => new TimeLogResource($log),
+            'message' => 'Bonus hours added.',
+        ], 201);
+    }
+
+    /** Adjust the hours the student is required to render this semester. */
+    public function updateRequiredHours(Request $request, int $studentId): JsonResponse
+    {
+        $assignment = $this->ownedAssignment($request->user()->id, $studentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        $data = $request->validate([
+            'required_hours' => ['required', 'integer', 'min:1', 'max:2000'],
+        ]);
+
+        $assignment->update(['required_hours' => $data['required_hours']]);
+
+        return response()->json(['message' => 'Required hours updated.', 'data' => ['required_hours' => $assignment->required_hours]]);
+    }
+
+    /** Approve or reject an admin-requested required-hours change. */
+    public function decideRequiredHours(Request $request, int $studentId): JsonResponse
+    {
+        $assignment = $this->ownedAssignment($request->user()->id, $studentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        $data = $request->validate(['action' => ['required', 'in:approve,reject']]);
+
+        if ($assignment->pending_required_hours === null) {
+            return response()->json(['message' => 'There is no pending required-hours change.'], 422);
+        }
+
+        if ($data['action'] === 'approve') {
+            $assignment->update([
+                'required_hours' => $assignment->pending_required_hours,
+                'pending_required_hours' => null,
+                'pending_required_by' => null,
+            ]);
+            $message = 'Required-hours change approved.';
+        } else {
+            $assignment->update(['pending_required_hours' => null, 'pending_required_by' => null]);
+            $message = 'Required-hours change rejected.';
+        }
+
+        return response()->json(['message' => $message, 'data' => ['required_hours' => $assignment->required_hours]]);
     }
 }

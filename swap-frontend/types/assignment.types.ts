@@ -6,6 +6,7 @@ export interface Assignment {
   academic_year: string
   semester: string
   required_hours: number
+  pending_required_hours?: number | null
   start_date: string
   end_date: string | null
   status: 'active' | 'completed' | 'suspended'

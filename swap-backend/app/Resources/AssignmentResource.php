@@ -17,6 +17,7 @@ class AssignmentResource extends JsonResource
             'academic_year' => $this->academic_year,
             'semester' => $this->semester,
             'required_hours' => $this->required_hours,
+            'pending_required_hours' => $this->pending_required_hours,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),
             'status' => $this->status,

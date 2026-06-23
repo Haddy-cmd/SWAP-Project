@@ -27,6 +27,11 @@ class AnalyticsController extends Controller
         return response()->json(['data' => $overview]);
     }
 
+    public function periods(): JsonResponse
+    {
+        return response()->json(['data' => $this->analyticsService->getAvailablePeriods()]);
+    }
+
     public function auditLogs(Request $request): JsonResponse
     {
         $logs = AuditLog::with('user')

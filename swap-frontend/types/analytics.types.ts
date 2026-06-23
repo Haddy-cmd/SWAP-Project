@@ -13,8 +13,19 @@ export interface AdminOverview {
   office_distribution: OfficeDistribution[]
   office_distribution_all: OfficeDistribution[]
   monthly_stats: MonthlyStats[]
+  applicants_by_college: ApplicantsByCollege[]
   weekly_hours: WeeklyHours[]
   stipend_summary: StipendSummary
+}
+
+export interface ApplicantsByCollege {
+  college: string
+  applicant_count: number
+}
+
+export interface AdminPeriod {
+  academic_year: string
+  semester: string
 }
 
 export interface WeeklyHours {

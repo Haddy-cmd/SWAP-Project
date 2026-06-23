@@ -47,7 +47,19 @@ export const attendanceApi = {
     apiClient.get<{ data: HoursSummary; student: { id: number; name: string; email?: string; office?: string | null; academic_year?: string; semester?: string; required_hours?: number } }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
 
   getStudentLogs: (studentId: number, params?: Record<string, string>) =>
-    apiClient.get<PaginatedResponse<TimeLog> & { student?: { id: number; name: string } }>(`/supervisor/students/${studentId}/logs`, { params }).then((r) => r.data),
+    apiClient.get<PaginatedResponse<TimeLog> & { student?: { id: number; name: string; required_hours?: number; pending_required_hours?: number | null } }>(`/supervisor/students/${studentId}/logs`, { params }).then((r) => r.data),
+
+  addManualHours: (studentId: number, data: { hours: number; date: string; reason: string }) =>
+    apiClient.post<ApiResponse<TimeLog>>(`/supervisor/students/${studentId}/manual-hours`, data).then((r) => r.data.data),
+
+  updateRequiredHours: (studentId: number, required_hours: number) =>
+    apiClient.put(`/supervisor/students/${studentId}/required-hours`, { required_hours }).then((r) => r.data),
+
+  decideRequiredHours: (studentId: number, action: 'approve' | 'reject') =>
+    apiClient.post(`/supervisor/students/${studentId}/required-hours/decision`, { action }).then((r) => r.data),
+
+  getPendingVerifications: () =>
+    apiClient.get<{ data: TimeLog[]; meta: { total: number } }>('/supervisor/verifications/pending').then((r) => r.data.data),
 
   verifyLog: (logId: number, data: VerifyLogData) =>
     apiClient.put<ApiResponse<TimeLog>>(`/supervisor/verifications/${logId}`, data).then((r) => r.data),

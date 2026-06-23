@@ -77,6 +77,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/students/clocked-in', [StudentController::class, 'clockedIn']);
         Route::get('/students/{id}/summary', [StudentController::class, 'summary']);
         Route::get('/students/{id}/logs', [StudentController::class, 'logs']);
+        Route::post('/students/{id}/manual-hours', [StudentController::class, 'addManualHours']);
+        Route::put('/students/{id}/required-hours', [StudentController::class, 'updateRequiredHours']);
+        Route::post('/students/{id}/required-hours/decision', [StudentController::class, 'decideRequiredHours']);
+        Route::get('/verifications/pending', [VerificationController::class, 'pending']);
         Route::post('/verifications/bulk', [VerificationController::class, 'bulkVerify']);
         Route::put('/verifications/{logId}', [VerificationController::class, 'update']);
     });
@@ -92,6 +96,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/assignments', [AssignmentController::class, 'index']);
         Route::post('/assignments', [AssignmentController::class, 'store']);
         Route::put('/assignments/{id}', [AssignmentController::class, 'update']);
+        Route::post('/assignments/{id}/manual-hours', [AssignmentController::class, 'addManualHours']);
+        Route::post('/assignments/{id}/required-hours', [AssignmentController::class, 'requestRequiredHours']);
         Route::post('/assignments/{id}/regenerate-qr', [AssignmentController::class, 'regenerateQr']);
 
         Route::get('/offices', [OfficeController::class, 'index']);
@@ -112,6 +118,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/stipend/release', [StipendController::class, 'release']);
 
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
+        Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
         Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
     });

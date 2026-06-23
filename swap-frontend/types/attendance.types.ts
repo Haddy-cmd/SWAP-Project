@@ -14,6 +14,8 @@ export interface TimeLog {
   rejection_reason: string | null
   clocked_out_reason?: 'manual' | 'auto' | 'auto_stale' | null
   location_flagged?: boolean
+  is_manual?: boolean
+  manual_reason?: string | null
   time_in_accuracy?: number | string | null
   time_out_accuracy?: number | string | null
   has_narrative: boolean

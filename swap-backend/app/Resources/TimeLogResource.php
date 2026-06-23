@@ -23,6 +23,8 @@ class TimeLogResource extends JsonResource
             'rejection_reason' => $this->rejection_reason,
             'clocked_out_reason' => $this->clocked_out_reason,
             'location_flagged' => (bool) $this->location_flagged,
+            'is_manual' => (bool) $this->is_manual,
+            'manual_reason' => $this->manual_reason,
             'time_in_lat' => $this->time_in_lat,
             'time_in_lng' => $this->time_in_lng,
             'time_in_accuracy' => $this->time_in_accuracy,

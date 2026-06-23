@@ -138,6 +138,38 @@ class AttendanceService
         return $this->timeLogRepository->getHoursSummary($user->id);
     }
 
+    /**
+     * Grant manual ("bonus") hours to a recipient. duration_hours is computed from the span.
+     *
+     * @param bool $autoVerify  true (supervisor) → recorded as verified immediately;
+     *                          false (admin) → left pending_verification for the supervisor to approve.
+     */
+    public function addManualHours(Assignment $assignment, float $hours, string $date, ?string $reason, User $recordedBy, bool $autoVerify = true): TimeLog
+    {
+        $timeIn = Carbon::parse($date)->setTime(8, 0, 0);
+        $timeOut = (clone $timeIn)->addMinutes((int) round($hours * 60));
+
+        $log = TimeLog::create([
+            'assignment_id' => $assignment->id,
+            'user_id' => $assignment->user_id,
+            'date' => $timeIn->toDateString(),
+            'time_in' => $timeIn,
+            'time_out' => $timeOut,
+            'status' => $autoVerify ? 'verified' : 'pending_verification',
+            'verified_by' => $autoVerify ? $recordedBy->id : null,
+            'verified_at' => $autoVerify ? now() : null,
+            'clocked_out_reason' => 'manual',
+            'is_manual' => true,
+            'manual_reason' => $reason,
+            'recorded_by' => $recordedBy->id,
+        ]);
+
+        // duration_hours is a DB-generated column — reload so it's present in the response.
+        $log->refresh();
+
+        return $log;
+    }
+
     public function getLogsForUser(User $user, array $filters = [], int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator
     {
         return $this->timeLogRepository->paginateForUser($user->id, $filters, $perPage);

@@ -1,0 +1,77 @@
+# Render Blueprint — provisions PostgreSQL, the Laravel API, and the scheduler.
+# The Next.js frontend is deployed separately on Vercel (see DEPLOYMENT.md).
+#
+# Use: push to GitHub, then Render → "New +" → "Blueprint" → select this repo.
+#
+# This is the free-tier-friendly setup:
+#   • web service  — the API (runs migrations on boot via start.sh)
+#   • cron service — runs the Laravel scheduler (attendance:close-stale + reports)
+#   • QUEUE_CONNECTION=sync — notifications send inline. For async delivery off the
+#     request path, add a `worker` service running:
+#       php artisan queue:work --queue=notifications,default --tries=3 --backoff=60
+#     and set QUEUE_CONNECTION=database (see DEPLOYMENT.md §1).
+
+databases:
+  - name: swap-postgres
+    plan: free
+    databaseName: swap
+    user: swap
+
+services:
+  # ---- API ----
+  - type: web
+    name: swap-backend
+    runtime: docker
+    rootDir: swap-backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /up
+    envVars: &backend-env
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      # Generate once: php artisan key:generate --show   (set in dashboard)
+      - key: APP_KEY
+        sync: false
+      # Backend public URL, e.g. https://swap-backend.onrender.com
+      - key: APP_URL
+        sync: false
+      # Vercel URL, e.g. https://swap-portal.vercel.app  (used by CORS + email links)
+      - key: FRONTEND_URL
+        sync: false
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase: { name: swap-postgres, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: swap-postgres, property: port }
+      - key: DB_DATABASE
+        fromDatabase: { name: swap-postgres, property: database }
+      - key: DB_USERNAME
+        fromDatabase: { name: swap-postgres, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: swap-postgres, property: password }
+      - key: QUEUE_CONNECTION
+        value: sync
+      - key: SESSION_DRIVER
+        value: file
+      - key: CACHE_STORE
+        value: file
+      - key: LOG_CHANNEL
+        value: stderr
+      # Set MAIL_* in the dashboard to enable emails (DEPLOYMENT.md §3); defaults to log.
+      - key: MAIL_MAILER
+        value: log
+
+  # ---- Scheduler (Laravel cron) ----
+  # Runs `schedule:run` every minute so attendance:close-stale and the weekly/
+  # monthly report jobs fire. (Skips start.sh — no migrate/serve here.)
+  - type: cron
+    name: swap-scheduler
+    runtime: docker
+    rootDir: swap-backend
+    dockerfilePath: ./Dockerfile
+    schedule: "* * * * *"
+    dockerCommand: php artisan schedule:run
+    envVars: *backend-env
