@@ -20,15 +20,14 @@ const ELIGIBILITY = [
 
 const GLANCE: [string, string][] = [
   ['Monthly Stipend', '₱1,000.00'],
-  ['Required Service', '240 hours / semester'],
-  ['Governing Office', 'Office of Student Affairs'],
-  ['Partner Offices', '20+ university units'],
+  ['Required Service', '200 hours / semester'],
+  ['Governing Office', 'Division of Students Affairs'],
 ]
 
 const FAQS = [
   { q: 'Who is eligible for SWAP?', a: 'Regular MSU Marawi students with a GWA of 2.25 or better, no incomplete grades, and a monthly family income below the poverty threshold.' },
-  { q: 'How many hours must I render per semester?', a: 'Recipients must complete the required service hours assigned to their office, typically 240 hours per semester.' },
-  { q: 'How is the stipend computed and released?', a: 'The stipend is based on verified service hours. The standard monthly allowance is ₱1,500, subject to CHED guidelines, and is released upon verification.' },
+  { q: 'How many hours must I render per semester?', a: 'Recipients must complete 200 hours of service per semester across different university offices.' },
+  { q: 'How is the stipend computed and released?', a: 'The stipend is based on verified service hours. The standard monthly allowance is ₱1,000 and is released upon verification of rendered hours.' },
   { q: 'Can I apply every semester?', a: 'Yes. You must re-apply every semester and meet the eligibility requirements each time.' },
 ]
 
@@ -51,7 +50,7 @@ export default function LandingPage() {
       <div className="bg-[#531010] text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 text-[11px] sm:px-6 sm:text-[11.5px]">
           <span className="text-white/85">Mindanao State University — Marawi City, Lanao del Sur</span>
-          <span className="hidden text-[#D8B65A] sm:inline">Office of Student Affairs · swap@msumain.edu.ph</span>
+          <span className="hidden text-[#D8B65A] sm:inline">Division of Students Affairs · dsa@msumain.edu.ph</span>
         </div>
       </div>
 
@@ -90,7 +89,7 @@ export default function LandingPage() {
             <Seal size={88} />
           </div>
           <p className="mt-6 text-[11px] font-medium uppercase tracking-[0.22em] text-[#D8B65A] sm:text-xs sm:tracking-[0.28em]">
-            Office of Student Affairs · Est. 2014
+            Division of Students Affairs
           </p>
           <h1 className="mt-4 break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
             Student Welfare Assistantship Program
@@ -98,7 +97,7 @@ export default function LandingPage() {
           <div className="mx-auto mt-5 h-px w-20 bg-[#D8B65A]" />
           <p className="mx-auto mt-6 max-w-2xl leading-relaxed text-white/80">
             An institutional financial-assistance program providing deserving students a monthly
-            stipend in exchange for service rendered in university offices.
+            stipend of ₱1,000 in exchange for 200 hours of service per semester across different university offices.
           </p>
           <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
@@ -125,9 +124,9 @@ export default function LandingPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8901F]">About the Program</p>
             <h2 className="mt-3 font-serif text-3xl font-bold text-[#2B2522]">A mandate of student welfare</h2>
             <p className="mt-5 leading-relaxed text-[#6E5F5A]">
-              The Student Welfare Assistantship Program (SWAP) is administered by the Office of Student
+              The Student Welfare Assistantship Program (SWAP) is administered by the Division of Students
               Affairs to support academically deserving and financially challenged students. Beneficiaries
-              render service in partner university offices and receive a monthly stipend upon verification
+              render service across different university offices and receive a monthly stipend upon verification
               of their rendered hours.
             </p>
             <p className="mt-4 leading-relaxed text-[#6E5F5A]">
@@ -228,21 +227,21 @@ export default function LandingPage() {
               <MapPin className="h-4 w-4" />
               <span className="text-xs font-semibold uppercase tracking-[0.15em]">Visit</span>
             </div>
-            <p className="mt-2 text-sm text-white/90">OSA Bldg., MSU Main Campus, Marawi City, Lanao del Sur</p>
+            <p className="mt-2 text-sm text-white/90">Ground Floor, Domocao Alonto Hall, 1st Street, Mindanao State University, Marawi City, Philippines</p>
           </div>
           <div>
             <div className="flex items-center gap-2 text-[#D8B65A]">
               <Mail className="h-4 w-4" />
               <span className="text-xs font-semibold uppercase tracking-[0.15em]">Contact</span>
             </div>
-            <p className="mt-2 text-sm text-white/90">swap@msumain.edu.ph · (063) 000-0000</p>
+            <p className="mt-2 text-sm text-white/90">dsa@msumain.edu.ph · +63 919 246 2209</p>
           </div>
           <div>
             <div className="flex items-center gap-2 text-[#D8B65A]">
               <Clock className="h-4 w-4" />
               <span className="text-xs font-semibold uppercase tracking-[0.15em]">Office Hours</span>
             </div>
-            <p className="mt-2 text-sm text-white/90">Monday – Friday · 8:00 AM – 5:00 PM</p>
+            <p className="mt-2 text-sm text-white/90">Mon – Fri 8:00 A.M. – 5:00 P.M.</p>
           </div>
         </div>
       </section>
