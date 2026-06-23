@@ -50,7 +50,7 @@ export default function LandingPage() {
       {/* Utility bar */}
       <div className="bg-[#531010] text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 text-[11px] sm:px-6 sm:text-[11.5px]">
-          <span className="text-white/85">Mindanao State University — Marawi City, Lanao del Sur</span>
+          <span className="text-white/85">Mindanao State University — Main campus</span>
           <span className="hidden text-[#D8B65A] sm:inline">Division of Students Affairs · dsa@msumain.edu.ph</span>
         </div>
       </div>
