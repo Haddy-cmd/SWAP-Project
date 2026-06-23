@@ -22,13 +22,19 @@ export function useReverb() {
   useEffect(() => {
     if (!user || !token) return
 
+    // Real-time is optional: skip Echo/Pusher entirely when Reverb isn't
+    // configured (e.g. production without a websocket server). Without this
+    // guard, `new Echo` throws "You must pass your app key" and crashes the app.
+    const reverbKey = process.env.NEXT_PUBLIC_REVERB_APP_KEY
+    if (!reverbKey) return
+
     if (typeof window !== 'undefined') {
       window.Pusher = Pusher
     }
 
     const echo = new Echo({
       broadcaster: 'reverb',
-      key: process.env.NEXT_PUBLIC_REVERB_APP_KEY,
+      key: reverbKey,
       wsHost: process.env.NEXT_PUBLIC_REVERB_HOST,
       wsPort: parseInt(process.env.NEXT_PUBLIC_REVERB_PORT ?? '8080', 10),
       wssPort: parseInt(process.env.NEXT_PUBLIC_REVERB_PORT ?? '8080', 10),
