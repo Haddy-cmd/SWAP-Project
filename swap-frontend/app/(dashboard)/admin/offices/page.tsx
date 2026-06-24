@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Building2, Plus, Pencil, QrCode, MapPin, X, Users, UserCog } from 'lucide-react'
+import { Building2, Plus, Pencil, QrCode, MapPin, X, Users, UserCog, Copy, Check } from 'lucide-react'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { adminApi } from '@/lib/api/admin.api'
 import { QrDisplay } from '@/components/attendance/QrDisplay'
@@ -20,6 +20,48 @@ function toNum(v: number | string | null | undefined): number | null {
   if (v === null || v === undefined || v === '') return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
+}
+
+/** A read-only value with a copy-to-clipboard button — manual fallback when the QR won't scan. */
+function CopyField({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value)
+    } catch {
+      // Fallback for browsers without clipboard API (e.g. http / older Safari).
+      const ta = document.createElement('textarea')
+      ta.value = value
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">{label}</label>
+      <div className="flex items-stretch gap-2">
+        <input
+          readOnly
+          value={value}
+          onFocus={(e) => e.currentTarget.select()}
+          className="min-w-0 flex-1 rounded-lg border border-[#DCC5C5] bg-[#FAF7F7] px-2.5 py-1.5 text-xs font-mono text-[#1E293B] focus:border-[#7D1A1A] focus:outline-none"
+        />
+        <button
+          onClick={copy}
+          className="flex flex-shrink-0 items-center gap-1 rounded-lg border border-[#EAD9D9] px-2.5 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-[#27AE60]" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function OfficeForm({ initial, onSave, onCancel, loading }: {
@@ -416,6 +458,14 @@ export default function AdminOfficesPage() {
               Print and post this at the office entrance. Recipients scan it with their
               phone camera to clock in automatically — no need to open the portal first.
             </p>
+
+            <div className="mt-4 space-y-3 border-t border-[#EAD9D9] pt-4">
+              <p className="text-xs font-medium text-[#8A6A6A]">
+                Manual fallback (if the camera won&apos;t scan):
+              </p>
+              <CopyField label="Scan link — open in a phone browser" value={`${window.location.origin}/scan?t=${encodeURIComponent(qrView.token)}`} />
+              <CopyField label="QR token — paste in Attendance → QR Token" value={qrView.token} />
+            </div>
           </div>
         </div>
       )}
