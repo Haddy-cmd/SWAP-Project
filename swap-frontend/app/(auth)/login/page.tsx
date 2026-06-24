@@ -40,7 +40,10 @@ export default function LoginPage() {
     mutationFn: (data: FormData) => authApi.login(data),
     onSuccess: (res) => {
       setAuth(res.data, res.token)
-      router.replace(getRoleDashboard(res.data.role))
+      // Honor a ?redirect= target (e.g. returning to /scan after a QR deep link),
+      // otherwise land on the role's default dashboard.
+      const redirect = new URLSearchParams(window.location.search).get('redirect')
+      router.replace(redirect || getRoleDashboard(res.data.role))
     },
     onError: (err: ApiError) => {
       setServerError(err.message ?? 'Invalid credentials. Please try again.')

@@ -406,10 +406,15 @@ export default function AdminOfficesPage() {
               </button>
             </div>
             <div className="flex justify-center">
-              <QrDisplay value={qrView.token} size={220} caption={qrView.name} />
+              <QrDisplay
+                value={`${window.location.origin}/scan?t=${encodeURIComponent(qrView.token)}`}
+                size={220}
+                caption={qrView.name}
+              />
             </div>
             <p className="mt-4 text-center text-xs text-[#8A6A6A]">
-              Print and post this at the office entrance. Recipients scan it to clock in/out.
+              Print and post this at the office entrance. Recipients scan it with their
+              phone camera to clock in automatically — no need to open the portal first.
             </p>
           </div>
         </div>

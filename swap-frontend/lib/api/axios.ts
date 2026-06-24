@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios'
+import Cookies from 'js-cookie'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { ValidationError } from '@/types/api.types'
 
@@ -11,9 +12,11 @@ const apiClient = axios.create({
   withCredentials: false,
 })
 
-// Attach Bearer token on every request
+// Attach Bearer token on every request. The store is backed by per-tab
+// sessionStorage, so when a page opens in a fresh tab (e.g. a QR deep link from
+// the phone camera) we fall back to the cross-tab `swap_token` cookie.
 apiClient.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token
+  const token = useAuthStore.getState().token ?? Cookies.get('swap_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
