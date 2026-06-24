@@ -40,21 +40,25 @@ type FormData = z.infer<typeof schema>
 
 const STEP1_FIELDS = ['first_name', 'last_name', 'name', 'student_id_number', 'email'] as const
 
-/** MSU Marawi colleges and their programs. Value (abbreviation) is what gets stored. */
+/** Colleges of MSU Main Campus, Marawi City, and the programs they offer there.
+ *  Value (abbreviation) is what gets stored. */
 const COLLEGES: { value: string; label: string; programs: string[] }[] = [
-  { value: 'CICS', label: 'CICS — Information and Computing Sciences', programs: ['BS Computer Science', 'BS Information Technology', 'BS Information Systems'] },
-  { value: 'CoE', label: 'CoE — College of Engineering', programs: ['BS Civil Engineering', 'BS Electrical Engineering', 'BS Mechanical Engineering', 'BS Electronics Engineering', 'BS Computer Engineering', 'BS Chemical Engineering', 'BS Geodetic Engineering'] },
-  { value: 'CNSM', label: 'CNSM — Natural Sciences and Mathematics', programs: ['BS Biology', 'BS Chemistry', 'BS Physics', 'BS Mathematics', 'BS Statistics', 'BS Environmental Science'] },
-  { value: 'CED', label: 'CED — College of Education', programs: ['Bachelor of Elementary Education', 'Bachelor of Secondary Education', 'Bachelor of Physical Education'] },
-  { value: 'CBAA', label: 'CBAA — Business Administration and Accountancy', programs: ['BS Accountancy', 'BS Business Administration', 'BS Management Accounting', 'BS Entrepreneurship'] },
-  { value: 'CASS', label: 'CASS — Arts and Social Sciences', programs: ['AB English', 'AB Political Science', 'AB Psychology', 'AB Sociology', 'AB History', 'AB Economics', 'AB Communication'] },
-  { value: 'CHS', label: 'CHS — College of Health Sciences', programs: ['BS Nursing', 'BS Midwifery', 'BS Public Health'] },
-  { value: 'CoA', label: 'CoA — College of Agriculture', programs: ['BS Agriculture', 'BS Agricultural Economics', 'BS Food Technology'] },
-  { value: 'CoF', label: 'CoF — College of Fisheries', programs: ['BS Fisheries'] },
-  { value: 'CFES', label: 'CFES — Forestry and Environmental Studies', programs: ['BS Forestry', 'BS Environmental Studies'] },
-  { value: 'CPA', label: 'CPA — College of Public Affairs', programs: ['Bachelor of Public Administration'] },
-  { value: 'CHARM', label: 'CHARM — Hospitality and Restaurant Management', programs: ['BS Hospitality Management', 'BS Tourism Management'] },
+  { value: 'CA', label: 'College of Agriculture', programs: ['BS Agriculture', 'BS Agribusiness', 'BS Food Technology', 'BS Agricultural and Biosystems Engineering'] },
+  { value: 'CBAA', label: 'College of Business Administration and Accountancy', programs: ['BS Accountancy', 'BS Business Administration', 'BS Management Accounting', 'BS Entrepreneurship', 'BS Office Administration'] },
+  { value: 'CED', label: 'College of Education', programs: ['Bachelor of Elementary Education', 'Bachelor of Secondary Education', 'Bachelor of Early Childhood Education', 'Bachelor of Special Needs Education'] },
+  { value: 'CoE', label: 'College of Engineering', programs: ['BS Civil Engineering', 'BS Electrical Engineering', 'BS Mechanical Engineering', 'BS Electronics Engineering', 'BS Computer Engineering', 'BS Chemical Engineering', 'BS Geodetic Engineering'] },
+  { value: 'CF', label: 'College of Fisheries', programs: ['BS Fisheries'] },
+  { value: 'CFES', label: 'College of Forestry and Environmental Studies', programs: ['BS Forestry', 'BS Environmental Science'] },
+  { value: 'CHS', label: 'College of Health Sciences', programs: ['BS Nursing', 'BS Midwifery'] },
+  { value: 'CHTM', label: 'College of Hospitality and Tourism Management', programs: ['BS Hospitality Management', 'BS Tourism Management'] },
+  { value: 'CICS', label: 'College of Information and Computing Sciences', programs: ['BS Computer Science', 'BS Information Technology', 'BS Information Systems'] },
   { value: 'LAW', label: 'College of Law', programs: ['Juris Doctor'] },
+  { value: 'CM', label: 'College of Medicine', programs: ['Doctor of Medicine'] },
+  { value: 'CNSM', label: 'College of Natural Sciences and Mathematics', programs: ['BS Biology', 'BS Chemistry', 'BS Physics', 'BS Mathematics', 'BS Statistics'] },
+  { value: 'CPA', label: 'College of Public Affairs', programs: ['Bachelor of Public Administration', 'BS Social Work'] },
+  { value: 'CSSH', label: 'College of Social Sciences and Humanities', programs: ['AB English', 'AB Political Science', 'BS Psychology', 'AB Sociology', 'AB History', 'AB Economics', 'AB Communication', 'AB Philosophy'] },
+  { value: 'CSPEAR', label: 'College of Sports, Physical Education and Recreation', programs: ['Bachelor of Physical Education', 'BS Exercise and Sports Sciences'] },
+  { value: 'KFCIAAS', label: 'King Faisal Center for Islamic, Arabic and Asian Studies', programs: ['AB Islamic Studies', 'AB Arabic Language', 'BS Islamic Studies'] },
 ]
 
 const INPUT =
