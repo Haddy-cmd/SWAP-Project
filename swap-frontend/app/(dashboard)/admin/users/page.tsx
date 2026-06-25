@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, UserCheck, UserX, UserPlus, X } from 'lucide-react'
+import { Search, UserCheck, UserX, UserPlus, X, Trash2 } from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -47,7 +47,7 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="font-semibold text-[#1E293B]">New User</h2>
-            <p className="text-sm text-[#8A6A6A]">Create a supervisor, admin, or other account.</p>
+            <p className="text-sm text-[#8A6A6A]">Create a supervisor or admin account.</p>
           </div>
           <button onClick={onClose} className="text-[#94A3B8] hover:text-[#E74C3C] transition-colors">
             <X className="h-5 w-5" />
@@ -79,9 +79,8 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2 text-sm focus:border-[#7D1A1A] focus:outline-none">
               <option value="supervisor">Supervisor</option>
               <option value="admin">Admin</option>
-              <option value="applicant">Applicant</option>
-              <option value="recipient">Recipient</option>
             </select>
+            <p className="mt-1 text-xs text-[#B09A9A]">Students join by self-registering — admins create only staff accounts.</p>
           </div>
           {form.role === 'supervisor' && (
             <div>
@@ -131,6 +130,21 @@ export default function AdminUsersPage() {
       adminApi.updateUser(id, { is_active }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
   })
+
+  const remove = useMutation({
+    mutationFn: (id: number) => adminApi.deleteUser(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+    onError: (e: unknown) => {
+      const err = e as { response?: { data?: { message?: string } } }
+      alert(err.response?.data?.message ?? 'Failed to delete user.')
+    },
+  })
+
+  const confirmDelete = (id: number, name: string) => {
+    if (window.confirm(`Delete ${name}'s account? This cannot be undone.`)) {
+      remove.mutate(id)
+    }
+  }
 
   const users = data?.data ?? []
   const meta = data?.meta
@@ -199,19 +213,30 @@ export default function AdminUsersPage() {
                       {user.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => toggle.mutate({ id: user.id, is_active: !user.is_active })}
-                      disabled={toggle.isPending}
-                      className={`ml-auto inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        user.is_active
-                          ? 'border-red-200 text-[#E74C3C] hover:bg-red-50'
-                          : 'border-green-200 text-[#27AE60] hover:bg-green-50'
-                      }`}
-                    >
-                      {user.is_active ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
-                      {user.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => toggle.mutate({ id: user.id, is_active: !user.is_active })}
+                        disabled={toggle.isPending}
+                        className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          user.is_active
+                            ? 'border-red-200 text-[#E74C3C] hover:bg-red-50'
+                            : 'border-green-200 text-[#27AE60] hover:bg-green-50'
+                        }`}
+                      >
+                        {user.is_active ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
+                        {user.is_active ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => confirmDelete(user.id, user.name)}
+                        disabled={remove.isPending}
+                        title="Delete account"
+                        aria-label="Delete account"
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-[#E74C3C] hover:bg-red-50 disabled:opacity-50 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

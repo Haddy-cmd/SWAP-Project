@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Applicant;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreApplicationRequest;
+use App\Models\Setting;
 use App\Resources\ApplicationResource;
 use App\Services\ApplicationService;
 use Illuminate\Http\JsonResponse;
@@ -24,6 +25,13 @@ class ApplicationController extends Controller
 
     public function store(StoreApplicationRequest $request): JsonResponse
     {
+        // Block submissions while the application period is closed by the admin.
+        if (!Setting::bool('applications_open', false)) {
+            return response()->json([
+                'message' => Setting::get('applications_closed_message', 'The application period has not started yet. Please check back later.'),
+            ], 403);
+        }
+
         $application = $this->applicationService->submitApplication(
             $request->user(),
             $request->validated()

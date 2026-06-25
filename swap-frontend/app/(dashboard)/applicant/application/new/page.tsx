@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { CheckCircle, ArrowLeft, Clock } from 'lucide-react'
+import { CheckCircle, ArrowLeft, Clock, Lock } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
+import { settingsApi } from '@/lib/api/settings.api'
 import { ApplicationForm } from '@/components/application/ApplicationForm'
 
 const IN_PROGRESS_LABEL: Record<string, string> = {
@@ -18,6 +19,11 @@ export default function NewApplicationPage() {
     queryFn: () => applicationsApi.getMyApplications(),
   })
 
+  const { data: appStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ['application-status'],
+    queryFn: () => settingsApi.getApplicationStatus(),
+  })
+
   const hasApproved = applications?.some((a) => a.status === 'approved') ?? false
   const inProgress = applications?.find((a) => ['submitted', 'under_review', 'interview_scheduled'].includes(a.status))
 
@@ -30,8 +36,27 @@ export default function NewApplicationPage() {
         </p>
       </div>
 
-      {isLoading ? (
+      {isLoading || statusLoading ? (
         <div className="h-48 animate-pulse rounded-2xl bg-[#E2E8F0]" />
+      ) : appStatus && !appStatus.open ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-[#E2D2D2] bg-[#FBF4F4] p-6 shadow-sm">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#F3E3E3]">
+            <Lock className="h-5 w-5 text-[#7D1A1A]" />
+          </div>
+          <div>
+            <p className="font-semibold text-[#7D1A1A]">Applications Not Yet Open</p>
+            <p className="mt-1 text-sm text-[#9A6A6A]">
+              {appStatus.message ?? 'The application period has not started yet. Please check back later.'}
+            </p>
+            <Link
+              href="/applicant/dashboard"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#7D1A1A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#A52020] transition-colors"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
       ) : hasApproved ? (
         <div className="flex items-start gap-3 rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-6 shadow-sm">
           <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#DCFCE7]">

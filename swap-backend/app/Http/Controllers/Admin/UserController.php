@@ -20,7 +20,9 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', 'string', 'in:applicant,recipient,supervisor,admin'],
+            // Admins may only create staff accounts — supervisors and other admins.
+            // Applicants/recipients enter the system through student self-registration.
+            'role' => ['required', 'string', 'in:supervisor,admin'],
             'office_id' => ['nullable', 'integer', 'exists:offices,id'],
         ]);
 

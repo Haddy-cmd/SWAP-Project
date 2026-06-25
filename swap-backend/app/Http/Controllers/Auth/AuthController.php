@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Resources\UserResource;
@@ -19,6 +20,14 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
+        // Student registration is tied to the application period — block new
+        // signups while applications are closed. (Login stays open.)
+        if (!Setting::bool('applications_open', false)) {
+            return response()->json([
+                'message' => Setting::get('applications_closed_message', 'The application period has not started yet. Please check back later.'),
+            ], 403);
+        }
+
         $user = $this->userRepository->create([
             'name' => $request->name,
             'email' => $request->email,

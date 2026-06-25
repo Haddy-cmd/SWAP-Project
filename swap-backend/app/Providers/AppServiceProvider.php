@@ -12,6 +12,7 @@ use App\Repositories\TimeLogRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Config\Repository as ConfigRepository;
+use Illuminate\Auth\Notifications\ResetPassword;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,6 +38,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        //
+        // Point the password-reset email link at the deployed frontend (Vercel)
+        // instead of Laravel's default `password.reset` route, which doesn't
+        // exist in this API-only app and would otherwise throw a 500.
+        ResetPassword::createUrlUsing(function ($user, string $token) {
+            $base = rtrim(config('swap.frontend_url'), '/');
+            return "{$base}/reset-password?token={$token}&email=" . urlencode($user->email);
+        });
     }
 }

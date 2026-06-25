@@ -8,6 +8,7 @@ use App\Http\Controllers\Shared\ConcernController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
 use App\Http\Controllers\Shared\ReportController;
+use App\Http\Controllers\Shared\SettingController;
 use App\Http\Controllers\Applicant\ApplicationController as ApplicantApplicationController;
 use App\Http\Controllers\Applicant\DocumentController;
 use App\Http\Controllers\Recipient\AttendanceController;
@@ -30,6 +31,7 @@ Route::post('/auth/login', [AuthController::class, 'login'])->middleware('thrott
 Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPassword'])->middleware('throttle:3,1');
 Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:6,1');
 Route::get('/chatbot/query', [ChatbotController::class, 'query']);
+Route::get('/settings/application-status', [SettingController::class, 'applicationStatus']);
 Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
 Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
 
@@ -122,5 +124,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
         Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
+
+        Route::get('/settings', [SettingController::class, 'index']);
+        Route::put('/settings', [SettingController::class, 'update']);
     });
 });

@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Brand typography: Newsreader (serif headings) + Plus Jakarta Sans (body). */
+@theme {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+}
+
 :root {
   --color-primary: #7D1A1A;
   --color-secondary: #A52020;
@@ -21,6 +27,59 @@ body {
   color: #1E293B;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  animation: pageEnter 0.5s ease-out forwards;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0.95;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* ─── Landing-page animations ─────────────────────────────────────────────── */
+@keyframes swapFadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes swapFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes swapFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+/* Slow "Ken Burns" drift for hero slideshow images — keeps gentle motion so
+   crossfades feel seamless. */
+@keyframes heroKenburns {
+  from { transform: scale(1) translateZ(0); }
+  to   { transform: scale(1.08) translateZ(0); }
+}
+.hero-kenburns { animation: heroKenburns 16s ease-in-out infinite alternate; }
+
+/* Entrance animations that play on load (above-the-fold hero). */
+.animate-fade-up { opacity: 0; animation: swapFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-fade-in { opacity: 0; animation: swapFadeIn 0.9s ease both; }
+.animate-float   { animation: swapFloat 5s ease-in-out infinite; }
+
+/* Scroll-reveal: hidden until the Reveal component adds `.is-visible` in view. */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.reveal.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-fade-in, .animate-float { animation: none; opacity: 1; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .hero-kenburns { animation: none; }
 }
 
 /* Themed scrollbar for the dark maroon sidebar — slim, gold-tinted, transparent track */

@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Plus_Jakarta_Sans, Newsreader } from 'next/font/google'
 import { QueryProvider } from '@/lib/providers/QueryProvider'
 import { EchoProvider } from '@/lib/providers/EchoProvider'
 import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget'
 import '@/app/globals.css'
 
-const inter = Inter({ subsets: ['latin'] })
+const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' })
+const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-newsreader', display: 'swap' })
 
 export const metadata: Metadata = {
   title: 'SWAP Portal — MSU Marawi',
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={inter.className} suppressHydrationWarning>
+      <body className={`${jakarta.variable} ${newsreader.variable} font-sans`} suppressHydrationWarning>
         <QueryProvider>
           <EchoProvider>{children}</EchoProvider>
           <ChatbotWidget />

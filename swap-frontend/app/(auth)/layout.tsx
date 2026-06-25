@@ -1,5 +1,8 @@
+'use client'
+
 import type { ReactNode } from 'react'
-import { Seal } from '@/components/shared/Seal'
+import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 
 const STATS = [
   { label: 'Recipients', value: '500+' },
@@ -8,50 +11,57 @@ const STATS = [
 ]
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen">
-      {/* Left panel — branding (hidden on mobile) */}
-      <div
-        className="relative hidden overflow-hidden lg:flex lg:w-1/2 lg:flex-col lg:items-center lg:justify-center lg:px-12 font-serif"
-        style={{ background: 'linear-gradient(150deg, #8E1B1B 0%, #5C1010 55%, #7A1717 100%)' }}
-      >
-        {/* soft gold glow accents */}
-        <div className="pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-[#D8B65A]/15 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-[#D8B65A]/10 blur-2xl" />
-        {/* gold corner frame */}
-        <div className="pointer-events-none absolute inset-8 rounded-sm border border-[#D8B65A]/20" />
+  const pathname = usePathname()
 
-        <div className="relative max-w-md text-center">
-          <div className="mx-auto mb-7 w-fit">
-            <Seal size={104} />
+  // Login and register render their own self-contained layouts, so they opt out
+  // of the shared brand-left shell used by forgot-password / verify-email.
+  if (pathname === '/login' || pathname === '/register') return <>{children}</>
+
+  return (
+    <div className="flex min-h-screen bg-[#F7F1EA]">
+      {/* Left panel — branding over a veiled MSU campus photo (hidden on mobile). */}
+      <div className="relative hidden overflow-hidden lg:flex lg:w-[44%] lg:flex-col lg:items-center lg:justify-center lg:px-12">
+        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/campus.jpg)' }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(160deg, rgba(108,21,29,0.92) 0%, rgba(86,16,22,0.88) 55%, rgba(64,12,18,0.94) 100%)',
+          }}
+        />
+        <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_200px_rgba(50,10,16,0.45)]" />
+
+        <div className="relative z-10 max-w-md text-center text-[#FBEFE0]">
+          <div className="mx-auto mb-7">
+            <Image src="/dsa-logo.png" alt="DSA Logo" width={96} height={96} className="mx-auto" priority />
           </div>
-          <h1 className="text-4xl font-bold text-white">SWAP Portal</h1>
-          <p className="mt-3 text-[11px] font-sans uppercase tracking-[0.22em] text-[#D8B65A]">
+          <h1 className="font-serif text-4xl font-semibold text-[#FFF8EE]">SWAP Portal</h1>
+          <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#E3B96E]">
             Mindanao State University — Marawi
           </p>
-          <div className="mx-auto mt-5 h-px w-20 bg-[#D8B65A]" />
-          <p className="mt-6 font-sans text-sm leading-relaxed text-white/70">
+          <div className="mx-auto mt-6 h-px w-14 bg-[#F3D9A0]/50" />
+          <p className="mt-6 text-sm leading-relaxed text-[#FBEFE0]/80">
             Digital monitoring and application system for the Student Welfare
             Assistantship Program.
           </p>
 
-          <div className="mt-10 grid grid-cols-3 gap-6 border-t border-white/15 pt-8">
+          <div className="mt-12 grid grid-cols-3 gap-10 border-t border-[#F3D9A0]/25 pt-8">
             {STATS.map((s) => (
               <div key={s.label}>
-                <p className="text-2xl font-bold text-[#D8B65A]">{s.value}</p>
-                <p className="mt-0.5 font-sans text-xs text-white/50">{s.label}</p>
+                <p className="font-serif text-3xl font-semibold text-[#F3D9A0]">{s.value}</p>
+                <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-[#FBEFE0]/70">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="absolute bottom-8 font-sans text-[11px] text-white/40">
-          Office of Student Affairs · swap@msumain.edu.ph
+        <p className="absolute bottom-8 z-10 text-[11px] text-[#FBEFE0]/55">
+          Division of Students Affairs · dsa@msumain.edu.ph
         </p>
       </div>
 
       {/* Right panel — form */}
-      <div className="flex flex-1 flex-col items-center justify-center bg-[#F7F3EC] px-6 py-12">
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">{children}</div>
       </div>
     </div>

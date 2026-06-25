@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Search, CheckCircle2, ArrowRight } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { ApplicationPeriodToggle } from '@/components/admin/ApplicationPeriodToggle'
 import { formatDate } from '@/lib/utils/formatDate'
 
 export default function AdminApplicationsPage() {
@@ -33,6 +34,9 @@ export default function AdminApplicationsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-[#1E293B]">Applications</h1>
       </div>
+
+      {/* Open / close the student application period */}
+      <ApplicationPeriodToggle />
 
       {/* Approved applicants move to the assignment queue */}
       <Link

@@ -1,8 +1,33 @@
 import Link from 'next/link'
-import { ChevronRight, MessageCircle, Check, MapPin, Mail, Clock } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowRight, MessageCircle, Check, MapPin, Mail, Clock } from 'lucide-react'
 import { AskChatbotButton } from '@/components/chatbot/AskChatbotButton'
+import { Reveal } from '@/components/landing/Reveal'
+import { HeroCarousel } from '@/components/landing/HeroCarousel'
 
-// Landing page for SWAP Portal
+// Hero slideshow images — drop these into /public. Missing files are skipped
+// automatically, so add as many or as few as you like (extend this list).
+const HERO_IMAGES = [
+  '/campus.jpg',
+  '/campus-2.jpg',
+  '/campus-3.jpg',
+  '/campus-4.jpg',
+  '/campus-5.jpg',
+  '/campus-6.jpg',
+  '/campus-7.jpg',
+  '/campus-8.jpg',
+  '/campus-9.jpg',
+  '/campus-10.jpg',
+  '/campus-11.jpg',
+  '/campus-12.jpg',
+  '/campus-13.jpg',
+  '/campus-14.jpg',
+  '/campus-15.jpg',
+  '/campus-16.jpg',
+  '/campus-17.jpg'
+];
+
+
 const STEPS = [
   { title: 'Submit Application', desc: 'Complete the application form and upload the required documents.' },
   { title: 'Review & Interview', desc: 'The SWAP office screens applications and schedules a qualifying interview.' },
@@ -23,6 +48,13 @@ const GLANCE: [string, string][] = [
   ['Monthly Stipend', '₱1,000.00'],
   ['Required Service', '200 hours / semester'],
   ['Governing Office', 'Division of Students Affairs'],
+  ['Eligibility Cycle', 'Every semester'],
+]
+
+const HERO_STATS: [string, string][] = [
+  ['₱1,000', 'Monthly Stipend'],
+  ['200 hrs', 'Per Semester'],
+  ['500+', 'Recipients'],
 ]
 
 const FAQS = [
@@ -32,48 +64,44 @@ const FAQS = [
   { q: 'Can I apply every semester?', a: 'Yes. You must re-apply every semester and meet the eligibility requirements each time.' },
 ]
 
-function Seal({ size = 88 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 88 88" aria-hidden="true">
-      <circle cx="44" cy="44" r="42" fill="#531010" />
-      <circle cx="44" cy="44" r="42" fill="none" stroke="#D8B65A" strokeWidth="2.5" />
-      <circle cx="44" cy="44" r="34" fill="none" stroke="#D8B65A" strokeOpacity="0.4" />
-      <path d="M22 42 l22 -11 l22 11 l-22 11 z" fill="#D8B65A" />
-      <path d="M44 53 v11 M56 47 v10" stroke="#D8B65A" strokeWidth="1.6" fill="none" />
-    </svg>
-  )
+/** DSA logo used in the nav and footer. */
+function Logo({ size = 38 }: { size?: number }) {
+  return <Image src="/dsa-logo.png" alt="DSA Logo" width={size} height={size} />
 }
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-[#2B2522]">
+    <div className="min-h-screen overflow-x-hidden bg-[#FAF5EF] text-[#241715]">
       {/* Utility bar */}
-      <div className="bg-[#531010] text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2 text-[11px] sm:px-6 sm:text-[11.5px]">
-          <span className="text-white/85">Mindanao State University — Main campus</span>
-          <span className="hidden text-[#D8B65A] sm:inline">Division of Students Affairs · dsa@msumain.edu.ph</span>
+      <div className="bg-[#651420] text-[#E7C9A0]">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between px-5 py-2.5 text-[11px] sm:px-8 sm:text-xs">
+          <span>Mindanao State University — Marawi · Main Campus</span>
+          <span className="hidden sm:inline">Division of Students Affairs · dsa@msumain.edu.ph</span>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="sticky top-0 z-30 border-b border-[#E5DCD2] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <nav className="sticky top-0 z-30 border-b border-[#ECE1D6] bg-[#FAF5EF]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-5 py-3.5 sm:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <Seal size={42} />
+            <Logo size={38} />
             <div className="min-w-0">
-              <p className="font-serif text-[17px] font-bold leading-tight text-[#7D1A1A]">SWAP Portal</p>
-              <p className="truncate text-[10px] uppercase tracking-[0.12em] text-[#7A6E68]">Student Welfare Assistantship Program</p>
+              <p className="font-serif text-[17px] font-semibold leading-tight text-[#2B1E1B]">SWAP Portal</p>
+              <p className="truncate text-[9px] font-semibold uppercase tracking-[0.15em] text-[#A38A82]">Student Welfare Assistantship Program</p>
             </div>
           </div>
-          <div className="flex flex-shrink-0 items-center gap-3 sm:gap-5">
-            <div className="hidden items-center gap-5 text-sm text-[#4A3F3A] md:flex">
-              <a href="#about" className="hover:text-[#7D1A1A] transition-colors">About</a>
-              <a href="#eligibility" className="hover:text-[#7D1A1A] transition-colors">Eligibility</a>
-              <a href="#process" className="hover:text-[#7D1A1A] transition-colors">Process</a>
-              <a href="#faq" className="hover:text-[#7D1A1A] transition-colors">FAQ</a>
+          <div className="flex flex-shrink-0 items-center gap-5 sm:gap-7">
+            <div className="hidden items-center gap-7 text-sm font-medium text-[#5A4A45] md:flex">
+              <a href="#about" className="transition-colors hover:text-[#7C1B26]">About</a>
+              <a href="#eligibility" className="transition-colors hover:text-[#7C1B26]">Eligibility</a>
+              <a href="#process" className="transition-colors hover:text-[#7C1B26]">Process</a>
+              <a href="#faq" className="transition-colors hover:text-[#7C1B26]">FAQ</a>
             </div>
-            <Link href="/login" className="hidden text-sm font-medium text-[#7D1A1A] hover:underline sm:inline">Sign In</Link>
-            <Link href="/register" className="rounded-md bg-[#7D1A1A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#5C1010] transition-colors">
+            <Link href="/login" className="hidden text-sm font-semibold text-[#7C1B26] hover:underline sm:inline">Sign In</Link>
+            <Link
+              href="/register"
+              className="rounded-[10px] bg-gradient-to-b from-[#86202E] to-[#6C1620] px-5 py-2.5 text-sm font-semibold text-[#FFF8F2] shadow-[0_8px_18px_rgba(108,22,32,0.24)] transition hover:brightness-110"
+            >
               Apply Now
             </Link>
           </div>
@@ -81,113 +109,133 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section
-        className="px-4 py-14 text-center text-white sm:px-6 sm:py-20"
-        style={{ background: 'linear-gradient(180deg, #7A1717 0%, #531010 100%)' }}
-      >
-        <div className="mx-auto max-w-4xl rounded-sm border border-[#D8B65A]/25 px-4 py-10 sm:px-8 sm:py-12">
-          <div className="flex justify-center">
-            <Seal size={88} />
-          </div>
-          <p className="mt-6 text-[11px] font-medium uppercase tracking-[0.22em] text-[#D8B65A] sm:text-xs sm:tracking-[0.28em]">
-            Division of Students Affairs
-          </p>
-          <h1 className="mt-4 break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">
-            Student Welfare Assistantship Program
-          </h1>
-          <div className="mx-auto mt-5 h-px w-20 bg-[#D8B65A]" />
-          <p className="mx-auto mt-6 max-w-2xl leading-relaxed text-white/80">
-            An institutional financial-assistance program providing deserving students a monthly
-            stipend of ₱1,000 in exchange for 200 hours of service per semester across different university offices.
-          </p>
-          <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link
-              href="/register"
-              className="flex items-center gap-2 rounded-md bg-gradient-to-br from-[#D8B65A] to-[#B8901F] px-7 py-3.5 text-sm font-bold text-[#531010] shadow-md hover:brightness-105 transition"
-            >
-              Apply for Assistance
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-md border border-white/40 px-7 py-3.5 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
-            >
-              Sign In
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* About */}
-      <section id="about" className="px-6 py-20">
-        <div className="mx-auto grid max-w-6xl items-start gap-12 lg:grid-cols-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8901F]">About the Program</p>
-            <h2 className="mt-3 font-serif text-3xl font-bold text-[#2B2522]">A mandate of student welfare</h2>
-            <p className="mt-5 leading-relaxed text-[#6E5F5A]">
-              The Student Welfare Assistantship Program (SWAP) is administered by the Division of Students
-              Affairs to support academically deserving and financially challenged students. Beneficiaries
-              render service across different university offices and receive a monthly stipend upon verification
-              of their rendered hours.
+      <section className="mx-auto grid max-w-[1200px] items-center gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[1.05fr_.95fr] lg:py-20">
+        <div>
+          <Reveal delay={0}>
+            <div className="mb-5 inline-flex items-center gap-2.5 text-[11.5px] font-bold uppercase tracking-[0.2em] text-[#A9823C]">
+              <span className="h-[7px] w-[7px] rotate-45 rounded-[2px] bg-[#A9823C]" />
+              Division of Students Affairs
+            </div>
+          </Reveal>
+          <Reveal delay={60}>
+            <h1 className="font-serif text-[clamp(40px,6vw,58px)] font-medium leading-[1.04] tracking-tight text-[#241715]">
+              Student Welfare<br />Assistantship<br />Program
+            </h1>
+          </Reveal>
+          <Reveal delay={120}>
+            <p className="mt-6 max-w-[480px] text-[16.5px] leading-relaxed text-[#7A6A63]">
+              An institutional financial-assistance program providing deserving students a monthly stipend of{' '}
+              <strong className="font-semibold text-[#5A4A45]">₱1,000</strong> in exchange for 200 hours of service per
+              semester across university offices.
             </p>
-            <p className="mt-4 leading-relaxed text-[#6E5F5A]">
-              The program upholds the University&apos;s commitment to accessible, quality education and to the
-              holistic development of its students.
-            </p>
-          </div>
-          <div className="rounded-xl border border-[#E5DCD2] bg-[#F7F3EC] p-7 shadow-sm">
-            <h3 className="font-serif text-lg font-bold text-[#7D1A1A]">Program at a Glance</h3>
-            <div className="mt-3 divide-y divide-[#ECE4D9] border-t border-[#E5DCD2]">
-              {GLANCE.map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between py-3.5 text-sm">
-                  <span className="text-[#6E5F5A]">{label}</span>
-                  <span className="font-semibold text-[#2B2522]">{value}</span>
+          </Reveal>
+          <Reveal delay={180}>
+            <div className="mt-8 flex flex-col items-start gap-3.5 sm:flex-row sm:items-center">
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 py-3.5 text-[15px] font-semibold text-[#FFF8F2] shadow-[0_14px_28px_rgba(108,22,32,0.26)] transition hover:-translate-y-0.5 hover:brightness-110"
+              >
+                Apply for Assistance <ArrowRight className="h-[18px] w-[18px]" />
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center rounded-xl border border-[#E7D9C9] bg-white px-6 py-3.5 text-[15px] font-semibold text-[#7C1B26] transition-colors hover:bg-[#FBF7F2]"
+              >
+                Sign In
+              </Link>
+            </div>
+          </Reveal>
+          <Reveal delay={240}>
+            <div className="mt-9 flex gap-10 border-t border-[#ECE1D6] pt-7">
+              {HERO_STATS.map(([value, label]) => (
+                <div key={label}>
+                  <div className="font-serif text-[28px] font-semibold leading-none text-[#7C1B26]">{value}</div>
+                  <div className="mt-1.5 text-[11.5px] uppercase tracking-[0.08em] text-[#A38A82]">{label}</div>
                 </div>
               ))}
             </div>
+          </Reveal>
+        </div>
+
+        {/* Hero slideshow — cycles the campus photos every 2.5s. */}
+        <Reveal delay={120}>
+          <div className="relative h-[440px] overflow-hidden rounded-[20px] shadow-[0_26px_60px_rgba(58,24,20,0.22)] sm:h-[520px]">
+            <HeroCarousel images={HERO_IMAGES} interval={2300} />
+            <div className="pointer-events-none absolute inset-0 rounded-[20px] shadow-[inset_0_0_0_1px_rgba(124,27,38,0.10)]" />
           </div>
+        </Reveal>
+      </section>
+
+      {/* About */}
+      <section id="about" className="border-y border-[#EFE5DA] bg-white">
+        <div className="mx-auto grid max-w-[1200px] items-start gap-16 px-5 py-20 sm:px-8 lg:grid-cols-[1.1fr_.9fr]">
+          <Reveal>
+            <div className="mb-3.5 text-[11.5px] font-bold uppercase tracking-[0.2em] text-[#A9823C]">About the Program</div>
+            <h2 className="font-serif text-[40px] font-medium leading-tight tracking-tight text-[#241715]">A mandate of student welfare</h2>
+            <p className="mt-6 text-base leading-relaxed text-[#7A6A63]">
+              The Student Welfare Assistantship Program (SWAP) is administered by the Division of Students Affairs to
+              support academically deserving and financially challenged students. Beneficiaries render service across
+              different university offices and receive a monthly stipend upon verification of their rendered hours.
+            </p>
+            <p className="mt-4 text-base leading-relaxed text-[#7A6A63]">
+              The program upholds the University&apos;s commitment to accessible, quality education and to the holistic
+              development of its students.
+            </p>
+          </Reveal>
+          <Reveal delay={120}>
+            <div className="rounded-[18px] border border-[#EEE2D5] bg-gradient-to-b from-[#FBF6EF] to-[#F6EDE2] p-8">
+              <div className="mb-5 font-serif text-xl font-semibold text-[#7C1B26]">Program at a Glance</div>
+              {GLANCE.map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between border-t border-[#ECE0D3] py-4 text-sm">
+                  <span className="text-[#8A7A73]">{label}</span>
+                  <span className="font-bold text-[#2B1E1B]">{value}</span>
+                </div>
+              ))}
+            </div>
+          </Reveal>
         </div>
       </section>
 
       {/* Eligibility */}
-      <section id="eligibility" className="bg-[#F7F3EC] px-6 py-20">
-        <div className="mx-auto max-w-5xl">
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8901F]">Qualifications</p>
-            <h2 className="mt-3 font-serif text-3xl font-bold text-[#2B2522]">Eligibility Requirements</h2>
-          </div>
-          <div className="mx-auto mt-10 grid max-w-3xl gap-x-12 gap-y-5 sm:grid-cols-2">
-            {ELIGIBILITY.map((item) => (
-              <div key={item} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#D8B65A] to-[#B8901F]">
-                  <Check className="h-3.5 w-3.5 text-[#531010]" strokeWidth={3} />
-                </span>
-                <span className="text-[15px] text-[#3A322E]">{item}</span>
-              </div>
+      <section id="eligibility" className="bg-[#F4ECE1]">
+        <div className="mx-auto max-w-[1100px] px-5 py-20 text-center sm:px-8">
+          <Reveal>
+            <div className="mb-3.5 text-[11.5px] font-bold uppercase tracking-[0.2em] text-[#A9823C]">Qualifications</div>
+            <h2 className="font-serif text-[40px] font-medium tracking-tight text-[#241715]">Eligibility Requirements</h2>
+          </Reveal>
+          <div className="mt-12 grid gap-4 text-left sm:grid-cols-2">
+            {ELIGIBILITY.map((item, i) => (
+              <Reveal key={item} delay={i * 70}>
+                <div className="flex h-full items-center gap-4 rounded-[14px] border border-[#EBDED0] bg-white px-6 py-5 transition-shadow hover:shadow-md">
+                  <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[9px] bg-gradient-to-br from-[#B89150] to-[#9A7330]">
+                    <Check className="h-5 w-5 text-white" strokeWidth={3} />
+                  </span>
+                  <span className="text-[15px] leading-snug text-[#3F2F2A]">{item}</span>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
       {/* Process */}
-      <section id="process" className="px-6 py-20">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#B8901F]">How to Proceed</p>
-            <h2 className="mt-3 font-serif text-3xl font-bold text-[#2B2522]">Application Process</h2>
-          </div>
+      <section id="process" className="bg-white">
+        <div className="mx-auto max-w-[1140px] px-5 py-[88px] text-center sm:px-8">
+          <Reveal>
+            <div className="mb-3.5 text-[11.5px] font-bold uppercase tracking-[0.2em] text-[#A9823C]">How to Proceed</div>
+            <h2 className="font-serif text-[40px] font-medium tracking-tight text-[#241715]">Application Process</h2>
+          </Reveal>
           <div className="relative mt-14">
-            {/* connector line (desktop) */}
-            <div className="absolute left-[12.5%] right-[12.5%] top-7 hidden h-px bg-[#E5DCD2] lg:block" />
-            <div className="grid gap-12 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="absolute left-[13%] right-[13%] top-[29px] hidden h-0.5 bg-gradient-to-r from-[#E3CFC0] via-[#D9B98E] to-[#E3CFC0] lg:block" />
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((step, i) => (
-                <div key={step.title} className="relative text-center">
-                  <div className="relative z-10 mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#7D1A1A] font-serif text-lg font-bold text-white ring-2 ring-[#D8B65A]">
+                <Reveal key={step.title} delay={i * 100} className="group relative">
+                  <div className="relative z-10 mx-auto flex h-[58px] w-[58px] items-center justify-center rounded-full bg-gradient-to-br from-[#8A2230] to-[#651420] font-serif text-[22px] font-semibold text-[#F3D9A0] shadow-[0_10px_22px_rgba(108,22,32,0.28)] transition-transform duration-300 group-hover:scale-110">
                     {i + 1}
                   </div>
-                  <h3 className="mt-5 font-semibold text-[#2B2522]">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[#6E5F5A]">{step.desc}</p>
-                </div>
+                  <h3 className="mt-6 font-bold text-[#2B1E1B]">{step.title}</h3>
+                  <p className="mt-2 text-[13.5px] leading-relaxed text-[#8A7A73]">{step.desc}</p>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -195,67 +243,66 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="bg-[#F7F3EC] px-6 py-20">
-        <div className="mx-auto max-w-3xl">
-          <h2 className="mb-10 text-center font-serif text-3xl font-bold text-[#2B2522]">Frequently Asked Questions</h2>
-          <div className="space-y-4">
-            {FAQS.map((faq) => (
-              <details key={faq.q} className="group rounded-lg border border-[#E5DCD2] bg-white shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-sm font-semibold text-[#2B2522]">
-                  {faq.q}
-                  <span className="text-lg text-[#7A6E68] transition-transform group-open:rotate-45">+</span>
-                </summary>
-                <div className="border-t border-[#ECE4D9] px-5 py-4 text-sm leading-relaxed text-[#6E5F5A]">
-                  {faq.a}
-                </div>
-              </details>
+      <section id="faq" className="bg-[#F4ECE1]">
+        <div className="mx-auto max-w-[820px] px-5 py-[88px] text-center sm:px-8">
+          <Reveal>
+            <h2 className="mb-11 font-serif text-[40px] font-medium tracking-tight text-[#241715]">Frequently Asked Questions</h2>
+          </Reveal>
+          <div className="space-y-3.5 text-left">
+            {FAQS.map((faq, i) => (
+              <Reveal key={faq.q} delay={i * 70}>
+                <details className="group overflow-hidden rounded-[14px] border border-[#EBDED0] bg-white">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-[15.5px] font-semibold text-[#2B1E1B]">
+                    {faq.q}
+                    <span className="flex-none text-2xl font-light leading-none text-[#7C1B26] transition-transform group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="px-6 pb-6 text-[14.5px] leading-relaxed text-[#7A6A63]">{faq.a}</div>
+                </details>
+              </Reveal>
             ))}
           </div>
-          <div className="mt-8 text-center">
-            <AskChatbotButton className="inline-flex items-center gap-2 text-sm font-medium text-[#7D1A1A] hover:text-[#5C1010] transition-colors">
-              <MessageCircle className="h-4 w-4" />
+          <div className="mt-8">
+            <AskChatbotButton className="inline-flex items-center gap-2 text-sm font-semibold text-[#7C1B26] transition-colors hover:text-[#A52020]">
+              <MessageCircle className="h-[18px] w-[18px]" />
               More questions? Ask our assistant
             </AskChatbotButton>
           </div>
         </div>
       </section>
 
-      {/* Contact */}
-      <section className="bg-[#7A1717] px-6 py-12 text-white">
-        <div className="mx-auto grid max-w-6xl gap-8 sm:grid-cols-3">
-          <div>
-            <div className="flex items-center gap-2 text-[#D8B65A]">
-              <MapPin className="h-4 w-4" />
-              <span className="text-xs font-semibold uppercase tracking-[0.15em]">Visit</span>
-            </div>
-            <p className="mt-2 text-sm text-white/90">Ground Floor, Domocao Alonto Hall, 1st Street, Mindanao State University, Marawi City, Philippines</p>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-[#D8B65A]">
-              <Mail className="h-4 w-4" />
-              <span className="text-xs font-semibold uppercase tracking-[0.15em]">Contact</span>
-            </div>
-            <p className="mt-2 text-sm text-white/90">dsa@msumain.edu.ph · +63 919 246 2209</p>
-          </div>
-          <div>
-            <div className="flex items-center gap-2 text-[#D8B65A]">
-              <Clock className="h-4 w-4" />
-              <span className="text-xs font-semibold uppercase tracking-[0.15em]">Office Hours</span>
-            </div>
-            <p className="mt-2 text-sm text-white/90">Mon – Fri 8:00 A.M. – 5:00 P.M.</p>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
-      <footer className="bg-[#3E0C0C] px-6 py-8 text-center">
-        <div className="flex justify-center">
-          <Seal size={36} />
+      <footer className="bg-gradient-to-b from-[#7C1B26] to-[#5C1118] text-[#F3E6D6]">
+        <div className="mx-auto max-w-[1200px] px-5 pb-7 pt-16 sm:px-8">
+          <div className="grid gap-12 border-b border-[#F3D9A0]/20 pb-12 sm:grid-cols-3">
+            <Reveal>
+              <div className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#E9C77F]">
+                <MapPin className="h-[18px] w-[18px]" /> Visit
+              </div>
+              <p className="text-sm leading-relaxed text-[#F3E6D6]/80">
+                Ground Floor, Domocao Alonto Hall, 1st Street, Mindanao State University, Marawi City, Philippines
+              </p>
+            </Reveal>
+            <Reveal delay={100}>
+              <div className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#E9C77F]">
+                <Mail className="h-[18px] w-[18px]" /> Contact
+              </div>
+              <p className="mb-1.5 text-sm text-[#F3E6D6]/80">dsa@msumain.edu.ph</p>
+              <p className="text-sm text-[#F3E6D6]/80">+63 919 246 2209</p>
+            </Reveal>
+            <Reveal delay={200}>
+              <div className="mb-4 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#E9C77F]">
+                <Clock className="h-[18px] w-[18px]" /> Office Hours
+              </div>
+              <p className="text-sm text-[#F3E6D6]/80">Monday – Friday<br />8:00 A.M. – 5:00 P.M.</p>
+            </Reveal>
+          </div>
+          <div className="flex flex-col items-center gap-3 pt-9">
+            <Logo size={34} />
+            <p className="text-xs text-[#F3E6D6]/60">
+              © {new Date().getFullYear()} Mindanao State University — Marawi · In coordination with CHED
+            </p>
+          </div>
         </div>
-        <p className="mt-3 font-serif text-sm font-semibold text-white">SWAP Portal — MSU Marawi</p>
-        <p className="mt-1 text-xs text-white/55">
-          © {new Date().getFullYear()} Mindanao State University — Marawi · In coordination with CHED
-        </p>
       </footer>
     </div>
   )

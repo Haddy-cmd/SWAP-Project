@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Users, Clock, ClipboardCheck, TrendingUp, FileText, Coins, ArrowRight, CheckCircle, Calendar, ChevronDown } from 'lucide-react'
+import { Users, Clock, ClipboardCheck, TrendingUp, FileText, Coins, ArrowRight, ArrowUpRight, CheckCircle, Calendar, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { analyticsApi } from '@/lib/api/analytics.api'
-import { ApplicantsByCollegeChart } from '@/components/charts/ApplicantsByCollegeChart'
 
 const FALLBACK_YEAR = '2024-2025'
 const FALLBACK_SEM = '1st Semester'
 
-const BAR_COLORS = ['#7D1A1A', '#2980B9', '#27AE60', '#E6A817', '#C0563B', '#8E44AD', '#16A085']
+// Office / donut segment palette.
+const OFFICE_COLORS = ['#7C1B26', '#3B7FB5', '#4E9657', '#D8A12B', '#C0562F', '#6B4E9A', '#16A085']
 
 const peso = (n: number) =>
   '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -39,40 +39,49 @@ export default function AdminDashboard() {
     queryFn: () => analyticsApi.getAdminOverview(year, sem),
   })
 
-  const stats = [
-    { icon: Users, tint: 'bg-[#FEF0F0] text-[#7D1A1A]', label: 'Active Recipients', value: overview?.active_recipients ?? '—', href: '/admin/users' },
-    { icon: Clock, tint: 'bg-[#FEF3E0] text-[#F39C12]', label: 'Pending Applications', value: overview?.pending_applications ?? '—', href: '/admin/applications' },
-    { icon: ClipboardCheck, tint: 'bg-[#FDECEC] text-[#A52020]', label: 'Pending Verifications', value: overview?.pending_verifications ?? '—', href: '/admin/analytics' },
-    { icon: TrendingUp, tint: 'bg-[#EAF7EF] text-[#27AE60]', label: 'Avg Completion', value: overview != null ? `${overview.avg_completion_rate}%` : '—', href: '/admin/analytics' },
+  const kpis = [
+    { icon: Users, color: '#7C1B26', label: 'Active Recipients', value: overview?.active_recipients ?? '—', href: '/admin/assignments' },
+    { icon: Clock, color: '#C68A3E', label: 'Pending Apps', value: overview?.pending_applications ?? '—', href: '/admin/applications' },
+    { icon: ClipboardCheck, color: '#6B4E9A', label: 'Pending Verifs', value: overview?.pending_verifications ?? '—', href: '/admin/analytics' },
+    { icon: TrendingUp, color: '#4E9657', label: 'Avg Completion', value: overview != null ? `${overview.avg_completion_rate}%` : '—', href: '/admin/analytics' },
   ]
 
-  const collegeData = (overview?.applicants_by_college ?? []).map((c) => ({
-    college: c.college,
-    applicants: c.applicant_count,
-  }))
-
+  // Office distribution → donut segments.
   const offices = overview?.office_distribution_all ?? []
   const totalRecipients = offices.reduce((sum, o) => sum + o.recipient_count, 0)
+  let acc = 0
+  const segments = offices.map((o, i) => {
+    const pct = totalRecipients ? (o.recipient_count / totalRecipients) * 100 : 0
+    const seg = `${OFFICE_COLORS[i % OFFICE_COLORS.length]} ${acc}% ${acc + pct}%`
+    acc += pct
+    return seg
+  })
+  const donutGradient = totalRecipients ? `conic-gradient(${segments.join(', ')})` : 'conic-gradient(#E6D8CB 0 100%)'
+
+  // Applicants by college → bars.
+  const colleges = overview?.applicants_by_college ?? []
+  const maxCollege = Math.max(1, ...colleges.map((c) => c.applicant_count))
+  const totalApplicants = colleges.reduce((sum, c) => sum + c.applicant_count, 0)
 
   const pendingApps = overview?.pending_applications ?? 0
   const stipendPending = overview?.stipend_summary?.total_pending ?? 0
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="space-y-[18px] text-[#241715]">
+      {/* Header + AY selector */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Admin Dashboard</h1>
-          <p className="mt-1 text-sm text-[#8A6A6A]">Program overview · all offices</p>
+          <h1 className="font-serif text-[26px] font-medium tracking-tight text-[#241715]">Admin Dashboard</h1>
+          <p className="mt-0.5 text-sm text-[#8A7A73]">Program overview · all offices</p>
         </div>
         <div className="relative">
-          <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7D1A1A]" />
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#7D1A1A]" />
+          <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A9823C]" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B79B7E]" />
           <select
             value={selected ?? ''}
             onChange={(e) => setSelected(e.target.value)}
             disabled={!periods.length}
-            className="cursor-pointer appearance-none rounded-full border border-[#EFE3E3] bg-white py-2 pl-9 pr-9 text-xs font-semibold text-[#7D1A1A] hover:bg-[#FAF7F7] focus:border-[#7D1A1A] focus:outline-none focus:ring-2 focus:ring-[#7D1A1A]/15 disabled:opacity-50"
+            className="h-[42px] cursor-pointer appearance-none rounded-[11px] border border-[#EADFD4] bg-white pl-10 pr-9 text-[13.5px] font-semibold text-[#2B1E1B] shadow-[0_2px_6px_rgba(60,30,25,0.05)] hover:bg-[#FBF7F2] focus:border-[#7C1B26] focus:outline-none disabled:opacity-50"
           >
             {periods.length === 0 && <option value="">AY {FALLBACK_YEAR} · {FALLBACK_SEM}</option>}
             {periods.map((p) => (
@@ -84,144 +93,160 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ icon: Icon, tint, label, value, href }) => (
-          <Link
-            key={label}
-            href={href}
-            className="relative rounded-2xl border border-[#EFE3E3] bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-start justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-[#94A3B8]">{label}</p>
-              <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${tint}`}>
-                <Icon className="h-4 w-4" />
-              </span>
+      {/* Compact KPI strip */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-[#EFE5DA] bg-[#EFE5DA] lg:grid-cols-4">
+        {kpis.map(({ icon: Icon, color, label, value, href }) => (
+          <Link key={label} href={href} className="group bg-white px-5 py-5 transition-colors hover:bg-[#FBF7F2]">
+            <div className="mb-2.5 flex items-center gap-2">
+              <Icon className="h-[17px] w-[17px]" style={{ color }} />
+              <span className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#A38A82]">{label}</span>
+              <ArrowUpRight className="ml-auto h-4 w-4 text-[#C9B7AC] opacity-0 transition-opacity group-hover:opacity-100" />
             </div>
             {isLoading ? (
-              <div className="mt-3 h-8 w-16 animate-pulse rounded bg-[#EAD9D9]" />
+              <div className="h-9 w-14 animate-pulse rounded bg-[#EFE5DA]" />
             ) : (
-              <p className="mt-2 text-3xl font-extrabold text-[#1E293B]">{String(value)}</p>
+              <span className="font-serif text-[34px] font-semibold leading-none text-[#241715]">{String(value)}</span>
             )}
           </Link>
         ))}
       </div>
 
-      {/* Office Distribution + Needs Attention */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Office Distribution — horizontal bars */}
-        <div className="rounded-2xl border border-[#EFE3E3] bg-white p-6 shadow-sm lg:col-span-2">
-          <h2 className="font-semibold text-[#1E293B]">Office Distribution</h2>
-          <p className="mt-0.5 text-sm text-[#8A6A6A]">Recipients assigned per office</p>
+      {/* Donut + right column */}
+      <div className="grid gap-[18px] lg:grid-cols-[1fr_1.4fr]">
+        {/* Office Distribution donut */}
+        <Link href="/admin/offices" className="group block rounded-[14px] border border-[#EFE5DA] bg-white p-6 transition hover:border-[#E0CFC2] hover:shadow-md">
+          <div className="flex items-center justify-between">
+            <div className="text-[15px] font-bold text-[#241715]">Office Distribution</div>
+            <ArrowUpRight className="h-4 w-4 text-[#C9B7AC] opacity-0 transition-opacity group-hover:opacity-100" />
+          </div>
+          <div className="mt-1 text-[12.5px] text-[#8A7A73]">Recipients per office</div>
 
-          {isLoading ? (
-            <div className="mt-5 space-y-4">
-              {[1, 2, 3, 4].map((n) => <div key={n} className="h-8 animate-pulse rounded-lg bg-[#F1E9E9]" />)}
+          <div className="my-6 flex items-center justify-center">
+            <div className="flex h-[168px] w-[168px] items-center justify-center rounded-full" style={{ background: donutGradient }}>
+              <div className="flex h-[108px] w-[108px] flex-col items-center justify-center rounded-full bg-white">
+                <span className="font-serif text-[32px] font-semibold leading-none text-[#241715]">{totalRecipients}</span>
+                <span className="text-[10.5px] text-[#A38A82]">recipients</span>
+              </div>
             </div>
-          ) : offices.length === 0 ? (
-            <p className="py-10 text-center text-sm text-[#B09A9A]">No active assignments yet.</p>
+          </div>
+
+          {offices.length === 0 ? (
+            <p className="py-2 text-center text-[12.5px] text-[#B09A9A]">No active assignments yet.</p>
           ) : (
-            <div className="mt-5 space-y-5">
+            <div className="flex flex-col gap-2.5">
               {offices.map((o, i) => {
                 const pct = totalRecipients ? Math.round((o.recipient_count / totalRecipients) * 100) : 0
-                const color = BAR_COLORS[i % BAR_COLORS.length]
                 return (
-                  <div key={o.office_name}>
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
-                        <span className="truncate text-sm font-medium text-[#1E293B]">{o.office_name}</span>
-                      </div>
-                      <span className="flex-shrink-0 text-xs text-[#8A6A6A]">
-                        {o.recipient_count} · {pct}%
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[#F1E9E9]">
-                      <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                    </div>
+                  <div key={o.office_name} className="flex items-center gap-2 text-[12.5px] text-[#5A4A45]">
+                    <span className="h-[9px] w-[9px] flex-shrink-0 rounded-full" style={{ backgroundColor: OFFICE_COLORS[i % OFFICE_COLORS.length] }} />
+                    <span className="truncate">{o.office_name}</span>
+                    <span className="ml-auto flex-shrink-0 text-[#A38A82]">{pct}%</span>
                   </div>
                 )
               })}
             </div>
           )}
-        </div>
+        </Link>
 
-        {/* Needs Attention */}
-        <div className="rounded-2xl border border-[#EFE3E3] bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-[#1E293B]">Needs Attention</h2>
+        {/* Right column */}
+        <div className="flex flex-col gap-[18px]">
+          {/* Applicants by College bars */}
+          <Link href="/admin/applications" className="group block rounded-[14px] border border-[#EFE5DA] bg-white p-6 transition hover:border-[#E0CFC2] hover:shadow-md">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <div className="text-[15px] font-bold text-[#241715]">Applicants by College</div>
+                <div className="mt-0.5 text-[12.5px] text-[#8A7A73]">Applications this semester</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-lg bg-[#F4ECE1] px-3 py-1.5 text-xs font-semibold text-[#8A7A73]">{totalApplicants} total</span>
+                <ArrowUpRight className="h-4 w-4 text-[#C9B7AC] opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+            </div>
 
-          <div className="mt-4 space-y-3">
-            {/* Pending applications */}
-            {pendingApps > 0 ? (
-              <Link href="/admin/applications" className="flex items-center gap-3 rounded-xl border border-[#F6E0BE] bg-[#FFF7ED] p-3.5 hover:bg-[#FEEFD8] transition-colors">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FDEBCF]"><FileText className="h-4 w-4 text-[#D97706]" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[#92400E]">Pending applications</p>
-                  <p className="text-xs text-[#B45309]">{pendingApps} awaiting your review</p>
-                </div>
-                <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#92400E]" />
-              </Link>
+            {isLoading ? (
+              <div className="h-[150px] animate-pulse rounded-xl bg-[#F4ECE1]" />
+            ) : colleges.length === 0 ? (
+              <p className="py-12 text-center text-[12.5px] text-[#B09A9A]">No applications this period.</p>
             ) : (
-              <div className="flex items-center gap-3 rounded-xl border border-[#CDEBD8] bg-[#F1FAF4] p-3.5">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#D8F0E2]"><CheckCircle className="h-4 w-4 text-[#1E8E50]" /></span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#166534]">Applications</p>
-                  <p className="text-xs text-[#15803D]">0 pending — all caught up</p>
-                </div>
+              <div className="flex h-[150px] items-end gap-5 px-1">
+                {colleges.map((c) => {
+                  const zero = c.applicant_count === 0
+                  const height = zero ? 4 : 25 + (c.applicant_count / maxCollege) * 65
+                  return (
+                    <div key={c.college} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                      <span className="text-xs font-bold" style={{ color: zero ? '#C9B7AC' : '#5A4A45' }}>{c.applicant_count}</span>
+                      <div
+                        className="w-full max-w-[50px] rounded-t-[7px]"
+                        style={{ height: `${height}%`, background: zero ? '#E6D8CB' : 'linear-gradient(180deg,#9A2231,#7C1B26)' }}
+                      />
+                      <span className="truncate text-[11.5px] text-[#A38A82]">{c.college}</span>
+                    </div>
+                  )
+                })}
               </div>
             )}
+          </Link>
 
-            {/* Stipend pending */}
-            {stipendPending > 0 ? (
-              <Link href="/admin/stipend" className="flex items-center gap-3 rounded-xl border border-[#F6E0BE] bg-[#FFF7ED] p-3.5 hover:bg-[#FEEFD8] transition-colors">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#FDEBCF]"><Coins className="h-4 w-4 text-[#D97706]" /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[#92400E]">Stipend pending</p>
-                  <p className="text-xs text-[#B45309]">{peso(stipendPending)} awaiting release</p>
-                </div>
-                <ArrowRight className="h-4 w-4 flex-shrink-0 text-[#92400E]" />
+          {/* Mini stat strip */}
+          <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[14px] border border-[#EFE5DA] bg-[#EFE5DA]">
+            {([
+              ['Applications', overview?.total_applications ?? '—', '/admin/applications'],
+              ['Offices', overview?.total_offices ?? '—', '/admin/offices'],
+              ['Verified', overview != null ? `${Math.round(overview.total_verified_hours)}h` : '—', '/admin/analytics'],
+            ] as [string, string | number, string][]).map(([label, value, href]) => (
+              <Link key={label} href={href} className="bg-white px-4 py-5 text-center transition-colors hover:bg-[#FBF7F2]">
+                <div className="font-serif text-[26px] font-semibold text-[#241715]">{String(value)}</div>
+                <div className="mt-1 text-[11px] text-[#A38A82]">{label}</div>
               </Link>
-            ) : (
-              <div className="flex items-center gap-3 rounded-xl border border-[#CDEBD8] bg-[#F1FAF4] p-3.5">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#D8F0E2]"><CheckCircle className="h-4 w-4 text-[#1E8E50]" /></span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#166534]">Stipend</p>
-                  <p className="text-xs text-[#15803D]">Nothing pending release</p>
-                </div>
-              </div>
-            )}
+            ))}
           </div>
-
-          {/* Program snapshot */}
-          <p className="mt-6 mb-3 text-[11px] font-bold uppercase tracking-wide text-[#94A3B8]">Program Snapshot</p>
-          <dl className="space-y-3">
-            <div className="flex items-center justify-between">
-              <dt className="text-sm text-[#475569]">Total applications</dt>
-              <dd className="text-sm font-bold text-[#1E293B]">{overview?.total_applications ?? '—'}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-sm text-[#475569]">Total offices</dt>
-              <dd className="text-sm font-bold text-[#1E293B]">{overview?.total_offices ?? '—'}</dd>
-            </div>
-            <div className="flex items-center justify-between">
-              <dt className="text-sm text-[#475569]">Verified hours</dt>
-              <dd className="text-sm font-bold text-[#1E293B]">
-                {overview != null ? `${Math.round(overview.total_verified_hours)}h` : '—'}
-              </dd>
-            </div>
-          </dl>
         </div>
       </div>
 
-      {/* Applicants by College — full width */}
-      <div className="rounded-2xl border border-[#EFE3E3] bg-white p-6 shadow-sm">
-        <h2 className="font-semibold text-[#1E293B]">Applicants by College</h2>
-        <p className="mt-0.5 mb-4 text-sm text-[#8A6A6A]">Applications received this semester, grouped by college</p>
-        {isLoading ? (
-          <div className="h-64 animate-pulse rounded-xl bg-[#EAD9D9]" />
-        ) : (
-          <ApplicantsByCollegeChart data={collegeData} />
-        )}
+      {/* Needs Attention */}
+      <div className="rounded-[14px] border border-[#EFE5DA] bg-white p-6">
+        <div className="mb-4 text-[15px] font-bold text-[#241715]">Needs Attention</div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* Applications */}
+          {pendingApps > 0 ? (
+            <Link href="/admin/applications" className="flex items-center gap-3.5 rounded-xl border border-[#F6E0BE] bg-[#FFF7ED] px-4 py-4 transition-colors hover:bg-[#FEEFD8]">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-[#FDEBCF]"><FileText className="h-5 w-5 text-[#C68A3E]" /></span>
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="text-[13.5px] font-bold text-[#92400E]">Applications</div>
+                <div className="text-xs text-[#B45309]">{pendingApps} pending your review</div>
+              </div>
+              <ArrowRight className="h-4 w-4 flex-none text-[#92400E]" />
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3.5 rounded-xl border border-[#D6EBD8] bg-[#EEF7EF] px-4 py-4">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-[#DCEFDD]"><CheckCircle className="h-5 w-5 text-[#4E9657]" /></span>
+              <div className="leading-tight">
+                <div className="text-[13.5px] font-bold text-[#2C5A33]">Applications</div>
+                <div className="text-xs text-[#5C8463]">0 pending — all caught up</div>
+              </div>
+            </div>
+          )}
+
+          {/* Stipend */}
+          {stipendPending > 0 ? (
+            <Link href="/admin/stipend" className="flex items-center gap-3.5 rounded-xl border border-[#F6E0BE] bg-[#FFF7ED] px-4 py-4 transition-colors hover:bg-[#FEEFD8]">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-[#FDEBCF]"><Coins className="h-5 w-5 text-[#C68A3E]" /></span>
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="text-[13.5px] font-bold text-[#92400E]">Stipend</div>
+                <div className="text-xs text-[#B45309]">{peso(stipendPending)} awaiting release</div>
+              </div>
+              <ArrowRight className="h-4 w-4 flex-none text-[#92400E]" />
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3.5 rounded-xl border border-[#D6EBD8] bg-[#EEF7EF] px-4 py-4">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-[#DCEFDD]"><Coins className="h-5 w-5 text-[#4E9657]" /></span>
+              <div className="leading-tight">
+                <div className="text-[13.5px] font-bold text-[#2C5A33]">Stipend</div>
+                <div className="text-xs text-[#5C8463]">Nothing pending release</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

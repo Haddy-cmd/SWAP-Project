@@ -1,12 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useNotifications } from '@/lib/hooks/useNotifications'
-import { Seal } from '@/components/shared/Seal'
 import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
@@ -95,7 +95,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Brand */}
       <Link href={roleNav[0]?.href ?? '/'} onClick={onNavigate} className="flex flex-col items-center gap-1 pt-5 pb-3">
-        <Seal size={38} />
+        <Image src="/dsa-logo.png" alt="DSA Logo" width={44} height={44} priority />
         <span className="text-[10px] font-bold tracking-[0.15em] text-[#D8B65A]">SWAP</span>
       </Link>
 

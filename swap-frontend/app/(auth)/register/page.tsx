@@ -1,17 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { forwardRef, useState } from 'react'
+import Image from 'next/image'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import {
-  User, Contact, Hash, Mail, Building2, BookOpen, GraduationCap, Lock,
-  Eye, EyeOff, ArrowRight, ArrowLeft, Check, ChevronDown, UserPlus, type LucideIcon,
+  User, Hash, Mail, Building2, BookOpen, GraduationCap, Lock, Contact,
+  Eye, EyeOff, ArrowRight, ArrowLeft, Check, ChevronDown,
 } from 'lucide-react'
 import { authApi } from '@/lib/api/auth.api'
+import { settingsApi } from '@/lib/api/settings.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import type { ApiError } from '@/types/api.types'
@@ -19,7 +21,12 @@ import type { ApiError } from '@/types/api.types'
 const schema = z
   .object({
     name: z.string().min(2, 'Full name is required'),
-    email: z.string().email('Enter a valid email'),
+    email: z
+      .string()
+      .email('Enter a valid email')
+      .refine((e) => e.toLowerCase().endsWith('@s.msumain.edu.ph'), {
+        message: 'Use your institutional email to register',
+      }),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     password_confirmation: z.string(),
     student_id_number: z.string().min(1, 'Student ID is required'),
@@ -39,6 +46,7 @@ const schema = z
 type FormData = z.infer<typeof schema>
 
 const STEP1_FIELDS = ['first_name', 'last_name', 'name', 'student_id_number', 'email'] as const
+const STEP2_FIELDS = ['college', 'program', 'year_level', 'password', 'password_confirmation'] as const
 
 /** Colleges of MSU Main Campus, Marawi City, and the programs they offer there.
  *  Value (abbreviation) is what gets stored. */
@@ -61,59 +69,44 @@ const COLLEGES: { value: string; label: string; programs: string[] }[] = [
   { value: 'KFCIAAS', label: 'King Faisal Center for Islamic, Arabic and Asian Studies', programs: ['AB Islamic Studies', 'AB Arabic Language', 'BS Islamic Studies'] },
 ]
 
-const INPUT =
-  'w-full rounded-xl border border-[#DCC5C5] bg-white px-4 py-2.5 text-sm text-[#1E293B] placeholder-[#B09A9A] focus:border-[#7D1A1A] focus:outline-none focus:ring-2 focus:ring-[#7D1A1A]/15 disabled:bg-[#FAF7F7] disabled:text-[#B09A9A]'
-const ICON = 'pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B09A9A]'
-
-const STRENGTH = [
-  { label: 'Too weak', bar: 'bg-[#E74C3C]', text: 'text-[#E74C3C]' },
-  { label: 'Weak', bar: 'bg-[#E74C3C]', text: 'text-[#E74C3C]' },
-  { label: 'Fair', bar: 'bg-[#F39C12]', text: 'text-[#D97706]' },
-  { label: 'Good', bar: 'bg-[#2980B9]', text: 'text-[#2980B9]' },
-  { label: 'Strong', bar: 'bg-[#27AE60]', text: 'text-[#1E8E50]' },
+const STEP_META = [
+  { title: 'Personal', sub: 'Name, ID & contact' },
+  { title: 'Academic', sub: 'College & standing' },
+  { title: 'Review', sub: 'Confirm & submit' },
 ]
 
-function passwordScore(pw: string): number {
-  let s = 0
-  if (pw.length >= 8) s++
-  if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++
-  if (/\d/.test(pw)) s++
-  if (/[^A-Za-z0-9]/.test(pw)) s++
-  return s
+const HEADINGS: Record<number, [string, string]> = {
+  1: ['Personal Information', 'Enter your details exactly as they appear on University records.'],
+  2: ['Academic Details', 'Tell us where you study and set a password for your account.'],
+  3: ['Review & Submit', 'Confirm everything is correct before submitting your application.'],
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="mb-1.5 block text-sm font-medium text-[#1E293B]">{label}</label>
-      {children}
-      {error && <p className="mt-1 text-xs text-[#E74C3C]">{error}</p>}
-    </div>
-  )
-}
+const FIELD = 'flex h-12 items-center gap-2.5 rounded-[11px] border border-[#EADFD4] bg-white px-3.5 transition-colors focus-within:border-[#7C1B26]'
+const INPUT = 'min-w-0 flex-1 border-none bg-transparent text-sm text-[#2B1E1B] placeholder-[#B7A99F] focus:outline-none'
+const LABEL = 'mb-[7px] block text-[12.5px] font-semibold text-[#5A4A45]'
+const ICON = 'h-[19px] w-[19px] flex-none text-[#B79B7E]'
 
-const IconInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement> & { icon: LucideIcon }>(
-  ({ icon: Icon, className, ...props }, ref) => (
-    <div className="relative">
-      <Icon className={ICON} />
-      <input ref={ref} {...props} className={`${INPUT} pl-11 ${className ?? ''}`} />
-    </div>
-  )
-)
-IconInput.displayName = 'IconInput'
+const ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th', '6th']
 
-function StepDot({ n, state, label }: { n: number; state: 'done' | 'active' | 'idle'; label: string }) {
-  const dot =
-    state === 'done' ? 'bg-[#27AE60] text-white'
-    : state === 'active' ? 'bg-[#7D1A1A] text-white'
-    : 'bg-[#F1EBE4] text-[#B8AFA8] border border-[#E0D6CE]'
-  const text = state === 'idle' ? 'text-[#B8AFA8] font-medium' : 'text-[#7D1A1A] font-semibold'
+function StepDot({ index, step }: { index: number; step: number }) {
+  const n = index + 1
+  const done = step > n
+  const active = step === n
+  const on = done || active
+  const meta = STEP_META[index]
   return (
-    <div className="flex items-center gap-2">
-      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs ${dot}`}>
-        {state === 'done' ? <Check className="h-3.5 w-3.5" /> : n}
+    <div className="relative flex gap-4">
+      <span
+        className={`z-10 flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full text-[15px] font-bold ${
+          on ? 'bg-[#F3D9A0] text-[#651420]' : 'border-[1.5px] border-[#F3D9A0]/40 bg-[#F3D9A0]/10 text-[#E3B96E]'
+        } ${active ? 'ring-4 ring-[#F3D9A0]/20' : ''}`}
+      >
+        {done ? <Check className="h-[18px] w-[18px]" strokeWidth={3} /> : n}
       </span>
-      <span className={`text-xs ${text}`}>{label}</span>
+      <div>
+        <div className={`text-[15px] font-bold ${on ? 'text-[#FFF8EE]' : 'text-[#FBEFE0]/70'}`}>{meta.title}</div>
+        <div className="mt-0.5 text-xs text-[#FBEFE0]/55">{meta.sub}</div>
+      </div>
     </div>
   )
 }
@@ -123,6 +116,7 @@ export default function RegisterPage() {
   const { setAuth } = useAuthStore()
   const [step, setStep] = useState(1)
   const [showPw, setShowPw] = useState(false)
+  const [certified, setCertified] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
@@ -137,9 +131,15 @@ export default function RegisterPage() {
 
   const selectedCollege = watch('college')
   const programs = COLLEGES.find((c) => c.value === selectedCollege)?.programs ?? []
-  const pw = watch('password') ?? ''
-  const score = passwordScore(pw)
-  const meta = STRENGTH[score]
+  const collegeLabel = COLLEGES.find((c) => c.value === selectedCollege)?.label ?? '—'
+  const v = watch()
+
+  // Registration follows the application period: no point signing up to apply
+  // when applications are closed. (Login stays open for existing accounts.)
+  const { data: appStatus, isLoading: statusLoading } = useQuery({
+    queryKey: ['application-status'],
+    queryFn: () => settingsApi.getApplicationStatus(),
+  })
 
   const signup = useMutation({
     mutationFn: (data: FormData) => authApi.register(data),
@@ -150,198 +150,237 @@ export default function RegisterPage() {
     onError: (err: ApiError) => {
       if (err.errors) {
         const mapped: Record<string, string> = {}
-        Object.entries(err.errors).forEach(([k, v]) => (mapped[k] = v[0]))
+        Object.entries(err.errors).forEach(([k, val]) => (mapped[k] = val[0]))
         setFieldErrors(mapped)
-        // If a server error belongs to step 1, send the user back to fix it.
         if (Object.keys(mapped).some((k) => (STEP1_FIELDS as readonly string[]).includes(k))) setStep(1)
+        else if (Object.keys(mapped).some((k) => (STEP2_FIELDS as readonly string[]).includes(k))) setStep(2)
       }
       setServerError(err.message ?? 'Registration failed. Please try again.')
     },
   })
 
   const next = async () => {
-    const ok = await trigger([...STEP1_FIELDS])
+    const fields = step === 1 ? STEP1_FIELDS : STEP2_FIELDS
+    const ok = await trigger([...fields])
     if (ok) {
       setServerError(null)
-      setStep(2)
+      setStep((s) => Math.min(3, s + 1))
     }
   }
 
+  const [heading, subhead] = HEADINGS[step]
+
+  // Application period closed → show a notice instead of the signup form.
+  if (!statusLoading && appStatus && !appStatus.open) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#EFE6DB] p-4 sm:p-8">
+        <div className="w-full max-w-md rounded-[18px] bg-white p-8 text-center shadow-[0_24px_60px_rgba(60,30,25,0.20)]">
+          <Image src="/dsa-logo.png" alt="DSA Logo" width={64} height={64} className="mx-auto" priority />
+          <div className="mx-auto mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-[#F3E3E3]">
+            <Lock className="h-6 w-6 text-[#7C1B26]" />
+          </div>
+          <h1 className="mt-4 font-serif text-2xl font-medium text-[#241715]">Registration is closed</h1>
+          <p className="mt-2 text-sm leading-relaxed text-[#8A7A73]">
+            {appStatus.message ?? 'The application period has not started yet. Please check back later.'}
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Link href="/login" className="rounded-xl bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 py-3 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,0.26)] transition hover:brightness-110">
+              Sign in to an existing account
+            </Link>
+            <Link href="/" className="rounded-xl border border-[#E7D9C9] bg-white px-6 py-3 text-sm font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] transition-colors">
+              Back to home
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="rounded-2xl border border-[#EAD9D9] bg-white p-8 shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-[#1E293B]">Create your account</h2>
-        <p className="mt-1 text-sm text-[#8A6A6A]">
-          {step === 1 ? 'Apply for the SWAP program at MSU Marawi' : 'Almost done — your academic details'}
-        </p>
-      </div>
-
-      {/* Stepper */}
-      <div className="mb-6 flex items-center">
-        <StepDot n={1} state={step > 1 ? 'done' : 'active'} label="Personal" />
-        <div className={`mx-3 h-0.5 flex-1 rounded-full ${step > 1 ? 'bg-[#7D1A1A]' : 'bg-[#E5E0DA]'}`} />
-        <StepDot n={2} state={step === 2 ? 'active' : 'idle'} label="Academic" />
-      </div>
-
-      {serverError && (
-        <div className="mb-5 rounded-lg bg-red-50 px-4 py-3 text-sm text-[#E74C3C]">{serverError}</div>
-      )}
-
-      <form onSubmit={handleSubmit((d) => signup.mutate(d))} className="space-y-4">
-        {step === 1 ? (
-          <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="First Name" error={errors.first_name?.message ?? fieldErrors.first_name}>
-                <IconInput icon={User} {...register('first_name')} placeholder="Juan" />
-              </Field>
-              <Field label="Last Name" error={errors.last_name?.message ?? fieldErrors.last_name}>
-                <IconInput icon={User} {...register('last_name')} placeholder="dela Cruz" />
-              </Field>
+    <div className="flex min-h-screen w-full items-center justify-center bg-[#EFE6DB] p-4 sm:p-8">
+      <div className="flex w-full max-w-[1080px] overflow-hidden rounded-[18px] bg-white shadow-[0_24px_60px_rgba(60,30,25,0.20)] lg:h-[720px]">
+        {/* Sidebar — vertical stepper */}
+        <div className="hidden w-[316px] flex-none flex-col bg-gradient-to-b from-[#7C1B26] to-[#4E0F16] p-9 text-[#FBEFE0] lg:flex">
+          <div className="mb-14 flex items-center gap-3">
+            <Image src="/dsa-logo.png" alt="DSA Logo" width={40} height={40} priority />
+            <div className="leading-tight">
+              <p className="font-serif text-base font-semibold text-[#FFF8EE]">SWAP Portal</p>
+              <p className="text-[9.5px] font-semibold uppercase tracking-[0.16em] text-[#E3B96E]">MSU — Marawi</p>
             </div>
+          </div>
 
-            <Field label="Full Name (as per records)" error={errors.name?.message ?? fieldErrors.name}>
-              <IconInput icon={Contact} {...register('name')} placeholder="Juan A. dela Cruz" />
-            </Field>
-
-            <Field label="Student ID Number" error={errors.student_id_number?.message ?? fieldErrors.student_id_number}>
-              <IconInput icon={Hash} {...register('student_id_number')} placeholder="20XX-XXXXX" />
-            </Field>
-
-            <Field label="Email Address" error={errors.email?.message ?? fieldErrors.email}>
-              <IconInput icon={Mail} type="email" {...register('email')} placeholder="student@msumarawi.edu.ph" />
-            </Field>
-
-            <button
-              type="button"
-              onClick={next}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7D1A1A] px-6 py-3 text-sm font-semibold text-white hover:bg-[#A52020] transition-colors"
-            >
-              Continue
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </>
-        ) : (
-          <>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="College" error={errors.college?.message ?? fieldErrors.college}>
-                <div className="relative">
-                  <Building2 className={ICON} />
-                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A6A6A]" />
-                  <select
-                    {...register('college', { onChange: () => setValue('program', '') })}
-                    defaultValue=""
-                    className={`${INPUT} appearance-none pl-11 pr-10`}
-                  >
-                    <option value="" disabled>Select college</option>
-                    {COLLEGES.map((c) => (
-                      <option key={c.value} value={c.value}>{c.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </Field>
-              <Field label="Program" error={errors.program?.message ?? fieldErrors.program}>
-                <div className="relative">
-                  <BookOpen className={ICON} />
-                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A6A6A]" />
-                  <select
-                    {...register('program')}
-                    defaultValue=""
-                    disabled={!selectedCollege}
-                    className={`${INPUT} appearance-none pl-11 pr-10`}
-                  >
-                    <option value="" disabled>{selectedCollege ? 'Select program' : 'Select college first'}</option>
-                    {programs.map((p) => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-              </Field>
+          <div className="relative flex-1">
+            {/* connecting line */}
+            <div className="absolute left-[18px] top-4 bottom-10 w-0.5 bg-[#F3D9A0]/20" />
+            <div className="space-y-9">
+              {STEP_META.map((_, i) => (
+                <StepDot key={i} index={i} step={step} />
+              ))}
             </div>
+          </div>
 
-            <Field label="Year Level" error={errors.year_level?.message ?? fieldErrors.year_level}>
-              <div className="relative">
-                <GraduationCap className={ICON} />
-                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8A6A6A]" />
-                <select {...register('year_level')} className={`${INPUT} appearance-none pl-11 pr-10`}>
-                  {[1, 2, 3, 4, 5, 6].map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-              </div>
-            </Field>
+          <div className="text-xs text-[#FBEFE0]/60">
+            Need help?
+            <br />
+            <span className="text-[#E3B96E]">dsa@msumain.edu.ph</span>
+          </div>
+        </div>
 
-            <Field label="Password" error={errors.password?.message ?? fieldErrors.password}>
-              <div className="relative">
-                <Lock className={ICON} />
-                <input
-                  {...register('password')}
-                  type={showPw ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  className={`${INPUT} pl-11 pr-11`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A6A6A] hover:text-[#7D1A1A] transition-colors"
-                  aria-label={showPw ? 'Hide password' : 'Show password'}
-                >
-                  {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              {pw && (
-                <div className="mt-2">
-                  <div className="flex gap-1.5">
-                    {[0, 1, 2, 3].map((i) => (
-                      <div key={i} className={`h-1.5 flex-1 rounded-full ${i < score ? meta.bar : 'bg-[#EDE3E0]'}`} />
-                    ))}
+        {/* Form panel */}
+        <div className="flex min-w-0 flex-1 flex-col bg-[#FCF8F3] p-7 sm:p-12">
+          <div className="text-[11.5px] font-bold uppercase tracking-[0.18em] text-[#A9823C]">Step {step} of 3</div>
+          <h2 className="mt-2 font-serif text-[29px] font-medium leading-tight text-[#241715]">{heading}</h2>
+          <p className="mt-1.5 text-sm text-[#8A7A73]">{subhead}</p>
+
+          {serverError && (
+            <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-[#C0392B]">{serverError}</div>
+          )}
+
+          <form onSubmit={handleSubmit((d) => signup.mutate(d))} className="mt-6 flex flex-1 flex-col">
+            <div className="flex-1">
+              {/* STEP 1 — Personal */}
+              {step === 1 && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={LABEL}>First Name</label>
+                    <div className={FIELD}><User className={ICON} /><input {...register('first_name')} placeholder="Juan" className={INPUT} /></div>
+                    {(errors.first_name || fieldErrors.first_name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.first_name?.message ?? fieldErrors.first_name}</p>}
                   </div>
-                  <p className={`mt-1 text-xs font-medium ${meta.text}`}>{meta.label}</p>
+                  <div>
+                    <label className={LABEL}>Last Name</label>
+                    <div className={FIELD}><User className={ICON} /><input {...register('last_name')} placeholder="dela Cruz" className={INPUT} /></div>
+                    {(errors.last_name || fieldErrors.last_name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.last_name?.message ?? fieldErrors.last_name}</p>}
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={LABEL}>Full Name (as per records)</label>
+                    <div className={FIELD}><Contact className={ICON} /><input {...register('name')} placeholder="Juan A. dela Cruz" className={INPUT} /></div>
+                    {(errors.name || fieldErrors.name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.name?.message ?? fieldErrors.name}</p>}
+                  </div>
+                  <div>
+                    <label className={LABEL}>Student ID Number</label>
+                    <div className={FIELD}><Hash className={ICON} /><input {...register('student_id_number')} placeholder="20XX-XXXXX" className={INPUT} /></div>
+                    {(errors.student_id_number || fieldErrors.student_id_number) && <p className="mt-1 text-xs text-[#C0392B]">{errors.student_id_number?.message ?? fieldErrors.student_id_number}</p>}
+                  </div>
+                  <div>
+                    <label className={LABEL}>Email Address</label>
+                    <div className={FIELD}><Mail className={ICON} /><input {...register('email')} type="email" placeholder="student@s.msumain.edu.ph" className={INPUT} /></div>
+                    {(errors.email || fieldErrors.email) && <p className="mt-1 text-xs text-[#C0392B]">{errors.email?.message ?? fieldErrors.email}</p>}
+                  </div>
                 </div>
               )}
-            </Field>
 
-            <Field label="Confirm Password" error={errors.password_confirmation?.message}>
-              <div className="relative">
-                <Lock className={ICON} />
-                <input
-                  {...register('password_confirmation')}
-                  type={showPw ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  autoComplete="new-password"
-                  className={`${INPUT} pl-11`}
-                />
-              </div>
-            </Field>
+              {/* STEP 2 — Academic */}
+              {step === 2 && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className={LABEL}>College / Department</label>
+                    <div className={FIELD}>
+                      <Building2 className={ICON} />
+                      <select {...register('college', { onChange: () => setValue('program', '') })} defaultValue="" className={`${INPUT} appearance-none`}>
+                        <option value="" disabled>Select college</option>
+                        {COLLEGES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      </select>
+                      <ChevronDown className="h-4 w-4 flex-none text-[#B79B7E]" />
+                    </div>
+                    {(errors.college || fieldErrors.college) && <p className="mt-1 text-xs text-[#C0392B]">{errors.college?.message ?? fieldErrors.college}</p>}
+                  </div>
+                  <div>
+                    <label className={LABEL}>Course / Program</label>
+                    <div className={FIELD}>
+                      <BookOpen className={ICON} />
+                      <select {...register('program')} defaultValue="" disabled={!selectedCollege} className={`${INPUT} appearance-none disabled:text-[#B7A99F]`}>
+                        <option value="" disabled>{selectedCollege ? 'Select program' : 'Select college first'}</option>
+                        {programs.map((p) => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <ChevronDown className="h-4 w-4 flex-none text-[#B79B7E]" />
+                    </div>
+                    {(errors.program || fieldErrors.program) && <p className="mt-1 text-xs text-[#C0392B]">{errors.program?.message ?? fieldErrors.program}</p>}
+                  </div>
+                  <div>
+                    <label className={LABEL}>Year Level</label>
+                    <div className={FIELD}>
+                      <GraduationCap className={ICON} />
+                      <select {...register('year_level')} defaultValue="" className={`${INPUT} appearance-none`}>
+                        <option value="" disabled>Select year</option>
+                        {[1, 2, 3, 4, 5, 6].map((y) => <option key={y} value={y}>{ORDINAL[y]} Year</option>)}
+                      </select>
+                      <ChevronDown className="h-4 w-4 flex-none text-[#B79B7E]" />
+                    </div>
+                    {(errors.year_level || fieldErrors.year_level) && <p className="mt-1 text-xs text-[#C0392B]">{errors.year_level?.message ?? fieldErrors.year_level}</p>}
+                  </div>
+                  <div>
+                    <label className={LABEL}>Set Password</label>
+                    <div className={FIELD}>
+                      <Lock className={ICON} />
+                      <input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password" className={INPUT} />
+                      <button type="button" onClick={() => setShowPw((s) => !s)} className="text-[#A38A82] hover:text-[#7C1B26] transition-colors" aria-label={showPw ? 'Hide password' : 'Show password'}>
+                        {showPw ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                      </button>
+                    </div>
+                    {(errors.password || fieldErrors.password) && <p className="mt-1 text-xs text-[#C0392B]">{errors.password?.message ?? fieldErrors.password}</p>}
+                  </div>
+                  <div>
+                    <label className={LABEL}>Confirm Password</label>
+                    <div className={FIELD}>
+                      <Lock className={ICON} />
+                      <input {...register('password_confirmation')} type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password" className={INPUT} />
+                    </div>
+                    {errors.password_confirmation && <p className="mt-1 text-xs text-[#C0392B]">{errors.password_confirmation.message}</p>}
+                  </div>
+                </div>
+              )}
 
-            <div className="flex gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="flex items-center justify-center gap-2 rounded-xl border border-[#DCC5C5] px-5 py-3 text-sm font-semibold text-[#7D1A1A] hover:bg-[#FAF7F7] transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={signup.isPending}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#7D1A1A] px-6 py-3 text-sm font-semibold text-white hover:bg-[#A52020] disabled:opacity-60 transition-colors"
-              >
-                <UserPlus className="h-4 w-4" />
-                {signup.isPending ? 'Creating account…' : 'Create Account'}
-              </button>
+              {/* STEP 3 — Review */}
+              {step === 3 && (
+                <div>
+                  <div className="overflow-hidden rounded-[14px] border border-[#EADFD4] bg-white">
+                    {[
+                      ['Full Name', v.name],
+                      ['Student ID', v.student_id_number],
+                      ['Email', v.email],
+                      ['College', collegeLabel],
+                      ['Program · Year', `${v.program || '—'} · ${v.year_level ? `${ORDINAL[Number(v.year_level)]} Year` : '—'}`],
+                    ].map(([label, value], i, arr) => (
+                      <div key={label} className={`flex items-center justify-between gap-4 px-5 py-[15px] ${i < arr.length - 1 ? 'border-b border-[#F0E6DA]' : ''}`}>
+                        <span className="flex-none text-[13px] text-[#8A7A73]">{label}</span>
+                        <span className="truncate text-right text-sm font-semibold text-[#2B1E1B]">{value || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <label className="mt-[18px] flex cursor-pointer items-start gap-2.5 text-[13px] leading-relaxed text-[#6E5F58]">
+                    <input type="checkbox" checked={certified} onChange={(e) => setCertified(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] flex-none rounded accent-[#7C1B26]" />
+                    I certify that the information provided is accurate and complete.
+                  </label>
+                </div>
+              )}
             </div>
-          </>
-        )}
-      </form>
 
-      <p className="mt-6 text-center text-sm text-[#8A6A6A]">
-        Already have an account?{' '}
-        <Link href="/login" className="font-medium text-[#7D1A1A] hover:text-[#A52020] transition-colors">
-          Sign in
-        </Link>
-      </p>
+            {/* Footer nav */}
+            <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#EFE5DA] pt-5">
+              {step === 1 ? (
+                <span className="text-[13.5px] text-[#8A7A73]">
+                  Already have an account?{' '}
+                  <Link href="/login" className="font-bold text-[#7C1B26] hover:text-[#A52020] transition-colors">Sign in</Link>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))} className="flex h-12 items-center gap-2 rounded-[11px] border border-[#E7D9C9] bg-white px-5 text-[14.5px] font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] transition-colors">
+                  <ArrowLeft className="h-[18px] w-[18px]" /> Back
+                </button>
+              )}
+
+              {step < 3 ? (
+                <button type="button" onClick={next} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 text-[14.5px] font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,0.26)] transition hover:brightness-110">
+                  Continue <ArrowRight className="h-[18px] w-[18px]" />
+                </button>
+              ) : (
+                <button type="submit" disabled={signup.isPending || !certified} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 text-[14.5px] font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,0.26)] transition hover:brightness-110 disabled:opacity-50">
+                  {signup.isPending ? 'Submitting…' : 'Submit Application'} <Check className="h-[18px] w-[18px]" />
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }
