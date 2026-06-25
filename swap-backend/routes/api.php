@@ -14,6 +14,7 @@ use App\Http\Controllers\Applicant\DocumentController;
 use App\Http\Controllers\Recipient\AttendanceController;
 use App\Http\Controllers\Recipient\HoursController;
 use App\Http\Controllers\Recipient\NarrativeController;
+use App\Http\Controllers\Supervisor\OfficeController as SupervisorOfficeController;
 use App\Http\Controllers\Supervisor\StudentController;
 use App\Http\Controllers\Supervisor\VerificationController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
@@ -75,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ─── SUPERVISOR ───────────────────────────────────────────────────────────
     Route::middleware('role:supervisor')->prefix('supervisor')->group(function () {
+        Route::get('/office-qr', [SupervisorOfficeController::class, 'qr']);
         Route::get('/students', [StudentController::class, 'index']);
         Route::get('/students/clocked-in', [StudentController::class, 'clockedIn']);
         Route::get('/students/{id}/summary', [StudentController::class, 'summary']);

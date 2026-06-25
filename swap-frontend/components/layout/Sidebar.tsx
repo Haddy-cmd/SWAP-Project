@@ -11,7 +11,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
   BarChart2, Building2, Banknote, Bell, BookOpen,
-  ClipboardList, LogOut, Calendar, X,
+  ClipboardList, LogOut, Calendar, X, QrCode,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
@@ -34,6 +34,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Dashboard', href: '/supervisor/dashboard', icon: LayoutDashboard },
     { label: 'Students', href: '/supervisor/students', icon: Users },
     { label: 'Verify', href: '/supervisor/verifications', icon: CheckSquare },
+    { label: 'Office QR', href: '/supervisor/qr-code', icon: QrCode },
   ],
   admin: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
