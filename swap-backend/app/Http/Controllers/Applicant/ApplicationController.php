@@ -54,6 +54,29 @@ class ApplicationController extends Controller
         return response()->json(['data' => new ApplicationResource($application)]);
     }
 
+    /**
+     * Cancel a freshly-submitted application. Used by the applicant flow to roll
+     * back a submission whose document uploads failed, so it doesn't sit "in
+     * review" with no documents (and block re-submission). Only the owner may
+     * cancel, and only while the application is still 'submitted'.
+     */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $application = $this->applicationService->getApplicationById($id);
+
+        if (!$application || $application->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Application not found.'], 404);
+        }
+
+        if ($application->status !== 'submitted') {
+            return response()->json(['message' => 'This application can no longer be cancelled.'], 422);
+        }
+
+        $this->applicationService->deleteApplication($application);
+
+        return response()->json(['message' => 'Application cancelled.']);
+    }
+
     public function status(Request $request, int $id): JsonResponse
     {
         $application = $this->applicationService->getApplicationById($id);

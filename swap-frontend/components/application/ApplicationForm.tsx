@@ -51,11 +51,25 @@ export function ApplicationForm() {
       if (grades) files.push({ key: 'grades', file: grades })
       if (letterOfIntent) files.push({ key: 'letter_of_intent', file: letterOfIntent })
       if (idPhoto) files.push({ key: 'id_photo', file: idPhoto })
-      for (const { key, file } of files) {
-        const fd = new FormData()
-        fd.append('document_type', key)
-        fd.append('file', file)
-        await applicationsApi.uploadDocument(application.id, fd)
+      try {
+        for (const { key, file } of files) {
+          const fd = new FormData()
+          fd.append('document_type', key)
+          fd.append('file', file)
+          await applicationsApi.uploadDocument(application.id, fd)
+        }
+      } catch (uploadErr) {
+        // A document failed to upload — roll back the just-created application so
+        // it doesn't sit "in review" with no documents (and block re-submission).
+        try {
+          await applicationsApi.cancelApplication(application.id)
+        } catch {
+          // Best effort; surface the original upload error regardless.
+        }
+        throw {
+          message: 'Your documents could not be uploaded, so the application was not submitted. Please try again.',
+          cause: uploadErr,
+        }
       }
       return application
     },

@@ -68,6 +68,17 @@ class ApplicationService
         return $application;
     }
 
+    /**
+     * Hard-delete a freshly-submitted application. Used to roll back a submission
+     * when its document uploads fail, so it doesn't linger "in review" with no
+     * documents and block the applicant from re-submitting. Documents cascade.
+     */
+    public function deleteApplication(Application $application): void
+    {
+        AuditLog::record('deleted', $application);
+        $application->delete();
+    }
+
     public function getUserApplications(User $user): Collection
     {
         return $this->applicationRepository->findByUser($user->id);

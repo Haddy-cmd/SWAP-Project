@@ -21,6 +21,10 @@ export const applicationsApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then((r) => r.data),
 
+  // Roll back a freshly-submitted application (e.g. when document uploads fail).
+  cancelApplication: (id: number) =>
+    apiClient.delete(`/applicant/applications/${id}`).then((r) => r.data),
+
   // Admin endpoints
   adminListApplications: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<Application>>('/admin/applications', { params }).then((r) => r.data),
