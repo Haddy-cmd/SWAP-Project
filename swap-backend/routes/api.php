@@ -131,6 +131,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
         Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
+        Route::get('/debug/documents', function() {
+            return response()->json([
+                'documents' => \App\Models\ApplicationDocument::orderByDesc('id')->take(20)->get()
+            ]);
+        });
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings', [SettingController::class, 'update']);
