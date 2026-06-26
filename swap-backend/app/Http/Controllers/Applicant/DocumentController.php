@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ApplicationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
@@ -27,8 +28,19 @@ class DocumentController extends Controller
 
         $file = $request->file('file');
         $disk = config('filesystems.documents_disk', 'public');
-        $path = $file->store("documents/{$applicationId}", $disk);
-        $url = Storage::disk($disk)->url($path);
+
+        try {
+            $path = $file->store("documents/{$applicationId}", $disk);
+        } catch (\Exception $e) {
+            Log::error('Document upload failed', [
+                'disk' => $disk,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['message' => 'Failed to upload document to storage.'], 500);
+        }
+
+        // Build the API-served URL (works regardless of storage driver).
+        $url = rtrim(config('app.url'), '/') . '/api/documents/{DOC_ID}/file';
 
         $this->applicationService->attachDocument($application, [
             'document_type' => $request->document_type,

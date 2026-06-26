@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Shared;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApplicationDocument;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\PersonalAccessToken;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Serves uploaded application documents through the API so that the admin
@@ -16,23 +17,27 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DocumentFileController extends Controller
 {
-    public function show(Request $request, int $documentId): StreamedResponse
+    public function show(Request $request, int $documentId)
     {
         // When opened in a new browser tab the Authorization header is absent.
         // Accept the token via a query parameter as a fallback.
         $plainTextToken = $request->bearerToken() ?? $request->query('token');
 
         if (!$plainTextToken) {
-            abort(401, 'Unauthenticated.');
+            return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $accessToken = PersonalAccessToken::findToken($plainTextToken);
 
         if (!$accessToken || ($accessToken->expires_at && $accessToken->expires_at->isPast())) {
-            abort(401, 'Invalid or expired token.');
+            return response()->json(['message' => 'Invalid or expired token.'], 401);
         }
 
-        $doc = ApplicationDocument::findOrFail($documentId);
+        $doc = ApplicationDocument::find($documentId);
+
+        if (!$doc) {
+            return response()->json(['message' => 'Document not found.'], 404);
+        }
 
         $disk = config('filesystems.documents_disk', 'public');
 
@@ -45,15 +50,33 @@ class DocumentFileController extends Controller
             $path = $parsed ? ltrim(preg_replace('#^/storage/#', '', $parsed), '/') : null;
         }
 
-        if (!$path || !Storage::disk($disk)->exists($path)) {
-            abort(404, 'Document file not found.');
+        if (!$path) {
+            return response()->json(['message' => 'Document file path is missing.'], 404);
         }
 
-        $mimeType = $doc->mime_type ?? Storage::disk($disk)->mimeType($path);
-        $fileName = $doc->file_name ?? basename($path);
+        try {
+            if (!Storage::disk($disk)->exists($path)) {
+                return response()->json(['message' => 'Document file not found on storage.'], 404);
+            }
 
-        return Storage::disk($disk)->response($path, $fileName, [
-            'Content-Type' => $mimeType,
-        ]);
+            $mimeType = $doc->mime_type ?? Storage::disk($disk)->mimeType($path);
+            $fileName = $doc->file_name ?? basename($path);
+
+            return Storage::disk($disk)->response($path, $fileName, [
+                'Content-Type' => $mimeType,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Document serve error', [
+                'document_id' => $documentId,
+                'disk' => $disk,
+                'path' => $path,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to retrieve document from storage.',
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
     }
 }
