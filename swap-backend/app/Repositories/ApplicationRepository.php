@@ -12,6 +12,7 @@ class ApplicationRepository implements ApplicationRepositoryInterface
     public function findById(int $id): ?Application
     {
         return Application::with(['user.profile', 'documents', 'interview'])
+            ->whereHas('user') // Exclude if user was soft-deleted
             ->find($id);
     }
 
@@ -34,6 +35,7 @@ class ApplicationRepository implements ApplicationRepositoryInterface
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = Application::with(['user.profile', 'interview'])
+            ->whereHas('user') // Exclude applications whose user has been soft-deleted
             ->orderByDesc('created_at');
 
         if (!empty($filters['status'])) {
@@ -76,7 +78,8 @@ class ApplicationRepository implements ApplicationRepositoryInterface
 
     public function countByStatus(string $academicYear, string $semester): array
     {
-        $counts = Application::where('academic_year', $academicYear)
+        $counts = Application::whereHas('user') // Exclude soft-deleted users
+            ->where('academic_year', $academicYear)
             ->where('semester', $semester)
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')

@@ -39,6 +39,12 @@ class DocumentFileController extends Controller
             return response()->json(['message' => 'Document not found.'], 404);
         }
 
+        // Ensure the parent application's user still exists (not soft-deleted).
+        $application = $doc->application;
+        if (!$application || !$application->user) {
+            return response()->json(['message' => 'Document not found.'], 404);
+        }
+
         $disk = config('filesystems.documents_disk', 'public');
 
         // Prefer the explicit file_path column; fall back to extracting it from file_url
@@ -56,9 +62,10 @@ class DocumentFileController extends Controller
 
         try {
             if (!Storage::disk($disk)->exists($path)) {
-                return response()->json(['message' => 'Document file not found on storage.'], 404);
+                return response()->json([
+                    'message' => 'Document file not found on storage. The applicant may need to re-upload this document.',
+                ], 404);
             }
-
             $mimeType = $doc->mime_type ?? Storage::disk($disk)->mimeType($path);
             $fileName = $doc->file_name ?? basename($path);
 
