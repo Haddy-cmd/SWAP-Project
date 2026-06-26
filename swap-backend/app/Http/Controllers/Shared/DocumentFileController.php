@@ -56,7 +56,7 @@ class DocumentFileController extends Controller
             $path = $parsed ? ltrim(preg_replace('#^/storage/#', '', $parsed), '/') : null;
         }
 
-        if (!$path || str_contains($path, '{DOC_ID}') || str_contains($path, 'api/documents')) {
+        if (!$path || $path === '0' || str_contains($path, '{DOC_ID}') || str_contains($path, 'api/documents')) {
             return response()->json([
                 'message' => 'Document file path is invalid or corrupted. The applicant may need to re-upload this document.',
             ], 404);

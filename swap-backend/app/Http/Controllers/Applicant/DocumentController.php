@@ -31,12 +31,18 @@ class DocumentController extends Controller
 
         try {
             $path = $file->store("documents/{$applicationId}", $disk);
+            if ($path === false) {
+                throw new \Exception("File storage driver returned false (check credentials and permissions).");
+            }
         } catch (\Exception $e) {
             Log::error('Document upload failed', [
                 'disk' => $disk,
                 'error' => $e->getMessage(),
             ]);
-            return response()->json(['message' => 'Failed to upload document to storage.'], 500);
+            return response()->json([
+                'message' => 'Failed to upload document to storage.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
 
         // Build the API-served URL (works regardless of storage driver).
