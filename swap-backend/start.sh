@@ -7,6 +7,10 @@ php artisan migrate --force
 # Ensure an admin account exists (idempotent; no shell access needed on free tier).
 php artisan db:seed --class=ProductionAdminSeeder --force
 
+# Populate the chatbot FAQ knowledge base (idempotent — updateOrCreate keyed on
+# question, so it's safe to re-run on every deploy and refreshes edited answers).
+php artisan db:seed --class=FaqSeeder --force
+
 # Cache config / routes / views for performance.
 php artisan config:cache
 php artisan route:cache

@@ -60,6 +60,8 @@ class UserController extends Controller
                 'last_page' => $users->lastPage(),
                 'per_page' => $users->perPage(),
                 'total' => $users->total(),
+                // Global per-role totals (ignore filters) to power the role tabs.
+                'counts' => $this->userRepository->countByRole(),
             ],
         ]);
     }

@@ -11,6 +11,7 @@ export interface PaginatedResponse<T> {
     per_page: number
     total: number
     unread_count?: number
+    counts?: Record<string, number>
   }
 }
 

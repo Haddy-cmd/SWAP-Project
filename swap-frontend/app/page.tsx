@@ -298,8 +298,8 @@ export default function LandingPage() {
           </div>
           <div className="flex flex-col items-center gap-3 pt-9">
             <Logo size={34} />
-            <p className="text-xs text-[#F3E6D6]/60">
-              © {new Date().getFullYear()} Mindanao State University — Marawi · In coordination with CHED
+            <p className="text-center text-xs text-[#F3E6D6]/60">
+              © {new Date().getFullYear()} Mindanao State University — Marawi. All rights reserved. | College of Information and Computing Sciences (CICS)
             </p>
           </div>
         </div>

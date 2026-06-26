@@ -1,12 +1,51 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Search, UserCheck, UserX, UserPlus, X, Trash2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import {
+  Search, UserCheck, UserX, UserPlus, X, Trash2, Check, ChevronDown, Filter,
+} from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 import { assignmentsApi } from '@/lib/api/assignments.api'
-import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatDate } from '@/lib/utils/formatDate'
+
+// Soft avatar palettes (bg / fg), mirrored from the mockup.
+const AV: [string, string][] = [
+  ['#FBEAEC', '#7C1B26'],
+  ['#EAF1F7', '#3B7FB5'],
+  ['#EAF5EC', '#4E9657'],
+  ['#FBF3E2', '#B8860B'],
+  ['#F1ECF7', '#6B4E9A'],
+  ['#F7EDE8', '#C0562F'],
+  ['#EAF1F7', '#1F4E6B'],
+]
+const av = (i: number) => AV[((i % AV.length) + AV.length) % AV.length]
+const initials = (n?: string) =>
+  (n ?? '').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—'
+
+// Role chip colors: [text, background]
+function roleStyle(role: string): [string, string] {
+  switch (role) {
+    case 'supervisor': return ['#6B4E9A', '#F1ECF7']
+    case 'admin': return ['#9A6B12', '#FBF3E2']
+    case 'applicant': return ['#1F4E6B', '#EAF1F7']
+    default: return ['#7C1B26', '#FBEAEC'] // recipient
+  }
+}
+
+const ROLE_TABS: { label: string; key: string }[] = [
+  { label: 'All', key: '' },
+  { label: 'Applicants', key: 'applicant' },
+  { label: 'Recipients', key: 'recipient' },
+  { label: 'Supervisors', key: 'supervisor' },
+  { label: 'Admins', key: 'admin' },
+]
+const STATUS_OPTIONS = ['All', 'Active', 'Inactive'] as const
+type StatusKey = (typeof STATUS_OPTIONS)[number]
+
+const inputCls =
+  'w-full rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3.5 py-2.5 text-sm text-[#2B1E1B] placeholder:text-[#B7A99F] focus:border-[#7C1B26] focus:outline-none focus:ring-2 focus:ring-[#7C1B26]/10'
+const labelCls = 'mb-1.5 block text-[12.5px] font-semibold text-[#5A4A45]'
 
 function AddUserModal({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
@@ -42,51 +81,53 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
   const canSave = form.name.trim() && form.email.trim() && form.password.length >= 8
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 className="font-semibold text-[#1E293B]">New User</h2>
-            <p className="text-sm text-[#8A6A6A]">Create a supervisor or admin account.</p>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#280C10]/45 p-4" onClick={onClose}>
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_30px_70px_rgba(40,8,12,.4)]" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-[#EFE5DA] px-6 py-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-[#FBEAEC] text-[#7C1B26]">
+              <UserPlus className="h-[20px] w-[20px]" />
+            </span>
+            <div>
+              <p className="text-[17px] font-bold text-[#241715]">New User</p>
+              <p className="text-[12.5px] text-[#8A7A73]">Create a supervisor or admin account</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-[#94A3B8] hover:text-[#E74C3C] transition-colors">
+          <button onClick={onClose} className="text-[#B79B7E] hover:text-[#7C1B26] transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="space-y-3">
+        {/* Body */}
+        <div className="flex-1 space-y-3.5 overflow-y-auto px-6 py-5">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">Full Name</label>
+            <label className={labelCls}>Full Name</label>
             <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Prof. Juan Dela Cruz"
-              className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2 text-sm focus:border-[#7D1A1A] focus:outline-none" />
+              placeholder="Prof. Juan Dela Cruz" className={inputCls} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">Email</label>
+            <label className={labelCls}>Email</label>
             <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="supervisor@msumain.edu.ph"
-              className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2 text-sm focus:border-[#7D1A1A] focus:outline-none" />
+              placeholder="supervisor@msumain.edu.ph" className={inputCls} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">Password</label>
+            <label className={labelCls}>Password</label>
             <input type="text" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-              placeholder="At least 8 characters"
-              className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2 text-sm focus:border-[#7D1A1A] focus:outline-none" />
+              placeholder="At least 8 characters" className={inputCls} />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">Role</label>
-            <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-              className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2 text-sm focus:border-[#7D1A1A] focus:outline-none">
+            <label className={labelCls}>Role</label>
+            <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className={inputCls}>
               <option value="supervisor">Supervisor</option>
               <option value="admin">Admin</option>
             </select>
-            <p className="mt-1 text-xs text-[#B09A9A]">Students join by self-registering — admins create only staff accounts.</p>
+            <p className="mt-1 text-[11px] text-[#A38A82]">Students join by self-registering — admins create only staff accounts.</p>
           </div>
           {form.role === 'supervisor' && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">Office (optional)</label>
-              <select value={form.office_id} onChange={(e) => setForm((f) => ({ ...f, office_id: e.target.value }))}
-                className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2 text-sm focus:border-[#7D1A1A] focus:outline-none">
+              <label className={labelCls}>Office <span className="font-normal text-[#A38A82]">(optional)</span></label>
+              <select value={form.office_id} onChange={(e) => setForm((f) => ({ ...f, office_id: e.target.value }))} className={inputCls}>
                 <option value="">{offices.length ? 'Assign later…' : 'No offices yet — assign later'}</option>
                 {offices.map((o) => (
                   <option key={o.id} value={o.id}>{o.name}</option>
@@ -94,18 +135,20 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               </select>
             </div>
           )}
+          {error && <p className="rounded-lg bg-[#FEF0F0] px-3 py-2 text-xs font-medium text-[#C0392B]">{error}</p>}
         </div>
 
-        {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-[#E74C3C]">{error}</p>}
-
-        <div className="mt-5 flex gap-3">
-          <button onClick={() => { setError(''); create.mutate() }} disabled={!canSave || create.isPending}
-            className="flex-1 rounded-xl bg-[#7D1A1A] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#A52020] disabled:opacity-50 transition-colors">
-            {create.isPending ? 'Creating…' : 'Create User'}
-          </button>
+        {/* Footer */}
+        <div className="flex justify-end gap-3 border-t border-[#EFE5DA] bg-[#FCF8F3] px-6 py-4">
           <button onClick={onClose}
-            className="rounded-xl border border-[#EAD9D9] px-5 py-2.5 text-sm font-semibold text-[#8A6A6A] hover:bg-[#FAF7F7] transition-colors">
+            className="h-11 rounded-xl border border-[#E7D9C9] bg-white px-5 text-sm font-semibold text-[#7A6A63] hover:bg-[#FBF7F2] transition-colors">
             Cancel
+          </button>
+          <button onClick={() => { setError(''); create.mutate() }} disabled={!canSave || create.isPending}
+            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity disabled:opacity-50"
+            style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+            <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
+            {create.isPending ? 'Creating…' : 'Create User'}
           </button>
         </div>
       </div>
@@ -118,16 +161,25 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [role, setRole] = useState('')
+  const [status, setStatus] = useState<StatusKey>('All')
+  const [statusOpen, setStatusOpen] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
 
+  const isActiveParam = status === 'Active' ? 'true' : status === 'Inactive' ? 'false' : ''
+
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-users', page, search, role],
-    queryFn: () => adminApi.getUsers({ page: String(page), ...(search && { search }), ...(role && { role }) }),
+    queryKey: ['admin-users', page, search, role, status],
+    queryFn: () => adminApi.getUsers({
+      page: String(page),
+      ...(search && { search }),
+      ...(role && { role }),
+      ...(isActiveParam && { is_active: isActiveParam }),
+    }),
+    placeholderData: keepPreviousData,
   })
 
   const toggle = useMutation({
-    mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) =>
-      adminApi.updateUser(id, { is_active }),
+    mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) => adminApi.updateUser(id, { is_active }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
   })
 
@@ -141,120 +193,194 @@ export default function AdminUsersPage() {
   })
 
   const confirmDelete = (id: number, name: string) => {
-    if (window.confirm(`Delete ${name}'s account? This cannot be undone.`)) {
-      remove.mutate(id)
-    }
+    if (window.confirm(`Delete ${name}'s account? This cannot be undone.`)) remove.mutate(id)
   }
 
   const users = data?.data ?? []
   const meta = data?.meta
+  const counts = meta?.counts ?? {}
+  const allCount = Object.values(counts).reduce((s, n) => s + n, 0)
+  const tabCount = (key: string) => (key === '' ? allCount : counts[key] ?? 0)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[#1E293B]">Users</h1>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#A9823C]">User Management</p>
+          <h1 className="font-serif text-3xl font-medium text-[#241715]">Users</h1>
+        </div>
         <button onClick={() => setShowAdd(true)}
-          className="flex items-center gap-2 rounded-xl bg-[#7D1A1A] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#A52020] transition-colors">
-          <UserPlus className="h-4 w-4" />
+          className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity hover:opacity-95 sm:self-auto"
+          style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+          <UserPlus className="h-[19px] w-[19px]" />
           New User
         </button>
       </div>
 
-      {showAdd && <AddUserModal onClose={() => setShowAdd(false)} />}
-
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#B09A9A]" />
-          <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Search users…"
-            className="w-full rounded-xl border border-[#DCC5C5] bg-white py-2.5 pl-9 pr-4 text-sm focus:border-[#7D1A1A] focus:outline-none" />
-        </div>
-        <select value={role} onChange={(e) => { setRole(e.target.value); setPage(1) }}
-          className="rounded-xl border border-[#DCC5C5] bg-white px-4 py-2.5 text-sm focus:border-[#7D1A1A] focus:outline-none">
-          <option value="">All Roles</option>
-          <option value="applicant">Applicant</option>
-          <option value="recipient">Recipient</option>
-          <option value="supervisor">Supervisor</option>
-          <option value="admin">Admin</option>
-        </select>
+      {/* Role tabs */}
+      <div className="flex items-center gap-5 overflow-x-auto border-b border-[#ECE1D6]">
+        {ROLE_TABS.map((t) => {
+          const on = role === t.key
+          return (
+            <button
+              key={t.key || 'all'}
+              onClick={() => { setRole(t.key); setPage(1) }}
+              className="-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 pb-3 text-sm transition-colors"
+              style={{ borderColor: on ? '#7C1B26' : 'transparent', color: on ? '#7C1B26' : '#8A7A73', fontWeight: on ? 600 : 500 }}
+            >
+              {t.label}
+              <span
+                className="rounded-full px-2 py-px text-[11.5px] font-bold"
+                style={on ? { background: '#FBEAEC', color: '#7C1B26' } : { background: '#F1E7DC', color: '#8A7A73' }}
+              >
+                {tabCount(t.key)}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
-      <div className="rounded-2xl border border-[#EAD9D9] bg-white shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-6 space-y-3">{[1,2,3,4].map(n => <div key={n} className="h-12 animate-pulse rounded-lg bg-[#EAD9D9]" />)}</div>
-        ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
-            <thead className="border-b border-[#EAD9D9] bg-[#FAF7F7]">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[#8A6A6A]">User</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[#8A6A6A]">Role</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[#8A6A6A]">Joined</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-[#8A6A6A]">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-[#8A6A6A]">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b border-[#F5EDEC] last:border-0 hover:bg-[#FAF7F7]">
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-[#1E293B]">{user.name}</p>
-                    <p className="text-xs text-[#B09A9A]">{user.email}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-[#FEF0F0] px-2.5 py-0.5 text-xs font-medium text-[#7D1A1A] capitalize">
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative min-w-[240px] flex-1">
+          <Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#B79B7E]" />
+          <input
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+            placeholder="Search by name or email…"
+            className="h-11 w-full rounded-xl border border-[#EADFD4] bg-white pl-11 pr-4 text-sm text-[#2B1E1B] placeholder:text-[#B7A99F] focus:border-[#7C1B26] focus:outline-none focus:ring-2 focus:ring-[#7C1B26]/10"
+          />
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => setStatusOpen((s) => !s)}
+            className="flex h-11 items-center gap-2 rounded-xl border border-[#EADFD4] bg-white px-4 text-[13px] font-semibold text-[#2B1E1B]"
+          >
+            <Filter className="h-[18px] w-[18px] text-[#A9823C]" />
+            Status: {status}
+            <ChevronDown className="h-4 w-4 text-[#B79B7E]" />
+          </button>
+          {statusOpen && (
+            <>
+              <div className="fixed inset-0 z-20" onClick={() => setStatusOpen(false)} />
+              <div className="absolute right-0 top-[52px] z-30 w-44 rounded-xl border border-[#EADFD4] bg-white p-1.5 shadow-[0_18px_40px_rgba(58,24,20,.18)]">
+                {STATUS_OPTIONS.map((s) => {
+                  const on = status === s
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => { setStatus(s); setStatusOpen(false); setPage(1) }}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-[#2B1E1B]"
+                      style={{ background: on ? '#FBF3E7' : 'transparent', fontWeight: on ? 700 : 500 }}
+                    >
+                      {s}
+                      {on && <Check className="h-[17px] w-[17px] text-[#7C1B26]" />}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="overflow-hidden rounded-[15px] border border-[#EFE5DA] bg-white">
+        <div className="overflow-x-auto">
+          <div className="min-w-[760px]">
+            {/* Head */}
+            <div className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_auto] gap-4 border-b border-[#EFE5DA] bg-[#FBF7F2] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">
+              <span>User</span>
+              <span>Role</span>
+              <span>Joined</span>
+              <span>Status</span>
+              <span className="text-right">Actions</span>
+            </div>
+
+            {isLoading ? (
+              <div className="space-y-px p-4">
+                {[1, 2, 3, 4, 5, 6].map((n) => <div key={n} className="h-14 animate-pulse rounded-lg bg-[#EAD9D9]/40" />)}
+              </div>
+            ) : users.length === 0 ? (
+              <div className="px-5 py-12 text-center text-sm text-[#A38A82]">No users match your search or filters.</div>
+            ) : (
+              users.map((user, i) => {
+                const [avBg, avFg] = av(i)
+                const [rc, rb] = roleStyle(user.role)
+                const active = user.is_active
+                return (
+                  <div key={user.id} className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_auto] items-center gap-4 border-b border-[#F4ECE1] px-5 py-3 last:border-0 hover:bg-[#FBF7F2]/60">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full text-[13px] font-bold"
+                        style={{ background: avBg, color: avFg }}>
+                        {initials(user.name)}
+                      </span>
+                      <div className="min-w-0 leading-tight">
+                        <p className="truncate text-sm font-semibold text-[#241715]">{user.name}</p>
+                        <p className="truncate text-xs text-[#A38A82]">{user.email}</p>
+                      </div>
+                    </div>
+
+                    <span className="justify-self-start rounded-[7px] px-2.5 py-1 text-xs font-semibold capitalize"
+                      style={{ color: rc, background: rb }}>
                       {user.role}
                     </span>
-                  </td>
-                  <td className="px-4 py-3 text-[#8A6A6A]">{formatDate(user.created_at)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      user.is_active ? 'bg-green-50 text-[#27AE60]' : 'bg-red-50 text-[#E74C3C]'
-                    }`}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+
+                    <span className="text-[13px] text-[#5A4A45]">{formatDate(user.created_at)}</span>
+
+                    <span className="inline-flex items-center gap-1.5 justify-self-start rounded-full px-2.5 py-1 text-xs font-bold"
+                      style={active ? { color: '#2C5A33', background: '#EAF5EC' } : { color: '#8A7A73', background: '#F1E7DC' }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: active ? '#4E9657' : '#B7A99F' }} />
+                      {active ? 'Active' : 'Inactive'}
                     </span>
-                  </td>
-                  <td className="px-4 py-3">
+
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => toggle.mutate({ id: user.id, is_active: !user.is_active })}
+                        onClick={() => toggle.mutate({ id: user.id, is_active: !active })}
                         disabled={toggle.isPending}
-                        className={`inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
-                          user.is_active
-                            ? 'border-red-200 text-[#E74C3C] hover:bg-red-50'
-                            : 'border-green-200 text-[#27AE60] hover:bg-green-50'
-                        }`}
+                        className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-[#EADFD4] bg-white px-3 text-xs font-semibold transition-colors hover:bg-[#FBF7F2] disabled:opacity-50"
+                        style={{ color: active ? '#9A6B12' : '#2C5A33' }}
                       >
-                        {user.is_active ? <UserX className="h-3.5 w-3.5" /> : <UserCheck className="h-3.5 w-3.5" />}
-                        {user.is_active ? 'Deactivate' : 'Activate'}
+                        {active ? <UserX className="h-[15px] w-[15px]" /> : <UserCheck className="h-[15px] w-[15px]" />}
+                        {active ? 'Deactivate' : 'Activate'}
                       </button>
                       <button
                         onClick={() => confirmDelete(user.id, user.name)}
                         disabled={remove.isPending}
                         title="Delete account"
                         aria-label="Delete account"
-                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-[#E74C3C] hover:bg-red-50 disabled:opacity-50 transition-colors"
+                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-[#F0D4D7] bg-[#FCF2F3] text-[#A52834] hover:bg-[#FBE6E8] disabled:opacity-50 transition-colors"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table></div>
-        )}
-        {meta && meta.last_page > 1 && (
-          <div className="flex items-center justify-between border-t border-[#EAD9D9] px-4 py-3">
-            <p className="text-xs text-[#8A6A6A]">Page {meta.current_page} of {meta.last_page} · {meta.total} total</p>
-            <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                className="rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] disabled:opacity-40 transition-colors">Prev</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page === meta.last_page}
-                className="rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] disabled:opacity-40 transition-colors">Next</button>
+                  </div>
+                )
+              })
+            )}
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between bg-[#FBF7F2] px-5 py-3.5">
+              <span className="text-[13px] text-[#8A7A73]">
+                {meta ? <>Page {meta.current_page} of {meta.last_page} · {meta.total} total</> : '—'}
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={!meta || page <= 1}
+                  className="h-9 rounded-[9px] border border-[#EADFD4] bg-white px-4 text-[13px] font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] disabled:cursor-not-allowed disabled:text-[#C9B7AC] transition-colors">
+                  Prev
+                </button>
+                <button onClick={() => setPage((p) => p + 1)} disabled={!meta || page >= meta.last_page}
+                  className="h-9 rounded-[9px] border border-[#EADFD4] bg-white px-4 text-[13px] font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] disabled:cursor-not-allowed disabled:text-[#C9B7AC] transition-colors">
+                  Next
+                </button>
+              </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
+
+      {showAdd && <AddUserModal onClose={() => setShowAdd(false)} />}
     </div>
   )
 }
