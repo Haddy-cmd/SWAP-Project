@@ -83,6 +83,12 @@ return [
             'url' => env('R2_URL'),
             'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => true,
+            // Cloudflare R2 does not support the AWS SDK's default request checksums
+            // (aws-sdk-php >= 3.337 adds CRC32 to every PutObject), which makes
+            // uploads fail with "Unable to write file at location". Only calculate
+            // checksums when the operation actually requires them.
+            'request_checksum_calculation' => 'when_required',
+            'response_checksum_validation' => 'when_required',
             'throw' => true,
             'report' => false,
         ],

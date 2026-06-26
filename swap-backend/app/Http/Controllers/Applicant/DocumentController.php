@@ -34,14 +34,23 @@ class DocumentController extends Controller
             if ($path === false) {
                 throw new \Exception("File storage driver returned false (check credentials and permissions).");
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Flysystem wraps the real driver error (the S3/R2 API response) as the
+            // previous exception — unwrap to the root so storage misconfig is
+            // actually diagnosable (e.g. SignatureDoesNotMatch, AccessDenied).
+            $root = $e;
+            while ($root->getPrevious()) {
+                $root = $root->getPrevious();
+            }
             Log::error('Document upload failed', [
                 'disk' => $disk,
                 'error' => $e->getMessage(),
+                'cause' => $root->getMessage(),
             ]);
             return response()->json([
                 'message' => 'Failed to upload document to storage.',
                 'error' => $e->getMessage(),
+                'cause' => $root->getMessage(),
             ], 500);
         }
 
