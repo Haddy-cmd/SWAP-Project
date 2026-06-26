@@ -13,6 +13,7 @@ class ApplicationDocument extends Model
     protected $fillable = [
         'application_id',
         'document_type',
+        'file_path',
         'file_url',
         'file_name',
         'file_size',

@@ -4,6 +4,9 @@ set -e
 # Apply database migrations against the production DB (non-interactive).
 php artisan migrate --force
 
+# Create the public/storage → storage/app/public symlink (idempotent).
+php artisan storage:link 2>/dev/null || true
+
 # Ensure an admin account exists (idempotent; no shell access needed on free tier).
 php artisan db:seed --class=ProductionAdminSeeder --force
 

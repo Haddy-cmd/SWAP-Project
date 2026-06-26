@@ -32,6 +32,7 @@ class DocumentController extends Controller
 
         $this->applicationService->attachDocument($application, [
             'document_type' => $request->document_type,
+            'file_path' => $path,
             'file_url' => $url,
             'file_name' => $file->getClientOriginalName(),
             'file_size' => $file->getSize(),

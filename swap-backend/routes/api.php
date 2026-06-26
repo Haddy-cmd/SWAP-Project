@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\Shared\ChatbotController;
 use App\Http\Controllers\Shared\ConcernController;
+use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
 use App\Http\Controllers\Shared\ReportController;
@@ -35,6 +36,10 @@ Route::get('/chatbot/query', [ChatbotController::class, 'query']);
 Route::get('/settings/application-status', [SettingController::class, 'applicationStatus']);
 Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
 Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
+
+// Document file serving — auth is handled inside the controller (Bearer header
+// OR ?token= query param) so that links opened in new browser tabs still work.
+Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
 
 // ─── AUTHENTICATED ────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {

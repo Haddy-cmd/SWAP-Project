@@ -20,16 +20,23 @@ class ApplicationResource extends JsonResource
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
             'user' => $this->whenLoaded('user', fn () => new UserResource($this->user)),
-            'documents' => $this->whenLoaded('documents', fn () =>
-                $this->documents->map(fn ($doc) => [
-                    'id' => $doc->id,
-                    'document_type' => $doc->document_type,
-                    'file_url' => $doc->file_url,
-                    'file_name' => $doc->file_name,
-                    'file_size' => $doc->file_size,
-                    'mime_type' => $doc->mime_type,
-                ])
-            ),
+            'documents' => $this->whenLoaded('documents', function () use ($request) {
+                $token = $request->bearerToken();
+                return $this->documents->map(function ($doc) use ($token) {
+                    $url = rtrim(config('app.url'), '/') . '/api/documents/' . $doc->id . '/file';
+                    if ($token) {
+                        $url .= '?token=' . urlencode($token);
+                    }
+                    return [
+                        'id' => $doc->id,
+                        'document_type' => $doc->document_type,
+                        'file_url' => $url,
+                        'file_name' => $doc->file_name,
+                        'file_size' => $doc->file_size,
+                        'mime_type' => $doc->mime_type,
+                    ];
+                });
+            }),
             'interview' => $this->whenLoaded('interview', fn () => $this->interview ? [
                 'id' => $this->interview->id,
                 'scheduled_at' => $this->interview->scheduled_at->toISOString(),
