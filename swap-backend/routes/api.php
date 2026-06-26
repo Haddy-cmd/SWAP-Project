@@ -37,6 +37,12 @@ Route::get('/settings/application-status', [SettingController::class, 'applicati
 Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
 Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
 
+Route::get('/debug/documents', function() {
+    return response()->json([
+        'documents' => \App\Models\ApplicationDocument::orderByDesc('id')->take(20)->get()
+    ]);
+});
+
 // Document file serving — auth is handled inside the controller (Bearer header
 // OR ?token= query param) so that links opened in new browser tabs still work.
 Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
@@ -131,11 +137,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
         Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
-        Route::get('/debug/documents', function() {
-            return response()->json([
-                'documents' => \App\Models\ApplicationDocument::orderByDesc('id')->take(20)->get()
-            ]);
-        });
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings', [SettingController::class, 'update']);
