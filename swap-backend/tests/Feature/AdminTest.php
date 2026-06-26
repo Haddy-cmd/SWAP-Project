@@ -88,4 +88,19 @@ class AdminTest extends TestCase
         $this->assertNotEquals($oldToken, $newToken);
         $this->assertNull(app(QrCodeService::class)->validate($oldToken));
     }
+
+    public function test_admin_deletes_user_cascades_relations_and_releases_email(): void
+    {
+        $applicant = $this->makeUser('applicant');
+        $application = $this->application($applicant);
+        $email = $applicant->email;
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        $res = $this->deleteJson("/api/admin/users/{$applicant->id}");
+        $res->assertStatus(200);
+
+        $this->assertSoftDeleted('users', ['id' => $applicant->id]);
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+        $this->assertDatabaseMissing('applications', ['id' => $application->id]);
+    }
 }

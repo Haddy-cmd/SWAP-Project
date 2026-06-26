@@ -66,11 +66,23 @@ class DocumentFileController extends Controller
                     'message' => 'Document file not found on storage. The applicant may need to re-upload this document.',
                 ], 404);
             }
+
             $mimeType = $doc->mime_type ?? Storage::disk($disk)->mimeType($path);
             $fileName = $doc->file_name ?? basename($path);
 
-            return Storage::disk($disk)->response($path, $fileName, [
+            $stream = Storage::disk($disk)->readStream($path);
+            if (!$stream) {
+                throw new \Exception("Could not open read stream for path: {$path}");
+            }
+
+            return response()->stream(function () use ($stream) {
+                fpassthru($stream);
+                if (is_resource($stream)) {
+                    fclose($stream);
+                }
+            }, 200, [
                 'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline; filename="' . $fileName . '"',
             ]);
         } catch (\Exception $e) {
             Log::error('Document serve error', [
@@ -78,11 +90,12 @@ class DocumentFileController extends Controller
                 'disk' => $disk,
                 'path' => $path,
                 'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Failed to retrieve document from storage.',
-                'error' => config('app.debug') ? $e->getMessage() : null,
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

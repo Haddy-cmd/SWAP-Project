@@ -54,6 +54,14 @@ class UserRepository implements UserRepositoryInterface
 
     public function softDelete(User $user): void
     {
+        // Cascade delete related assignments and applications so they don't linger in lists/analytics
+        $user->assignment()->delete();
+        $user->applications()->delete();
+
+        // Release email unique constraint so the user can re-register if needed
+        $user->email = $user->email . '_deleted_' . time();
+        $user->save();
+
         $user->delete();
     }
 
