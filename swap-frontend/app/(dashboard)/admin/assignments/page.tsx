@@ -87,12 +87,16 @@ export default function AdminAssignmentsPage() {
   // Approved applicants who do not yet have an assignment
   const pending = (approvedData?.data ?? []).filter((app) => !assignedUserIds.has(app.user_id))
 
+  const matchesQuery = (query: string, name?: string, email?: string) => {
+    const s = query.trim().toLowerCase()
+    return !s || (name ?? '').toLowerCase().includes(s) || (email ?? '').toLowerCase().includes(s)
+  }
   const q = search.trim().toLowerCase()
-  const matches = (name?: string, email?: string) =>
-    !q || (name ?? '').toLowerCase().includes(q) || (email ?? '').toLowerCase().includes(q)
+  const aq = assignedSearch.trim().toLowerCase()
 
-  const filteredPending = pending.filter((app) => matches(app.user?.name, app.user?.email))
-  const filteredAssignments = assignments.filter((a) => matches(a.user?.name, a.user?.email))
+  // The header search drives the pending queue; the Assigned section has its own search.
+  const filteredPending = pending.filter((app) => matchesQuery(search, app.user?.name, app.user?.email))
+  const filteredAssignments = assignments.filter((a) => matchesQuery(assignedSearch, a.user?.name, a.user?.email))
 
   // The recipient currently loaded into the assign panel.
   const selected: Application | null =
@@ -196,7 +200,7 @@ export default function AdminAssignmentsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search recipients…"
+            placeholder="Search pending recipients…"
             className="h-11 w-full rounded-xl border border-[#EADFD4] bg-white pl-11 pr-4 text-sm text-[#2B1E1B] placeholder:text-[#B7A99F] focus:border-[#7C1B26] focus:outline-none focus:ring-2 focus:ring-[#7C1B26]/10"
           />
         </div>
@@ -420,9 +424,20 @@ export default function AdminAssignmentsPage() {
 
       {/* Assigned recipients */}
       <div>
-        <div className="mb-3.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[#2C5A33]">
-          Assigned Recipients
-          <span className="rounded-full bg-[#D6EBD8] px-2.5 py-0.5 text-[11px] text-[#2C5A33]">{filteredAssignments.length}</span>
+        <div className="mb-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[#2C5A33]">
+            Assigned Recipients
+            <span className="rounded-full bg-[#D6EBD8] px-2.5 py-0.5 text-[11px] text-[#2C5A33]">{filteredAssignments.length}</span>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#B79B7E]" />
+            <input
+              value={assignedSearch}
+              onChange={(e) => setAssignedSearch(e.target.value)}
+              placeholder="Search assigned recipients…"
+              className="h-10 w-full rounded-xl border border-[#EADFD4] bg-white pl-10 pr-4 text-sm text-[#2B1E1B] placeholder:text-[#B7A99F] focus:border-[#2C5A33] focus:outline-none focus:ring-2 focus:ring-[#2C5A33]/10"
+            />
+          </div>
         </div>
 
         {isLoading ? (
@@ -431,7 +446,7 @@ export default function AdminAssignmentsPage() {
           </div>
         ) : filteredAssignments.length === 0 ? (
           <div className="rounded-[13px] border border-dashed border-[#E0D2C4] bg-white px-6 py-10 text-center text-sm text-[#A38A82]">
-            {q ? <>No assigned recipients match “{search}”.</> : 'No assignments yet.'}
+            {aq ? <>No assigned recipients match “{assignedSearch}”.</> : 'No assignments yet.'}
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
