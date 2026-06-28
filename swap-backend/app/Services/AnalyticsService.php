@@ -39,24 +39,29 @@ class AnalyticsService
 
     public function getAdminOverview(string $academicYear, string $semester): array
     {
-        $statusCounts = Application::where('academic_year', $academicYear)
+        // Every count below excludes records whose owning user has been
+        // soft-deleted (whereHas('user') respects the SoftDeletes scope), so the
+        // dashboard stays consistent with the filtered listings.
+        $statusCounts = Application::whereHas('user')
+            ->where('academic_year', $academicYear)
             ->where('semester', $semester)
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
 
-        $totalVerifiedHours = TimeLog::whereHas('assignment', fn ($q) =>
+        $totalVerifiedHours = TimeLog::whereHas('user')->whereHas('assignment', fn ($q) =>
             $q->where('academic_year', $academicYear)->where('semester', $semester)
         )->where('status', 'verified')
             ->sum('duration_hours');
 
-        $pendingVerifications = TimeLog::whereHas('assignment', fn ($q) =>
+        $pendingVerifications = TimeLog::whereHas('user')->whereHas('assignment', fn ($q) =>
             $q->where('academic_year', $academicYear)->where('semester', $semester)
         )->where('status', 'pending_verification')
             ->count();
 
         $officeDistribution = Assignment::with('office')
+            ->whereHas('user')
             ->where('academic_year', $academicYear)
             ->where('semester', $semester)
             ->where('status', 'active')
@@ -70,7 +75,8 @@ class AnalyticsService
             ->values()
             ->toArray();
 
-        $monthlyStats = Application::where('academic_year', $academicYear)
+        $monthlyStats = Application::whereHas('user')
+            ->where('academic_year', $academicYear)
             ->where('semester', $semester)
             ->selectRaw("TO_CHAR(created_at, 'Mon YYYY') as month, COUNT(*) as total_applications, SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved, SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected")
             ->groupByRaw("TO_CHAR(created_at, 'Mon YYYY')")
@@ -85,7 +91,8 @@ class AnalyticsService
             ->toArray();
 
         // Applicants grouped by their college (from the student profile), period-scoped.
-        $applicantsByCollege = Application::where('academic_year', $academicYear)
+        $applicantsByCollege = Application::whereHas('user')
+            ->where('academic_year', $academicYear)
             ->where('semester', $semester)
             ->join('student_profiles', 'student_profiles.user_id', '=', 'applications.user_id')
             ->selectRaw('student_profiles.college as college, COUNT(*) as applicant_count')
@@ -99,7 +106,8 @@ class AnalyticsService
             ->toArray();
 
         // Active recipients grouped by their college (from the student profile), period-scoped.
-        $recipientsByCollege = Assignment::where('assignments.academic_year', $academicYear)
+        $recipientsByCollege = Assignment::whereHas('user')
+            ->where('assignments.academic_year', $academicYear)
             ->where('assignments.semester', $semester)
             ->where('assignments.status', 'active')
             ->join('student_profiles', 'student_profiles.user_id', '=', 'assignments.user_id')
@@ -114,7 +122,7 @@ class AnalyticsService
             ->toArray();
 
         // Weekly verified vs. pending hours for the trend chart (previously had no data source).
-        $weeklyHours = TimeLog::whereHas('assignment', fn ($q) =>
+        $weeklyHours = TimeLog::whereHas('user')->whereHas('assignment', fn ($q) =>
             $q->where('academic_year', $academicYear)->where('semester', $semester)
         )
             ->whereNotNull('time_out')
@@ -130,7 +138,8 @@ class AnalyticsService
             ])
             ->toArray();
 
-        $stipendSummary = StipendHistory::where('academic_year', $academicYear)
+        $stipendSummary = StipendHistory::whereHas('recipient')
+            ->where('academic_year', $academicYear)
             ->where('semester', $semester)
             ->selectRaw("status, SUM(amount) as total")
             ->groupBy('status')
@@ -139,14 +148,15 @@ class AnalyticsService
 
         // System-wide totals for the dashboard headline cards (not period-scoped),
         // so they always reflect the current state across all academic years.
-        $totalApplicationsAll = Application::count();
-        $activeRecipientsAll = Assignment::where('status', 'active')->count();
-        $pendingApplicationsAll = Application::whereIn('status', [
+        $totalApplicationsAll = Application::whereHas('user')->count();
+        $activeRecipientsAll = Assignment::whereHas('user')->where('status', 'active')->count();
+        $pendingApplicationsAll = Application::whereHas('user')->whereIn('status', [
             'submitted', 'under_review', 'interview_scheduled',
         ])->count();
         $totalOffices = Office::where('is_active', true)->count();
 
         $officeDistributionAll = Assignment::with('office')
+            ->whereHas('user')
             ->where('status', 'active')
             ->selectRaw('office_id, COUNT(*) as recipient_count')
             ->groupBy('office_id')
@@ -158,8 +168,8 @@ class AnalyticsService
             ->values()
             ->toArray();
 
-        $requiredHoursAll = (float) Assignment::where('status', 'active')->sum('required_hours');
-        $verifiedHoursAll = (float) TimeLog::where('status', 'verified')->sum('duration_hours');
+        $requiredHoursAll = (float) Assignment::whereHas('user')->where('status', 'active')->sum('required_hours');
+        $verifiedHoursAll = (float) TimeLog::whereHas('user')->where('status', 'verified')->sum('duration_hours');
         $avgCompletionRate = $requiredHoursAll > 0
             ? round(min(($verifiedHoursAll / $requiredHoursAll) * 100, 100), 1)
             : 0.0;
