@@ -37,50 +37,6 @@ Route::get('/settings/application-status', [SettingController::class, 'applicati
 Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
 Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
 
-Route::get('/debug/documents', function() {
-    return response()->json([
-        'documents' => \App\Models\ApplicationDocument::orderByDesc('id')->take(20)->get()
-    ]);
-});
-
-// TEMPORARY: browser-accessible storage health check (no shell needed on Render free).
-// Visit /api/debug/storage to confirm the documents disk (R2) is wired correctly.
-// Remove this route once storage is verified working.
-Route::get('/debug/storage', function () {
-    $disk = config('filesystems.documents_disk', 'public');
-    $out = ['documents_disk' => $disk];
-
-    // 1) Round-trip test on the configured disk.
-    try {
-        $testPath = 'healthcheck/' . uniqid() . '.txt';
-        \Illuminate\Support\Facades\Storage::disk($disk)->put($testPath, 'ok ' . now());
-        $out['write'] = 'OK';
-        $out['exists'] = \Illuminate\Support\Facades\Storage::disk($disk)->exists($testPath) ? 'YES' : 'NO';
-        $out['read_back'] = \Illuminate\Support\Facades\Storage::disk($disk)->get($testPath);
-        \Illuminate\Support\Facades\Storage::disk($disk)->delete($testPath);
-        $out['cleanup'] = 'OK';
-    } catch (\Throwable $e) {
-        $out['write'] = 'FAILED';
-        $out['error'] = $e->getMessage();
-    }
-
-    // 2) Does the newest real document actually resolve on the disk?
-    try {
-        $doc = \App\Models\ApplicationDocument::orderByDesc('id')->first();
-        $out['latest_document'] = $doc ? [
-            'id' => $doc->id,
-            'file_path' => $doc->file_path,
-            'exists_on_disk' => $doc->file_path
-                ? (\Illuminate\Support\Facades\Storage::disk($disk)->exists($doc->file_path) ? 'YES' : 'NO')
-                : 'NO PATH STORED',
-        ] : 'none uploaded yet';
-    } catch (\Throwable $e) {
-        $out['latest_document_error'] = $e->getMessage();
-    }
-
-    return response()->json($out);
-});
-
 // Document file serving — auth is handled inside the controller (Bearer header
 // OR ?token= query param) so that links opened in new browser tabs still work.
 Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
