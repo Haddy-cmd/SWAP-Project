@@ -14,6 +14,7 @@ export interface AdminOverview {
   office_distribution_all: OfficeDistribution[]
   monthly_stats: MonthlyStats[]
   applicants_by_college: ApplicantsByCollege[]
+  recipients_by_college: RecipientsByCollege[]
   weekly_hours: WeeklyHours[]
   stipend_summary: StipendSummary
 }
@@ -21,6 +22,11 @@ export interface AdminOverview {
 export interface ApplicantsByCollege {
   college: string
   applicant_count: number
+}
+
+export interface RecipientsByCollege {
+  college: string
+  recipient_count: number
 }
 
 export interface AdminPeriod {

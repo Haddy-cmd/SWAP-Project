@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Users, Clock, TrendingUp, Calendar, ChevronDown, CalendarDays, Coins } from 'lucide-react'
+import { FileText, Users, Clock, TrendingUp, Calendar, ChevronDown, CalendarDays, Coins, GraduationCap } from 'lucide-react'
 import { analyticsApi } from '@/lib/api/analytics.api'
 import { MonthlyApplicationsChart } from '@/components/charts/MonthlyApplicationsChart'
 import { StipendSummaryChart } from '@/components/charts/StipendSummaryChart'
+import { ApplicantsByCollegeChart } from '@/components/charts/ApplicantsByCollegeChart'
 
 const SEMESTERS = ['1st Semester', '2nd Semester', 'Summer']
 const OFFICE_COLORS = ['#1F4E6B', '#3B7FB5', '#4E9657', '#D8A12B', '#C0562F', '#6B4E9A', '#7C1B26']
+// Green-led palette so the recipients-by-college bars read distinctly from the
+// maroon-led applicants chart.
+const RECIPIENT_COLORS = ['#2C7A42', '#3B7FB5', '#4E9657', '#D8A12B', '#C0562F', '#6B4E9A', '#1F4E6B']
 
 const peso = (n: number) =>
   '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -85,6 +89,20 @@ export default function AdminAnalyticsPage() {
   const stipendSummary = overview?.stipend_summary ?? { total_released: 0, total_pending: 0 }
   const hasStipend = stipendSummary.total_released > 0 || stipendSummary.total_pending > 0
   const stipend = [{ month: 'This Semester', released: stipendSummary.total_released, pending: stipendSummary.total_pending }]
+
+  // Applicants and active recipients, broken down by the student's college (the
+  // backend aggregates both from student profiles). The chart uses a generic `value` key.
+  const byCollege = (overview?.applicants_by_college ?? []).map((c) => ({
+    college: c.college,
+    value: c.applicant_count,
+  }))
+  const collegeTotal = byCollege.reduce((s, c) => s + c.value, 0)
+
+  const recipientsByCollege = (overview?.recipients_by_college ?? []).map((c) => ({
+    college: c.college,
+    value: c.recipient_count,
+  }))
+  const recipientCollegeTotal = recipientsByCollege.reduce((s, c) => s + c.value, 0)
 
   const pending = overview?.pending_applications ?? 0
   const completion = overview != null ? Number(overview.avg_completion_rate ?? 0).toFixed(1) : '—'
@@ -211,6 +229,42 @@ export default function AdminAnalyticsPage() {
             </div>
           ) : (
             <MonthlyApplicationsChart data={monthly} />
+          )}
+        </div>
+
+        {/* Applicants by College (full width) */}
+        <div className={`${CARD} lg:col-span-4`}>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-[14px] font-bold text-[#241715]">Applicants by College</div>
+            {collegeTotal > 0 && <span className="rounded-lg bg-[#F4ECE1] px-3 py-1.5 text-xs text-[#8A7A73]">{collegeTotal} applicants</span>}
+          </div>
+          {isLoading ? (
+            <div className="h-[260px] animate-pulse rounded-xl bg-[#F4ECE1]" />
+          ) : byCollege.length === 0 ? (
+            <div className="flex items-center gap-3 rounded-[11px] border border-dashed border-[#E0D2C4] bg-[#FBF7F2] p-4">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-[#F4ECE1] text-[#A9823C]"><GraduationCap className="h-5 w-5" /></span>
+              <p className="text-[12.5px] leading-snug text-[#5A4A45]">No applicants this period yet — submissions will break down by college here.</p>
+            </div>
+          ) : (
+            <ApplicantsByCollegeChart data={byCollege} />
+          )}
+        </div>
+
+        {/* Active Recipients by College (full width) */}
+        <div className={`${CARD} lg:col-span-4`}>
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-[14px] font-bold text-[#241715]">Active Recipients by College</div>
+            {recipientCollegeTotal > 0 && <span className="rounded-lg bg-[#EEF7EF] px-3 py-1.5 text-xs text-[#2C5A33]">{recipientCollegeTotal} recipients</span>}
+          </div>
+          {isLoading ? (
+            <div className="h-[260px] animate-pulse rounded-xl bg-[#F4ECE1]" />
+          ) : recipientsByCollege.length === 0 ? (
+            <div className="flex items-center gap-3 rounded-[11px] border border-dashed border-[#E0D2C4] bg-[#FBF7F2] p-4">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-[#EEF7EF] text-[#2C5A33]"><Users className="h-5 w-5" /></span>
+              <p className="text-[12.5px] leading-snug text-[#5A4A45]">No active recipients this period yet — approved applicants assigned to an office appear here by college.</p>
+            </div>
+          ) : (
+            <ApplicantsByCollegeChart data={recipientsByCollege} label="Recipients" colors={RECIPIENT_COLORS} emptyMessage="No active recipients this period" />
           )}
         </div>
 

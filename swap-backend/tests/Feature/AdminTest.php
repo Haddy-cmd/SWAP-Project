@@ -13,20 +13,21 @@ class AdminTest extends TestCase
 {
     use RefreshDatabase, MakesSwapData;
 
-    private function application($applicant): Application
+    private function application($applicant, string $status = 'under_review'): Application
     {
         return Application::create([
             'user_id' => $applicant->id,
             'academic_year' => '2024-2025',
             'semester' => '1st Semester',
-            'status' => 'under_review',
+            'status' => $status,
         ]);
     }
 
     public function test_admin_approves_application(): void
     {
         $applicant = $this->makeUser('applicant');
-        $application = $this->application($applicant);
+        // Approval is only permitted once an interview has been scheduled.
+        $application = $this->application($applicant, 'interview_scheduled');
 
         Sanctum::actingAs($this->makeUser('admin'));
         $this->putJson("/api/admin/applications/{$application->id}/decide", [
@@ -36,6 +37,31 @@ class AdminTest extends TestCase
         $this->assertEquals('approved', $application->fresh()->status);
         $this->assertNotNull($application->fresh()->reviewed_by);
         $this->assertDatabaseHas('notifications', ['notifiable_id' => $applicant->id]);
+    }
+
+    public function test_admin_cannot_approve_without_scheduled_interview(): void
+    {
+        $application = $this->application($this->makeUser('applicant'), 'under_review');
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->putJson("/api/admin/applications/{$application->id}/decide", [
+            'decision' => 'approved',
+        ])->assertStatus(409);
+
+        $this->assertEquals('under_review', $application->fresh()->status);
+    }
+
+    public function test_admin_can_reject_before_interview(): void
+    {
+        $application = $this->application($this->makeUser('applicant'), 'under_review');
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->putJson("/api/admin/applications/{$application->id}/decide", [
+            'decision' => 'rejected',
+            'remarks' => 'Did not meet the eligibility criteria.',
+        ])->assertStatus(200)->assertJsonPath('data.status', 'rejected');
+
+        $this->assertEquals('rejected', $application->fresh()->status);
     }
 
     public function test_admin_schedules_interview(): void

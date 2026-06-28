@@ -14,18 +14,29 @@ import { EmptyChart } from './EmptyChart'
 
 interface CollegeDataPoint {
   college: string
-  applicants: number
+  value: number
 }
 
 interface ApplicantsByCollegeChartProps {
   data: CollegeDataPoint[]
+  /** Series name shown in the tooltip (e.g. "Applicants" or "Recipients"). */
+  label?: string
+  /** Bar palette; defaults to the maroon-led set. */
+  colors?: string[]
+  emptyMessage?: string
 }
 
-const COLORS = ['#7D1A1A', '#2980B9', '#27AE60', '#E6A817', '#C0563B', '#8E44AD', '#16A085']
+const DEFAULT_COLORS = ['#7D1A1A', '#2980B9', '#27AE60', '#E6A817', '#C0563B', '#8E44AD', '#16A085']
 
-/** Horizontal bars so long college names sit on the Y axis without overflowing. */
-export function ApplicantsByCollegeChart({ data }: ApplicantsByCollegeChartProps) {
-  if (!data.length) return <EmptyChart message="No applicants this period" />
+/** Horizontal bars so long college names sit on the Y axis without overflowing.
+ *  Reused for both "Applicants by College" and "Active Recipients by College". */
+export function ApplicantsByCollegeChart({
+  data,
+  label = 'Applicants',
+  colors = DEFAULT_COLORS,
+  emptyMessage = 'No applicants this period',
+}: ApplicantsByCollegeChartProps) {
+  if (!data.length) return <EmptyChart message={emptyMessage} />
 
   const height = Math.max(260, data.length * 46)
 
@@ -52,9 +63,9 @@ export function ApplicantsByCollegeChart({ data }: ApplicantsByCollegeChartProps
           cursor={{ fill: '#FAF7F7' }}
           contentStyle={{ borderRadius: '0.5rem', border: '1px solid #E2E8F0', fontSize: '0.75rem' }}
         />
-        <Bar dataKey="applicants" name="Applicants" radius={[0, 4, 4, 0]} barSize={20}>
+        <Bar dataKey="value" name={label} radius={[0, 4, 4, 0]} barSize={20}>
           {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            <Cell key={i} fill={colors[i % colors.length]} />
           ))}
         </Bar>
       </BarChart>

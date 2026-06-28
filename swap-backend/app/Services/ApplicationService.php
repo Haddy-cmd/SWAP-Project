@@ -140,6 +140,14 @@ class ApplicationService
 
     public function decideApplication(Application $application, string $decision, ?string $remarks, User $admin): Application
     {
+        // An application can only be approved once its interview has been scheduled.
+        // Rejection is still allowed earlier (e.g. a clearly ineligible applicant).
+        if ($decision === 'approved' && $application->status !== 'interview_scheduled') {
+            throw new ConflictHttpException(
+                'An interview must be scheduled before this application can be approved.'
+            );
+        }
+
         $old = $application->only(['status', 'remarks']);
 
         $updated = $this->applicationRepository->update($application, [

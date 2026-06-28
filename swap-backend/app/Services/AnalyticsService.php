@@ -98,6 +98,21 @@ class AnalyticsService
             ])
             ->toArray();
 
+        // Active recipients grouped by their college (from the student profile), period-scoped.
+        $recipientsByCollege = Assignment::where('assignments.academic_year', $academicYear)
+            ->where('assignments.semester', $semester)
+            ->where('assignments.status', 'active')
+            ->join('student_profiles', 'student_profiles.user_id', '=', 'assignments.user_id')
+            ->selectRaw('student_profiles.college as college, COUNT(*) as recipient_count')
+            ->groupBy('student_profiles.college')
+            ->orderByDesc('recipient_count')
+            ->get()
+            ->map(fn ($row) => [
+                'college' => $row->college,
+                'recipient_count' => (int) $row->recipient_count,
+            ])
+            ->toArray();
+
         // Weekly verified vs. pending hours for the trend chart (previously had no data source).
         $weeklyHours = TimeLog::whereHas('assignment', fn ($q) =>
             $q->where('academic_year', $academicYear)->where('semester', $semester)
@@ -169,6 +184,7 @@ class AnalyticsService
             'office_distribution_all' => $officeDistributionAll,
             'monthly_stats' => $monthlyStats,
             'applicants_by_college' => $applicantsByCollege,
+            'recipients_by_college' => $recipientsByCollege,
             'weekly_hours' => $weeklyHours,
             'stipend_summary' => [
                 'total_released' => (float) ($stipendSummary['released'] ?? 0),

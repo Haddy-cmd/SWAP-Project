@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Users, Clock, ClipboardCheck, TrendingUp, FileText, Coins, ArrowRight, ArrowUpRight, CheckCircle, Calendar, ChevronDown } from 'lucide-react'
+import { Users, Clock, UserCheck, TrendingUp, FileText, Coins, ArrowRight, ArrowUpRight, CheckCircle, Calendar, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { analyticsApi } from '@/lib/api/analytics.api'
 
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
   const kpis = [
     { icon: Users, color: '#7C1B26', label: 'Active Recipients', value: overview?.active_recipients ?? '—', href: '/admin/assignments' },
     { icon: Clock, color: '#C68A3E', label: 'Pending Apps', value: overview?.pending_applications ?? '—', href: '/admin/applications' },
-    { icon: ClipboardCheck, color: '#6B4E9A', label: 'Pending Verifs', value: overview?.pending_verifications ?? '—', href: '/admin/analytics' },
+    { icon: UserCheck, color: '#3B7FB5', label: 'Approved Apps', value: overview?.approved ?? '—', href: '/admin/assignments' },
     { icon: TrendingUp, color: '#4E9657', label: 'Avg Completion', value: overview != null ? `${overview.avg_completion_rate}%` : '—', href: '/admin/analytics' },
   ]
 
