@@ -50,8 +50,9 @@ class ChatbotService
 
     public function processQueryWithAI(string $message): array
     {
-        $apiKey = config('swap.anthropic_key');
+        $apiKey = config('swap.gemini_key');
 
+        // No key configured → fall back to the local keyword FAQ matcher.
         if (empty($apiKey)) {
             return $this->processQuery($message);
         }
@@ -62,27 +63,45 @@ class ChatbotService
             ->map(fn ($f) => "Q: {$f->question}\nA: {$f->answer}")
             ->join("\n\n");
 
+        $systemPrompt = 'You are a helpful assistant for the Student Welfare Assistantship Program (SWAP) at '
+            . "Mindanao State University – Marawi. Answer using only the FAQ knowledge base below. If the question "
+            . "is not covered, advise the student to contact the DSA Office. Keep answers concise, friendly, and in "
+            . "plain language.\n\n{$context}";
+
+        $model = config('swap.gemini_model', 'gemini-2.0-flash');
+
+        // Google Gemini (AI Studio) generateContent endpoint. The key goes in the
+        // x-goog-api-key header so it never lands in URL/proxy logs.
         $response = Http::withHeaders([
-            'x-api-key' => $apiKey,
-            'anthropic-version' => '2023-06-01',
             'Content-Type' => 'application/json',
-        ])->post('https://api.anthropic.com/v1/messages', [
-            'model' => 'claude-haiku-4-5-20251001',
-            'max_tokens' => 512,
-            'system' => "You are a helpful assistant for the Student Welfare Assistantship Program (SWAP) at Mindanao State University – Marawi. Use only the following FAQ knowledge base to answer questions:\n\n{$context}\n\nIf the question is not covered, advise the student to contact the DSA Office.",
-            'messages' => [
-                ['role' => 'user', 'content' => $message],
+            'x-goog-api-key' => $apiKey,
+        ])->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+            'system_instruction' => [
+                'parts' => [['text' => $systemPrompt]],
+            ],
+            'contents' => [
+                ['role' => 'user', 'parts' => [['text' => $message]]],
+            ],
+            'generationConfig' => [
+                'maxOutputTokens' => 512,
+                'temperature' => 0.3,
             ],
         ]);
 
+        // Gemini unreachable, rate-limited, or rejected the key → keyword fallback.
         if ($response->failed()) {
             return $this->processQuery($message);
         }
 
-        $text = $response->json('content.0.text', '');
+        $text = $response->json('candidates.0.content.parts.0.text', '');
+
+        // Empty or safety-blocked completion → fall back rather than reply blank.
+        if (empty($text)) {
+            return $this->processQuery($message);
+        }
 
         return [
-            'answer' => $text ?: self::FALLBACK_RESPONSE,
+            'answer' => $text,
             'faq_id' => null,
             'confidence' => 0.9,
             'category' => 'ai',

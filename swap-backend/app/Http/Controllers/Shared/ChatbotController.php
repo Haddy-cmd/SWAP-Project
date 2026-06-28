@@ -17,7 +17,7 @@ class ChatbotController extends Controller
             'message' => ['required', 'string', 'min:2', 'max:500'],
         ]);
 
-        $result = $this->chatbotService->processQuery($request->message);
+        $result = $this->chatbotService->processQueryWithAI($request->message);
 
         return response()->json(['data' => $result]);
     }
