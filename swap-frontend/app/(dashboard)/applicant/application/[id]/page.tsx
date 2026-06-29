@@ -1,16 +1,19 @@
 'use client'
 
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Download, Calendar, MapPin, Video } from 'lucide-react'
+import { ArrowLeft, Eye, Calendar, MapPin, Video } from 'lucide-react'
 import Link from 'next/link'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
+import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
 
 export default function ApplicationDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
   const { data: application, isLoading } = useQuery({
     queryKey: ['application', id],
@@ -164,15 +167,13 @@ export default function ApplicationDetailPage() {
                       </p>
                       <p className="text-xs text-[#64748B]">{doc.file_name}</p>
                     </div>
-                    <a
-                      href={doc.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => setViewDoc(doc)}
                       className="flex items-center gap-1 text-xs font-medium text-[#1B4F72] hover:text-[#2980B9] transition-colors"
                     >
-                      <Download className="h-3.5 w-3.5" />
+                      <Eye className="h-3.5 w-3.5" />
                       View
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -180,6 +181,7 @@ export default function ApplicationDetailPage() {
           )}
         </div>
       </div>
+      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

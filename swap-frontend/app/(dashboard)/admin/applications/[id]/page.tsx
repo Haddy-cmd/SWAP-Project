@@ -8,6 +8,7 @@ import { ArrowLeft, CheckCircle, XCircle, Eye, Calendar } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
+import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
 
 export default function AdminApplicationDetailPage() {
@@ -19,6 +20,7 @@ export default function AdminApplicationDetailPage() {
   const [interviewDate, setInterviewDate] = useState('')
   const [location, setLocation] = useState(DSA_OFFICE)
   const [mode, setMode] = useState<'in_person' | 'online'>('in_person')
+  const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
   const { data: application, isLoading } = useQuery({
     queryKey: ['admin-application', id],
@@ -106,10 +108,10 @@ export default function AdminApplicationDetailPage() {
                 {application.documents.map((doc) => (
                   <li key={doc.id} className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-4 py-3">
                     <p className="text-sm capitalize text-[#1E293B]">{doc.document_type.replace(/_/g, ' ')}</p>
-                    <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-medium text-[#1B4F72] hover:text-[#2980B9] transition-colors">
+                    <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-medium text-[#1B4F72] hover:text-[#2980B9] transition-colors">
                       <Eye className="h-3.5 w-3.5" />
                       View
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>
@@ -196,6 +198,7 @@ export default function AdminApplicationDetailPage() {
           )}
         </div>
       </div>
+      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

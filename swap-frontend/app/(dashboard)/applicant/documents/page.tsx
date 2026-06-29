@@ -1,8 +1,10 @@
 'use client'
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Download, FileText } from 'lucide-react'
+import { Eye, FileText } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
+import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 
 export default function DocumentsPage() {
   const { data: applications, isLoading } = useQuery({
@@ -13,6 +15,8 @@ export default function DocumentsPage() {
   const allDocs = applications?.flatMap((app) =>
     (app.documents ?? []).map((doc) => ({ ...doc, application: app })),
   ) ?? []
+
+  const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
   return (
     <div className="space-y-6">
@@ -60,15 +64,13 @@ export default function DocumentsPage() {
                     {doc.application.academic_year} — {doc.application.semester}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <a
-                      href={doc.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => setViewDoc(doc)}
                       className="inline-flex items-center gap-1 rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors"
                     >
-                      <Download className="h-3.5 w-3.5" />
+                      <Eye className="h-3.5 w-3.5" />
                       View
-                    </a>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -76,6 +78,7 @@ export default function DocumentsPage() {
           </table></div>
         </div>
       )}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

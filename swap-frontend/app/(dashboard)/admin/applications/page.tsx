@@ -11,6 +11,7 @@ import {
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationPeriodToggle } from '@/components/admin/ApplicationPeriodToggle'
+import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import type { ApplicationStatus } from '@/types/application.types'
 
@@ -63,6 +64,7 @@ export default function AdminApplicationsPage() {
   const [location, setLocation] = useState(DSA_OFFICE)
   const [remarks, setRemarks] = useState('')
   const [toast, setToast] = useState<Toast | null>(null)
+  const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
   // ── queue list (same params/behaviour as before) ─────────────────────────
   const { data: listData, isLoading } = useQuery({
@@ -352,9 +354,9 @@ export default function AdminApplicationsPage() {
                         <div key={doc.id} className="flex items-center gap-2.5 rounded-[10px] border border-[#EFE5DA] px-3.5 py-2.5">
                           <CheckCircle className="h-4 w-4 text-[#4E9657]" />
                           <span className="flex-1 text-[13px] capitalize text-[#3F2F2A]">{doc.document_type.replace(/_/g, ' ')}</span>
-                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-semibold text-[#7C1B26]">
+                          <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-semibold text-[#7C1B26]">
                             <Eye className="h-3.5 w-3.5" /> View
-                          </a>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -529,6 +531,7 @@ export default function AdminApplicationsPage() {
           )}
         </div>
       </div>
+      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }
