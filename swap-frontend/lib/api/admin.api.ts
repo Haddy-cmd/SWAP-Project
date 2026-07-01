@@ -3,6 +3,13 @@ import type { User } from '@/types/auth.types'
 import type { StipendRecord, EligibleStipend } from '@/types/analytics.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
+export interface ReportPreview {
+  title: string
+  headers: string[]
+  rows: (string | number | null)[][]
+  stats: { label: string; value: string }[]
+}
+
 export interface DutySlipVerification {
   valid: boolean
   reason?: string
@@ -46,6 +53,9 @@ export const adminApi = {
 
   broadcastNotification: (data: { title: string; message: string; type?: string }) =>
     apiClient.post('/admin/notifications/broadcast', data).then((r) => r.data),
+
+  previewReport: (params: { type: string; academic_year: string; semester: string }) =>
+    apiClient.get<{ data: ReportPreview }>('/admin/reports/preview', { params }).then((r) => r.data.data),
 
   // Returns the report as a CSV Blob so the caller can trigger a browser download.
   generateReport: (params: { type: string; academic_year: string; semester: string }) =>

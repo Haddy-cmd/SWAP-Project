@@ -51,6 +51,28 @@ class ReportController extends Controller
         ]);
     }
 
+    public function previewAdminReport(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'in:applications,recipients,stipend,offices'],
+            'academic_year' => ['required', 'string'],
+            'semester' => ['required', 'string'],
+        ]);
+
+        $data = $this->reportService->adminReportData(
+            $validated['type'],
+            $validated['academic_year'],
+            $validated['semester']
+        );
+
+        return response()->json(['data' => [
+            'title' => $data['title'],
+            'headers' => $data['headers'],
+            'rows' => $data['rows'],
+            'stats' => $data['stats'],
+        ]]);
+    }
+
     public function generateAdminReport(Request $request): StreamedResponse
     {
         $validated = $request->validate([

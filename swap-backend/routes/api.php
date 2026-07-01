@@ -132,6 +132,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
+        Route::get('/reports/preview', [ReportController::class, 'previewAdminReport']);
         Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
 
         Route::get('/settings', [SettingController::class, 'index']);

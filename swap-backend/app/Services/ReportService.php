@@ -16,105 +16,157 @@ use Illuminate\Support\Carbon;
 class ReportService
 {
     /**
-     * Build a downloadable admin report as tabular data (streamed to CSV by the
-     * controller). All queries exclude soft-deleted users' records so the export
-     * matches the dashboard. Returns ['filename', 'headers', 'rows'].
+     * Admin report as structured data: ['title','slug','headers','rows','stats'].
+     * Backs both the live preview (JSON) and the CSV export. All queries exclude
+     * soft-deleted users so the numbers match the dashboard.
      */
+    public function adminReportData(string $type, string $academicYear, string $semester): array
+    {
+        return match ($type) {
+            'applications' => $this->applicationsReport($academicYear, $semester),
+            'recipients' => $this->recipientsReport($academicYear, $semester),
+            'stipend' => $this->stipendReport($academicYear, $semester),
+            'offices' => $this->officesReport($academicYear, $semester),
+            default => ['title' => 'Report', 'slug' => 'report', 'headers' => ['Message'], 'rows' => [['Unknown report type.']], 'stats' => []],
+        };
+    }
+
+    /** The same data with a timestamped .csv filename for the streamed download. */
     public function buildAdminExport(string $type, string $academicYear, string $semester): array
     {
-        $slug = str_replace(' ', '', strtolower($semester));
-        $stamp = now()->format('Ymd');
+        $data = $this->adminReportData($type, $academicYear, $semester);
+        $sem = str_replace(' ', '', strtolower($semester));
+        $data['filename'] = "{$data['slug']}-{$academicYear}-{$sem}-" . now()->format('Ymd') . '.csv';
 
-        return match ($type) {
-            'applications' => [
-                'filename' => "applications-summary-{$academicYear}-{$slug}-{$stamp}.csv",
-                'headers' => ['Applicant', 'Email', 'Student ID', 'College', 'Program', 'Year Level', 'Status', 'Submitted'],
-                'rows' => Application::whereHas('user')
-                    ->where('academic_year', $academicYear)
-                    ->where('semester', $semester)
-                    ->with('user.profile')
-                    ->orderBy('created_at')
-                    ->get()
-                    ->map(fn ($a) => [
-                        $a->user?->name,
-                        $a->user?->email,
-                        $a->user?->profile?->student_id_number,
-                        $a->user?->profile?->college,
-                        $a->user?->profile?->program,
-                        $a->user?->profile?->year_level,
-                        ucwords(str_replace('_', ' ', $a->status)),
-                        $a->created_at?->format('Y-m-d H:i'),
-                    ])->all(),
+        return $data;
+    }
+
+    private function applicationsReport(string $ay, string $sem): array
+    {
+        $apps = Application::whereHas('user')
+            ->where('academic_year', $ay)->where('semester', $sem)
+            ->with('user.profile')->orderBy('created_at')->get();
+
+        $count = fn ($statuses) => $apps->whereIn('status', (array) $statuses)->count();
+
+        return [
+            'title' => 'Applications Summary',
+            'slug' => 'applications-summary',
+            'headers' => ['Applicant', 'Email', 'Student ID', 'College', 'Program', 'Year Level', 'Status', 'Submitted'],
+            'stats' => [
+                ['label' => 'Total', 'value' => (string) $apps->count()],
+                ['label' => 'Approved', 'value' => (string) $count('approved')],
+                ['label' => 'Pending', 'value' => (string) $count(['submitted', 'under_review', 'interview_scheduled'])],
+                ['label' => 'Rejected', 'value' => (string) $count('rejected')],
             ],
-            'recipients' => [
-                'filename' => "recipients-hours-{$academicYear}-{$slug}-{$stamp}.csv",
-                'headers' => ['Recipient', 'Email', 'Student ID', 'College', 'Office', 'Supervisor', 'Required Hours', 'Verified Hours', 'Remaining', 'Status'],
-                'rows' => Assignment::whereHas('user')
-                    ->where('academic_year', $academicYear)
-                    ->where('semester', $semester)
-                    ->with(['user.profile', 'office', 'supervisor'])
-                    ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
-                    ->orderBy('office_id')
-                    ->get()
-                    ->map(function ($a) {
-                        $verified = round((float) ($a->verified_sum ?? 0), 2);
-                        return [
-                            $a->user?->name,
-                            $a->user?->email,
-                            $a->user?->profile?->student_id_number,
-                            $a->user?->profile?->college,
-                            $a->office?->name,
-                            $a->supervisor?->name ?? 'Unassigned',
-                            $a->required_hours,
-                            $verified,
-                            max(0, $a->required_hours - $verified),
-                            ucwords($a->status),
-                        ];
-                    })->all(),
+            'rows' => $apps->map(fn ($a) => [
+                $a->user?->name,
+                $a->user?->email,
+                $a->user?->profile?->student_id_number,
+                $a->user?->profile?->college,
+                $a->user?->profile?->program,
+                $a->user?->profile?->year_level,
+                ucwords(str_replace('_', ' ', $a->status)),
+                $a->created_at?->format('Y-m-d H:i'),
+            ])->all(),
+        ];
+    }
+
+    private function recipientsReport(string $ay, string $sem): array
+    {
+        $asgs = Assignment::whereHas('user')
+            ->where('academic_year', $ay)->where('semester', $sem)
+            ->with(['user.profile', 'office', 'supervisor'])
+            ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
+            ->orderBy('office_id')->get();
+
+        $verified = round($asgs->sum(fn ($a) => (float) ($a->verified_sum ?? 0)), 2);
+        $required = (float) $asgs->sum('required_hours');
+        $avg = $required > 0 ? round($verified / $required * 100, 1) : 0;
+
+        return [
+            'title' => 'Recipients & Hours',
+            'slug' => 'recipients-hours',
+            'headers' => ['Recipient', 'Email', 'Student ID', 'College', 'Office', 'Supervisor', 'Required Hours', 'Verified Hours', 'Remaining', 'Status'],
+            'stats' => [
+                ['label' => 'Recipients', 'value' => (string) $asgs->count()],
+                ['label' => 'Avg Completion', 'value' => $avg . '%'],
+                ['label' => 'Verified Hours', 'value' => (string) $verified],
+                ['label' => 'Offices', 'value' => (string) $asgs->pluck('office_id')->filter()->unique()->count()],
             ],
-            'stipend' => [
-                'filename' => "stipend-disbursement-{$academicYear}-{$slug}-{$stamp}.csv",
-                'headers' => ['Recipient', 'Email', 'Student ID', 'Amount', 'Status', 'Period', 'Released At'],
-                'rows' => StipendHistory::whereHas('recipient')
-                    ->where('academic_year', $academicYear)
-                    ->where('semester', $semester)
-                    ->with('recipient.profile')
-                    ->orderByDesc('created_at')
-                    ->get()
-                    ->map(fn ($s) => [
-                        $s->recipient?->name,
-                        $s->recipient?->email,
-                        $s->recipient?->profile?->student_id_number,
-                        number_format((float) $s->amount, 2, '.', ''),
-                        ucwords($s->status),
-                        $s->period_label,
-                        $s->released_at?->format('Y-m-d H:i') ?? '—',
-                    ])->all(),
+            'rows' => $asgs->map(function ($a) {
+                $v = round((float) ($a->verified_sum ?? 0), 2);
+                return [
+                    $a->user?->name,
+                    $a->user?->email,
+                    $a->user?->profile?->student_id_number,
+                    $a->user?->profile?->college,
+                    $a->office?->name,
+                    $a->supervisor?->name ?? 'Unassigned',
+                    $a->required_hours,
+                    $v,
+                    max(0, $a->required_hours - $v),
+                    ucwords($a->status),
+                ];
+            })->all(),
+        ];
+    }
+
+    private function stipendReport(string $ay, string $sem): array
+    {
+        $stipends = StipendHistory::whereHas('recipient')
+            ->where('academic_year', $ay)->where('semester', $sem)
+            ->with('recipient.profile')->orderByDesc('created_at')->get();
+
+        $released = $stipends->where('status', 'released');
+        $pending = $stipends->where('status', 'pending');
+
+        return [
+            'title' => 'Stipend Disbursement',
+            'slug' => 'stipend-disbursement',
+            'headers' => ['Recipient', 'Email', 'Student ID', 'Amount', 'Status', 'Period', 'Released At'],
+            'stats' => [
+                ['label' => 'Total Released', 'value' => '₱' . number_format((float) $released->sum('amount'), 0)],
+                ['label' => 'Recipients', 'value' => (string) $stipends->count()],
+                ['label' => 'Pending', 'value' => '₱' . number_format((float) $pending->sum('amount'), 0)],
+                ['label' => 'Released', 'value' => (string) $released->count()],
             ],
-            'offices' => [
-                'filename' => "office-assignments-{$academicYear}-{$slug}-{$stamp}.csv",
-                'headers' => ['Office', 'Code', 'Head', 'Location', 'Capacity', 'Active Recipients', 'Supervisors'],
-                'rows' => Office::orderBy('name')->get()->map(fn ($o) => [
-                    $o->name,
-                    $o->code,
-                    $o->head_name ?? '—',
-                    $o->location ?? '—',
-                    $o->max_recipients,
-                    Assignment::whereHas('user')
-                        ->where('office_id', $o->id)
-                        ->where('academic_year', $academicYear)
-                        ->where('semester', $semester)
-                        ->where('status', 'active')
-                        ->count(),
-                    User::where('role', 'supervisor')->where('office_id', $o->id)->count(),
-                ])->all(),
+            'rows' => $stipends->map(fn ($s) => [
+                $s->recipient?->name,
+                $s->recipient?->email,
+                $s->recipient?->profile?->student_id_number,
+                number_format((float) $s->amount, 2, '.', ''),
+                ucwords($s->status),
+                $s->period_label,
+                $s->released_at?->format('Y-m-d H:i') ?? '—',
+            ])->all(),
+        ];
+    }
+
+    private function officesReport(string $ay, string $sem): array
+    {
+        $offices = Office::orderBy('name')->get();
+
+        $detail = $offices->map(function ($o) use ($ay, $sem) {
+            $active = Assignment::whereHas('user')
+                ->where('office_id', $o->id)->where('academic_year', $ay)->where('semester', $sem)
+                ->where('status', 'active')->count();
+            $sup = User::where('role', 'supervisor')->where('office_id', $o->id)->count();
+            return ['name' => $o->name, 'code' => $o->code, 'head' => $o->head_name ?? '—', 'location' => $o->location ?? '—', 'cap' => $o->max_recipients, 'active' => $active, 'sup' => $sup];
+        });
+
+        return [
+            'title' => 'Office Assignment',
+            'slug' => 'office-assignments',
+            'headers' => ['Office', 'Code', 'Head', 'Location', 'Capacity', 'Active Recipients', 'Supervisors'],
+            'stats' => [
+                ['label' => 'Offices', 'value' => (string) $offices->count()],
+                ['label' => 'Assigned', 'value' => (string) $detail->sum('active')],
+                ['label' => 'Full Offices', 'value' => (string) $detail->filter(fn ($r) => $r['cap'] > 0 && $r['active'] >= $r['cap'])->count()],
+                ['label' => 'Supervisors', 'value' => (string) $detail->sum('sup')],
             ],
-            default => [
-                'filename' => "report-{$stamp}.csv",
-                'headers' => ['Message'],
-                'rows' => [['Unknown report type.']],
-            ],
-        };
+            'rows' => $detail->map(fn ($r) => [$r['name'], $r['code'], $r['head'], $r['location'], $r['cap'], $r['active'], $r['sup']])->all(),
+        ];
     }
 
     public function getWeeklyReports(User $user): array
