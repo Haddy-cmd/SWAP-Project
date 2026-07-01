@@ -10,7 +10,7 @@ import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 const ACTIONS = [
   { href: '/recipient/attendance', icon: Clock, label: 'Time In / Out', sub: 'Scan your QR code' },
   { href: '/recipient/hours', icon: TrendingUp, label: 'My Hours', sub: 'View all logs' },
-  { href: '/recipient/reports/weekly', icon: FileText, label: 'Reports', sub: 'Weekly · monthly' },
+  { href: '/recipient/reports/duty-slip', icon: FileText, label: 'Duty Slip', sub: 'Print & submit' },
   { href: '/recipient/stipend', icon: Banknote, label: 'Stipend', sub: 'Disbursement history' },
 ]
 

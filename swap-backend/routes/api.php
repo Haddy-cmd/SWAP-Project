@@ -21,6 +21,7 @@ use App\Http\Controllers\Supervisor\VerificationController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\AssignmentController;
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\DutySlipController;
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\StipendController;
 use App\Http\Controllers\Admin\UserController;
@@ -135,5 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings', [SettingController::class, 'update']);
+
+        Route::get('/duty-slip/verify', [DutySlipController::class, 'verify']);
     });
 });
