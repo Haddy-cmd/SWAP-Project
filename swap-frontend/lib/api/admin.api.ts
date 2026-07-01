@@ -35,6 +35,7 @@ export const adminApi = {
   broadcastNotification: (data: { title: string; message: string; type?: string }) =>
     apiClient.post('/admin/notifications/broadcast', data).then((r) => r.data),
 
+  // Returns the report as a CSV Blob so the caller can trigger a browser download.
   generateReport: (params: { type: string; academic_year: string; semester: string }) =>
-    apiClient.get('/admin/reports/generate', { params }).then((r) => r.data),
+    apiClient.get<Blob>('/admin/reports/generate', { params, responseType: 'blob' }).then((r) => r.data),
 }

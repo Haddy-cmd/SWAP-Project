@@ -5,7 +5,7 @@ import { useMutation } from '@tanstack/react-query'
 import { FileDown, Loader2 } from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 
-const YEARS = ['2024-2025', '2025-2026']
+const YEARS = ['2024-2025', '2025-2026', '2026-2027']
 const SEMESTERS = ['1st Semester', '2nd Semester', 'Summer']
 const REPORT_TYPES = [
   { value: 'applications', label: 'Applications Summary' },
@@ -18,14 +18,22 @@ export default function AdminReportsPage() {
   const [year, setYear] = useState('2024-2025')
   const [semester, setSemester] = useState('1st Semester')
   const [type, setType] = useState('applications')
-  const [generated, setGenerated] = useState<string | null>(null)
+  const [downloaded, setDownloaded] = useState(false)
 
   const generate = useMutation({
     mutationFn: () =>
       adminApi.generateReport({ type, academic_year: year, semester }),
-    onSuccess: (res) => {
-      const url = (res as { data?: { url?: string } })?.data?.url ?? null
-      setGenerated(url)
+    onSuccess: (blob) => {
+      // Trigger a client-side download of the returned CSV blob.
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${type}-${year}-${semester.replace(/\s+/g, '')}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      setDownloaded(true)
     },
   })
 
@@ -89,7 +97,7 @@ export default function AdminReportsPage() {
         </div>
 
         <button
-          onClick={() => { setGenerated(null); generate.mutate() }}
+          onClick={() => { setDownloaded(false); generate.mutate() }}
           disabled={generate.isPending}
           className="flex items-center gap-2 rounded-xl bg-[#1B4F72] px-6 py-3 text-sm font-semibold text-white hover:bg-[#2980B9] disabled:opacity-60 transition-colors"
         >
@@ -101,18 +109,10 @@ export default function AdminReportsPage() {
           {generate.isPending ? 'Generating…' : 'Generate Report'}
         </button>
 
-        {generated && (
+        {downloaded && !generate.isPending && (
           <div className="flex items-center gap-3 rounded-xl border border-[#27AE60] bg-green-50 px-4 py-3">
             <FileDown className="h-5 w-5 text-[#27AE60]" />
-            <p className="text-sm font-medium text-[#27AE60]">Report ready.</p>
-            <a
-              href={generated}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-auto rounded-lg bg-[#27AE60] px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
-            >
-              Download
-            </a>
+            <p className="text-sm font-medium text-[#27AE60]">Report downloaded — check your downloads folder.</p>
           </div>
         )}
 

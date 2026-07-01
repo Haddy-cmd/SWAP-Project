@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\Application;
 use App\Models\Assignment;
 use App\Models\MonthlyReport;
+use App\Models\Office;
 use App\Models\SemesterReport;
+use App\Models\StipendHistory;
 use App\Models\TimeLog;
 use App\Models\User;
 use App\Models\WeeklyReport;
@@ -12,6 +15,108 @@ use Illuminate\Support\Carbon;
 
 class ReportService
 {
+    /**
+     * Build a downloadable admin report as tabular data (streamed to CSV by the
+     * controller). All queries exclude soft-deleted users' records so the export
+     * matches the dashboard. Returns ['filename', 'headers', 'rows'].
+     */
+    public function buildAdminExport(string $type, string $academicYear, string $semester): array
+    {
+        $slug = str_replace(' ', '', strtolower($semester));
+        $stamp = now()->format('Ymd');
+
+        return match ($type) {
+            'applications' => [
+                'filename' => "applications-summary-{$academicYear}-{$slug}-{$stamp}.csv",
+                'headers' => ['Applicant', 'Email', 'Student ID', 'College', 'Program', 'Year Level', 'Status', 'Submitted'],
+                'rows' => Application::whereHas('user')
+                    ->where('academic_year', $academicYear)
+                    ->where('semester', $semester)
+                    ->with('user.profile')
+                    ->orderBy('created_at')
+                    ->get()
+                    ->map(fn ($a) => [
+                        $a->user?->name,
+                        $a->user?->email,
+                        $a->user?->profile?->student_id_number,
+                        $a->user?->profile?->college,
+                        $a->user?->profile?->program,
+                        $a->user?->profile?->year_level,
+                        ucwords(str_replace('_', ' ', $a->status)),
+                        $a->created_at?->format('Y-m-d H:i'),
+                    ])->all(),
+            ],
+            'recipients' => [
+                'filename' => "recipients-hours-{$academicYear}-{$slug}-{$stamp}.csv",
+                'headers' => ['Recipient', 'Email', 'Student ID', 'College', 'Office', 'Supervisor', 'Required Hours', 'Verified Hours', 'Remaining', 'Status'],
+                'rows' => Assignment::whereHas('user')
+                    ->where('academic_year', $academicYear)
+                    ->where('semester', $semester)
+                    ->with(['user.profile', 'office', 'supervisor'])
+                    ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
+                    ->orderBy('office_id')
+                    ->get()
+                    ->map(function ($a) {
+                        $verified = round((float) ($a->verified_sum ?? 0), 2);
+                        return [
+                            $a->user?->name,
+                            $a->user?->email,
+                            $a->user?->profile?->student_id_number,
+                            $a->user?->profile?->college,
+                            $a->office?->name,
+                            $a->supervisor?->name ?? 'Unassigned',
+                            $a->required_hours,
+                            $verified,
+                            max(0, $a->required_hours - $verified),
+                            ucwords($a->status),
+                        ];
+                    })->all(),
+            ],
+            'stipend' => [
+                'filename' => "stipend-disbursement-{$academicYear}-{$slug}-{$stamp}.csv",
+                'headers' => ['Recipient', 'Email', 'Student ID', 'Amount', 'Status', 'Period', 'Released At'],
+                'rows' => StipendHistory::whereHas('recipient')
+                    ->where('academic_year', $academicYear)
+                    ->where('semester', $semester)
+                    ->with('recipient.profile')
+                    ->orderByDesc('created_at')
+                    ->get()
+                    ->map(fn ($s) => [
+                        $s->recipient?->name,
+                        $s->recipient?->email,
+                        $s->recipient?->profile?->student_id_number,
+                        number_format((float) $s->amount, 2, '.', ''),
+                        ucwords($s->status),
+                        $s->period_label,
+                        $s->released_at?->format('Y-m-d H:i') ?? '—',
+                    ])->all(),
+            ],
+            'offices' => [
+                'filename' => "office-assignments-{$academicYear}-{$slug}-{$stamp}.csv",
+                'headers' => ['Office', 'Code', 'Head', 'Location', 'Capacity', 'Active Recipients', 'Supervisors'],
+                'rows' => Office::orderBy('name')->get()->map(fn ($o) => [
+                    $o->name,
+                    $o->code,
+                    $o->head_name ?? '—',
+                    $o->location ?? '—',
+                    $o->max_recipients,
+                    Assignment::whereHas('user')
+                        ->where('office_id', $o->id)
+                        ->where('academic_year', $academicYear)
+                        ->where('semester', $semester)
+                        ->where('status', 'active')
+                        ->count(),
+                    User::where('role', 'supervisor')->where('office_id', $o->id)->count(),
+                ])->all(),
+            ],
+            default => [
+                'filename' => "report-{$stamp}.csv",
+                'headers' => ['Message'],
+                'rows' => [['Unknown report type.']],
+            ],
+        };
+    }
+
     public function getWeeklyReports(User $user): array
     {
         return WeeklyReport::where('user_id', $user->id)

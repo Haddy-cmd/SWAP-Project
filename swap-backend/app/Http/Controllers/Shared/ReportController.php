@@ -7,6 +7,7 @@ use App\Services\ReportService;
 use App\Services\StipendService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
@@ -50,16 +51,31 @@ class ReportController extends Controller
         ]);
     }
 
-    public function generateAdminReport(Request $request): JsonResponse
+    public function generateAdminReport(Request $request): StreamedResponse
     {
-        $request->validate([
-            'type' => ['required', 'string', 'in:weekly,monthly,semester'],
+        $validated = $request->validate([
+            'type' => ['required', 'string', 'in:applications,recipients,stipend,offices'],
             'academic_year' => ['required', 'string'],
             'semester' => ['required', 'string'],
         ]);
 
-        return response()->json([
-            'data' => ['message' => 'Report generation queued. You will be notified when ready.'],
+        $report = $this->reportService->buildAdminExport(
+            $validated['type'],
+            $validated['academic_year'],
+            $validated['semester']
+        );
+
+        return response()->streamDownload(function () use ($report) {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM so Excel renders accented characters correctly.
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, $report['headers']);
+            foreach ($report['rows'] as $row) {
+                fputcsv($out, $row);
+            }
+            fclose($out);
+        }, $report['filename'], [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 }
