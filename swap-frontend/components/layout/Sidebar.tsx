@@ -11,7 +11,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
   BarChart2, Building2, Banknote, Bell, BookOpen,
-  ClipboardList, LogOut, Calendar, X, QrCode,
+  ClipboardList, LogOut, Calendar, X, QrCode, ShieldCheck,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
@@ -28,6 +28,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Scan QR', href: '/recipient/attendance/scan', icon: CheckSquare },
     { label: 'Hours', href: '/recipient/hours', icon: BarChart2 },
     { label: 'Reports', href: '/recipient/reports/weekly', icon: ClipboardList },
+    { label: 'Duty Slip', href: '/recipient/reports/duty-slip', icon: FileText },
     { label: 'Stipend', href: '/recipient/stipend', icon: Banknote },
   ],
   supervisor: [
@@ -46,6 +47,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Stipend', href: '/admin/stipend', icon: Banknote },
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
     { label: 'Reports', href: '/admin/reports', icon: ClipboardList },
+    { label: 'Verify Slip', href: '/admin/duty-slip-verify', icon: ShieldCheck },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: BookOpen },
   ],
 }

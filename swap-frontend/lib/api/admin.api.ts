@@ -3,6 +3,18 @@ import type { User } from '@/types/auth.types'
 import type { StipendRecord, EligibleStipend } from '@/types/analytics.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
+export interface DutySlipVerification {
+  valid: boolean
+  reason?: string
+  student_id?: string
+  academic_year?: string
+  semester?: string
+  range?: string
+  recipient_found?: boolean
+  recipient_name?: string | null
+  recorded_hours?: number | null
+}
+
 export const adminApi = {
   getUsers: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<User>>('/admin/users', { params }).then((r) => r.data),
@@ -38,4 +50,9 @@ export const adminApi = {
   // Returns the report as a CSV Blob so the caller can trigger a browser download.
   generateReport: (params: { type: string; academic_year: string; semester: string }) =>
     apiClient.get<Blob>('/admin/reports/generate', { params, responseType: 'blob' }).then((r) => r.data),
+
+  verifyDutySlip: (controlNo: string) =>
+    apiClient
+      .get<{ data: DutySlipVerification }>('/admin/duty-slip/verify', { params: { control_no: controlNo } })
+      .then((r) => r.data.data),
 }
