@@ -27,7 +27,6 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Attendance', href: '/recipient/attendance', icon: Clock },
     { label: 'Scan QR', href: '/recipient/attendance/scan', icon: CheckSquare },
     { label: 'Hours', href: '/recipient/hours', icon: BarChart2 },
-    { label: 'Reports', href: '/recipient/reports/weekly', icon: ClipboardList },
     { label: 'Duty Slip', href: '/recipient/reports/duty-slip', icon: FileText },
     { label: 'Stipend', href: '/recipient/stipend', icon: Banknote },
   ],
