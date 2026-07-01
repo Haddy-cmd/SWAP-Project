@@ -290,17 +290,12 @@ export default function DutySlipPage() {
           </tbody>
         </table>
 
-        {/* Total + note */}
-        <div className="mt-3 flex items-end justify-between text-[12px]">
-          <div className="flex items-end gap-2">
-            <span className="font-semibold">Total number of hours:</span>
-            <span className="min-w-[120px] border-b border-black px-2 text-center font-bold">
-              {totalHours ? totalHours.toFixed(2) : ''}
-            </span>
-          </div>
-          {mode === 'week' && (
-            <p className="text-[11px] font-semibold italic text-[#B91C1C]">NOTE: Submit this slip EVERY FRIDAY</p>
-          )}
+        {/* Total */}
+        <div className="mt-3 flex items-end gap-2 text-[12px]">
+          <span className="font-semibold">Total number of hours:</span>
+          <span className="min-w-[120px] border-b border-black px-2 text-center font-bold">
+            {totalHours ? totalHours.toFixed(2) : ''}
+          </span>
         </div>
 
         {/* Signatures */}
