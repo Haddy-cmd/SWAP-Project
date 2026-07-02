@@ -19,6 +19,11 @@ class UserResource extends JsonResource
             'office_name' => $this->whenLoaded('office', fn () => $this->office?->name),
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
+            // Base URL of the profile photo (streamed; the client appends ?token=).
+            // Null when the user hasn't uploaded one.
+            'avatar_url' => $this->avatar_path
+                ? rtrim(config('app.url'), '/') . '/api/users/' . $this->id . '/avatar'
+                : null,
             'profile' => $this->whenLoaded('profile', fn () => new StudentProfileResource($this->profile)),
         ];
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,13 +8,14 @@ import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ChevronRight, ShieldCheck, Mail, Phone, Building2, CalendarDays, LogOut,
-  Save, KeyRound, Lock, Bell, CheckCircle2, FileCheck, Clock,
+  Save, KeyRound, Lock, Bell, CheckCircle2, FileCheck, Clock, Camera, Loader2,
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { authApi } from '@/lib/api/auth.api'
 import { notificationsApi } from '@/lib/api/notifications.api'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
+import { avatarSrc } from '@/lib/utils/avatar'
 import type { UserRole } from '@/types/auth.types'
 import type { ApiError } from '@/types/api.types'
 
@@ -65,11 +66,28 @@ function activityIcon(type: string) {
 }
 
 export default function ProfilePage() {
-  const { user, setAuth } = useAuthStore()
+  const { user, token, setAuth } = useAuthStore()
   const { logout, isLoggingOut } = useAuth()
   const [tab, setTab] = useState<'profile' | 'security' | 'activity'>('profile')
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
   const [pwMsg, setPwMsg] = useState<string | null>(null)
+  const [photoMsg, setPhotoMsg] = useState<string | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+
+  const uploadPhoto = useMutation({
+    mutationFn: (file: File) => authApi.uploadPhoto(file),
+    onSuccess: (updated) => {
+      setAuth(updated, useAuthStore.getState().token ?? '')
+      setPhotoMsg(null)
+    },
+    onError: (err: ApiError) => setPhotoMsg(err.message ?? 'Photo upload failed.'),
+  })
+
+  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) uploadPhoto.mutate(file)
+    e.target.value = '' // allow re-picking the same file
+  }
 
   const isStudent = !!user?.profile
   const role = (user?.role ?? 'applicant') as UserRole
@@ -150,9 +168,27 @@ export default function ProfilePage() {
       <div className="grid gap-[22px] lg:grid-cols-[336px_1fr] lg:items-start">
         {/* Identity rail */}
         <div className={`${CARD} flex flex-col items-center px-7 py-9 text-center`}>
-          <div className="mb-[18px] flex h-[120px] w-[120px] items-center justify-center rounded-full bg-gradient-to-br from-[#8A2230] to-[#651420] shadow-[0_12px_30px_rgba(108,22,32,0.3)]">
-            <span className="font-serif text-[52px] font-semibold text-[#F3D9A0]">{user.name.charAt(0).toUpperCase()}</span>
+          <div className="relative mb-[18px]">
+            <div className="flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#8A2230] to-[#651420] shadow-[0_12px_30px_rgba(108,22,32,0.3)]">
+              {avatarSrc(user.avatar_url, token) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarSrc(user.avatar_url, token)!} alt={user.name} className="h-full w-full object-cover" />
+              ) : (
+                <span className="font-serif text-[52px] font-semibold text-[#F3D9A0]">{user.name.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            <button
+              onClick={() => fileInput.current?.click()}
+              disabled={uploadPhoto.isPending}
+              title="Change photo"
+              aria-label="Change photo"
+              className="absolute bottom-0 right-0 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-[#7C1B26] text-white shadow-md transition-colors hover:bg-[#86202E] disabled:opacity-60"
+            >
+              {uploadPhoto.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            </button>
+            <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onPhotoChange} />
           </div>
+          {photoMsg && <p className="mb-2 text-xs text-[#C0392B]">{photoMsg}</p>}
           <div className="font-serif text-[23px] font-semibold text-[#241715]">{user.name}</div>
           <span className="mt-2 mb-5 inline-flex items-center gap-1.5 rounded-full bg-[#FBEAEC] px-3 py-1.5 text-[11px] font-bold text-[#7C1B26]">
             <ShieldCheck className="h-3.5 w-3.5" /> {ROLE_LABEL[role]}

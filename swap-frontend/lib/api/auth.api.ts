@@ -24,6 +24,14 @@ export const authApi = {
   updateProfile: (data: Partial<User> & Record<string, unknown>) =>
     apiClient.put<ApiResponse<User>>('/profile', data).then((r) => r.data.data),
 
+  uploadPhoto: (file: File) => {
+    const fd = new FormData()
+    fd.append('photo', file)
+    return apiClient
+      .post<ApiResponse<User>>('/profile/photo', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data.data)
+  },
+
   updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) =>
     apiClient.put('/profile/password', data).then((r) => r.data),
 }

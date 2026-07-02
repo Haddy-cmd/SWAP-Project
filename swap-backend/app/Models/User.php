@@ -23,6 +23,7 @@ class User extends Authenticatable
         'role',
         'is_active',
         'office_id',
+        'avatar_path',
     ];
 
     protected $hidden = [

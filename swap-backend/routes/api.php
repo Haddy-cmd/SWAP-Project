@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\Shared\ChatbotController;
 use App\Http\Controllers\Shared\ConcernController;
+use App\Http\Controllers\Shared\AvatarController;
 use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
@@ -41,6 +42,8 @@ Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render'])
 // Document file serving — auth is handled inside the controller (Bearer header
 // OR ?token= query param) so that links opened in new browser tabs still work.
 Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
+// Profile photo serving — same in-controller auth so it works in an <img src>.
+Route::get('/users/{id}/avatar', [AvatarController::class, 'show']);
 
 // ─── AUTHENTICATED ────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
@@ -48,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
+    Route::post('/profile/photo', [ProfileController::class, 'updatePhoto']);
     Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markRead']);

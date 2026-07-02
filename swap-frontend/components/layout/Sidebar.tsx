@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
+import { avatarSrc } from '@/lib/utils/avatar'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useNotifications } from '@/lib/hooks/useNotifications'
@@ -71,7 +72,7 @@ function RailItem({ item, active, onNavigate }: { item: NavLink; active: boolean
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
-  const { user } = useAuthStore()
+  const { user, token } = useAuthStore()
   const { logout, isLoggingOut } = useAuth()
   const { data: notif } = useNotifications()
   const unread = notif?.meta?.unread_count ?? 0
@@ -133,9 +134,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           title={user?.name ?? 'Profile'}
           aria-label="Profile"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#D8B65A] to-[#B8901F] text-sm font-bold text-[#531010] ring-2 ring-white/10 transition hover:brightness-105"
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#D8B65A] to-[#B8901F] text-sm font-bold text-[#531010] ring-2 ring-white/10 transition hover:brightness-105"
         >
-          {user?.name?.charAt(0).toUpperCase() ?? '?'}
+          {avatarSrc(user?.avatar_url, token) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarSrc(user?.avatar_url, token)!} alt={user?.name ?? ''} className="h-full w-full object-cover" />
+          ) : (
+            user?.name?.charAt(0).toUpperCase() ?? '?'
+          )}
         </Link>
 
         <button
