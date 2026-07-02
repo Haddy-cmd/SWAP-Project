@@ -66,6 +66,22 @@ class DocumentController extends Controller
             'mime_type' => $file->getMimeType(),
         ]);
 
+        // The 2x2 ID photo doubles as the applicant's default profile photo, but only
+        // until they set a custom one. Copy it to a separate avatar object so the
+        // document itself is never touched (it stays a submission requirement).
+        if ($request->document_type === 'id_photo') {
+            $user = $request->user();
+            if (empty($user->avatar_path)) {
+                try {
+                    $avatarPath = "avatars/{$user->id}/" . basename($path);
+                    Storage::disk($disk)->copy($path, $avatarPath);
+                    $user->update(['avatar_path' => $avatarPath]);
+                } catch (\Throwable $e) {
+                    Log::warning('Could not set profile photo from ID upload', ['error' => $e->getMessage()]);
+                }
+            }
+        }
+
         return response()->json(['message' => 'Document uploaded successfully.'], 201);
     }
 }

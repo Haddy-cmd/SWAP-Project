@@ -16,6 +16,7 @@ import { authApi } from '@/lib/api/auth.api'
 import { notificationsApi } from '@/lib/api/notifications.api'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import { avatarSrc } from '@/lib/utils/avatar'
+import { AvatarCropper } from '@/components/shared/AvatarCropper'
 import type { UserRole } from '@/types/auth.types'
 import type { ApiError } from '@/types/api.types'
 
@@ -72,6 +73,7 @@ export default function ProfilePage() {
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
   const [pwMsg, setPwMsg] = useState<string | null>(null)
   const [photoMsg, setPhotoMsg] = useState<string | null>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const uploadPhoto = useMutation({
@@ -79,14 +81,20 @@ export default function ProfilePage() {
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
       setPhotoMsg(null)
+      setCropFile(null)
     },
     onError: (err: ApiError) => setPhotoMsg(err.message ?? 'Photo upload failed.'),
   })
 
+  // Selecting a file opens the cropper; the cropped result is what gets uploaded.
   const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) uploadPhoto.mutate(file)
+    if (file) { setPhotoMsg(null); setCropFile(file) }
     e.target.value = '' // allow re-picking the same file
+  }
+
+  const onCropped = (blob: Blob) => {
+    uploadPhoto.mutate(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
   }
 
   const isStudent = !!user?.profile
@@ -384,6 +392,15 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+
+      {cropFile && (
+        <AvatarCropper
+          file={cropFile}
+          busy={uploadPhoto.isPending}
+          onCancel={() => setCropFile(null)}
+          onCropped={onCropped}
+        />
+      )}
     </div>
   )
 }
