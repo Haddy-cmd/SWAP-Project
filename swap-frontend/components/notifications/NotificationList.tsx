@@ -1,9 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { notificationsApi } from '@/lib/api/notifications.api'
+import { useAuthStore } from '@/lib/store/authStore'
+import { notificationLink } from '@/lib/utils/notificationLink'
 import type { Notification } from '@/types/notification.types'
 
 interface NotificationListProps {
@@ -12,6 +15,8 @@ interface NotificationListProps {
 
 export function NotificationList({ notifications }: NotificationListProps) {
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const role = useAuthStore((s) => s.user?.role)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
 
   // Same behaviour as before: clicking an unread item marks it read; there's no
@@ -29,6 +34,13 @@ export function NotificationList({ notifications }: NotificationListProps) {
   const unread = notifications.filter((n) => !n.is_read).length
   const hasUnread = unread > 0
   const list = filter === 'unread' ? notifications.filter((n) => !n.is_read) : notifications
+
+  // Clicking marks an unread item read, then navigates to the related transaction.
+  const open = (n: Notification) => {
+    if (!n.is_read) markRead.mutate(n.id)
+    const href = notificationLink(n, role)
+    if (href) router.push(href)
+  }
 
   return (
     <div>
@@ -83,11 +95,12 @@ export function NotificationList({ notifications }: NotificationListProps) {
         <div>
           {list.map((n) => {
             const isUnread = !n.is_read
+            const clickable = isUnread || notificationLink(n, role) !== null
             return (
               <div
                 key={n.id}
-                onClick={() => isUnread && markRead.mutate(n.id)}
-                className={`flex items-start gap-3.5 border-b border-[#F1EBE1] px-1 py-[17px] ${isUnread ? 'cursor-pointer' : ''}`}
+                onClick={() => open(n)}
+                className={`-mx-2 flex items-start gap-3.5 rounded-lg border-b border-[#F1EBE1] px-3 py-[17px] transition-colors ${clickable ? 'cursor-pointer hover:bg-[#FBF7F2]' : ''}`}
               >
                 <span className="mt-[7px] h-[7px] w-[7px] flex-none rounded-full" style={{ background: isUnread ? '#7C1B26' : 'transparent' }} />
                 <div className="min-w-0 flex-1">
