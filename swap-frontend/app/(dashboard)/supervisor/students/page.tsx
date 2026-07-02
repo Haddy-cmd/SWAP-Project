@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 import { cn } from '@/lib/utils/cn'
 
@@ -14,6 +15,7 @@ type Row = {
   name: string
   email: string
   office: string
+  avatarUrl: string | null
   verified: number
   required: number
   pendingRequired: number | null
@@ -21,11 +23,10 @@ type Row = {
 }
 type Selected = { userId: number; name: string; required: number }
 
-function Avatar({ name }: { name: string }) {
+function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
   return (
-    <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E6C66A] to-[#B8901F] text-base font-extrabold text-[#531010]">
-      {name.charAt(0).toUpperCase()}
-    </div>
+    <UserAvatar name={name} avatarUrl={avatarUrl}
+      className="h-11 w-11 rounded-full bg-gradient-to-br from-[#E6C66A] to-[#B8901F] text-base font-extrabold text-[#531010]" />
   )
 }
 
@@ -107,6 +108,7 @@ export default function SupervisorStudentsPage() {
       name: String(user.name ?? '—'),
       email: String(user.email ?? '—'),
       office: String(s.office_name ?? '—'),
+      avatarUrl: (user.avatar_url as string | null) ?? null,
       verified: Number(s.verified_hours ?? 0),
       required: Number(s.required_hours ?? 120),
       pendingRequired: s.pending_required_hours != null ? Number(s.pending_required_hours) : null,
@@ -201,7 +203,7 @@ export default function SupervisorStudentsPage() {
             <div key={r.userId} className="rounded-2xl border border-[#EAD9D9] bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar name={r.name} />
+                  <Avatar name={r.name} avatarUrl={r.avatarUrl} />
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-[#1E293B]">{r.name}</p>
                     <p className="truncate text-xs text-[#94A3B8]">{r.email}</p>
@@ -240,7 +242,7 @@ export default function SupervisorStudentsPage() {
                   <tr key={r.userId} className="border-b border-[#F5EDEC] last:border-0 hover:bg-[#FAF7F7]">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar name={r.name} />
+                        <Avatar name={r.name} avatarUrl={r.avatarUrl} />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-[#1E293B]">{r.name}</p>

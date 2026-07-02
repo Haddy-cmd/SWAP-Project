@@ -6,6 +6,7 @@ import {
   Search, UserCheck, UserX, UserPlus, X, Trash2, Check, ChevronDown, Filter,
 } from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { formatDate } from '@/lib/utils/formatDate'
 
@@ -20,8 +21,6 @@ const AV: [string, string][] = [
   ['#EAF1F7', '#1F4E6B'],
 ]
 const av = (i: number) => AV[((i % AV.length) + AV.length) % AV.length]
-const initials = (n?: string) =>
-  (n ?? '').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—'
 
 // Role chip colors: [text, background]
 function roleStyle(role: string): [string, string] {
@@ -312,10 +311,9 @@ export default function AdminUsersPage() {
                 return (
                   <div key={user.id} className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_auto] items-center gap-4 border-b border-[#F4ECE1] px-5 py-3 last:border-0 hover:bg-[#FBF7F2]/60">
                     <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full text-[13px] font-bold"
-                        style={{ background: avBg, color: avFg }}>
-                        {initials(user.name)}
-                      </span>
+                      <UserAvatar name={user.name} avatarUrl={user.avatar_url}
+                        className="h-[38px] w-[38px] rounded-full text-[13px] font-bold"
+                        style={{ background: avBg, color: avFg }} />
                       <div className="min-w-0 leading-tight">
                         <p className="truncate text-sm font-semibold text-[#241715]">{user.name}</p>
                         <p className="truncate text-xs text-[#A38A82]">{user.email}</p>

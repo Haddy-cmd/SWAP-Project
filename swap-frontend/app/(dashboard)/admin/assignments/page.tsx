@@ -10,6 +10,7 @@ import { assignmentsApi } from '@/lib/api/assignments.api'
 import { adminApi } from '@/lib/api/admin.api'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import type { Application } from '@/types/application.types'
 import type { Assignment } from '@/types/assignment.types'
 
@@ -23,8 +24,6 @@ const AV: [string, string][] = [
   ['#F7EDE8', '#C0562F'],
 ]
 const av = (i: number) => AV[((i % AV.length) + AV.length) % AV.length]
-const initials = (n?: string) =>
-  (n ?? '').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '—'
 const today = () => new Date().toISOString().slice(0, 10)
 
 function StatusPill({ status }: { status: string }) {
@@ -233,12 +232,9 @@ export default function AdminAssignmentsPage() {
                     boxShadow: active ? '0 6px 18px rgba(108,22,32,.14)' : '0 2px 8px rgba(60,30,25,.04)',
                   }}
                 >
-                  <span
-                    className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-[11px] text-sm font-bold"
-                    style={{ background: bg, color: fg }}
-                  >
-                    {initials(app.user?.name)}
-                  </span>
+                  <UserAvatar name={app.user?.name} avatarUrl={app.user?.avatar_url}
+                    className="h-[42px] w-[42px] rounded-[11px] text-sm font-bold"
+                    style={{ background: bg, color: fg }} />
                   <span className="min-w-0 flex-1 leading-tight">
                     <span className="block text-[14.5px] font-semibold text-[#241715]">{app.user?.name ?? '—'}</span>
                     <span className="block truncate text-xs text-[#A38A82]">{app.user?.email ?? '—'}</span>
@@ -260,9 +256,8 @@ export default function AdminAssignmentsPage() {
             <p className="mb-3 text-[10.5px] font-bold uppercase tracking-[0.16em] text-[#F3D9A0]/80">Assigning</p>
             {selected ? (
               <div className="flex items-center gap-3">
-                <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-xl border border-[#F3D9A0]/40 bg-[#F3D9A0]/20 text-[15px] font-bold text-[#F3D9A0]">
-                  {initials(selected.user?.name)}
-                </span>
+                <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
+                  className="h-[46px] w-[46px] rounded-xl border border-[#F3D9A0]/40 bg-[#F3D9A0]/20 text-[15px] font-bold text-[#F3D9A0]" />
                 <div className="min-w-0 leading-tight">
                   <p className="truncate text-[15.5px] font-bold text-[#FFF8EE]">{selected.user?.name ?? '—'}</p>
                   <p className="text-[11.5px] text-[#FBEFE0]/75">{selected.academic_year} · {selected.semester}</p>
@@ -455,12 +450,9 @@ export default function AdminAssignmentsPage() {
               return (
                 <div key={a.id} className="rounded-[13px] border border-[#EFE5DA] bg-white p-4 shadow-[0_2px_8px_rgba(60,30,25,.04)]">
                   <div className="mb-3 flex items-center gap-3">
-                    <span
-                      className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px] text-[13px] font-bold"
-                      style={{ background: bg, color: fg }}
-                    >
-                      {initials(a.user?.name)}
-                    </span>
+                    <UserAvatar name={a.user?.name} avatarUrl={a.user?.avatar_url}
+                      className="h-[38px] w-[38px] rounded-[10px] text-[13px] font-bold"
+                      style={{ background: bg, color: fg }} />
                     <div className="min-w-0 flex-1 leading-tight">
                       <p className="truncate text-sm font-semibold text-[#241715]">{a.user?.name ?? '—'}</p>
                       <p className="flex items-center gap-1.5 text-xs text-[#A38A82]">

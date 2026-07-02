@@ -7,6 +7,7 @@ import {
   ChevronLeft, ChevronRight, Clock, MapPin, Video, Users, FileText, X, CalendarOff,
 } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatTime } from '@/lib/utils/formatDate'
 import type { Application, Interview } from '@/types/application.types'
 
@@ -19,8 +20,6 @@ const AVATARS: [string, string][] = [
   ['#FBF3E2', '#B8860B'], ['#F1ECF7', '#6B4E9A'], ['#F7EDE8', '#C0562F'], ['#EAF1F7', '#1F4E6B'],
 ]
 const avatar = (id: number) => AVATARS[id % AVATARS.length]
-const initials = (name?: string | null) =>
-  (name ?? '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
 
 // Manila-local Y / M(0-based) / D for an ISO timestamp, so calendar buckets match
 // the times shown elsewhere in the app (all rendered in Asia/Manila).
@@ -242,7 +241,7 @@ export default function AdminInterviewsPage() {
                     return (
                       <div key={it.app.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 sm:px-[18px] ${i < g.items.length - 1 ? 'border-b border-[#F4ECE1]' : ''}`}>
                         <div className="w-[66px] flex-none text-[12.5px] font-bold text-[#7C1B26]">{formatTime(it.iv.scheduled_at)}</div>
-                        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }}>{initials(it.app.user?.name)}</div>
+                        <UserAvatar name={it.app.user?.name} avatarUrl={it.app.user?.avatar_url} className="h-9 w-9 rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }} />
                         <div className="min-w-0 flex-1 leading-tight">
                           <div className="truncate text-[13.5px] font-semibold text-[#241715]">{it.app.user?.name ?? '—'}</div>
                           <div className="truncate text-[11.5px] text-[#A38A82]">{it.app.user?.email ?? '—'}</div>
@@ -292,7 +291,7 @@ export default function AdminInterviewsPage() {
             return (
               <div key={it.app.id} className="rounded-[13px] border border-[#EFE5DA] bg-white p-4 shadow-[0_1px_3px_rgba(60,30,25,.05)]">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-full text-[14px] font-bold" style={{ background: avBg, color: avFg }}>{initials(it.app.user?.name)}</div>
+                  <UserAvatar name={it.app.user?.name} avatarUrl={it.app.user?.avatar_url} className="h-[42px] w-[42px] rounded-full text-[14px] font-bold" style={{ background: avBg, color: avFg }} />
                   <div className="min-w-0 flex-1 leading-tight">
                     <div className="truncate text-[14.5px] font-semibold text-[#241715]">{it.app.user?.name ?? '—'}</div>
                     <div className="truncate text-[12px] text-[#A38A82]">{it.app.user?.email ?? '—'}</div>

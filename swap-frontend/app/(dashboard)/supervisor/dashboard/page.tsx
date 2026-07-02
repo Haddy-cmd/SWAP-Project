@@ -5,15 +5,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, CheckSquare, Clock, AlertCircle, CheckCircle, ArrowRight, Check, MapPinOff, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
 import { formatHours } from '@/lib/utils/formatHours'
 
-function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+function Avatar({ name, avatarUrl, size = 'md' }: { name: string; avatarUrl?: string | null; size?: 'sm' | 'md' }) {
   const dim = size === 'sm' ? 'h-9 w-9 text-sm' : 'h-11 w-11 text-base'
   return (
-    <div className={`flex ${dim} flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E6C66A] to-[#B8901F] font-extrabold text-[#531010]`}>
-      {(name?.charAt(0) ?? '?').toUpperCase()}
-    </div>
+    <UserAvatar name={name} avatarUrl={avatarUrl}
+      className={`${dim} rounded-full bg-gradient-to-br from-[#E6C66A] to-[#B8901F] font-extrabold text-[#531010]`} />
   )
 }
 
@@ -117,7 +117,7 @@ export default function SupervisorDashboard() {
             {pendingLogs.map((log) => (
               <div key={log.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white p-3.5 shadow-sm">
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar name={log.user?.name ?? '?'} />
+                  <Avatar name={log.user?.name ?? '?'} avatarUrl={(log.user as { avatar_url?: string | null })?.avatar_url} />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-[#1E293B]">{log.user?.name ?? 'Recipient'}</p>
                     <p className="truncate text-xs text-[#8A6A6A]">
@@ -179,7 +179,7 @@ export default function SupervisorDashboard() {
                   className="flex items-center justify-between gap-3 rounded-xl border border-[#D8EFE0] bg-[#F6FBF7] px-3.5 py-3 hover:bg-[#EAF7EF] transition-colors"
                 >
                   <div className="flex min-w-0 items-center gap-3">
-                    <Avatar name={log.user?.name ?? '?'} size="sm" />
+                    <Avatar name={log.user?.name ?? '?'} avatarUrl={(log.user as { avatar_url?: string | null })?.avatar_url} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold text-[#1E293B]">{log.user?.name ?? 'Recipient'}</p>
                       <p className="truncate text-xs text-[#8A6A6A]">

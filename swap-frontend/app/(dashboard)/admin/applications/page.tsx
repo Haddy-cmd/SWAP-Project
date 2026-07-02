@@ -12,6 +12,7 @@ import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationPeriodToggle } from '@/components/admin/ApplicationPeriodToggle'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import type { ApplicationStatus } from '@/types/application.types'
 
@@ -23,8 +24,6 @@ const AVATARS: [string, string][] = [
   ['#FBF3E2', '#B8860B'], ['#F1ECF7', '#6B4E9A'], ['#F7EDE8', '#C0562F'], ['#EAF1F7', '#1F4E6B'],
 ]
 const avatar = (id: number) => AVATARS[id % AVATARS.length]
-const initials = (name?: string | null) =>
-  (name ?? '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
 
 const STATUS_META: Record<string, { short: string; color: string; dot: string }> = {
   submitted: { short: 'Submitted', color: '#1F5C86', dot: '#3B7FB5' },
@@ -256,9 +255,8 @@ export default function AdminApplicationsPage() {
                     className="flex items-center gap-3 rounded-xl border bg-white px-3.5 py-3 text-left transition-colors"
                     style={{ borderColor: isActive ? '#7C1B26' : '#EFE5DA', boxShadow: isActive ? '0 6px 18px rgba(108,22,32,.14)' : '0 1px 3px rgba(60,30,25,.04)' }}
                   >
-                    <span className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-full text-[13px] font-bold" style={{ background: avBg, color: avFg }}>
-                      {initials(a.user?.name)}
-                    </span>
+                    <UserAvatar name={a.user?.name} avatarUrl={a.user?.avatar_url}
+                      className="h-[38px] w-[38px] rounded-full text-[13px] font-bold" style={{ background: avBg, color: avFg }} />
                     <span className="min-w-0 flex-1 leading-tight">
                       <span className="block truncate text-[13.5px] font-semibold text-[#241715]">{a.user?.name ?? '—'}</span>
                       <span className="block text-[11.5px] text-[#A38A82]">{formatDate(a.created_at)}</span>
@@ -317,9 +315,8 @@ export default function AdminApplicationsPage() {
               <div className="border-b border-[#EFE5DA] px-6 py-6">
                 <div className="flex items-center gap-3.5">
                   {(() => { const [bg, fg] = avatar(selected.id); return (
-                    <span className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full text-[18px] font-bold" style={{ background: bg, color: fg }}>
-                      {initials(selected.user?.name)}
-                    </span>
+                    <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
+                      className="h-14 w-14 rounded-full text-[18px] font-bold" style={{ background: bg, color: fg }} />
                   ) })()}
                   <div className="min-w-0 flex-1 leading-tight">
                     <p className="font-serif text-[22px] font-semibold text-[#241715]">{selected.user?.name ?? '—'}</p>
