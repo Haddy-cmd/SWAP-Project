@@ -11,11 +11,13 @@ export default function NotificationsPage() {
   })
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
-      <h1 className="text-2xl font-bold text-[#1E293B]">Notifications</h1>
+    <div className="mx-auto max-w-[720px] px-4 py-6">
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4].map((n) => <div key={n} className="h-16 animate-pulse rounded-xl bg-[#E2E8F0]" />)}
+        <div className="space-y-4">
+          <div className="h-9 w-56 animate-pulse rounded-lg bg-[#EAE1D5]" />
+          <div className="space-y-3 pt-4">
+            {[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-14 animate-pulse rounded-xl bg-[#EAE1D5]" />)}
+          </div>
         </div>
       ) : (
         <NotificationList notifications={data?.data ?? []} />
