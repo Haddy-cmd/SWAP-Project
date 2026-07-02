@@ -5,9 +5,10 @@ import { Menu } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useUIStore } from '@/lib/store/uiStore'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { avatarSrc } from '@/lib/utils/avatar'
 
 export function Topbar() {
-  const { user } = useAuthStore()
+  const { user, token } = useAuthStore()
   const {
     desktopSidebarOpen, toggleDesktopSidebar, toggleMobileSidebar,
     revealSidebar, scheduleHideSidebar,
@@ -57,8 +58,13 @@ export function Topbar() {
           href="/profile"
           className="flex items-center gap-2 rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-sm font-medium text-[#1E293B] hover:bg-[#FAF7F7] transition-colors"
         >
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#7D1A1A] text-xs font-bold text-white">
-            {user?.name?.charAt(0).toUpperCase() ?? '?'}
+          <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#7D1A1A] text-xs font-bold text-white">
+            {avatarSrc(user?.avatar_url, token) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarSrc(user?.avatar_url, token)!} alt={user?.name ?? ''} className="h-full w-full object-cover" />
+            ) : (
+              user?.name?.charAt(0).toUpperCase() ?? '?'
+            )}
           </div>
           <span className="hidden sm:inline">{user?.name}</span>
         </Link>

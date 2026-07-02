@@ -6,5 +6,6 @@
  */
 export function avatarSrc(avatarUrl?: string | null, token?: string | null): string | null {
   if (!avatarUrl || !token) return null
-  return `${avatarUrl}?token=${encodeURIComponent(token)}`
+  const sep = avatarUrl.includes('?') ? '&' : '?'
+  return `${avatarUrl}${sep}token=${encodeURIComponent(token)}`
 }
