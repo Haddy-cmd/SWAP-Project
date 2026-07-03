@@ -101,7 +101,9 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            'expire' => 60,
+            // Reset links stay valid for 5 minutes — long enough to open the email,
+            // short enough that a leaked/forwarded link is quickly useless.
+            'expire' => 5,
             'throttle' => 60,
         ],
     ],
