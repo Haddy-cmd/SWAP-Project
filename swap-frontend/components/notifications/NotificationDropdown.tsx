@@ -44,7 +44,7 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
   const recent = notifications.slice(0, 5)
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-sm rounded-xl border border-[#EAD9D9] bg-white shadow-xl z-50">
+    <div className="fixed inset-x-3 top-[4.25rem] z-50 rounded-xl border border-[#EAD9D9] bg-white shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between border-b border-[#F1ECEC] px-4 py-3">
         <p className="text-sm font-semibold text-[#1E293B]">Notifications</p>
         <button
@@ -60,7 +60,7 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
       {recent.length === 0 ? (
         <p className="px-4 py-6 text-center text-xs text-[#94A3B8]">No notifications</p>
       ) : (
-        <ul>
+        <ul className="max-h-[65vh] overflow-y-auto">
           {recent.map((n) => (
             <li
               key={n.id}
