@@ -25,7 +25,7 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
             ->greeting("Dear {$notifiable->name},")
             ->line('Congratulations! Your Student Welfare Assistantship Program application has been approved.')
             ->line('You will be assigned to an office shortly. Please check the SWAP Portal for your assignment details.')
-            ->action('View Portal', config('app.frontend_url') . '/applicant')
+            ->action('View Portal', \App\Support\Frontend::url('/applicant'))
             ->line('Thank you for being part of the SWAP program at MSU Marawi.');
     }
 

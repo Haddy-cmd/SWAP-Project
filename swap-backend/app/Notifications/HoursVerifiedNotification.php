@@ -26,7 +26,7 @@ class HoursVerifiedNotification extends Notification implements ShouldQueue
             ->subject('Service Hours Verified')
             ->greeting("Dear {$notifiable->name},")
             ->line("Your attendance log of {$hours} hours has been verified by your supervisor.")
-            ->action('View Hours', config('app.frontend_url') . '/recipient/hours')
+            ->action('View Hours', \App\Support\Frontend::url('/recipient/hours'))
             ->line('Keep up the great work!');
     }
 

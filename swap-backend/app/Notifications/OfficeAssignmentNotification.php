@@ -45,7 +45,7 @@ class OfficeAssignmentNotification extends Notification implements ShouldQueue
             ->line($changed
                 ? 'From now on, clock in using the QR code posted at your new office.'
                 : 'Report to your office to begin rendering your service hours — clock in by scanning the QR code posted there.')
-            ->action('Open Your Dashboard', $this->frontendUrl('/recipient/dashboard'))
+            ->action('Open Your Dashboard', \App\Support\Frontend::url('/recipient/dashboard'))
             ->line('Thank you for being part of the Student Welfare Assistance Program.');
     }
 
@@ -63,18 +63,5 @@ class OfficeAssignmentNotification extends Notification implements ShouldQueue
             'type' => 'assignment',
             'assignment_id' => $this->data['assignment_id'] ?? null,
         ];
-    }
-
-    private function frontendUrl(string $path): string
-    {
-        $base = trim((string) config('swap.frontend_url'));
-        if ($base === '') {
-            $base = 'http://localhost:3000';
-        }
-        if (!str_contains($base, '://')) {
-            $base = 'https://' . $base;
-        }
-
-        return rtrim($base, '/') . $path;
     }
 }

@@ -27,7 +27,7 @@ class StipendReleasedNotification extends Notification implements ShouldQueue
             ->greeting("Dear {$notifiable->name},")
             ->line("Your SWAP stipend of ₱{$amount} has been released.")
             ->line('Please coordinate with the DSA Office for the release schedule.')
-            ->action('View Stipend History', config('app.frontend_url') . '/recipient/stipend')
+            ->action('View Stipend History', \App\Support\Frontend::url('/recipient/stipend'))
             ->line('Thank you for your dedicated service.');
     }
 

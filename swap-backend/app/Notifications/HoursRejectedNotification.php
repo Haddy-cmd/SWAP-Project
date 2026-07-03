@@ -27,7 +27,7 @@ class HoursRejectedNotification extends Notification implements ShouldQueue
             ->greeting("Dear {$notifiable->name},")
             ->line('Your attendance log has been rejected by your supervisor.')
             ->line("Feedback: {$feedback}")
-            ->action('View Logs', config('app.frontend_url') . '/recipient/attendance')
+            ->action('View Logs', \App\Support\Frontend::url('/recipient/attendance'))
             ->line('Please contact your supervisor if you have questions.');
     }
 

@@ -28,7 +28,7 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
             ->line('We regret to inform you that your SWAP application has not been approved at this time.')
             ->line("Remarks: {$remarks}")
             ->line('You may re-apply for the next semester. If you have questions, please contact the DSA Office.')
-            ->action('View Application', config('app.frontend_url') . '/applicant')
+            ->action('View Application', \App\Support\Frontend::url('/applicant'))
             ->line('Thank you for your interest in the SWAP program.');
     }
 
