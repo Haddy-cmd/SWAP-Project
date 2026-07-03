@@ -10,6 +10,7 @@ use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
 use App\Http\Controllers\Shared\ReportController;
+use App\Http\Controllers\Shared\InvitationController;
 use App\Http\Controllers\Shared\SettingController;
 use App\Http\Controllers\Applicant\ApplicationController as ApplicantApplicationController;
 use App\Http\Controllers\Applicant\DocumentController;
@@ -36,6 +37,9 @@ Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPas
 Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:6,1');
 Route::get('/chatbot/query', [ChatbotController::class, 'query']);
 Route::get('/settings/application-status', [SettingController::class, 'applicationStatus']);
+// Staff invitations — the invitee opens the emailed link to create their account.
+Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middleware('throttle:10,1');
+Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware('throttle:6,1');
 Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
 Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
 
@@ -127,6 +131,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
+        Route::post('/invitations', [InvitationController::class, 'store']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
 

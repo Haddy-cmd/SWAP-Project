@@ -18,6 +18,15 @@ export const authApi = {
   resetPassword: (data: { token: string; email: string; password: string; password_confirmation: string }) =>
     apiClient.post('/auth/reset-password', data).then((r) => r.data),
 
+  // Staff invitation (public): describe the invite, then accept it to create the account.
+  getInvitation: (token: string) =>
+    apiClient
+      .get<ApiResponse<{ email: string; name: string | null; role: string; office: string | null; expires_at: string }>>(`/invitations/${token}`)
+      .then((r) => r.data.data),
+
+  acceptInvitation: (token: string, data: { name: string; password: string; password_confirmation: string }) =>
+    apiClient.post<AuthResponse>(`/invitations/${token}/accept`, data).then((r) => r.data),
+
   getProfile: () =>
     apiClient.get<ApiResponse<User>>('/profile').then((r) => r.data.data),
 

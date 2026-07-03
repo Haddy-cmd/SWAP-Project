@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
-  Search, UserCheck, UserX, UserPlus, X, Trash2, Check, ChevronDown, Filter,
+  Search, UserCheck, UserX, UserPlus, X, Trash2, Check, ChevronDown, Filter, Send,
 } from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
@@ -47,9 +47,9 @@ const inputCls =
 const labelCls = 'mb-1.5 block text-[12.5px] font-semibold text-[#5A4A45]'
 
 function AddUserModal({ onClose }: { onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'supervisor', office_id: '' })
+  const [form, setForm] = useState({ name: '', email: '', role: 'supervisor', office_id: '' })
   const [error, setError] = useState('')
+  const [sent, setSent] = useState<string | null>(null)
 
   const { data: officesData } = useQuery({
     queryKey: ['admin-offices'],
@@ -57,27 +57,25 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
   })
   const offices = officesData?.data ?? []
 
-  const create = useMutation({
+  // Instead of creating the account here, email an invitation link — the invitee
+  // sets their own password and the account is created when they accept.
+  const invite = useMutation({
     mutationFn: () =>
-      adminApi.createUser({
-        name: form.name,
+      adminApi.inviteUser({
         email: form.email,
-        password: form.password,
+        ...(form.name.trim() ? { name: form.name.trim() } : {}),
         role: form.role,
         ...(form.role === 'supervisor' && form.office_id ? { office_id: Number(form.office_id) } : {}),
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
-      onClose()
-    },
+    onSuccess: (res) => setSent(res.message ?? `Invitation sent to ${form.email}.`),
     onError: (e: unknown) => {
       const err = e as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
       const firstError = err.response?.data?.errors && Object.values(err.response.data.errors)[0]?.[0]
-      setError(firstError || err.response?.data?.message || 'Failed to create user.')
+      setError(firstError || err.response?.data?.message || 'Failed to send the invitation.')
     },
   })
 
-  const canSave = form.name.trim() && form.email.trim() && form.password.length >= 8
+  const canSave = form.email.trim().length > 3
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#280C10]/45 p-4" onClick={onClose}>
@@ -89,8 +87,8 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
               <UserPlus className="h-[20px] w-[20px]" />
             </span>
             <div>
-              <p className="text-[17px] font-bold text-[#241715]">New User</p>
-              <p className="text-[12.5px] text-[#8A7A73]">Create a supervisor or admin account</p>
+              <p className="text-[17px] font-bold text-[#241715]">Invite Staff</p>
+              <p className="text-[12.5px] text-[#8A7A73]">Email a link to create a supervisor or admin account</p>
             </div>
           </div>
           <button onClick={onClose} className="text-[#B79B7E] hover:text-[#7C1B26] transition-colors">
@@ -100,55 +98,75 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
 
         {/* Body */}
         <div className="flex-1 space-y-3.5 overflow-y-auto px-6 py-5">
-          <div>
-            <label className={labelCls}>Full Name</label>
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Prof. Juan Dela Cruz" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Email</label>
-            <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              placeholder="supervisor@msumain.edu.ph" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Password</label>
-            <input type="text" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-              placeholder="At least 8 characters" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Role</label>
-            <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className={inputCls}>
-              <option value="supervisor">Supervisor</option>
-              <option value="admin">Admin</option>
-            </select>
-            <p className="mt-1 text-[11px] text-[#A38A82]">Students join by self-registering — admins create only staff accounts.</p>
-          </div>
-          {form.role === 'supervisor' && (
-            <div>
-              <label className={labelCls}>Office <span className="font-normal text-[#A38A82]">(optional)</span></label>
-              <select value={form.office_id} onChange={(e) => setForm((f) => ({ ...f, office_id: e.target.value }))} className={inputCls}>
-                <option value="">{offices.length ? 'Assign later…' : 'No offices yet — assign later'}</option>
-                {offices.map((o) => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
+          {sent ? (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#EEF7EF]">
+                <Check className="h-7 w-7 text-[#4E9657]" strokeWidth={2.5} />
+              </span>
+              <p className="text-sm font-bold text-[#241715]">{sent}</p>
+              <p className="max-w-xs text-xs text-[#8A7A73]">
+                They&apos;ll receive an email with a link to set their password and activate the account.
+                The link expires in 3 days — re-invite the same email to send a fresh one.
+              </p>
             </div>
+          ) : (
+            <>
+              <div>
+                <label className={labelCls}>Email</label>
+                <input type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="supervisor@msumain.edu.ph" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Full Name <span className="font-normal text-[#A38A82]">(optional — they confirm it on sign-up)</span></label>
+                <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Prof. Juan Dela Cruz" className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Role</label>
+                <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))} className={inputCls}>
+                  <option value="supervisor">Supervisor</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <p className="mt-1 text-[11px] text-[#A38A82]">Students join by self-registering — invitations are for staff accounts only.</p>
+              </div>
+              {form.role === 'supervisor' && (
+                <div>
+                  <label className={labelCls}>Office <span className="font-normal text-[#A38A82]">(optional)</span></label>
+                  <select value={form.office_id} onChange={(e) => setForm((f) => ({ ...f, office_id: e.target.value }))} className={inputCls}>
+                    <option value="">{offices.length ? 'Assign later…' : 'No offices yet — assign later'}</option>
+                    {offices.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {error && <p className="rounded-lg bg-[#FEF0F0] px-3 py-2 text-xs font-medium text-[#C0392B]">{error}</p>}
+            </>
           )}
-          {error && <p className="rounded-lg bg-[#FEF0F0] px-3 py-2 text-xs font-medium text-[#C0392B]">{error}</p>}
         </div>
 
         {/* Footer */}
         <div className="flex justify-end gap-3 border-t border-[#EFE5DA] bg-[#FCF8F3] px-6 py-4">
-          <button onClick={onClose}
-            className="h-11 rounded-xl border border-[#E7D9C9] bg-white px-5 text-sm font-semibold text-[#7A6A63] hover:bg-[#FBF7F2] transition-colors">
-            Cancel
-          </button>
-          <button onClick={() => { setError(''); create.mutate() }} disabled={!canSave || create.isPending}
-            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity disabled:opacity-50"
-            style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
-            <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
-            {create.isPending ? 'Creating…' : 'Create User'}
-          </button>
+          {sent ? (
+            <button onClick={onClose}
+              className="h-11 rounded-xl px-6 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)]"
+              style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+              Done
+            </button>
+          ) : (
+            <>
+              <button onClick={onClose}
+                className="h-11 rounded-xl border border-[#E7D9C9] bg-white px-5 text-sm font-semibold text-[#7A6A63] hover:bg-[#FBF7F2] transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => { setError(''); invite.mutate() }} disabled={!canSave || invite.isPending}
+                className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity disabled:opacity-50"
+                style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+                <Send className="h-[17px] w-[17px]" />
+                {invite.isPending ? 'Sending…' : 'Send Invitation'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -213,7 +231,7 @@ export default function AdminUsersPage() {
           className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity hover:opacity-95 sm:self-auto"
           style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
           <UserPlus className="h-[19px] w-[19px]" />
-          New User
+          Invite User
         </button>
       </div>
 

@@ -29,6 +29,10 @@ export const adminApi = {
   createUser: (data: { name: string; email: string; password: string; role: string; office_id?: number | null }) =>
     apiClient.post<ApiResponse<User>>('/admin/users', data).then((r) => r.data.data),
 
+  // Email an account-creation link instead of creating the staff account directly.
+  inviteUser: (data: { email: string; name?: string; role: string; office_id?: number | null }) =>
+    apiClient.post<{ message: string }>('/admin/invitations', data).then((r) => r.data),
+
   updateUser: (id: number, data: { role?: string; is_active?: boolean }) =>
     apiClient.put<ApiResponse<User>>(`/admin/users/${id}`, data).then((r) => r.data.data),
 
