@@ -238,12 +238,21 @@ class AttendanceService
             'location_flagged' => $log->location_flagged || ($accuracy !== null && $accuracy > self::ACCURACY_THRESHOLD_METERS),
         ]);
 
-        SendApplicationNotificationJob::dispatch('supervisor_time_out', [
-            'user_id' => $assignment->supervisor_id,
-            'log_id' => $updated->id,
-            'student_name' => $user->name,
-            'duration_hours' => $updated->duration_hours,
-        ])->onQueue('notifications');
+        // Notify every supervisor who can verify this log: the assigned one plus
+        // any co-supervisor of the hosting office (they share the pending queue).
+        $supervisorIds = User::where('role', 'supervisor')
+            ->where(fn ($q) => $q->where('id', $assignment->supervisor_id)
+                ->orWhere('office_id', $assignment->office_id))
+            ->pluck('id');
+
+        foreach ($supervisorIds as $supervisorId) {
+            SendApplicationNotificationJob::dispatch('supervisor_time_out', [
+                'user_id' => $supervisorId,
+                'log_id' => $updated->id,
+                'student_name' => $user->name,
+                'duration_hours' => $updated->duration_hours,
+            ])->onQueue('notifications');
+        }
 
         broadcast(new AttendanceCompleted(
             supervisorId: $assignment->supervisor_id,

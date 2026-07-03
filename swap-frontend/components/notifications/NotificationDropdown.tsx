@@ -1,10 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow } from 'date-fns'
 import { CheckCheck, ArrowRight } from 'lucide-react'
 import { notificationsApi as notificationApi } from '@/lib/api/notifications.api'
+import { useAuthStore } from '@/lib/store/authStore'
+import { notificationLink } from '@/lib/utils/notificationLink'
 import type { Notification } from '@/types/notification.types'
 
 interface NotificationDropdownProps {
@@ -14,6 +17,8 @@ interface NotificationDropdownProps {
 
 export function NotificationDropdown({ notifications, onClose }: NotificationDropdownProps) {
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const role = useAuthStore((s) => s.user?.role)
 
   const markAll = useMutation({
     mutationFn: () => notificationApi.markAllAsRead(),
@@ -24,6 +29,17 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
     mutationFn: (id: string) => notificationApi.markAsRead(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   })
+
+  // Same behaviour as the notifications page: mark read, then jump to the
+  // related transaction (and close the dropdown).
+  const open = (n: Notification) => {
+    if (!n.is_read) markOne.mutate(n.id)
+    const href = notificationLink(n, role)
+    if (href) {
+      onClose()
+      router.push(href)
+    }
+  }
 
   const recent = notifications.slice(0, 5)
 
@@ -48,7 +64,7 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
           {recent.map((n) => (
             <li
               key={n.id}
-              onClick={() => !n.is_read && markOne.mutate(n.id)}
+              onClick={() => open(n)}
               className={`cursor-pointer border-b border-[#F5EDEC] px-4 py-3 last:border-0 transition-colors ${
                 !n.is_read ? 'bg-[#FEF0F0] hover:bg-[#FDE3E3]' : 'hover:bg-[#FAF7F7]'
               }`}

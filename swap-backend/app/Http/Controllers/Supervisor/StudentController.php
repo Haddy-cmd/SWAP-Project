@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
+use App\Models\User;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use App\Resources\AssignmentResource;
 use App\Resources\TimeLogResource;
@@ -18,11 +19,14 @@ class StudentController extends Controller
         private readonly AttendanceService $attendanceService,
     ) {}
 
-    /** Resolve the student's active assignment owned by this supervisor, or null. */
-    private function ownedAssignment(int $supervisorId, int $studentId): ?Assignment
+    /**
+     * Resolve the student's active assignment managed by this supervisor, or null.
+     * Co-supervisors of the same office share students (visibleToSupervisor).
+     */
+    private function ownedAssignment(User $supervisor, int $studentId): ?Assignment
     {
         return Assignment::where('user_id', $studentId)
-            ->where('supervisor_id', $supervisorId)
+            ->visibleToSupervisor($supervisor)
             ->where('status', 'active')
             ->first();
     }
@@ -31,7 +35,7 @@ class StudentController extends Controller
     {
         $assignments = Assignment::with(['user.profile', 'office'])
             ->withCount(['timeLogs as pending_logs_count' => fn ($q) => $q->where('status', 'pending_verification')])
-            ->where('supervisor_id', $request->user()->id)
+            ->visibleToSupervisor($request->user())
             ->where('status', 'active')
             ->get();
 
@@ -48,7 +52,7 @@ class StudentController extends Controller
     {
         $logs = \App\Models\TimeLog::with(['user.profile', 'assignment.office'])
             ->where('status', 'open')
-            ->whereHas('assignment', fn ($q) => $q->where('supervisor_id', $request->user()->id))
+            ->whereHas('assignment', fn ($q) => $q->visibleToSupervisor($request->user()))
             ->orderBy('time_in')
             ->get();
 
@@ -61,7 +65,7 @@ class StudentController extends Controller
     {
         $assignment = Assignment::with(['user.profile', 'office'])
             ->where('user_id', $studentId)
-            ->where('supervisor_id', $request->user()->id)
+            ->visibleToSupervisor($request->user())
             ->where('status', 'active')
             ->first();
 
@@ -87,7 +91,7 @@ class StudentController extends Controller
     {
         $assignment = Assignment::with('user.profile')
             ->where('user_id', $studentId)
-            ->where('supervisor_id', $request->user()->id)
+            ->visibleToSupervisor($request->user())
             ->where('status', 'active')
             ->first();
 
@@ -120,7 +124,7 @@ class StudentController extends Controller
     /** Grant manual/bonus hours to a student in this supervisor's office. */
     public function addManualHours(Request $request, int $studentId): JsonResponse
     {
-        $assignment = $this->ownedAssignment($request->user()->id, $studentId);
+        $assignment = $this->ownedAssignment($request->user(), $studentId);
         if (!$assignment) {
             return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
         }
@@ -144,7 +148,7 @@ class StudentController extends Controller
     /** Adjust the hours the student is required to render this semester. */
     public function updateRequiredHours(Request $request, int $studentId): JsonResponse
     {
-        $assignment = $this->ownedAssignment($request->user()->id, $studentId);
+        $assignment = $this->ownedAssignment($request->user(), $studentId);
         if (!$assignment) {
             return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
         }
@@ -161,7 +165,7 @@ class StudentController extends Controller
     /** Approve or reject an admin-requested required-hours change. */
     public function decideRequiredHours(Request $request, int $studentId): JsonResponse
     {
-        $assignment = $this->ownedAssignment($request->user()->id, $studentId);
+        $assignment = $this->ownedAssignment($request->user(), $studentId);
         if (!$assignment) {
             return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
         }

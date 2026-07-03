@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -55,6 +56,21 @@ class Assignment extends Model
     public function timeLogs(): HasMany
     {
         return $this->hasMany(TimeLog::class);
+    }
+
+    /**
+     * Assignments this supervisor may manage: the ones assigned to them directly,
+     * plus — when they belong to an office — every assignment hosted at that
+     * office, so co-supervisors of one office share the same students.
+     */
+    public function scopeVisibleToSupervisor(Builder $query, User $supervisor): Builder
+    {
+        return $query->where(function (Builder $q) use ($supervisor) {
+            $q->where('supervisor_id', $supervisor->id);
+            if ($supervisor->office_id !== null) {
+                $q->orWhere('office_id', $supervisor->office_id);
+            }
+        });
     }
 
     public function getRenderedHoursAttribute(): float

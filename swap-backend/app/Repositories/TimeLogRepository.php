@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Assignment;
 use App\Models\TimeLog;
+use App\Models\User;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -11,6 +12,23 @@ use Illuminate\Support\Carbon;
 
 class TimeLogRepository implements TimeLogRepositoryInterface
 {
+    /**
+     * whereHas('assignment') clause for a supervisor's reach — their own
+     * assignments plus their office's (co-supervisors share students).
+     */
+    private function assignmentClauseFor(int $supervisorId): \Closure
+    {
+        $supervisor = User::find($supervisorId);
+
+        return function ($q) use ($supervisor, $supervisorId) {
+            if ($supervisor) {
+                $q->visibleToSupervisor($supervisor);
+            } else {
+                $q->where('supervisor_id', $supervisorId);
+            }
+        };
+    }
+
     public function findById(int $id): ?TimeLog
     {
         return TimeLog::with(['assignment.office', 'narrativeReport', 'verifications.verifier'])
@@ -49,7 +67,7 @@ class TimeLogRepository implements TimeLogRepositoryInterface
     public function paginateForSupervisor(int $supervisorId, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = TimeLog::with(['user.profile', 'assignment.office', 'narrativeReport'])
-            ->whereHas('assignment', fn ($q) => $q->where('supervisor_id', $supervisorId))
+            ->whereHas('assignment', $this->assignmentClauseFor($supervisorId))
             ->orderByDesc('date');
 
         if (!empty($filters['status'])) {
@@ -128,14 +146,14 @@ class TimeLogRepository implements TimeLogRepositoryInterface
 
     public function getPendingVerificationsCount(int $supervisorId): int
     {
-        return TimeLog::whereHas('assignment', fn ($q) => $q->where('supervisor_id', $supervisorId))
+        return TimeLog::whereHas('assignment', $this->assignmentClauseFor($supervisorId))
             ->where('status', 'pending_verification')
             ->count();
     }
 
     public function getVerifiedThisWeekCount(int $supervisorId): int
     {
-        return TimeLog::whereHas('assignment', fn ($q) => $q->where('supervisor_id', $supervisorId))
+        return TimeLog::whereHas('assignment', $this->assignmentClauseFor($supervisorId))
             ->where('status', 'verified')
             ->where('verified_at', '>=', Carbon::now()->startOfWeek())
             ->count();

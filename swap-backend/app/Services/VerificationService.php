@@ -85,7 +85,16 @@ class VerificationService
 
     private function assertSupervisorOwnsLog(TimeLog $log, User $supervisor): void
     {
-        if ($log->assignment->supervisor_id !== $supervisor->id) {
+        $assignment = $log->assignment;
+
+        // The assigned supervisor may verify — and so may any co-supervisor of the
+        // office hosting the assignment, so offices with several supervisors share
+        // the verification workload.
+        $isAssigned = $assignment->supervisor_id === $supervisor->id;
+        $isSameOffice = $supervisor->office_id !== null
+            && $assignment->office_id === $supervisor->office_id;
+
+        if (!$isAssigned && !$isSameOffice) {
             throw new AccessDeniedHttpException(
                 'You are not authorized to verify logs for this student.'
             );

@@ -45,9 +45,9 @@ export function NotificationList({ notifications }: NotificationListProps) {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="flex items-baseline gap-3">
-          <h1 className="font-serif text-[32px] font-medium text-[#1F1512]">Notifications</h1>
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="font-serif text-[26px] font-medium text-[#1F1512] sm:text-[32px]">Notifications</h1>
           <span className="text-[13.5px] text-[#A89A8F]">
             {hasUnread ? `${unread} unread of ${total}` : `All read · ${total} total`}
           </span>
