@@ -24,9 +24,12 @@ export default function ScanAttendancePage() {
       return attendanceApi.timeInGeofence(token, coords)
     },
     onSuccess: (res) => {
+      const premises = res.data.location_flagged
+        ? ' Your location couldn’t be fully verified (weak GPS).'
+        : ' You’re inside the office premises.'
       setResult({
         type: 'success',
-        text: `Time-in recorded at ${formatDateTime(res.data.time_in)}`,
+        text: `Time-in recorded at ${formatDateTime(res.data.time_in)}.${premises}`,
       })
       setScanned(true)
       queryClient.invalidateQueries({ queryKey: ['hours-summary'] })

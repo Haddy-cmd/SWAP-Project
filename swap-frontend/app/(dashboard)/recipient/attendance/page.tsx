@@ -55,7 +55,10 @@ export default function AttendancePage() {
     },
     onSuccess: (res) => {
       setOpenLogId(res.data.id)
-      setMessage({ type: 'success', text: `Time-in recorded at ${formatDateTime(res.data.time_in)}` })
+      const premises = res.data.location_flagged
+        ? ' Your location couldn’t be fully verified (weak GPS).'
+        : ' You’re inside the office premises.'
+      setMessage({ type: 'success', text: `Time-in recorded at ${formatDateTime(res.data.time_in)}.${premises}` })
       queryClient.invalidateQueries({ queryKey: ['hours-summary'] })
       queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
       setQrToken('')

@@ -35,6 +35,7 @@ export default function ScanPage() {
   const [kind, setKind] = useState<'in' | 'out'>('in')
   const [openLogId, setOpenLogId] = useState<number | null>(null)
   const [narrativeOpen, setNarrativeOpen] = useState(false)
+  const [premises, setPremises] = useState<{ ok: boolean; text: string } | null>(null)
 
   async function clockIn() {
     setKind('in')
@@ -47,6 +48,13 @@ export default function ScanPage() {
     }
     try {
       const res = await attendanceApi.timeInGeofence(tokenRef.current, coords)
+      // A successful geofenced clock-in means the student was on the premises;
+      // location_flagged means the GPS fix was too coarse to fully trust.
+      setPremises(
+        res.data.location_flagged
+          ? { ok: false, text: 'Your location couldn’t be fully verified — GPS signal was weak, so your supervisor may review this clock-in.' }
+          : { ok: true, text: 'Confirmed: you’re inside the office premises.' },
+      )
       setPhase('success')
       setMessage(`Clocked in at ${formatDateTime(res.data.time_in)}`)
     } catch (e) {
@@ -58,6 +66,7 @@ export default function ScanPage() {
 
   async function clockOut(logId: number) {
     setKind('out')
+    setPremises(null)
     setPhase('working')
     setMessage('Recording your clock-out…')
     let coords
@@ -181,6 +190,21 @@ export default function ScanPage() {
               {office ? "You're clocked out!" : "You're clocked in!"}
             </h1>
             <p className="mt-2 text-sm text-[#8A6A6A]">{message}</p>
+
+            {premises && kind === 'in' && (
+              <div
+                className="mx-auto mt-4 flex max-w-xs items-start gap-2 rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-medium"
+                style={premises.ok
+                  ? { borderColor: '#BBE5C6', background: '#EEF7EF', color: '#2C5A33' }
+                  : { borderColor: '#F3D9A0', background: '#FFF7ED', color: '#92400E' }}
+              >
+                {premises.ok
+                  ? <MapPin className="mt-0.5 h-4 w-4 flex-none text-[#4E9657]" />
+                  : <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-[#B8860B]" />}
+                <span>{premises.text}</span>
+              </div>
+            )}
+
             <Link
               href="/recipient/dashboard"
               className="mt-6 inline-block rounded-xl bg-[#7D1A1A] px-6 py-3 text-sm font-semibold text-white hover:bg-[#A52020] transition-colors"
