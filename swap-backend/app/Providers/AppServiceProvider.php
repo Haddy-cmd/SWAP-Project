@@ -45,8 +45,17 @@ class AppServiceProvider extends ServiceProvider
         // instead of Laravel's default `password.reset` route, which doesn't
         // exist in this API-only app and would otherwise throw a 500.
         ResetPassword::createUrlUsing(function ($user, string $token) {
-            $base = rtrim(config('swap.frontend_url'), '/');
-            return "{$base}/reset-password?token={$token}&email=" . urlencode($user->email);
+            // Normalize FRONTEND_URL defensively: an empty or scheme-less value
+            // would produce a relative link, which email click-trackers (Brevo)
+            // reject with "host missing" and turn into a 404.
+            $base = trim((string) config('swap.frontend_url'));
+            if ($base === '') {
+                $base = 'http://localhost:3000';
+            }
+            if (!str_contains($base, '://')) {
+                $base = 'https://' . $base;
+            }
+            return rtrim($base, '/') . "/reset-password?token={$token}&email=" . urlencode($user->email);
         });
 
         // Brevo mail transport (HTTP API, not SMTP) so real emails can be sent
