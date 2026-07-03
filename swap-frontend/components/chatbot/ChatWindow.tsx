@@ -18,7 +18,7 @@ const GREETING: Message = {
 
 export function ChatWindow({ onClose }: { onClose?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([GREETING])
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   const ask = useMutation({
     mutationFn: (query: string) => chatbotApi.query(query).then((data) => ({ data })),
@@ -51,8 +51,11 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
     },
   })
 
+  // Scroll only the message list itself — scrollIntoView would also scroll
+  // every ancestor, yanking the whole page down when the widget is open.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = listRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
   function handleReset() {
@@ -94,7 +97,7 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto p-5">
+      <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto p-5">
         {messages.map((m) => (
           <ChatMessage key={m.id} message={m} />
         ))}
@@ -110,7 +113,6 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
