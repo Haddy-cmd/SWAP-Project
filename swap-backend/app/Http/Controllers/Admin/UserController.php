@@ -102,6 +102,12 @@ class UserController extends Controller
             return response()->json(['message' => 'You cannot delete your own account.'], 422);
         }
 
+        // Admin accounts are never deletable — deactivate instead. Prevents both
+        // lockouts and admins wiping each other out.
+        if ($user->role === 'admin') {
+            return response()->json(['message' => 'Admin accounts cannot be deleted. Deactivate the account instead.'], 422);
+        }
+
         AuditLog::record('deleted', $user);
         $this->userRepository->softDelete($user);
 

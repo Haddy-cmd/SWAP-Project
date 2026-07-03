@@ -121,10 +121,11 @@ export default function DutySlipPage() {
       return { rows, totalHours: total, periodLabel: label }
     }
 
-    // Week mode: the six weekdays (Mon–Sat) of the selected week.
+    // Week mode: the full week (Mon–Sun) — night and Sunday duty count as
+    // regular hours, so every day of the week gets a row.
     const start = new Date(weekStart + 'T00:00:00')
     let total = 0
-    const rows = Array.from({ length: 6 }, (_, i) => {
+    const rows = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start)
       d.setDate(start.getDate() + i)
       const row = buildRow(d, logs.filter((l) => (l.date ?? '').slice(0, 10) === iso(d)))

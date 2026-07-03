@@ -51,7 +51,7 @@ class DutySlipController extends Controller
                 $rangeLabel = 'Whole semester';
             } elseif (preg_match('/^W(\d{4})(\d{2})(\d{2})$/', $parsed['range'], $m)) {
                 $start = Carbon::create((int) $m[1], (int) $m[2], (int) $m[3])->startOfDay();
-                $end = $start->copy()->addDays(5); // Mon–Sat
+                $end = $start->copy()->addDays(6); // full week Mon–Sun; Sunday duty counts as regular hours
                 $q->whereBetween('date', [$start->toDateString(), $end->toDateString()]);
                 $rangeLabel = 'Week of ' . $start->format('M j, Y');
             }

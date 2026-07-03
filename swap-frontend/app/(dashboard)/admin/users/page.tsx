@@ -361,15 +361,17 @@ export default function AdminUsersPage() {
                         {active ? <UserX className="h-[15px] w-[15px]" /> : <UserCheck className="h-[15px] w-[15px]" />}
                         {active ? 'Deactivate' : 'Activate'}
                       </button>
-                      <button
-                        onClick={() => confirmDelete(user.id, user.name)}
-                        disabled={remove.isPending}
-                        title="Delete account"
-                        aria-label="Delete account"
-                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-[#F0D4D7] bg-[#FCF2F3] text-[#A52834] hover:bg-[#FBE6E8] disabled:opacity-50 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {user.role !== 'admin' && (
+                        <button
+                          onClick={() => confirmDelete(user.id, user.name)}
+                          disabled={remove.isPending}
+                          title="Delete account"
+                          aria-label="Delete account"
+                          className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-[#F0D4D7] bg-[#FCF2F3] text-[#A52834] hover:bg-[#FBE6E8] disabled:opacity-50 transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
