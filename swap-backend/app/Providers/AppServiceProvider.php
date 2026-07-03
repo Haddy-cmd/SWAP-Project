@@ -10,9 +10,12 @@ use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\TimeLogRepository;
 use App\Repositories\UserRepository;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Symfony\Component\Mailer\Bridge\Brevo\Transport\BrevoTransportFactory;
+use Symfony\Component\Mailer\Transport\Dsn;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -44,6 +47,15 @@ class AppServiceProvider extends ServiceProvider
         ResetPassword::createUrlUsing(function ($user, string $token) {
             $base = rtrim(config('swap.frontend_url'), '/');
             return "{$base}/reset-password?token={$token}&email=" . urlencode($user->email);
+        });
+
+        // Brevo mail transport (HTTP API, not SMTP) so real emails can be sent
+        // from hosts that block outbound SMTP ports, like Render's free tier.
+        // Activate with MAIL_MAILER=brevo + BREVO_API_KEY.
+        Mail::extend('brevo', function () {
+            return (new BrevoTransportFactory())->create(
+                new Dsn('brevo+api', 'default', config('services.brevo.key'))
+            );
         });
     }
 }
