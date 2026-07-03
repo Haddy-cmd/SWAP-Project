@@ -97,6 +97,15 @@ export default function ProfilePage() {
     uploadPhoto.mutate(new File([blob], 'avatar.jpg', { type: 'image/jpeg' }))
   }
 
+  const removePhoto = useMutation({
+    mutationFn: () => authApi.removePhoto(),
+    onSuccess: (updated) => {
+      setAuth(updated, useAuthStore.getState().token ?? '')
+      setPhotoMsg(null)
+    },
+    onError: (err: ApiError) => setPhotoMsg(err.message ?? 'Could not remove photo.'),
+  })
+
   const isStudent = !!user?.profile
   const role = (user?.role ?? 'applicant') as UserRole
   const department =
@@ -196,6 +205,15 @@ export default function ProfilePage() {
             </button>
             <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onPhotoChange} />
           </div>
+          {user.avatar_url && (
+            <button
+              onClick={() => removePhoto.mutate()}
+              disabled={removePhoto.isPending}
+              className="mb-1 text-xs font-semibold text-[#A38A82] hover:text-[#C0392B] disabled:opacity-60 transition-colors"
+            >
+              {removePhoto.isPending ? 'Removing…' : 'Remove photo'}
+            </button>
+          )}
           {photoMsg && <p className="mb-2 text-xs text-[#C0392B]">{photoMsg}</p>}
           <div className="font-serif text-[23px] font-semibold text-[#241715]">{user.name}</div>
           <span className="mt-2 mb-5 inline-flex items-center gap-1.5 rounded-full bg-[#FBEAEC] px-3 py-1.5 text-[11px] font-bold text-[#7C1B26]">

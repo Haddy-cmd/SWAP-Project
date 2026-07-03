@@ -78,6 +78,28 @@ class ProfileController extends Controller
         ]);
     }
 
+    public function deletePhoto(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $old = $user->avatar_path;
+        $user->update(['avatar_path' => null]);
+
+        // The avatar is always its own object under avatars/{id}, never the ID
+        // document, so removing it never affects the application requirement.
+        if ($old) {
+            try {
+                Storage::disk(config('filesystems.documents_disk', 'public'))->delete($old);
+            } catch (\Throwable) {
+                // best effort
+            }
+        }
+
+        return response()->json([
+            'data' => new UserResource($user->fresh('profile')),
+            'message' => 'Profile photo removed.',
+        ]);
+    }
+
     public function updatePassword(Request $request): JsonResponse
     {
         $request->validate([

@@ -32,6 +32,9 @@ export const authApi = {
       .then((r) => r.data.data)
   },
 
+  removePhoto: () =>
+    apiClient.delete<ApiResponse<User>>('/profile/photo').then((r) => r.data.data),
+
   updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) =>
     apiClient.put('/profile/password', data).then((r) => r.data),
 }

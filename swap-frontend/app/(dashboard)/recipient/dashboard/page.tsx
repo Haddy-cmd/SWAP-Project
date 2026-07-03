@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { Clock, TrendingUp, FileText, Banknote, MapPin, UserCog, ArrowRight, Lightbulb, PartyPopper } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 
@@ -85,9 +86,8 @@ export default function RecipientDashboard() {
         <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#D8B65A]/15 blur-2xl" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">
-            <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#E6C66A] to-[#B8901F] text-xl font-extrabold text-[#531010]">
-              {user?.name?.charAt(0).toUpperCase() ?? '?'}
-            </div>
+            <UserAvatar name={user?.name} avatarUrl={user?.avatar_url}
+              className="h-14 w-14 rounded-full bg-gradient-to-br from-[#E6C66A] to-[#B8901F] text-xl font-extrabold text-[#531010]" />
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#E6C66A]">Welcome back</p>
               <h1 className="truncate text-xl font-bold sm:text-2xl">{user?.name}</h1>
