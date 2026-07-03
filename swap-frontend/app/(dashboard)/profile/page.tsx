@@ -9,6 +9,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ChevronRight, ShieldCheck, Mail, Phone, Building2, CalendarDays, LogOut,
   Save, KeyRound, Lock, Bell, CheckCircle2, FileCheck, Clock, Camera, Loader2,
+  Eye, EyeOff,
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -73,6 +74,7 @@ export default function ProfilePage() {
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
   const [pwMsg, setPwMsg] = useState<string | null>(null)
   const [photoMsg, setPhotoMsg] = useState<string | null>(null)
+  const [showPw, setShowPw] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -355,18 +357,24 @@ export default function ProfilePage() {
                 <form onSubmit={hpw((d) => { setPwMsg(null); updatePassword.mutate(d) })} className="space-y-4">
                   <div>
                     <label className={LABEL}>Current Password</label>
-                    <input {...rpw('current_password')} type="password" placeholder="••••••••" className={INPUT} />
+                    <div className="relative">
+                      <input {...rpw('current_password')} type={showPw ? 'text' : 'password'} placeholder="••••••••" className={`${INPUT} pr-11`} />
+                      <button type="button" onClick={() => setShowPw((s) => !s)} aria-label={showPw ? 'Hide passwords' : 'Show passwords'}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#B09A9A] hover:text-[#7C1B26] transition-colors">
+                        {showPw ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                      </button>
+                    </div>
                     {pwe.current_password && <p className="mt-1 text-xs text-[#C0392B]">{pwe.current_password.message}</p>}
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label className={LABEL}>New Password</label>
-                      <input {...rpw('password')} type="password" placeholder="••••••••" className={INPUT} />
+                      <input {...rpw('password')} type={showPw ? 'text' : 'password'} placeholder="••••••••" className={INPUT} />
                       {pwe.password && <p className="mt-1 text-xs text-[#C0392B]">{pwe.password.message}</p>}
                     </div>
                     <div>
                       <label className={LABEL}>Confirm New Password</label>
-                      <input {...rpw('password_confirmation')} type="password" placeholder="••••••••" className={INPUT} />
+                      <input {...rpw('password_confirmation')} type={showPw ? 'text' : 'password'} placeholder="••••••••" className={INPUT} />
                       {pwe.password_confirmation && <p className="mt-1 text-xs text-[#C0392B]">{pwe.password_confirmation.message}</p>}
                     </div>
                   </div>
