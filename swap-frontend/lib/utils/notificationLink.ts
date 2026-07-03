@@ -18,6 +18,8 @@ export function notificationLink(n: Notification, role?: string | null): string 
       return role === 'admin' ? `/admin/applications/${appId}` : `/applicant/application/${appId}`
     case 'stipend':
       return role === 'admin' ? '/admin/stipend' : '/recipient/stipend'
+    case 'assignment': // placed at / moved to an office → dashboard shows office + supervisor
+      return role === 'admin' ? '/admin/assignments' : '/recipient/dashboard'
     case 'attendance': // hours verified / rejected → the recipient's hours
       return '/recipient/hours'
     case 'verification': // a recipient's hours awaiting the supervisor
