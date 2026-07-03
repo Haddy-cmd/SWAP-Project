@@ -36,6 +36,58 @@ export function getCurrentPosition(options?: PositionOptions): Promise<Coords> {
   })
 }
 
+/**
+ * Watch the GPS for up to `maxWaitMs` and return the most accurate fix seen,
+ * resolving early once accuracy is within `goodEnoughMeters`. Indoors, the first
+ * fix is often a coarse Wi-Fi/cell estimate hundreds of meters off — sampling for
+ * a few seconds lets the device converge before we run the geofence check.
+ */
+export function getBestPosition(maxWaitMs = 8_000, goodEnoughMeters = 25): Promise<Coords> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      reject(new Error('Geolocation is not supported on this device.'))
+      return
+    }
+
+    let best: Coords | null = null
+    let settled = false
+
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      navigator.geolocation.clearWatch(watchId)
+      if (best) resolve(best)
+      else reject(new Error('GPS signal weak. Cannot verify your location.'))
+    }
+
+    const timer = setTimeout(finish, maxWaitMs)
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const fix = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        }
+        if (!best || fix.accuracy < best.accuracy) best = fix
+        if (fix.accuracy <= goodEnoughMeters) finish()
+      },
+      (err) => {
+        // Only bail early on a hard permission denial; transient errors just
+        // mean "keep waiting for the timer / a later fix".
+        if (err.code === err.PERMISSION_DENIED) {
+          settled = true
+          clearTimeout(timer)
+          navigator.geolocation.clearWatch(watchId)
+          reject(new Error('Location permission denied. Enable location to use geofencing.'))
+        }
+      },
+      { enableHighAccuracy: true, timeout: maxWaitMs, maximumAge: 0 },
+    )
+  })
+}
+
 const EARTH_RADIUS_METERS = 6_371_000
 
 /** Great-circle distance between two coordinates in meters (Haversine). */

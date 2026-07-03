@@ -9,7 +9,7 @@ import { attendanceApi } from '@/lib/api/attendance.api'
 import { authApi } from '@/lib/api/auth.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import { useAuthStore } from '@/lib/store/authStore'
-import { getCurrentPosition } from '@/lib/utils/geolocation'
+import { getBestPosition } from '@/lib/utils/geolocation'
 import { formatDateTime } from '@/lib/utils/formatDate'
 
 type Phase = 'working' | 'narrative' | 'success' | 'error'
@@ -42,7 +42,7 @@ export default function ScanPage() {
     setMessage('Verifying your location…')
     let coords
     try {
-      coords = await getCurrentPosition()
+      coords = await getBestPosition()
     } catch {
       coords = undefined // backend rejects if the office requires geofencing
     }
@@ -71,7 +71,7 @@ export default function ScanPage() {
     setMessage('Recording your clock-out…')
     let coords
     try {
-      coords = await getCurrentPosition()
+      coords = await getBestPosition()
     } catch {
       coords = undefined
     }

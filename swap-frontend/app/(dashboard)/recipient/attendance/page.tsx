@@ -8,7 +8,7 @@ import { HoursProgress } from '@/components/attendance/HoursProgress'
 import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
-import { getCurrentPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
+import { getCurrentPosition, getBestPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
 
 type AttendanceMode = 'idle' | 'clocked-in'
 
@@ -47,7 +47,7 @@ export default function AttendancePage() {
       // Geofenced clock-in: attach GPS when available; backend enforces premises for geofenced offices.
       let coords: Coords | undefined
       try {
-        coords = await getCurrentPosition()
+        coords = await getBestPosition()
       } catch {
         coords = undefined
       }
@@ -73,7 +73,7 @@ export default function AttendancePage() {
       if (!openLogId) throw new Error('No open log')
       let coords: Coords | undefined
       try {
-        coords = await getCurrentPosition()
+        coords = await getBestPosition()
       } catch {
         coords = undefined
       }

@@ -59,7 +59,17 @@ class AttendanceService
         }
 
         if (!$this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
-            throw new UnprocessableEntityHttpException('You must be on the office premises to clock in.');
+            // Say exactly how far off the reading was, so a mis-placed office pin,
+            // a too-tight radius, and a bad GPS fix are distinguishable at a glance.
+            $distance = round($this->geofenceService->distanceMeters(
+                (float) $office->latitude, (float) $office->longitude, $latitude, $longitude
+            ));
+            $acc = $accuracy !== null ? '±' . round($accuracy) . 'm' : 'unknown';
+            throw new UnprocessableEntityHttpException(
+                "You must be on the office premises to clock in. Your phone's location reads ~{$distance}m from {$office->name} "
+                . "(allowed radius {$office->radius_meters}m, GPS accuracy {$acc}). "
+                . 'If you are inside, try again near a window — or ask the DSA to check the office map pin and radius.'
+            );
         }
 
         $this->guardClockIn($assignment, $user);
