@@ -59,12 +59,8 @@ export function Topbar() {
           className="flex items-center gap-2 rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-sm font-medium text-[#1E293B] hover:bg-[#FAF7F7] transition-colors"
         >
           <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#7D1A1A] text-xs font-bold text-white">
-            {avatarSrc(user?.avatar_url, token) ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={avatarSrc(user?.avatar_url, token)!} alt={user?.name ?? ''} className="h-full w-full object-cover" />
-            ) : (
-              user?.name?.charAt(0).toUpperCase() ?? '?'
-            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={avatarSrc(user?.avatar_url, token) ?? '/default-avatar.svg'} alt={user?.name ?? ''} className="h-full w-full object-cover" />
           </div>
           <span className="hidden sm:inline">{user?.name}</span>
         </Link>

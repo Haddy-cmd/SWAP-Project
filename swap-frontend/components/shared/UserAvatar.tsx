@@ -4,15 +4,14 @@ import type { CSSProperties } from 'react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { avatarSrc } from '@/lib/utils/avatar'
 
-function initialsOf(name?: string | null) {
-  return (name ?? '?').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
-}
+/** Shown whenever a user hasn't uploaded a profile photo. */
+export const DEFAULT_AVATAR = '/default-avatar.svg'
 
 /**
- * Renders a user's profile photo when they have one, falling back to their
- * initials. Works for *any* user (not just the logged-in one) — the photo is
- * streamed through the authenticated avatar endpoint using the current viewer's
- * token. Pass sizing/shape via `className` and the initials colors via `style`.
+ * Renders a user's profile photo when they have one, falling back to the
+ * default silhouette avatar. Works for *any* user (not just the logged-in
+ * one) — photos are streamed through the authenticated avatar endpoint using
+ * the current viewer's token. Pass sizing/shape via `className`.
  */
 export function UserAvatar({ name, avatarUrl, className, style }: {
   name?: string | null
@@ -21,18 +20,14 @@ export function UserAvatar({ name, avatarUrl, className, style }: {
   style?: CSSProperties
 }) {
   const token = useAuthStore((s) => s.token)
-  const src = avatarSrc(avatarUrl, token)
+  const src = avatarSrc(avatarUrl, token) ?? DEFAULT_AVATAR
   return (
     <span
       className={`flex flex-none items-center justify-center overflow-hidden ${className ?? ''}`}
-      style={src ? undefined : style}
+      style={style}
     >
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={name ?? ''} className="h-full w-full object-cover" />
-      ) : (
-        initialsOf(name)
-      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={name ?? ''} className="h-full w-full object-cover" />
     </span>
   )
 }

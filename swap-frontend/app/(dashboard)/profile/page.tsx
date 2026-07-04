@@ -189,12 +189,8 @@ export default function ProfilePage() {
         <div className={`${CARD} flex flex-col items-center px-7 py-9 text-center`}>
           <div className="relative mb-[18px]">
             <div className="flex h-[120px] w-[120px] items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#8A2230] to-[#651420] shadow-[0_12px_30px_rgba(108,22,32,0.3)]">
-              {avatarSrc(user.avatar_url, token) ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={avatarSrc(user.avatar_url, token)!} alt={user.name} className="h-full w-full object-cover" />
-              ) : (
-                <span className="font-serif text-[52px] font-semibold text-[#F3D9A0]">{user.name.charAt(0).toUpperCase()}</span>
-              )}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={avatarSrc(user.avatar_url, token) ?? '/default-avatar.svg'} alt={user.name} className="h-full w-full object-cover" />
             </div>
             <button
               onClick={() => fileInput.current?.click()}

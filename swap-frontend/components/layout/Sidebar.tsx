@@ -136,12 +136,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           aria-label="Profile"
           className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#D8B65A] to-[#B8901F] text-sm font-bold text-[#531010] ring-2 ring-white/10 transition hover:brightness-105"
         >
-          {avatarSrc(user?.avatar_url, token) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatarSrc(user?.avatar_url, token)!} alt={user?.name ?? ''} className="h-full w-full object-cover" />
-          ) : (
-            user?.name?.charAt(0).toUpperCase() ?? '?'
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={avatarSrc(user?.avatar_url, token) ?? '/default-avatar.svg'} alt={user?.name ?? ''} className="h-full w-full object-cover" />
         </Link>
 
         <button

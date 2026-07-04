@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Default profile picture: brand-tinted person silhouette -->
+  <rect width="128" height="128" fill="#F0DFE2"/>
+  <circle cx="64" cy="47" r="23" fill="#8E5A63"/>
+  <path d="M64 78c-24 0-41 13.5-45 34.5V128h90v-15.5C105 91.5 88 78 64 78z" fill="#8E5A63"/>
+</svg>
