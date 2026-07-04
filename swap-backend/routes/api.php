@@ -97,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/students/clocked-in', [StudentController::class, 'clockedIn']);
         Route::get('/students/{id}/summary', [StudentController::class, 'summary']);
         Route::get('/students/{id}/logs', [StudentController::class, 'logs']);
+        Route::get('/students/{id}/documents', [StudentController::class, 'documents']);
         Route::post('/students/{id}/manual-hours', [StudentController::class, 'addManualHours']);
         Route::put('/students/{id}/required-hours', [StudentController::class, 'updateRequiredHours']);
         Route::post('/students/{id}/required-hours/decision', [StudentController::class, 'decideRequiredHours']);

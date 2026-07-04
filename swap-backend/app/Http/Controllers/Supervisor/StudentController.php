@@ -121,6 +121,40 @@ class StudentController extends Controller
         ]);
     }
 
+    /**
+     * The application documents (COR, grades, letter of intent, ID photo) of a
+     * recipient this supervisor manages — so supervisors can review their own
+     * students' requirements without asking the admin.
+     */
+    public function documents(Request $request, int $studentId): JsonResponse
+    {
+        $assignment = $this->ownedAssignment($request->user(), $studentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        $token = $request->bearerToken();
+
+        $documents = \App\Models\ApplicationDocument::whereHas('application', fn ($q) => $q->where('user_id', $studentId))
+            ->orderBy('document_type')
+            ->get()
+            ->map(function ($doc) use ($token) {
+                $url = rtrim(config('app.url'), '/') . '/api/documents/' . $doc->id . '/file';
+                if ($token) {
+                    $url .= '?token=' . urlencode($token);
+                }
+                return [
+                    'id' => $doc->id,
+                    'document_type' => $doc->document_type,
+                    'file_url' => $url,
+                    'file_name' => $doc->file_name,
+                    'mime_type' => $doc->mime_type,
+                ];
+            });
+
+        return response()->json(['data' => $documents]);
+    }
+
     /** Grant manual/bonus hours to a student in this supervisor's office. */
     public function addManualHours(Request $request, int $studentId): JsonResponse
     {

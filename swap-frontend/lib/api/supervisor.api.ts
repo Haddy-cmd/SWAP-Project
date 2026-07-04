@@ -6,8 +6,20 @@ export interface OfficeQr {
   qr_code: string
 }
 
+export interface StudentDocument {
+  id: number
+  document_type: string
+  file_url: string
+  file_name: string | null
+  mime_type: string | null
+}
+
 export const supervisorApi = {
   // The signed attendance QR for the supervisor's assigned office.
   getOfficeQr: () =>
     apiClient.get<ApiResponse<OfficeQr>>('/supervisor/office-qr').then((r) => r.data.data),
+
+  // Application documents of a recipient this supervisor manages.
+  getStudentDocuments: (studentId: number) =>
+    apiClient.get<ApiResponse<StudentDocument[]>>(`/supervisor/students/${studentId}/documents`).then((r) => r.data.data),
 }

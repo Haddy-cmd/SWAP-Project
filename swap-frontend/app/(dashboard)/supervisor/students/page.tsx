@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2 } from 'lucide-react'
+import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2, FileText, X } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
+import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
+import { supervisorApi } from '@/lib/api/supervisor.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 import { cn } from '@/lib/utils/cn'
@@ -70,7 +72,50 @@ function Progress({ row }: { row: Row }) {
   )
 }
 
-function Actions({ row, onBonus, onHours }: { row: Row; onBonus: () => void; onHours: () => void }) {
+function StudentDocumentsModal({ student, onClose }: { student: Selected; onClose: () => void }) {
+  const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
+  const { data: docs, isLoading } = useQuery({
+    queryKey: ['student-documents', student.userId],
+    queryFn: () => supervisorApi.getStudentDocuments(student.userId),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <h2 className="font-semibold text-[#1E293B]">Documents</h2>
+            <p className="text-sm text-[#8A6A6A]">{student.name}&apos;s application requirements</p>
+          </div>
+          <button onClick={onClose} className="text-[#94A3B8] hover:text-[#E74C3C] transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="space-y-2">{[1, 2, 3].map((n) => <div key={n} className="h-12 animate-pulse rounded-lg bg-[#EAD9D9]/60" />)}</div>
+        ) : !docs?.length ? (
+          <p className="py-8 text-center text-sm text-[#94A3B8]">No documents on file for this student.</p>
+        ) : (
+          <ul className="space-y-2">
+            {docs.map((doc) => (
+              <li key={doc.id} className="flex items-center justify-between rounded-lg border border-[#EAD9D9] px-4 py-3">
+                <p className="text-sm capitalize text-[#1E293B]">{doc.document_type.replace(/_/g, ' ')}</p>
+                <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-medium text-[#7D1A1A] hover:text-[#A52020] transition-colors">
+                  <FileText className="h-3.5 w-3.5" />
+                  View
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
+    </div>
+  )
+}
+
+function Actions({ row, onBonus, onHours, onDocs }: { row: Row; onBonus: () => void; onHours: () => void; onDocs: () => void }) {
   return (
     <div className="flex flex-shrink-0 gap-2">
       <button onClick={onBonus} className="flex items-center gap-1 rounded-lg bg-[#7D1A1A] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#5C1010] transition-colors">
@@ -80,6 +125,10 @@ function Actions({ row, onBonus, onHours }: { row: Row; onBonus: () => void; onH
       <button onClick={onHours} className="flex items-center gap-1 rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors">
         <Target className="h-3.5 w-3.5" />
         Hours
+      </button>
+      <button onClick={onDocs} className="flex items-center gap-1 rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-xs font-medium text-[#6B4E9A] hover:bg-[#F1ECF7] transition-colors">
+        <FileText className="h-3.5 w-3.5" />
+        Docs
       </button>
       <Link href={`/supervisor/students/${row.userId}`} className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-medium text-[#1B4F72] hover:bg-[#EBF5FB] transition-colors">
         View
@@ -93,6 +142,7 @@ export default function SupervisorStudentsPage() {
   const [view, setView] = useState<'cards' | 'list'>('cards') // card view is the default
   const [search, setSearch] = useState('')
   const [bonusFor, setBonusFor] = useState<Selected | null>(null)
+  const [docsFor, setDocsFor] = useState<Selected | null>(null)
   const [hoursFor, setHoursFor] = useState<Selected | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -219,7 +269,7 @@ export default function SupervisorStudentsPage() {
                 <div className="mt-3"><Progress row={r} /></div>
               </div>
               <div className="mt-4 flex justify-end">
-                <Actions row={r} onBonus={() => openBonus(r)} onHours={() => openHours(r)} />
+                <Actions row={r} onBonus={() => openBonus(r)} onHours={() => openHours(r)} onDocs={() => setDocsFor({ userId: r.userId, name: r.name, required: r.required })} />
               </div>
             </div>
           ))}
@@ -265,7 +315,7 @@ export default function SupervisorStudentsPage() {
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
-                        <Actions row={r} onBonus={() => openBonus(r)} onHours={() => openHours(r)} />
+                        <Actions row={r} onBonus={() => openBonus(r)} onHours={() => openHours(r)} onDocs={() => setDocsFor({ userId: r.userId, name: r.name, required: r.required })} />
                       </div>
                     </td>
                   </tr>
@@ -284,6 +334,9 @@ export default function SupervisorStudentsPage() {
           onClose={() => setBonusFor(null)}
           onSubmit={(v) => addBonus.mutate(v)}
         />
+      )}
+      {docsFor && (
+        <StudentDocumentsModal student={docsFor} onClose={() => setDocsFor(null)} />
       )}
       {hoursFor && (
         <RequiredHoursModal
