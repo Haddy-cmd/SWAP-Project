@@ -174,7 +174,7 @@ export default function AdminReportsPage() {
 
                 <StatGrid stats={stats} />
 
-                <table className="mt-6 w-full border-collapse">
+                <div className="mt-6 overflow-x-auto"><table className="w-full border-collapse">
                   <thead>
                     <tr>
                       {headers.map((h) => (
@@ -193,7 +193,7 @@ export default function AdminReportsPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
 
                 <div className="mt-5 flex items-center justify-between border-t border-[#EFE5DA] pt-4 text-[10.5px] text-[#A38A82]">
                   <span>Showing {Math.min(rows.length, 40)} of {rows.length} records.</span>

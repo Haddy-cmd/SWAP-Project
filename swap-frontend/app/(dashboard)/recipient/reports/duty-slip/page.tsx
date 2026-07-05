@@ -214,7 +214,8 @@ export default function DutySlipPage() {
       {isLoading && <div className="no-print h-40 animate-pulse rounded-2xl bg-[#E2E8F0]" />}
 
       {/* ── Printable duty slip ─────────────────────────────────────────────── */}
-      <div className="duty-slip mx-auto w-full max-w-[1000px] rounded-lg border border-[#E2E8F0] bg-white p-6 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none">
+      <div className="duty-slip mx-auto w-full max-w-[1000px] rounded-lg border border-[#E2E8F0] bg-white p-6 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
+        <div className="min-w-[640px]">
         {/* Header table */}
         <table className="w-full border-collapse text-[11px]">
           <tbody>
@@ -304,6 +305,7 @@ export default function DutySlipPage() {
           <SignatureBlock line={supervisor} role="Immediate Supervisor" sub="Name & Signature" />
           <SignatureBlock line={name} role="SWAP Beneficiary Signature" sub="" />
           <SignatureBlock line="" role="SWAP Mentor/Verifier" sub="Name & Signature" />
+        </div>
         </div>
       </div>
 
