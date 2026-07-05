@@ -66,6 +66,19 @@ class ApplicationResource extends JsonResource
                 'mode' => $this->interview->mode,
                 'notes' => $this->interview->notes,
                 'status' => $this->interview->status,
+                // Reschedule trail: previous time, new time, who moved it, when.
+                'history' => \App\Models\AuditLog::where('auditable_type', \App\Models\Interview::class)
+                    ->where('auditable_id', $this->interview->id)
+                    ->where('action', 'rescheduled')
+                    ->orderByDesc('created_at')
+                    ->with('user')
+                    ->get()
+                    ->map(fn ($log) => [
+                        'from' => $log->old_values['scheduled_at'] ?? null,
+                        'to' => $log->new_values['scheduled_at'] ?? null,
+                        'changed_at' => $log->created_at->toISOString(),
+                        'changed_by' => $log->user?->name,
+                    ])->values(),
             ] : null),
         ];
     }

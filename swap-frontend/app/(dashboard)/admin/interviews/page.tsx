@@ -241,6 +241,9 @@ export default function AdminInterviewsPage() {
                     return (
                       <div key={it.app.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 sm:px-[18px] ${i < g.items.length - 1 ? 'border-b border-[#F4ECE1]' : ''}`}>
                         <div className="w-[66px] flex-none text-[12.5px] font-bold text-[#7C1B26]">{formatTime(it.iv.scheduled_at)}</div>
+                        {it.iv.status === 'no_show' && (
+                          <span className="flex-none rounded-full bg-[#FFF9EC] px-2 py-0.5 text-[10.5px] font-bold text-[#B45309] ring-1 ring-[#F0DFAE]">No-show</span>
+                        )}
                         <UserAvatar name={it.app.user?.name} avatarUrl={it.app.user?.avatar_url} className="h-9 w-9 rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }} />
                         <div className="min-w-0 flex-1 leading-tight">
                           <div className="truncate text-[13.5px] font-semibold text-[#241715]">{it.app.user?.name ?? '—'}</div>
@@ -301,7 +304,12 @@ export default function AdminInterviewsPage() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1.5 border-t border-[#F4ECE1] pt-3">
-                  <div className="flex items-center gap-2.5 text-[12.5px] text-[#5A4A45]"><Clock className="h-4 w-4 text-[#B79B7E]" />{formatTime(it.iv.scheduled_at)}</div>
+                  <div className="flex items-center gap-2.5 text-[12.5px] text-[#5A4A45]">
+                    <Clock className="h-4 w-4 text-[#B79B7E]" />{formatTime(it.iv.scheduled_at)}
+                    {it.iv.status === 'no_show' && (
+                      <span className="rounded-full bg-[#FFF9EC] px-2 py-0.5 text-[10.5px] font-bold text-[#B45309] ring-1 ring-[#F0DFAE]">No-show</span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2.5 text-[12.5px] text-[#5A4A45]">
                     {it.iv.mode === 'online' ? <Video className="h-4 w-4 text-[#B79B7E]" /> : <MapPin className="h-4 w-4 text-[#B79B7E]" />}
                     {it.iv.location || (it.iv.mode === 'online' ? 'Online meeting link' : 'DSA Office')}

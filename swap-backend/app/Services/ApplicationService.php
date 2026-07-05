@@ -207,6 +207,71 @@ class ApplicationService
         return $updated->load('interview');
     }
 
+    /**
+     * Move an existing interview to a new time (and optionally venue/mode). The
+     * previous schedule is kept as an audit trail entry — who moved it, from
+     * when to when — and the applicant is re-notified. Also clears a no-show
+     * flag, since a rescheduled interview is pending again.
+     */
+    public function rescheduleInterview(Application $application, array $data, User $admin): Application
+    {
+        $interview = $application->interview;
+
+        if (!$interview) {
+            throw new ConflictHttpException('This application has no interview to reschedule.');
+        }
+
+        if (($data['mode'] ?? null) === 'in_person' && empty($data['location'])) {
+            $data['location'] = self::DSA_OFFICE_LOCATION;
+        }
+
+        $old = [
+            'scheduled_at' => $interview->scheduled_at?->toISOString(),
+            'location' => $interview->location,
+            'mode' => $interview->mode,
+            'status' => $interview->status,
+        ];
+
+        $interview->update(array_merge($data, ['status' => 'scheduled']));
+        $interview->refresh();
+
+        AuditLog::record('rescheduled', $interview, $old, [
+            'scheduled_at' => $interview->scheduled_at?->toISOString(),
+            'location' => $interview->location,
+            'mode' => $interview->mode,
+            'status' => $interview->status,
+        ], $admin->id);
+
+        $updated = $this->applicationRepository->update($application, [
+            'status' => 'interview_scheduled',
+            'reviewed_by' => $admin->id,
+            'reviewed_at' => now(),
+        ]);
+
+        event(new InterviewScheduled($updated));
+
+        return $updated->load('interview');
+    }
+
+    /** Record that the applicant did not attend their scheduled interview. */
+    public function markInterviewNoShow(Application $application, User $admin): Application
+    {
+        $interview = $application->interview;
+
+        if (!$interview) {
+            throw new ConflictHttpException('This application has no interview.');
+        }
+
+        if ($interview->status !== 'scheduled') {
+            throw new ConflictHttpException('Only a scheduled interview can be marked as a no-show.');
+        }
+
+        $interview->update(['status' => 'no_show']);
+        AuditLog::record('updated', $interview, ['status' => 'scheduled'], ['status' => 'no_show'], $admin->id);
+
+        return $application->fresh('interview');
+    }
+
     public function decideApplication(Application $application, string $decision, ?string $remarks, User $admin): Application
     {
         // A fresh application can only be approved once its interview has been

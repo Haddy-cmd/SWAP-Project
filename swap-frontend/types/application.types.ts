@@ -47,6 +47,12 @@ export interface Interview {
   mode: 'in_person' | 'online'
   notes: string | null
   status: string
+  history?: {
+    from: string | null
+    to: string | null
+    changed_at: string
+    changed_by: string | null
+  }[]
 }
 
 export interface StoreApplicationData {

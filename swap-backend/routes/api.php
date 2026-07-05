@@ -115,6 +115,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applications/{id}', [AdminApplicationController::class, 'show']);
         Route::put('/applications/{id}/review', [AdminApplicationController::class, 'review']);
         Route::post('/applications/{id}/interview', [AdminApplicationController::class, 'interview']);
+        Route::put('/applications/{id}/interview', [AdminApplicationController::class, 'rescheduleInterview']);
+        Route::post('/applications/{id}/interview/no-show', [AdminApplicationController::class, 'markInterviewNoShow']);
         Route::put('/applications/{id}/decide', [AdminApplicationController::class, 'decide']);
 
         Route::get('/assignments', [AssignmentController::class, 'index']);

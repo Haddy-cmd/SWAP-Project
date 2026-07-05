@@ -78,6 +78,44 @@ class ApplicationController extends Controller
         ]);
     }
 
+    /** Move an existing interview to a new time; the change is audit-logged. */
+    public function rescheduleInterview(StoreInterviewRequest $request, int $id): JsonResponse
+    {
+        $application = $this->applicationService->getApplicationById($id);
+
+        if (!$application) {
+            return response()->json(['message' => 'Application not found.'], 404);
+        }
+
+        $updated = $this->applicationService->rescheduleInterview(
+            $application,
+            $request->validated(),
+            $request->user()
+        );
+
+        return response()->json([
+            'data' => new ApplicationResource($updated),
+            'message' => 'Interview rescheduled. Applicant has been notified.',
+        ]);
+    }
+
+    /** Record that the applicant did not attend their interview. */
+    public function markInterviewNoShow(Request $request, int $id): JsonResponse
+    {
+        $application = $this->applicationService->getApplicationById($id);
+
+        if (!$application) {
+            return response()->json(['message' => 'Application not found.'], 404);
+        }
+
+        $updated = $this->applicationService->markInterviewNoShow($application, $request->user());
+
+        return response()->json([
+            'data' => new ApplicationResource($updated),
+            'message' => 'Interview marked as no-show.',
+        ]);
+    }
+
     public function decide(DecideApplicationRequest $request, int $id): JsonResponse
     {
         $application = $this->applicationService->getApplicationById($id);

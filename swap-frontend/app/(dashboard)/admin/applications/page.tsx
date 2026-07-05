@@ -64,6 +64,7 @@ export default function AdminApplicationsPage() {
   const [location, setLocation] = useState(DSA_OFFICE)
   const [remarks, setRemarks] = useState('')
   const [toast, setToast] = useState<Toast | null>(null)
+  const [rescheduling, setRescheduling] = useState(false)
   const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
   // ── queue list (same params/behaviour as before) ─────────────────────────
@@ -108,6 +109,7 @@ export default function AdminApplicationsPage() {
     setLocation(DSA_OFFICE)
     setRemarks('')
     setToast(null)
+    setRescheduling(false)
   }, [activeId])
 
   const refresh = () => {
@@ -131,6 +133,25 @@ export default function AdminApplicationsPage() {
       refresh()
       setInterviewDate('')
       setToast({ text: 'Interview scheduled. The applicant has been notified.', bg: '#F4EEFA', border: '#E2D5F0', color: '#5A3E86', Icon: CalendarCheck })
+    },
+  })
+
+  const reschedule = useMutation({
+    mutationFn: () =>
+      applicationsApi.adminRescheduleInterview(activeId!, { scheduled_at: interviewDate, location, mode }),
+    onSuccess: () => {
+      refresh()
+      setInterviewDate('')
+      setRescheduling(false)
+      setToast({ text: 'Interview rescheduled. The applicant has been notified.', bg: '#F4EEFA', border: '#E2D5F0', color: '#5A3E86', Icon: CalendarCheck })
+    },
+  })
+
+  const markNoShow = useMutation({
+    mutationFn: () => applicationsApi.adminMarkInterviewNoShow(activeId!),
+    onSuccess: () => {
+      refresh()
+      setToast({ text: 'Marked as no-show. You can reschedule or reject with remarks.', bg: '#FFF9EC', border: '#F0DFAE', color: '#7A5C12', Icon: AlertTriangle })
     },
   })
 
@@ -476,9 +497,12 @@ export default function AdminApplicationsPage() {
                 {/* STATE: interview_scheduled → details */}
                 {status === 'interview_scheduled' && iv && (
                   <div className="mb-5 rounded-[13px] border border-[#E2D5F0] bg-[#F4EEFA] px-[18px] py-4">
-                    <div className="mb-3 flex items-center gap-2">
+                    <div className="mb-3 flex flex-wrap items-center gap-2">
                       <CalendarCheck className="h-[19px] w-[19px] text-[#6B4E9A]" />
                       <span className="text-[13.5px] font-bold text-[#5A3E86]">Interview Scheduled</span>
+                      {iv.status === 'no_show' && (
+                        <span className="rounded-full bg-[#FFF9EC] px-2 py-0.5 text-[11px] font-bold text-[#B45309] ring-1 ring-[#F0DFAE]">No-show</span>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2 text-[13px] text-[#3F2F2A]">
                       <span className="flex items-center gap-2.5"><Clock className="h-[17px] w-[17px] text-[#9078AE]" />{formatDateTime(iv.scheduled_at)}</span>
@@ -488,6 +512,76 @@ export default function AdminApplicationsPage() {
                       </span>
                       <span className="flex items-center gap-2.5"><MapPin className="h-[17px] w-[17px] text-[#9078AE]" />{iv.location || 'Online meeting link'}</span>
                     </div>
+
+                    {iv.status === 'no_show' && (
+                      <p className="mt-2.5 text-[12px] text-[#7A5C12]">
+                        The applicant did not attend. Reschedule below, or reject with remarks.
+                      </p>
+                    )}
+
+                    {(iv.history?.length ?? 0) > 0 && (
+                      <div className="mt-3 border-t border-[#E2D5F0] pt-2.5">
+                        <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-[#9078AE]">Reschedule history</p>
+                        {iv.history!.map((h, i) => (
+                          <p key={i} className="text-[11.5px] text-[#6B5A52]">
+                            {h.from ? formatDateTime(h.from) : '?'} {'->'} {h.to ? formatDateTime(h.to) : '?'}
+                            {h.changed_by ? ` (by ${h.changed_by})` : ''}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-3.5 flex flex-wrap gap-2">
+                      {iv.status !== 'no_show' && (
+                        <button
+                          onClick={() => markNoShow.mutate()}
+                          disabled={markNoShow.isPending}
+                          className="flex h-9 items-center gap-1.5 rounded-lg border border-[#F0DFAE] bg-[#FFF9EC] px-3 text-[12.5px] font-semibold text-[#7A5C12] disabled:opacity-50"
+                        >
+                          <Ban className="h-4 w-4" /> Mark as No-show
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setRescheduling((r) => !r)}
+                        className="flex h-9 items-center gap-1.5 rounded-lg border border-[#E2D5F0] bg-white px-3 text-[12.5px] font-semibold text-[#5A3E86]"
+                      >
+                        <CalendarClock className="h-4 w-4" /> {rescheduling ? 'Cancel reschedule' : 'Reschedule'}
+                      </button>
+                    </div>
+
+                    {rescheduling && (
+                      <div className="mt-3 space-y-2.5 rounded-xl border border-[#E2D5F0] bg-white p-3">
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          <input
+                            type="datetime-local"
+                            value={interviewDate}
+                            onChange={(e) => setInterviewDate(e.target.value)}
+                            className="h-10 rounded-lg border border-[#EADFD4] bg-[#FBF7F2] px-3 text-sm text-[#2B1E1B] focus:border-[#7C1B26] focus:outline-none"
+                          />
+                          <select
+                            value={mode}
+                            onChange={(e) => setMode(e.target.value as 'in_person' | 'online')}
+                            className="h-10 rounded-lg border border-[#EADFD4] bg-[#FBF7F2] px-3 text-sm text-[#2B1E1B] focus:border-[#7C1B26] focus:outline-none"
+                          >
+                            <option value="in_person">In person</option>
+                            <option value="online">Online</option>
+                          </select>
+                        </div>
+                        <input
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder={mode === 'online' ? 'Meeting link' : 'Venue'}
+                          className="h-10 w-full rounded-lg border border-[#EADFD4] bg-[#FBF7F2] px-3 text-sm text-[#2B1E1B] focus:border-[#7C1B26] focus:outline-none"
+                        />
+                        <button
+                          onClick={() => reschedule.mutate()}
+                          disabled={reschedule.isPending || !interviewDate}
+                          className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-b from-[#86202E] to-[#6C1620] text-[13px] font-semibold text-white disabled:opacity-50"
+                        >
+                          <CalendarCheck className="h-4 w-4" /> {reschedule.isPending ? 'Rescheduling...' : 'Confirm new schedule'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 

@@ -48,6 +48,12 @@ export const applicationsApi = {
   adminScheduleInterview: (id: number, data: ScheduleInterviewData) =>
     apiClient.post<ApiResponse<Application>>(`/admin/applications/${id}/interview`, data).then((r) => r.data.data),
 
+  adminRescheduleInterview: (id: number, data: ScheduleInterviewData) =>
+    apiClient.put<ApiResponse<Application>>(`/admin/applications/${id}/interview`, data).then((r) => r.data.data),
+
+  adminMarkInterviewNoShow: (id: number) =>
+    apiClient.post<ApiResponse<Application>>(`/admin/applications/${id}/interview/no-show`).then((r) => r.data.data),
+
   adminDecideApplication: (id: number, data: DecideApplicationData) =>
     apiClient.put<ApiResponse<Application>>(`/admin/applications/${id}/decide`, data).then((r) => r.data.data),
 }

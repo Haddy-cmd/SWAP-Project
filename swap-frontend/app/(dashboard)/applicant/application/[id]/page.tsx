@@ -107,6 +107,11 @@ export default function ApplicationDetailPage() {
                 <Calendar className="h-5 w-5 text-[#1B4F72]" />
                 <h2 className="font-semibold text-[#1B4F72]">Interview Scheduled</h2>
               </div>
+              {application.interview.status === 'no_show' && (
+                <div className="mb-4 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2.5 text-sm text-[#92400E]">
+                  Our records show you missed this interview. Please contact the DSA office — a new schedule may be arranged.
+                </div>
+              )}
               <dl className="space-y-3 text-sm">
                 <div className="flex items-start gap-2">
                   <Calendar className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1B4F72]" />
