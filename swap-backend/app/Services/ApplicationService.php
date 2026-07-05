@@ -7,18 +7,24 @@ use App\Events\ApplicationRejected;
 use App\Events\ApplicationSubmitted;
 use App\Events\InterviewScheduled;
 use App\Models\Application;
+use App\Models\Assignment;
 use App\Models\AuditLog;
+use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Contracts\ApplicationRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class ApplicationService
 {
     public function __construct(
-        private readonly ApplicationRepositoryInterface $applicationRepository
+        private readonly ApplicationRepositoryInterface $applicationRepository,
+        private readonly AssignmentService $assignmentService,
     ) {}
 
     public function submitApplication(User $user, array $data): Application
@@ -66,6 +72,69 @@ class ApplicationService
         event(new ApplicationSubmitted($application));
 
         return $application;
+    }
+
+    /**
+     * Semester renewal: a returning recipient re-enrolls for the term set by the
+     * admin (renewal_year/semester) by submitting an updated COR. Skips the
+     * interview pipeline — approval directly rolls the assignment over.
+     */
+    public function submitRenewal(User $user, UploadedFile $cor): Application
+    {
+        if (!Setting::bool('renewal_open', false)) {
+            throw new UnprocessableEntityHttpException('The renewal period is not open yet. Please wait for the DSA announcement.');
+        }
+
+        $year = Setting::get('renewal_year');
+        $semester = Setting::get('renewal_semester');
+        if (!$year || !$semester) {
+            throw new UnprocessableEntityHttpException('The renewal period is not fully configured. Please contact the DSA office.');
+        }
+
+        $previous = Assignment::where('user_id', $user->id)->orderByDesc('id')->first();
+        if (!$previous) {
+            throw new UnprocessableEntityHttpException('Renewal is only available to recipients with an existing assignment.');
+        }
+
+        if ($this->applicationRepository->findForUserAndPeriod($user->id, $year, $semester)) {
+            throw new ConflictHttpException("You already have a submission for {$year} — {$semester}.");
+        }
+
+        $application = $this->applicationRepository->create([
+            'user_id' => $user->id,
+            'academic_year' => $year,
+            'semester' => $semester,
+            'status' => 'submitted',
+            'type' => 'renewal',
+        ]);
+
+        // Store the updated COR; roll the application back if storage fails so a
+        // broken upload can't leave a document-less renewal in the queue.
+        $disk = config('filesystems.documents_disk', 'public');
+        try {
+            $path = $cor->store("documents/{$application->id}", $disk);
+            if ($path === false) {
+                throw new \Exception('Storage driver returned false.');
+            }
+        } catch (\Throwable $e) {
+            $application->delete();
+            Log::error('Renewal COR upload failed', ['error' => $e->getMessage()]);
+            throw new UnprocessableEntityHttpException('Could not upload your COR. Please try again.');
+        }
+
+        $this->attachDocument($application, [
+            'document_type' => 'cor',
+            'file_path' => $path,
+            'file_url' => rtrim(config('app.url'), '/') . '/api/documents/{DOC_ID}/file',
+            'file_name' => $cor->getClientOriginalName(),
+            'file_size' => $cor->getSize(),
+            'mime_type' => $cor->getMimeType(),
+        ]);
+
+        AuditLog::record('created', $application);
+        event(new ApplicationSubmitted($application));
+
+        return $application->load('documents');
     }
 
     /**
@@ -140,9 +209,10 @@ class ApplicationService
 
     public function decideApplication(Application $application, string $decision, ?string $remarks, User $admin): Application
     {
-        // An application can only be approved once its interview has been scheduled.
-        // Rejection is still allowed earlier (e.g. a clearly ineligible applicant).
-        if ($decision === 'approved' && $application->status !== 'interview_scheduled') {
+        // A fresh application can only be approved once its interview has been
+        // scheduled. Renewals skip the interview — the recipient already went
+        // through it and has a service record instead. Rejection is allowed anytime.
+        if ($decision === 'approved' && $application->type !== 'renewal' && $application->status !== 'interview_scheduled') {
             throw new ConflictHttpException(
                 'An interview must be scheduled before this application can be approved.'
             );
@@ -161,11 +231,55 @@ class ApplicationService
 
         if ($decision === 'approved') {
             event(new ApplicationApproved($updated));
+
+            // Approving a renewal immediately rolls the assignment into the new
+            // term — same office and supervisor, hours reset.
+            if ($updated->type === 'renewal') {
+                $this->rolloverRenewal($updated, $admin);
+            }
         } elseif ($decision === 'rejected') {
             event(new ApplicationRejected($updated));
         }
 
         return $updated;
+    }
+
+    /** Create the next-term assignment for an approved renewal. */
+    private function rolloverRenewal(Application $application, User $admin): void
+    {
+        $previous = Assignment::where('user_id', $application->user_id)
+            ->where(fn ($q) => $q->where('academic_year', '!=', $application->academic_year)
+                ->orWhere('semester', '!=', $application->semester))
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$previous) {
+            return;
+        }
+
+        $alreadyPlaced = Assignment::where('user_id', $application->user_id)
+            ->where('academic_year', $application->academic_year)
+            ->where('semester', $application->semester)
+            ->exists();
+
+        if ($alreadyPlaced) {
+            return;
+        }
+
+        // Close out the old term so the recipient has exactly one active assignment.
+        if ($previous->status === 'active') {
+            $previous->update(['status' => 'completed']);
+        }
+
+        $this->assignmentService->createAssignment([
+            'user_id' => $application->user_id,
+            'office_id' => $previous->office_id,
+            'supervisor_id' => $previous->supervisor_id,
+            'academic_year' => $application->academic_year,
+            'semester' => $application->semester,
+            'required_hours' => $previous->required_hours,
+            'start_date' => now()->toDateString(),
+        ], $admin);
     }
 
     public function attachDocument(Application $application, array $documentData): void

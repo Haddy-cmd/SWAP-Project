@@ -17,6 +17,7 @@ use App\Http\Controllers\Applicant\DocumentController;
 use App\Http\Controllers\Recipient\AttendanceController;
 use App\Http\Controllers\Recipient\HoursController;
 use App\Http\Controllers\Recipient\NarrativeController;
+use App\Http\Controllers\Recipient\RenewalController;
 use App\Http\Controllers\Supervisor\OfficeController as SupervisorOfficeController;
 use App\Http\Controllers\Supervisor\StudentController;
 use App\Http\Controllers\Supervisor\VerificationController;
@@ -88,6 +89,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/monthly', [ReportController::class, 'monthly']);
         Route::get('/reports/semester', [ReportController::class, 'semester']);
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
+        Route::get('/renewals', [RenewalController::class, 'index']);
+        Route::post('/renewals', [RenewalController::class, 'store']);
     });
 
     // ─── SUPERVISOR ───────────────────────────────────────────────────────────

@@ -15,6 +15,28 @@ class ApplicationResource extends JsonResource
             'academic_year' => $this->academic_year,
             'semester' => $this->semester,
             'status' => $this->status,
+            'type' => $this->type ?? 'new',
+            // For renewals: the service record being renewed, so the admin can
+            // decide on evidence (previous office/supervisor + hours rendered).
+            'renewal_context' => $this->when(($this->type ?? 'new') === 'renewal', function () {
+                $prev = \App\Models\Assignment::with(['office', 'supervisor'])
+                    ->where('user_id', $this->user_id)
+                    ->where(fn ($q) => $q->where('academic_year', '!=', $this->academic_year)
+                        ->orWhere('semester', '!=', $this->semester))
+                    ->orderByDesc('id')
+                    ->first();
+                if (!$prev) {
+                    return null;
+                }
+                return [
+                    'office' => $prev->office?->name,
+                    'supervisor' => $prev->supervisor?->name,
+                    'period' => "{$prev->academic_year} — {$prev->semester}",
+                    'verified_hours' => $prev->verified_hours,
+                    'required_hours' => $prev->required_hours,
+                    'status' => $prev->status,
+                ];
+            }),
             'remarks' => $this->remarks,
             'reviewed_at' => $this->reviewed_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),

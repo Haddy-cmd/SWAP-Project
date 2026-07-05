@@ -11,6 +11,15 @@ export interface Application {
   academic_year: string
   semester: string
   status: ApplicationStatus
+  type?: 'new' | 'renewal'
+  renewal_context?: {
+    office: string | null
+    supervisor: string | null
+    period: string
+    verified_hours: number
+    required_hours: number
+    status: string
+  } | null
   remarks: string | null
   reviewed_at: string | null
   created_at: string

@@ -17,6 +17,7 @@ class Application extends Model
         'academic_year',
         'semester',
         'status',
+        'type',
         'remarks',
         'reviewed_by',
         'reviewed_at',

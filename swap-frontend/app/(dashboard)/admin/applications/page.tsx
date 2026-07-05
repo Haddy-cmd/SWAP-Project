@@ -6,11 +6,12 @@ import Link from 'next/link'
 import {
   Search, ArrowRight, CheckCircle2, Inbox, Clock, CalendarClock, XCircle,
   CheckCircle, Calendar, CalendarCheck, Eye, ChevronLeft, ChevronRight,
-  Video, Users, MapPin, AlertTriangle, Ban, BadgeCheck,
+  Video, Users, MapPin, AlertTriangle, Ban, BadgeCheck, RefreshCw,
 } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationPeriodToggle } from '@/components/admin/ApplicationPeriodToggle'
+import { RenewalPeriodToggle } from '@/components/admin/RenewalPeriodToggle'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
@@ -156,6 +157,7 @@ export default function AdminApplicationsPage() {
   }
 
   const status = selected?.status
+  const isRenewal = selected?.type === 'renewal'
   const iv = selected?.interview
   const documents = selected?.documents ?? []
 
@@ -169,6 +171,7 @@ export default function AdminApplicationsPage() {
 
       {/* application-period toggle (unchanged behaviour) */}
       <ApplicationPeriodToggle />
+      <RenewalPeriodToggle />
 
       {/* approved applicants move to the assignment queue */}
       <Link
@@ -259,7 +262,12 @@ export default function AdminApplicationsPage() {
                       className="h-[38px] w-[38px] rounded-full text-[13px] font-bold" style={{ background: avBg, color: avFg }} />
                     <span className="min-w-0 flex-1 leading-tight">
                       <span className="block truncate text-[13.5px] font-semibold text-[#241715]">{a.user?.name ?? '—'}</span>
-                      <span className="block text-[11.5px] text-[#A38A82]">{formatDate(a.created_at)}</span>
+                      <span className="flex items-center gap-1.5 text-[11.5px] text-[#A38A82]">
+                        {formatDate(a.created_at)}
+                        {a.type === 'renewal' && (
+                          <span className="rounded-full bg-[#F1ECF7] px-1.5 py-px text-[10px] font-bold text-[#6B4E9A]">Renewal</span>
+                        )}
+                      </span>
                     </span>
                     <span className="flex flex-shrink-0 items-center gap-1.5 text-[10.5px] font-bold" style={{ color: m.color }}>
                       <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
@@ -319,7 +327,12 @@ export default function AdminApplicationsPage() {
                       className="h-14 w-14 rounded-full text-[18px] font-bold" style={{ background: bg, color: fg }} />
                   ) })()}
                   <div className="min-w-0 flex-1 leading-tight">
-                    <p className="font-serif text-[22px] font-semibold text-[#241715]">{selected.user?.name ?? '—'}</p>
+                    <p className="flex flex-wrap items-center gap-2 font-serif text-[22px] font-semibold text-[#241715]">
+                      {selected.user?.name ?? '—'}
+                      {isRenewal && (
+                        <span className="rounded-full bg-[#F1ECF7] px-2 py-0.5 font-sans text-[11px] font-bold text-[#6B4E9A]">Renewal</span>
+                      )}
+                    </p>
                     <p className="text-[13px] text-[#A38A82]">{selected.user?.email ?? '—'}</p>
                   </div>
                   <StatusBadge status={selected.status} />
@@ -342,6 +355,28 @@ export default function AdminApplicationsPage() {
                   ))}
                 </div>
 
+                {/* renewal: previous service record */}
+                {isRenewal && (
+                  <div className="mb-5 rounded-xl border border-[#E2D5F0] bg-[#F4EEFA] px-4 py-3.5">
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.06em] text-[#5A3E86]">
+                      <RefreshCw className="h-3.5 w-3.5" /> Previous service record
+                    </p>
+                    {selected.renewal_context ? (
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-[12.5px] text-[#3F2F2A] sm:grid-cols-2">
+                        <span>Office: <b>{selected.renewal_context.office ?? '—'}</b></span>
+                        <span>Supervisor: <b>{selected.renewal_context.supervisor ?? '—'}</b></span>
+                        <span>Period: <b>{selected.renewal_context.period}</b></span>
+                        <span>Verified hours: <b>{selected.renewal_context.verified_hours}h / {selected.renewal_context.required_hours}h</b></span>
+                      </div>
+                    ) : (
+                      <p className="text-[12.5px] text-[#5A3E86]">No previous assignment found for this student.</p>
+                    )}
+                    <p className="mt-2 text-[11.5px] text-[#8A7A73]">
+                      Approving rolls their assignment into {selected.academic_year} — {selected.semester} at the same office. No interview needed.
+                    </p>
+                  </div>
+                )}
+
                 {/* documents (review stages) */}
                 {documents.length > 0 && status !== 'approved' && status !== 'rejected' && (
                   <div className="mb-5">
@@ -360,8 +395,8 @@ export default function AdminApplicationsPage() {
                   </div>
                 )}
 
-                {/* STATE: submitted → mark under review */}
-                {status === 'submitted' && (
+                {/* STATE: submitted → mark under review (fresh applications only) */}
+                {status === 'submitted' && !isRenewal && (
                   <div>
                     <div className="mb-4 flex gap-3 rounded-xl border border-[#F0DFAE] bg-[#FFF9EC] px-4 py-3.5">
                       <AlertTriangle className="h-5 w-5 flex-shrink-0 text-[#B8860B]" />
@@ -379,8 +414,8 @@ export default function AdminApplicationsPage() {
                   </div>
                 )}
 
-                {/* STATE: under_review → schedule interview */}
-                {status === 'under_review' && (
+                {/* STATE: under_review → schedule interview (fresh applications only) */}
+                {status === 'under_review' && !isRenewal && (
                   <div className="mb-5">
                     <div className="mb-4 flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-[#7C1B26]" />
@@ -457,9 +492,9 @@ export default function AdminApplicationsPage() {
                 )}
 
                 {/* DECISION — Approve unlocks only after an interview is scheduled; Reject is allowed earlier */}
-                {(status === 'under_review' || status === 'interview_scheduled') && (
+                {(status === 'under_review' || status === 'interview_scheduled' || (isRenewal && status === 'submitted')) && (
                   <div>
-                    {status === 'under_review' && (
+                    {status === 'under_review' && !isRenewal && (
                       <div className="mb-3 flex gap-2.5 rounded-xl border border-[#F0DFAE] bg-[#FFF9EC] px-4 py-2.5 text-[12px] leading-relaxed text-[#7A5C12]">
                         <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[#B8860B]" />
                         Schedule an interview before approving .
@@ -473,7 +508,7 @@ export default function AdminApplicationsPage() {
                       className="mb-3 w-full resize-none rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3 py-2.5 text-sm text-[#2B1E1B] focus:border-[#7C1B26] focus:outline-none"
                     />
                     <div className="flex gap-2.5">
-                      {status === 'interview_scheduled' && (
+                      {(status === 'interview_scheduled' || isRenewal) && (
                         <button
                           onClick={() => decide.mutate('approved')}
                           disabled={decide.isPending}
@@ -485,7 +520,7 @@ export default function AdminApplicationsPage() {
                       <button
                         onClick={() => decide.mutate('rejected')}
                         disabled={decide.isPending || !remarks.trim()}
-                        className={`flex h-12 items-center justify-center gap-2 rounded-xl border border-[#F0D4D7] bg-[#FCF2F3] text-sm font-semibold text-[#A52834] disabled:opacity-50 ${status === 'interview_scheduled' ? 'px-5' : 'flex-1'}`}
+                        className={`flex h-12 items-center justify-center gap-2 rounded-xl border border-[#F0D4D7] bg-[#FCF2F3] text-sm font-semibold text-[#A52834] disabled:opacity-50 ${status === 'interview_scheduled' || isRenewal ? 'px-5' : 'flex-1'}`}
                       >
                         <XCircle className="h-[18px] w-[18px]" /> Reject
                       </button>

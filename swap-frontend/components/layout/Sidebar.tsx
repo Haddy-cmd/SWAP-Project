@@ -12,7 +12,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
   BarChart2, Building2, Banknote, Bell, BookOpen,
-  ClipboardList, LogOut, Calendar, X, QrCode, ShieldCheck,
+  ClipboardList, LogOut, Calendar, X, QrCode, ShieldCheck, RefreshCw,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
@@ -29,6 +29,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Scan QR', href: '/recipient/attendance/scan', icon: CheckSquare },
     { label: 'Hours', href: '/recipient/hours', icon: BarChart2 },
     { label: 'Duty Slip', href: '/recipient/reports/duty-slip', icon: FileText },
+    { label: 'Renewal', href: '/recipient/renewal', icon: RefreshCw },
     { label: 'Stipend', href: '/recipient/stipend', icon: Banknote },
   ],
   supervisor: [

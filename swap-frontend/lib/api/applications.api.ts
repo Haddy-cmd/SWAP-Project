@@ -16,6 +16,16 @@ export const applicationsApi = {
   getApplicationStatus: (id: number) =>
     apiClient.get<ApiResponse<{ id: number; status: string; remarks: string | null; interview: unknown }>>(`/applicant/applications/${id}/status`).then((r) => r.data.data),
 
+  // Semester renewal: the recipient's submission for the current renewal term (or null).
+  getMyRenewal: () =>
+    apiClient.get<ApiResponse<Application | null>>('/recipient/renewals').then((r) => r.data.data),
+
+  // Semester renewal: one updated COR, no interview round.
+  submitRenewal: (formData: FormData) =>
+    apiClient.post<ApiResponse<Application>>('/recipient/renewals', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data.data),
+
   uploadDocument: (applicationId: number, formData: FormData) =>
     apiClient.post(`/applicant/applications/${applicationId}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
