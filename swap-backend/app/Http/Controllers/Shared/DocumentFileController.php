@@ -4,33 +4,26 @@ namespace App\Http\Controllers\Shared;
 
 use App\Http\Controllers\Controller;
 use App\Models\ApplicationDocument;
-use Illuminate\Http\JsonResponse;
+use App\Support\TokenAuth;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Sanctum\PersonalAccessToken;
 
 /**
- * Serves uploaded application documents through the API so that the admin
- * (and any authenticated user with the right role) can view them even when
- * the deployment platform has no persistent public storage symlink (e.g. Render).
+ * Streams uploaded application documents. Lives outside auth:sanctum so links
+ * opened in a new browser tab / <img> still work (token via header or ?token=),
+ * but access is policy-checked: only the owner, their supervisor, or an admin
+ * may view a document — a valid token alone is NOT enough.
  */
 class DocumentFileController extends Controller
 {
     public function show(Request $request, int $documentId)
     {
-        // When opened in a new browser tab the Authorization header is absent.
-        // Accept the token via a query parameter as a fallback.
-        $plainTextToken = $request->bearerToken() ?? $request->query('token');
+        $viewer = TokenAuth::userFromRequest($request);
 
-        if (!$plainTextToken) {
+        if (!$viewer) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
-        }
-
-        $accessToken = PersonalAccessToken::findToken($plainTextToken);
-
-        if (!$accessToken || ($accessToken->expires_at && $accessToken->expires_at->isPast())) {
-            return response()->json(['message' => 'Invalid or expired token.'], 401);
         }
 
         $doc = ApplicationDocument::find($documentId);
@@ -43,6 +36,10 @@ class DocumentFileController extends Controller
         $application = $doc->application;
         if (!$application || !$application->user) {
             return response()->json(['message' => 'Document not found.'], 404);
+        }
+
+        if (Gate::forUser($viewer)->denies('view', $doc)) {
+            return response()->json(['message' => 'You are not authorized to view this document.'], 403);
         }
 
         $disk = config('filesystems.documents_disk', 'public');

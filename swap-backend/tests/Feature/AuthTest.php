@@ -10,11 +10,18 @@ class AuthTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Registration is gated by the application period.
+        \App\Models\Setting::put('applications_open', '1');
+    }
+
     private function validRegisterPayload(array $overrides = []): array
     {
         return array_merge([
             'name' => 'Juan Dela Cruz',
-            'email' => 'juan@student.msu-marawi.edu.ph',
+            'email' => 'juan@s.msumain.edu.ph',
             'password' => 'Password@123',
             'password_confirmation' => 'Password@123',
             'student_id_number' => '2024-9999',
@@ -35,7 +42,7 @@ class AuthTest extends TestCase
             ->assertJsonStructure(['data' => ['id', 'email', 'role'], 'token']);
 
         $this->assertDatabaseHas('users', [
-            'email' => 'juan@student.msu-marawi.edu.ph',
+            'email' => 'juan@s.msumain.edu.ph',
             'role' => 'applicant',
         ]);
     }
@@ -43,12 +50,12 @@ class AuthTest extends TestCase
     public function test_register_duplicate_email_is_rejected(): void
     {
         User::create([
-            'name' => 'Existing', 'email' => 'dupe@student.msu-marawi.edu.ph',
+            'name' => 'Existing', 'email' => 'dupe@s.msumain.edu.ph',
             'password' => 'Password@123', 'role' => 'applicant', 'is_active' => true,
         ]);
 
         $res = $this->postJson('/api/auth/register', $this->validRegisterPayload([
-            'email' => 'dupe@student.msu-marawi.edu.ph',
+            'email' => 'dupe@s.msumain.edu.ph',
         ]));
 
         $res->assertStatus(422)->assertJsonValidationErrors('email');

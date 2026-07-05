@@ -89,6 +89,7 @@ class NotificationTest extends TestCase
     {
         $admin = $this->makeUser('admin');
         $applicant = $this->makeUser('applicant');
+        \App\Models\Setting::put('applications_open', '1');
 
         Sanctum::actingAs($applicant);
         $this->postJson('/api/applicant/applications', [

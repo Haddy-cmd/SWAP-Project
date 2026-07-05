@@ -61,6 +61,22 @@ class User extends Authenticatable
         return $this->hasOne(Assignment::class);
     }
 
+    /**
+     * Whether this user, as a supervisor, manages the given student — either as
+     * the assigned supervisor or as a co-supervisor of the hosting office (the
+     * same reach used across the supervisor surface via visibleToSupervisor).
+     */
+    public function supervises(int $studentUserId): bool
+    {
+        if ($this->role !== 'supervisor') {
+            return false;
+        }
+
+        return Assignment::where('user_id', $studentUserId)
+            ->visibleToSupervisor($this)
+            ->exists();
+    }
+
     public function timeLogs(): HasMany
     {
         return $this->hasMany(TimeLog::class);
