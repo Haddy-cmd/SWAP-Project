@@ -352,7 +352,11 @@ export default function AdminUsersPage() {
                     </span>
 
                     <div className="flex items-center justify-end gap-2">
-                      {user.role !== 'admin' ? (
+                      {/* Admins can't be deactivated (protected), but an inactive
+                          admin can still be reactivated so they're never stranded. */}
+                      {user.role === 'admin' && active ? (
+                        <span className="text-xs font-medium text-[#B7A99F]">Protected</span>
+                      ) : (
                         <button
                           onClick={() => toggle.mutate({ id: user.id, is_active: !active })}
                           disabled={toggle.isPending}
@@ -362,8 +366,6 @@ export default function AdminUsersPage() {
                           {active ? <UserX className="h-[15px] w-[15px]" /> : <UserCheck className="h-[15px] w-[15px]" />}
                           {active ? 'Deactivate' : 'Activate'}
                         </button>
-                      ) : (
-                        <span className="text-xs font-medium text-[#B7A99F]">Protected</span>
                       )}
                       {user.role !== 'admin' && (
                         <button
