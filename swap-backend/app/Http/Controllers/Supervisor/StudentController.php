@@ -105,9 +105,12 @@ class StudentController extends Controller
             return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
         }
 
+        $perPage = min(200, max(1, (int) $request->input('per_page', 15)));
+
         $logs = $this->timeLogRepository->paginateForSupervisor(
             $request->user()->id,
-            array_merge($request->only(['status', 'from', 'to']), ['user_id' => $studentId])
+            array_merge($request->only(['status', 'from', 'to']), ['user_id' => $studentId]),
+            $perPage
         );
 
         return response()->json([
