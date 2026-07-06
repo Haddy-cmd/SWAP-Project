@@ -307,7 +307,7 @@ export default function AdminUsersPage() {
         <div className="overflow-x-auto">
           <div className="min-w-[760px]">
             {/* Head */}
-            <div className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_auto] gap-4 border-b border-[#EFE5DA] bg-[#FBF7F2] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">
+            <div className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_180px] gap-4 border-b border-[#EFE5DA] bg-[#FBF7F2] px-5 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">
               <span>User</span>
               <span>Role</span>
               <span>Joined</span>
@@ -327,7 +327,7 @@ export default function AdminUsersPage() {
                 const [rc, rb] = roleStyle(user.role)
                 const active = user.is_active
                 return (
-                  <div key={user.id} className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_auto] items-center gap-4 border-b border-[#F4ECE1] px-5 py-3 last:border-0 hover:bg-[#FBF7F2]/60">
+                  <div key={user.id} className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_180px] items-center gap-4 border-b border-[#F4ECE1] px-5 py-3 last:border-0 hover:bg-[#FBF7F2]/60">
                     <div className="flex min-w-0 items-center gap-3">
                       <UserAvatar name={user.name} avatarUrl={user.avatar_url}
                         className="h-[38px] w-[38px] rounded-full text-[13px] font-bold"
