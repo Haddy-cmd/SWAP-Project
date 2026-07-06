@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\TimeLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\MakesSwapData;
@@ -13,8 +14,15 @@ class AttendanceTest extends TestCase
 {
     use RefreshDatabase, MakesSwapData;
 
+    /** Freeze time inside the allowed clock-in window (Mon 9:00 AM PHT) so time-based tests are deterministic. */
+    private function travelToValidClockIn(): void
+    {
+        $this->travelTo(Carbon::create(2026, 7, 6, 9, 0, 0, 'Asia/Manila'));
+    }
+
     public function test_geofenced_time_in_within_premises_opens_a_log(): void
     {
+        $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
         $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
@@ -34,6 +42,7 @@ class AttendanceTest extends TestCase
 
     public function test_second_time_in_same_day_conflicts(): void
     {
+        $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
         $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
@@ -47,6 +56,7 @@ class AttendanceTest extends TestCase
 
     public function test_open_log_from_a_previous_day_blocks_a_new_clock_in(): void
     {
+        $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
         $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
@@ -113,6 +123,38 @@ class AttendanceTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_clock_in_is_blocked_on_sunday(): void
+    {
+        $this->travelTo(Carbon::create(2026, 7, 5, 9, 0, 0, 'Asia/Manila')); // Sunday 9:00 AM PHT
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+
+        Sanctum::actingAs($recipient);
+        $res = $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 8.0, 'longitude' => 124.0,
+        ]);
+
+        $res->assertStatus(422);
+        $this->assertStringContainsStringIgnoringCase('Monday to Saturday', $res->json('message') ?? '');
+    }
+
+    public function test_clock_in_is_blocked_outside_office_hours(): void
+    {
+        $this->travelTo(Carbon::create(2026, 7, 6, 18, 0, 0, 'Asia/Manila')); // Monday 6:00 PM PHT (past 5:30)
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+
+        Sanctum::actingAs($recipient);
+        $res = $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 8.0, 'longitude' => 124.0,
+        ]);
+
+        $res->assertStatus(422);
+        $this->assertStringContainsStringIgnoringCase('6:00 AM and 5:30 PM', $res->json('message') ?? '');
+    }
+
     public function test_time_in_with_tampered_office_qr_is_rejected(): void
     {
         $recipient = $this->makeUser('recipient');
@@ -128,6 +170,7 @@ class AttendanceTest extends TestCase
 
     public function test_poor_gps_accuracy_flags_the_log(): void
     {
+        $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
         $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);

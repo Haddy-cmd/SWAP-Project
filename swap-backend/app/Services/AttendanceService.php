@@ -27,6 +27,11 @@ class AttendanceService
      */
     public const MAX_SESSION_HOURS = 12;
 
+    /** Clock-in is only allowed Monday–Saturday, 6:00 AM to 5:30 PM (Asia/Manila). */
+    private const CLOCK_IN_TIMEZONE = 'Asia/Manila';
+    private const CLOCK_IN_START_MINUTE = 6 * 60;        // 06:00
+    private const CLOCK_IN_END_MINUTE = 17 * 60 + 30;    // 17:30
+
     public function __construct(
         private readonly TimeLogRepositoryInterface $timeLogRepository,
         private readonly QrCodeService $qrCodeService,
@@ -196,6 +201,8 @@ class AttendanceService
 
     private function guardClockIn(Assignment $assignment, User $user): void
     {
+        $this->assertWithinClockInWindow();
+
         if ($assignment->required_hours > 0 && $assignment->verified_hours >= $assignment->required_hours) {
             throw new ConflictHttpException('You have already completed your required service hours.');
         }
@@ -204,6 +211,21 @@ class AttendanceService
         // so a forgotten clock-out or a double-tap can't create a duplicate open log.
         if ($this->timeLogRepository->findAnyOpenLog($user->id)) {
             throw new ConflictHttpException('You are already clocked in. Please clock out before clocking in again.');
+        }
+    }
+
+    /** Enforce the allowed clock-in schedule: Monday–Saturday, 6:00 AM–5:30 PM (PHT). */
+    private function assertWithinClockInWindow(): void
+    {
+        $now = now()->timezone(self::CLOCK_IN_TIMEZONE);
+
+        if ($now->isSunday()) {
+            throw new UnprocessableEntityHttpException('Clock-in is only available Monday to Saturday.');
+        }
+
+        $minutes = $now->hour * 60 + $now->minute;
+        if ($minutes < self::CLOCK_IN_START_MINUTE || $minutes > self::CLOCK_IN_END_MINUTE) {
+            throw new UnprocessableEntityHttpException('Clock-in is only available between 6:00 AM and 5:30 PM.');
         }
     }
 
