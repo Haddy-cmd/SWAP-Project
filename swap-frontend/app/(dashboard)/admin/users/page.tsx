@@ -352,15 +352,19 @@ export default function AdminUsersPage() {
                     </span>
 
                     <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => toggle.mutate({ id: user.id, is_active: !active })}
-                        disabled={toggle.isPending}
-                        className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-[#EADFD4] bg-white px-3 text-xs font-semibold transition-colors hover:bg-[#FBF7F2] disabled:opacity-50"
-                        style={{ color: active ? '#9A6B12' : '#2C5A33' }}
-                      >
-                        {active ? <UserX className="h-[15px] w-[15px]" /> : <UserCheck className="h-[15px] w-[15px]" />}
-                        {active ? 'Deactivate' : 'Activate'}
-                      </button>
+                      {user.role !== 'admin' ? (
+                        <button
+                          onClick={() => toggle.mutate({ id: user.id, is_active: !active })}
+                          disabled={toggle.isPending}
+                          className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-[#EADFD4] bg-white px-3 text-xs font-semibold transition-colors hover:bg-[#FBF7F2] disabled:opacity-50"
+                          style={{ color: active ? '#9A6B12' : '#2C5A33' }}
+                        >
+                          {active ? <UserX className="h-[15px] w-[15px]" /> : <UserCheck className="h-[15px] w-[15px]" />}
+                          {active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      ) : (
+                        <span className="text-xs font-medium text-[#B7A99F]">Protected</span>
+                      )}
                       {user.role !== 'admin' && (
                         <button
                           onClick={() => confirmDelete(user.id, user.name)}

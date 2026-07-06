@@ -79,6 +79,12 @@ class UserController extends Controller
             'is_active' => ['sometimes', 'boolean'],
         ]);
 
+        // Admin accounts can't be deactivated (they're protected, like delete) —
+        // prevents locking out or disabling an administrator.
+        if ($user->role === 'admin' && $request->has('is_active') && !$request->boolean('is_active')) {
+            return response()->json(['message' => 'Admin accounts cannot be deactivated.'], 422);
+        }
+
         $old = $user->only(['role', 'is_active']);
         $updated = $this->userRepository->update($user, $request->only(['role', 'is_active']));
 
