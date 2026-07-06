@@ -35,6 +35,7 @@ class TimeLogResource extends JsonResource
             'user' => $this->whenLoaded('user', fn () => [
                 'id' => $this->user->id,
                 'name' => $this->user->profile?->full_name ?? $this->user->name,
+                'avatar_url' => $this->user->avatar_url,
             ]),
             'office' => $this->whenLoaded('assignment', fn () => $this->assignment->relationLoaded('office') && $this->assignment->office ? [
                 'id' => $this->assignment->office->id,

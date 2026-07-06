@@ -62,6 +62,18 @@ class User extends Authenticatable
     }
 
     /**
+     * Streamed profile-photo URL (the client appends the auth token). The ?v=
+     * hash busts the browser cache whenever a new photo is uploaded. Reusable
+     * anywhere a user is exposed, not just the full UserResource.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar_path
+            ? rtrim(config('app.url'), '/') . '/api/users/' . $this->id . '/avatar?v=' . substr(md5($this->avatar_path), 0, 8)
+            : null;
+    }
+
+    /**
      * Whether this user, as a supervisor, manages the given student — either as
      * the assigned supervisor or as a co-supervisor of the hosting office (the
      * same reach used across the supervisor surface via visibleToSupervisor).

@@ -84,6 +84,7 @@ class StudentController extends Controller
             'student' => [
                 'id' => $assignment->user->id,
                 'name' => $assignment->user->profile?->full_name ?? $assignment->user->name,
+                'avatar_url' => $assignment->user->avatar_url,
                 'email' => $assignment->user->email,
                 'office' => $assignment->office?->name,
                 'academic_year' => $assignment->academic_year,

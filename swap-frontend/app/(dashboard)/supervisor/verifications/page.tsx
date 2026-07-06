@@ -8,13 +8,13 @@ import {
   ExternalLink, CheckCheck, ClipboardCheck, Loader2,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import type { TimeLog } from '@/types/attendance.types'
 
 const PALETTE: [string, string][] = [
   ['#FBEAEC', '#7C1B26'], ['#EAF1F7', '#3B7FB5'], ['#EAF5EC', '#4E9657'],
   ['#FBF3E2', '#B8860B'], ['#F1ECF7', '#6B4E9A'], ['#F7EDE8', '#C0562F'], ['#EAF1F7', '#1F4E6B'],
 ]
-const initialsOf = (n: string) => n.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
 const fmtDate = (iso?: string | null) => (iso ? format(new Date(iso), 'MMM d, yyyy') : '—')
 const fmtTime = (iso?: string | null) => (iso ? format(new Date(iso), 'h:mm a') : '')
 const timeRange = (l: TimeLog) => {
@@ -208,9 +208,8 @@ export default function VerificationsPage() {
 
                 {/* student */}
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }}>
-                    {initialsOf(l.user?.name ?? '')}
-                  </span>
+                  <UserAvatar name={l.user?.name} avatarUrl={l.user?.avatar_url}
+                    className="h-9 w-9 rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }} />
                   <div className="min-w-0 leading-tight">
                     <div className="truncate text-[13.5px] font-semibold text-[#241715]">{l.user?.name ?? '—'}</div>
                     <div className="truncate text-[11.5px] text-[#A38A82]">{l.office?.name ?? '—'}</div>
@@ -260,26 +259,26 @@ export default function VerificationsPage() {
         )}
       </div>
 
-      {/* bulk action bar */}
-      <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-[#4A2228] bg-[#2B1518] px-3 py-3 pl-5 shadow-[0_20px_48px_rgba(40,8,12,.4)] transition-transform duration-300"
-        style={{ transform: `translateX(-50%) translateY(${selIds.length ? '0' : '160%'})` }}>
-        <span className="text-[13px] text-[#EED9C8] whitespace-nowrap">
-          <strong className="text-[#FFF3E4]">{selIds.length} {selIds.length === 1 ? 'log' : 'logs'} selected</strong> · {selHrs.toFixed(2)} hrs
-        </span>
-        <div className="flex items-center gap-2">
-          <button onClick={() => bulkVerify.mutate(selIds)} disabled={bulkVerify.isPending}
-            className="flex h-[38px] items-center gap-2 rounded-[10px] bg-[#F3D9A0] px-[18px] text-[13px] font-bold text-[#4A2A10] disabled:opacity-60">
-            {bulkVerify.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-[17px] w-[17px]" />} Verify selected
-          </button>
-          <button onClick={() => setSel({})} className="h-[38px] rounded-[10px] border border-[#5A2E35] px-3.5 text-[13px] font-semibold text-[#D9BBAF]">Clear</button>
+      {/* bulk action bar — only shown once at least one log is selected */}
+      {selIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-[#4A2228] bg-[#2B1518] px-3 py-3 pl-5 shadow-[0_20px_48px_rgba(40,8,12,.4)]">
+          <span className="whitespace-nowrap text-[13px] text-[#EED9C8]">
+            <strong className="text-[#FFF3E4]">{selIds.length} {selIds.length === 1 ? 'log' : 'logs'} selected</strong> · {selHrs.toFixed(2)} hrs
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => bulkVerify.mutate(selIds)} disabled={bulkVerify.isPending}
+              className="flex h-[38px] items-center gap-2 rounded-[10px] bg-[#F3D9A0] px-[18px] text-[13px] font-bold text-[#4A2A10] disabled:opacity-60">
+              {bulkVerify.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-[17px] w-[17px]" />} Verify selected
+            </button>
+            <button onClick={() => setSel({})} className="h-[38px] rounded-[10px] border border-[#5A2E35] px-3.5 text-[13px] font-semibold text-[#D9BBAF]">Clear</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* narrative modal */}
       {modalLog && (
         <NarrativeModal
           log={modalLog}
-          initials={initialsOf(modalLog.user?.name ?? '')}
           posLabel={mIdx >= 0 ? `${mIdx + 1} of ${pendIds.length} pending` : 'Reviewed'}
           canPrev={mIdx > 0}
           canNext={mIdx >= 0 && mIdx < pendIds.length - 1}
@@ -325,8 +324,8 @@ export default function VerificationsPage() {
 }
 
 // ── narrative pop-out ──────────────────────────────────────────────────────────
-function NarrativeModal({ log, initials, posLabel, canPrev, canNext, onPrev, onNext, onClose, onVerify, onReject, verifyLabel, busy }: {
-  log: TimeLog; initials: string; posLabel: string; canPrev: boolean; canNext: boolean
+function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClose, onVerify, onReject, verifyLabel, busy }: {
+  log: TimeLog; posLabel: string; canPrev: boolean; canNext: boolean
   onPrev: () => void; onNext: () => void; onClose: () => void; onVerify: () => void; onReject: () => void
   verifyLabel: string; busy: boolean
 }) {
@@ -347,7 +346,8 @@ function NarrativeModal({ log, initials, posLabel, canPrev, canNext, onPrev, onN
             </div>
           </div>
           <div className="flex items-center gap-3.5">
-            <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-[#F3D9A0]/[0.16] text-[15px] font-bold text-[#F3D9A0]">{initials}</span>
+            <UserAvatar name={log.user?.name} avatarUrl={log.user?.avatar_url}
+              className="h-[46px] w-[46px] rounded-full bg-[#F3D9A0]/[0.16] text-[15px] font-bold text-[#F3D9A0] ring-1 ring-white/20" />
             <div className="leading-tight">
               <div className="font-serif text-[21px] font-semibold text-[#FFF8EE]">{log.user?.name ?? '—'}</div>
               <div className="text-[12px] text-[#EED9C8]/75">{log.office?.name ?? '—'}</div>

@@ -23,7 +23,7 @@ export interface TimeLog {
   narrative_report?: NarrativeReport | null
   verifications?: Verification[]
   office?: TimeLogOffice | null
-  user?: { id: number; name: string }
+  user?: { id: number; name: string; avatar_url?: string | null }
 }
 
 export interface TimeLogOffice {

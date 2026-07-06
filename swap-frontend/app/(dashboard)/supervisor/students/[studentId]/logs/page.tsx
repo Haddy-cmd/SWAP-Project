@@ -10,6 +10,7 @@ import {
   ChevronDown, Sparkles, MapPinOff, Info, CheckCircle2, Ban, Hourglass, CalendarX, Loader2,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { UserAvatar } from '@/components/shared/UserAvatar'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
 import type { TimeLog } from '@/types/attendance.types'
 
@@ -84,7 +85,6 @@ export default function StudentLogsPage() {
   const student = summaryData?.student
   const s = summaryData?.data
   const name = student?.name ?? logsData?.student?.name ?? `Student #${studentId}`
-  const initials = name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?'
   const meta = [student?.office, [student?.academic_year, student?.semester].filter(Boolean).join(' ')].filter(Boolean).join(' · ')
 
   const required = s?.required ?? logsData?.student?.required_hours ?? 120
@@ -134,8 +134,9 @@ export default function StudentLogsPage() {
       {/* header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <span className="flex h-[54px] w-[54px] flex-none items-center justify-center rounded-[14px] font-serif text-[22px] font-semibold text-[#F3D9A0]"
-            style={{ background: 'linear-gradient(160deg,#8A2230,#651420)' }}>{initials}</span>
+          <UserAvatar name={name} avatarUrl={student?.avatar_url}
+            className="h-[54px] w-[54px] rounded-[14px] font-serif text-[22px] font-semibold text-[#F3D9A0]"
+            style={{ background: 'linear-gradient(160deg,#8A2230,#651420)' }} />
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#A9823C]">Attendance Logs</p>
             <h1 className="font-serif text-[30px] font-medium leading-none text-[#241715]">{name}</h1>
