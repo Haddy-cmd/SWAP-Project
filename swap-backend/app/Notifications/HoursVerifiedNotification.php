@@ -4,7 +4,6 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class HoursVerifiedNotification extends Notification implements ShouldQueue
@@ -13,21 +12,11 @@ class HoursVerifiedNotification extends Notification implements ShouldQueue
 
     public function __construct(private readonly array $data) {}
 
+    // In-app only — no email is sent when hours are verified (it's a routine event;
+    // the recipient sees it in their notifications and on the Hours page).
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
-    }
-
-    public function toMail(object $notifiable): MailMessage
-    {
-        $hours = $this->data['duration_hours'] ?? 0;
-
-        return (new MailMessage())
-            ->subject('Service Hours Verified')
-            ->greeting("Dear {$notifiable->name},")
-            ->line("Your attendance log of {$hours} hours has been verified by your supervisor.")
-            ->action('View Hours', \App\Support\Frontend::url('/recipient/hours'))
-            ->line('Keep up the great work!');
+        return ['database'];
     }
 
     public function toArray(object $notifiable): array
