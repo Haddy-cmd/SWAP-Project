@@ -74,6 +74,10 @@ class TimeLogRepository implements TimeLogRepositoryInterface
             $query->where('status', $filters['status']);
         }
 
+        if (!empty($filters['status_in'])) {
+            $query->whereIn('status', $filters['status_in']);
+        }
+
         if (!empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);
         }

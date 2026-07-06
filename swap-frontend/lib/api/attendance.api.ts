@@ -61,6 +61,9 @@ export const attendanceApi = {
   getPendingVerifications: () =>
     apiClient.get<{ data: TimeLog[]; meta: { total: number } }>('/supervisor/verifications/pending').then((r) => r.data.data),
 
+  getReviewedVerifications: () =>
+    apiClient.get<{ data: TimeLog[]; meta: { total: number } }>('/supervisor/verifications/reviewed').then((r) => r.data.data),
+
   verifyLog: (logId: number, data: VerifyLogData) =>
     apiClient.put<ApiResponse<TimeLog>>(`/supervisor/verifications/${logId}`, data).then((r) => r.data),
 

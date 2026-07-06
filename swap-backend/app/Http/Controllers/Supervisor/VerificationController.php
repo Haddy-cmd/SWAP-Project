@@ -32,6 +32,21 @@ class VerificationController extends Controller
         ]);
     }
 
+    /** Recently reviewed logs (verified or rejected) across this supervisor's students. */
+    public function reviewed(Request $request): JsonResponse
+    {
+        $logs = $this->timeLogRepository->paginateForSupervisor(
+            $request->user()->id,
+            ['status_in' => ['verified', 'rejected']],
+            50,
+        );
+
+        return response()->json([
+            'data' => TimeLogResource::collection($logs->items()),
+            'meta' => ['total' => $logs->total()],
+        ]);
+    }
+
     public function update(VerifyLogRequest $request, int $logId): JsonResponse
     {
         $log = $this->timeLogRepository->findById($logId);
