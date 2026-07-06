@@ -144,9 +144,14 @@ class StudentController extends Controller
 
         $token = $request->bearerToken();
 
-        $documents = \App\Models\ApplicationDocument::whereHas('application', fn ($q) => $q->where('user_id', $studentId))
-            ->orderBy('document_type')
+        // Include each document's application term so renewals don't get mixed in
+        // with earlier submissions. Newest term first, then by document type.
+        $documents = \App\Models\ApplicationDocument::with('application:id,academic_year,semester,type,created_at')
+            ->whereHas('application', fn ($q) => $q->where('user_id', $studentId))
             ->get()
+            ->sortBy('document_type')
+            ->sortByDesc(fn ($doc) => optional($doc->application)->created_at?->timestamp ?? 0)
+            ->values()
             ->map(function ($doc) use ($token) {
                 $url = rtrim(config('app.url'), '/') . '/api/documents/' . $doc->id . '/file';
                 if ($token) {
@@ -158,6 +163,10 @@ class StudentController extends Controller
                     'file_url' => $url,
                     'file_name' => $doc->file_name,
                     'mime_type' => $doc->mime_type,
+                    'application_id' => $doc->application_id,
+                    'academic_year' => $doc->application?->academic_year,
+                    'semester' => $doc->application?->semester,
+                    'type' => $doc->application?->type ?? 'new',
                 ];
             });
 

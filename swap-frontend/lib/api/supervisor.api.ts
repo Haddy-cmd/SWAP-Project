@@ -12,6 +12,10 @@ export interface StudentDocument {
   file_url: string
   file_name: string | null
   mime_type: string | null
+  application_id: number
+  academic_year: string | null
+  semester: string | null
+  type: 'new' | 'renewal'
 }
 
 export const supervisorApi = {

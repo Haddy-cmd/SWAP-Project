@@ -7,7 +7,7 @@ import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2, FileText,
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
-import { supervisorApi } from '@/lib/api/supervisor.api'
+import { supervisorApi, type StudentDocument } from '@/lib/api/supervisor.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 import { cn } from '@/lib/utils/cn'
@@ -72,6 +72,24 @@ function Progress({ row }: { row: Row }) {
   )
 }
 
+// Group a student's documents by the term they were submitted for, so a renewal's
+// updated COR/grades don't blend into the original application's documents. Backend
+// already returns them newest-term-first, so group order is preserved.
+function groupDocsByTerm(docs: StudentDocument[]) {
+  const groups: { key: string; label: string; type: 'new' | 'renewal'; docs: StudentDocument[] }[] = []
+  for (const doc of docs) {
+    const key = String(doc.application_id)
+    let group = groups.find((g) => g.key === key)
+    if (!group) {
+      const term = [doc.academic_year, doc.semester].filter(Boolean).join(' · ')
+      group = { key, label: term || 'Application requirements', type: doc.type, docs: [] }
+      groups.push(group)
+    }
+    group.docs.push(doc)
+  }
+  return groups
+}
+
 function StudentDocumentsModal({ student, onClose }: { student: Selected; onClose: () => void }) {
   const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
   const { data: docs, isLoading } = useQuery({
@@ -97,17 +115,29 @@ function StudentDocumentsModal({ student, onClose }: { student: Selected; onClos
         ) : !docs?.length ? (
           <p className="py-8 text-center text-sm text-[#94A3B8]">No documents on file for this student.</p>
         ) : (
-          <ul className="space-y-2">
-            {docs.map((doc) => (
-              <li key={doc.id} className="flex items-center justify-between rounded-lg border border-[#EAD9D9] px-4 py-3">
-                <p className="text-sm capitalize text-[#1E293B]">{doc.document_type.replace(/_/g, ' ')}</p>
-                <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-medium text-[#7D1A1A] hover:text-[#A52020] transition-colors">
-                  <FileText className="h-3.5 w-3.5" />
-                  View
-                </button>
-              </li>
+          <div className="space-y-5">
+            {groupDocsByTerm(docs).map((group) => (
+              <div key={group.key}>
+                <div className="mb-2 flex items-center gap-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#A38A82]">{group.label}</p>
+                  {group.type === 'renewal' && (
+                    <span className="rounded-full bg-[#F1ECF7] px-2 py-0.5 text-[10px] font-bold text-[#6B4E9A]">Renewal</span>
+                  )}
+                </div>
+                <ul className="space-y-2">
+                  {group.docs.map((doc) => (
+                    <li key={doc.id} className="flex items-center justify-between rounded-lg border border-[#EAD9D9] px-4 py-3">
+                      <p className="text-sm capitalize text-[#1E293B]">{doc.document_type.replace(/_/g, ' ')}</p>
+                      <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-medium text-[#7D1A1A] hover:text-[#A52020] transition-colors">
+                        <FileText className="h-3.5 w-3.5" />
+                        View
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </div>
       {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
