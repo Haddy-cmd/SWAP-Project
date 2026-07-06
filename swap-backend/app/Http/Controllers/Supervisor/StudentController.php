@@ -50,8 +50,14 @@ class StudentController extends Controller
 
     public function clockedIn(Request $request): JsonResponse
     {
+        // Ignore logs open longer than a full session: those are forgotten
+        // clock-outs awaiting the stale-close cron, not live sessions — showing
+        // them here produces a bogus multi-day "currently clocked in" timer.
+        $freshCutoff = now()->subHours(AttendanceService::MAX_SESSION_HOURS);
+
         $logs = \App\Models\TimeLog::with(['user.profile', 'assignment.office'])
             ->where('status', 'open')
+            ->where('time_in', '>=', $freshCutoff)
             ->whereHas('assignment', fn ($q) => $q->visibleToSupervisor($request->user()))
             ->orderBy('time_in')
             ->get();

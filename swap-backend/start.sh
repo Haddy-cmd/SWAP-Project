@@ -19,5 +19,14 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# Boot the API on the platform-provided port.
+# Safety net on boot: force-close any attendance logs left open past the max
+# session (forgotten clock-outs), crediting only up to the cap. Non-fatal so a
+# hiccup here never blocks the deploy.
+php artisan attendance:close-stale || true
+
+# Run Laravel's scheduler in the background so hourly jobs (e.g. attendance:close-stale)
+# keep firing while the service is up — Render's single web service has no cron.
+php artisan schedule:work &
+
+# Boot the API on the platform-provided port (foreground — keeps the container alive).
 php artisan serve --host 0.0.0.0 --port "${PORT:-8000}"

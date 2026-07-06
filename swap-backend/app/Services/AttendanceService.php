@@ -18,6 +18,15 @@ class AttendanceService
     /** GPS readings worse than this (meters) are treated as untrustworthy and flagged. */
     private const ACCURACY_THRESHOLD_METERS = 100;
 
+    /**
+     * Max length of a single attendance session, in hours. A log open longer than
+     * this is a forgotten clock-out: the hourly attendance:close-stale command
+     * force-closes it (crediting only up to the cap), and the supervisor's
+     * "currently clocked in" view ignores anything older so a stale log can't
+     * masquerade as a live session.
+     */
+    public const MAX_SESSION_HOURS = 12;
+
     public function __construct(
         private readonly TimeLogRepositoryInterface $timeLogRepository,
         private readonly QrCodeService $qrCodeService,

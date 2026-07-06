@@ -174,6 +174,26 @@ class AttendanceTest extends TestCase
         $this->assertSame('open', $freshLog->fresh()->status);
     }
 
+    public function test_supervisor_clocked_in_excludes_stale_open_logs(): void
+    {
+        $supervisor = $this->makeUser('supervisor');
+
+        // Fresh session (2h ago) — a genuine live clock-in.
+        $live = $this->makeUser('recipient');
+        $this->makeOpenLog($this->makeAssignment($live, $supervisor), $live, now()->subHours(2));
+
+        // Stale session (15h ago) — a forgotten clock-out, not a live session.
+        $stuck = $this->makeUser('recipient');
+        $this->makeOpenLog($this->makeAssignment($stuck, $supervisor), $stuck, now()->subHours(15));
+
+        Sanctum::actingAs($supervisor);
+        $res = $this->getJson('/api/supervisor/students/clocked-in')->assertOk();
+
+        $names = collect($res->json('data'))->pluck('user.name');
+        $this->assertContains($live->name, $names);
+        $this->assertNotContains($stuck->name, $names, 'A stale (>12h) open log must not appear as currently clocked in.');
+    }
+
     public function test_hours_summary_returns_expected_keys(): void
     {
         $recipient = $this->makeUser('recipient');
