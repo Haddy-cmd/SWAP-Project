@@ -43,6 +43,15 @@ class TimeLogRepository implements TimeLogRepositoryInterface
             ->first();
     }
 
+    /** Any open (not-yet-clocked-out) log for the user, regardless of date. */
+    public function findAnyOpenLog(int $userId): ?TimeLog
+    {
+        return TimeLog::where('user_id', $userId)
+            ->where('status', 'open')
+            ->orderByDesc('time_in')
+            ->first();
+    }
+
     public function findByAssignment(int $assignmentId, array $filters = []): Collection
     {
         $query = TimeLog::with(['narrativeReport', 'verifications.verifier'])

@@ -13,6 +13,8 @@ interface TimeLogRepositoryInterface
 
     public function findOpenLogForToday(int $userId): ?TimeLog;
 
+    public function findAnyOpenLog(int $userId): ?TimeLog;
+
     public function findByAssignment(int $assignmentId, array $filters = []): Collection;
 
     public function paginateForSupervisor(int $supervisorId, array $filters = [], int $perPage = 15): LengthAwarePaginator;

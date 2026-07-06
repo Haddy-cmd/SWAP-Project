@@ -45,6 +45,60 @@ class AttendanceTest extends TestCase
         $this->postJson('/api/recipient/attendance/time-in-geofence', $payload)->assertStatus(409);
     }
 
+    public function test_open_log_from_a_previous_day_blocks_a_new_clock_in(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+
+        // A forgotten clock-out from yesterday leaves an open log.
+        $this->makeOpenLog($assignment, $recipient, now()->subDay());
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 8.0, 'longitude' => 124.0,
+        ])->assertStatus(409);
+    }
+
+    public function test_database_rejects_a_second_open_log_for_the_same_user(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+
+        $this->makeOpenLog($assignment, $recipient, now()->subMinutes(5));
+
+        // The partial unique index must reject a second concurrent open log.
+        $this->expectException(\Illuminate\Database\UniqueConstraintViolationException::class);
+        $this->makeOpenLog($assignment, $recipient, now());
+    }
+
+    public function test_void_duplicate_open_logs_closes_an_overlapping_twin(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $start = now()->subMinutes(5);
+
+        // A completed (clocked-out, pending) session…
+        TimeLog::create([
+            'assignment_id' => $assignment->id, 'user_id' => $recipient->id,
+            'date' => $start->toDateString(), 'time_in' => $start, 'time_out' => now(),
+            'status' => 'pending_verification',
+        ]);
+        // …and an overlapping still-open twin from the same double clock-in.
+        $twin = TimeLog::create([
+            'assignment_id' => $assignment->id, 'user_id' => $recipient->id,
+            'date' => $start->toDateString(), 'time_in' => $start, 'status' => 'open',
+        ]);
+
+        $voided = app(\App\Services\AttendanceService::class)->voidDuplicateOpenLogs();
+
+        $this->assertSame(1, $voided);
+        $twin->refresh();
+        $this->assertSame('rejected', $twin->status);
+        $this->assertEquals(0.0, (float) $twin->duration_hours);
+        $this->assertSame(0, TimeLog::where('user_id', $recipient->id)->where('status', 'open')->count());
+    }
+
     public function test_time_in_outside_geofence_is_rejected(): void
     {
         $recipient = $this->makeUser('recipient');

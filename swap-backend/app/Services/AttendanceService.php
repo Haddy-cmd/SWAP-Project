@@ -200,25 +200,74 @@ class AttendanceService
             throw new ConflictHttpException('You have already completed your required service hours.');
         }
 
-        if ($this->timeLogRepository->findOpenLogForToday($user->id)) {
-            throw new ConflictHttpException('You already have an open attendance log for today.');
+        // Block a second clock-in while ANY session is still open (not just today's),
+        // so a forgotten clock-out or a double-tap can't create a duplicate open log.
+        if ($this->timeLogRepository->findAnyOpenLog($user->id)) {
+            throw new ConflictHttpException('You are already clocked in. Please clock out before clocking in again.');
         }
+    }
+
+    /**
+     * Void duplicate/overlapping open logs so a student never has more than one
+     * live session. Keeps the earliest open log per user and voids the rest, plus
+     * any open log that overlaps an already-completed session (physically
+     * impossible = a duplicate). Voided logs get a zero duration and 'rejected'
+     * status so they credit no hours. Returns how many were voided.
+     */
+    public function voidDuplicateOpenLogs(): int
+    {
+        $userIds = TimeLog::where('status', 'open')->distinct()->pluck('user_id');
+        $voided = 0;
+
+        foreach ($userIds as $userId) {
+            $opens = TimeLog::where('user_id', $userId)->where('status', 'open')->orderBy('time_in')->get();
+            $keep = $opens->first();
+
+            foreach ($opens as $open) {
+                $isExtraOpen = $open->id !== $keep->id;
+
+                $overlapsClosed = TimeLog::where('user_id', $userId)
+                    ->where('id', '!=', $open->id)
+                    ->whereNotNull('time_out')
+                    ->where('time_in', '<=', $open->time_in)
+                    ->where('time_out', '>=', $open->time_in)
+                    ->exists();
+
+                if ($isExtraOpen || $overlapsClosed) {
+                    $this->timeLogRepository->update($open, [
+                        'time_out' => $open->time_in,
+                        'status' => 'rejected',
+                        'rejection_reason' => 'Duplicate clock-in automatically voided.',
+                        'clocked_out_reason' => 'auto_dedup',
+                    ]);
+                    $voided++;
+                }
+            }
+        }
+
+        return $voided;
     }
 
     private function createOpenLog(Assignment $assignment, User $user, ?float $lat = null, ?float $lng = null, ?float $accuracy = null): TimeLog
     {
-        $log = $this->timeLogRepository->create([
-            'assignment_id' => $assignment->id,
-            'user_id' => $user->id,
-            'date' => Carbon::today()->toDateString(),
-            'time_in' => now(),
-            'time_in_lat' => $lat,
-            'time_in_lng' => $lng,
-            'time_in_accuracy' => $accuracy,
-            // Flag clock-ins where the GPS fix is too coarse to trust the geofence check.
-            'location_flagged' => $accuracy !== null && $accuracy > self::ACCURACY_THRESHOLD_METERS,
-            'status' => 'open',
-        ]);
+        try {
+            $log = $this->timeLogRepository->create([
+                'assignment_id' => $assignment->id,
+                'user_id' => $user->id,
+                'date' => Carbon::today()->toDateString(),
+                'time_in' => now(),
+                'time_in_lat' => $lat,
+                'time_in_lng' => $lng,
+                'time_in_accuracy' => $accuracy,
+                // Flag clock-ins where the GPS fix is too coarse to trust the geofence check.
+                'location_flagged' => $accuracy !== null && $accuracy > self::ACCURACY_THRESHOLD_METERS,
+                'status' => 'open',
+            ]);
+        } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            // The partial unique index (one open log per user) rejected a racing
+            // duplicate clock-in — surface it as a clean conflict, not a 500.
+            throw new ConflictHttpException('You are already clocked in. Please clock out before clocking in again.');
+        }
 
         broadcast(new AttendanceStarted(
             supervisorId: $assignment->supervisor_id,
