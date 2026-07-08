@@ -108,6 +108,11 @@ return [
         ],
     ],
 
+    // Email verification links expire after 5 minutes (used by VerifyEmail).
+    'verification' => [
+        'expire' => 5,
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Password Confirmation Timeout

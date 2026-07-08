@@ -174,6 +174,11 @@ class ApplicationService
 
         AuditLog::record('updated', $updated, $old, $updated->only(['status']));
 
+        // Let the applicant know their submission is being reviewed (in-app only).
+        $updated->loadMissing('user')->user?->notify(new \App\Notifications\ApplicationUnderReviewNotification([
+            'application_id' => $updated->id,
+        ]));
+
         return $updated;
     }
 

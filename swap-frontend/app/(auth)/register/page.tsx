@@ -185,7 +185,8 @@ export default function RegisterPage() {
           <h1 className="mt-4 font-serif text-2xl font-medium text-[#241715]">Check your email</h1>
           <p className="mt-2 text-sm leading-relaxed text-[#8A7A73]">
             We sent a verification link to <span className="font-semibold text-[#241715]">{verifyEmail}</span>.
-            Click it to activate your account, then sign in. (Check your spam folder if you don&apos;t see it.)
+            Click it within <span className="font-semibold text-[#241715]">5 minutes</span> to activate your account, then sign in.
+            (Check your spam folder, and use Resend below if it expires.)
           </p>
           <div className="mt-6 flex flex-col gap-2">
             <button

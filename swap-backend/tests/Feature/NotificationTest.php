@@ -103,4 +103,26 @@ class NotificationTest extends TestCase
         $this->assertNotNull($note, 'Admin should be notified of a new application.');
         $this->assertSame('application', $note->data['type']);
     }
+
+    public function test_marking_under_review_notifies_the_applicant_in_app_only(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+
+        $admin = $this->makeUser('admin');
+        $applicant = $this->makeUser('applicant');
+        $application = \App\Models\Application::create([
+            'user_id' => $applicant->id,
+            'academic_year' => '2025-2026', 'semester' => '1st Semester', 'status' => 'submitted',
+        ]);
+
+        Sanctum::actingAs($admin);
+        $this->putJson("/api/admin/applications/{$application->id}/review")->assertOk();
+
+        $note = Notification::where('notifiable_id', $applicant->id)
+            ->where('notifiable_type', User::class)->first();
+
+        $this->assertNotNull($note, 'Applicant should get an in-app under-review notification.');
+        $this->assertSame('Application Under Review', $note->data['title']);
+        \Illuminate\Support\Facades\Mail::assertNothingSent();
+    }
 }
