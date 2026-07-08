@@ -33,7 +33,7 @@ const schema = z
     contact_number: z.string().optional(),
     college: z.string().min(1, 'College is required'),
     program: z.string().min(1, 'Program is required'),
-    year_level: z.coerce.number().min(1).max(6),
+    year_level: z.coerce.number().min(1).max(4),
   })
   .refine((d) => d.password === d.password_confirmation, {
     message: 'Passwords do not match',
@@ -336,7 +336,7 @@ export default function RegisterPage() {
                       <GraduationCap className={ICON} />
                       <select {...register('year_level')} defaultValue="" className={`${INPUT} appearance-none`}>
                         <option value="" disabled>Select year</option>
-                        {[1, 2, 3, 4, 5, 6].map((y) => <option key={y} value={y}>{ORDINAL[y]} Year</option>)}
+                        {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{ORDINAL[y]} Year</option>)}
                       </select>
                       <ChevronDown className="h-4 w-4 flex-none text-[#B79B7E]" />
                     </div>

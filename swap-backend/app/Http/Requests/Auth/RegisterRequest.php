@@ -26,7 +26,7 @@ class RegisterRequest extends FormRequest
             'contact_number' => ['nullable', 'string', 'max:20'],
             'college' => ['required', 'string', 'max:150'],
             'program' => ['required', 'string', 'max:150'],
-            'year_level' => ['required', 'integer', 'min:1', 'max:6'],
+            'year_level' => ['required', 'integer', 'min:1', 'max:4'],
         ];
     }
 

@@ -31,8 +31,11 @@ class InterviewScheduledNotification extends Notification implements ShouldQueue
             ->line('Your SWAP application interview has been scheduled.');
 
         if ($interview) {
+            // Online interviews show a meeting link; in-person shows a venue.
+            $locationLabel = $interview->mode === 'online' ? 'Virtual Interview Link' : 'Location';
+
             $mail->line("Date & Time: {$interview->scheduled_at->timezone('Asia/Manila')->format('F j, Y g:i A')}")
-                ->line("Location: {$interview->location}")
+                ->line("{$locationLabel}: {$interview->location}")
                 ->line("Mode: " . ucfirst(str_replace('_', ' ', $interview->mode)));
         }
 
