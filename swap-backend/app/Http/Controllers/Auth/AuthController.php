@@ -47,12 +47,13 @@ class AuthController extends Controller
             'year_level' => $request->year_level,
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Prove the applicant owns the email before they can sign in: send a
+        // verification link and withhold sign-in (no token) until they confirm.
+        $user->sendEmailVerificationNotification();
 
         return response()->json([
-            'data' => new UserResource($user->load('profile')),
-            'token' => $token,
-            'message' => 'Registration successful.',
+            'message' => 'Registration successful. Please check your email for a verification link before signing in.',
+            'verification_required' => true,
         ], 201);
     }
 
@@ -71,6 +72,13 @@ class AuthController extends Controller
             Auth::logout();
             throw ValidationException::withMessages([
                 'email' => ['Your account has been deactivated. Please contact the DSA Office.'],
+            ]);
+        }
+
+        if (!$user->hasVerifiedEmail()) {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'email' => ['Please verify your email first. Check your inbox for the verification link, or resend it below.'],
             ]);
         }
 

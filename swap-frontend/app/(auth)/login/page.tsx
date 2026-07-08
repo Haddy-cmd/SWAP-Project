@@ -7,8 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { authApi } from '@/lib/api/auth.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
@@ -36,12 +36,27 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore()
   const [showPassword, setShowPassword] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
+  const [verifiedBanner, setVerifiedBanner] = useState<'ok' | 'error' | null>(null)
+  const [needsVerify, setNeedsVerify] = useState<string | null>(null)
+  const [resendMsg, setResendMsg] = useState<string | null>(null)
+
+  // Show a banner after the email-verification link redirects back here.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('verified') === '1') setVerifiedBanner('ok')
+    else if (params.get('verify_error') === '1') setVerifiedBanner('error')
+  }, [])
 
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
+
+  const resend = useMutation({
+    mutationFn: (email: string) => authApi.resendVerification(email),
+    onSuccess: () => setResendMsg('Verification email sent — check your inbox (and spam).'),
+  })
 
   const login = useMutation({
     mutationFn: (data: FormData) => authApi.login(data),
@@ -51,8 +66,11 @@ export default function LoginPage() {
       const redirect = new URLSearchParams(window.location.search).get('redirect')
       router.replace(redirect || getRoleDashboard(res.data.role))
     },
-    onError: (err: ApiError) => {
-      setServerError(err.message ?? 'Invalid credentials. Please try again.')
+    onError: (err: ApiError, variables) => {
+      const msg = err.message ?? err.errors?.email?.[0] ?? 'Invalid credentials. Please try again.'
+      setServerError(msg)
+      // If the block is "verify your email", offer to resend the link.
+      setNeedsVerify(/verify your email/i.test(msg) ? variables.email : null)
     },
   })
 
@@ -78,10 +96,35 @@ export default function LoginPage() {
             </h1>
             <p className="mt-2 text-sm text-[#8A7A73]">Use your MSU credentials to continue.</p>
 
-            {serverError && (
-              <div className="mt-6 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#C0392B]">
+            {verifiedBanner === 'ok' && (
+              <div className="mt-6 flex items-start gap-2 rounded-xl border border-[#BBE5C6] bg-[#EEF7EF] px-4 py-3 text-sm text-[#2C5A33]">
+                <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                Email verified — you can now sign in.
+              </div>
+            )}
+            {verifiedBanner === 'error' && (
+              <div className="mt-6 flex items-start gap-2 rounded-xl border border-[#F3D9A0] bg-[#FFF7ED] px-4 py-3 text-sm text-[#92400E]">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                {serverError}
+                That verification link is invalid or expired. Sign in to resend a new one.
+              </div>
+            )}
+
+            {serverError && (
+              <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#C0392B]">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                  {serverError}
+                </div>
+                {needsVerify && (
+                  <button
+                    type="button"
+                    onClick={() => resend.mutate(needsVerify)}
+                    disabled={resend.isPending || !!resendMsg}
+                    className="mt-2 text-xs font-semibold text-[#7C1B26] underline underline-offset-2 disabled:opacity-60"
+                  >
+                    {resendMsg ? resendMsg : resend.isPending ? 'Sending…' : 'Resend verification email'}
+                  </button>
+                )}
               </div>
             )}
 

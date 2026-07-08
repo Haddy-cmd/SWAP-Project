@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\Shared\ChatbotController;
@@ -36,6 +37,10 @@ Route::post('/auth/register', [AuthController::class, 'register'])->middleware('
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
 Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPassword'])->middleware('throttle:3,1');
 Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:6,1');
+// Email verification — the signed link in the verification email lands here.
+Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware('signed')->name('verification.verify');
+Route::post('/auth/resend-verification', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
 Route::get('/chatbot/query', [ChatbotController::class, 'query']);
 Route::get('/settings/application-status', [SettingController::class, 'applicationStatus']);
 // Staff invitations — the invitee opens the emailed link to create their account.

@@ -1,13 +1,16 @@
 import apiClient from './axios'
-import type { AuthResponse, LoginCredentials, RegisterData, User } from '@/types/auth.types'
+import type { AuthResponse, LoginCredentials, RegisterData, RegisterResponse, User } from '@/types/auth.types'
 import type { ApiResponse } from '@/types/api.types'
 
 export const authApi = {
   register: (data: RegisterData) =>
-    apiClient.post<AuthResponse>('/auth/register', data).then((r) => r.data),
+    apiClient.post<RegisterResponse>('/auth/register', data).then((r) => r.data),
 
   login: (credentials: LoginCredentials) =>
     apiClient.post<AuthResponse>('/auth/login', credentials).then((r) => r.data),
+
+  resendVerification: (email: string) =>
+    apiClient.post('/auth/resend-verification', { email }).then((r) => r.data),
 
   logout: () =>
     apiClient.post('/auth/logout').then((r) => r.data),

@@ -65,3 +65,9 @@ export interface AuthResponse {
   token: string
   message: string
 }
+
+// Registration no longer auto-logs in — it asks the user to verify their email.
+export interface RegisterResponse {
+  message: string
+  verification_required?: boolean
+}

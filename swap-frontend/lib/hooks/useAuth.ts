@@ -29,9 +29,9 @@ export function useAuth() {
 
   const registerMutation = useMutation({
     mutationFn: (data: RegisterData) => authApi.register(data),
-    onSuccess: (data) => {
-      setAuth(data.data, data.token)
-      router.push('/applicant')
+    onSuccess: () => {
+      // Registration now requires email verification before sign-in.
+      router.push('/login')
     },
   })
 

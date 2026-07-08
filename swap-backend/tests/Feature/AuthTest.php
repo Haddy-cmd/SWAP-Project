@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -33,18 +36,20 @@ class AuthTest extends TestCase
         ], $overrides);
     }
 
-    public function test_register_creates_applicant_with_token(): void
+    public function test_register_requires_email_verification(): void
     {
+        Notification::fake();
+
         $res = $this->postJson('/api/auth/register', $this->validRegisterPayload());
 
-        $res->assertStatus(201)
-            ->assertJsonPath('data.role', 'applicant')
-            ->assertJsonStructure(['data' => ['id', 'email', 'role'], 'token']);
+        // No token/auto-login — the applicant must verify their email first.
+        $res->assertStatus(201)->assertJsonPath('verification_required', true);
+        $res->assertJsonMissing(['token' => true]);
 
-        $this->assertDatabaseHas('users', [
-            'email' => 'juan@s.msumain.edu.ph',
-            'role' => 'applicant',
-        ]);
+        $user = User::where('email', 'juan@s.msumain.edu.ph')->first();
+        $this->assertNotNull($user);
+        $this->assertFalse($user->hasVerifiedEmail());
+        Notification::assertSentTo($user, VerifyEmail::class);
     }
 
     public function test_register_duplicate_email_is_rejected(): void
@@ -75,6 +80,7 @@ class AuthTest extends TestCase
         User::create([
             'name' => 'Ali Hassan', 'email' => 'ali@student.msu-marawi.edu.ph',
             'password' => 'Student@12345', 'role' => 'applicant', 'is_active' => true,
+            'email_verified_at' => now(),
         ]);
 
         $res = $this->postJson('/api/auth/login', [
@@ -85,6 +91,42 @@ class AuthTest extends TestCase
         $res->assertStatus(200)
             ->assertJsonStructure(['data' => ['id', 'email', 'role'], 'token']);
         $this->assertNotEmpty($res->json('token'));
+    }
+
+    public function test_login_is_blocked_until_email_is_verified(): void
+    {
+        User::create([
+            'name' => 'Unverified', 'email' => 'unverified@s.msumain.edu.ph',
+            'password' => 'Student@12345', 'role' => 'applicant', 'is_active' => true,
+            'email_verified_at' => null,
+        ]);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'unverified@s.msumain.edu.ph',
+            'password' => 'Student@12345',
+        ])->assertStatus(422)->assertJsonValidationErrors('email');
+    }
+
+    public function test_verification_link_verifies_the_email(): void
+    {
+        $user = User::create([
+            'name' => 'Verify Me', 'email' => 'verifyme@s.msumain.edu.ph',
+            'password' => 'Student@12345', 'role' => 'applicant', 'is_active' => true,
+            'email_verified_at' => null,
+        ]);
+
+        $url = URL::temporarySignedRoute('verification.verify', now()->addMinutes(60), [
+            'id' => $user->id,
+            'hash' => sha1($user->getEmailForVerification()),
+        ]);
+
+        $this->get($url)->assertRedirect();
+        $this->assertTrue($user->fresh()->hasVerifiedEmail());
+
+        // Now login works.
+        $this->postJson('/api/auth/login', [
+            'email' => 'verifyme@s.msumain.edu.ph', 'password' => 'Student@12345',
+        ])->assertStatus(200)->assertJsonStructure(['token']);
     }
 
     public function test_login_with_wrong_password_is_rejected(): void

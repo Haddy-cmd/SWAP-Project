@@ -7,15 +7,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
 import {
   User, Hash, Mail, Building2, BookOpen, GraduationCap, Lock, Contact,
-  Eye, EyeOff, ArrowRight, ArrowLeft, Check, ChevronDown,
+  Eye, EyeOff, ArrowRight, ArrowLeft, Check, ChevronDown, MailCheck,
 } from 'lucide-react'
 import { authApi } from '@/lib/api/auth.api'
 import { settingsApi } from '@/lib/api/settings.api'
-import { useAuthStore } from '@/lib/store/authStore'
-import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import type { ApiError } from '@/types/api.types'
 
 const schema = z
@@ -112,13 +109,13 @@ function StepDot({ index, step }: { index: number; step: number }) {
 }
 
 export default function RegisterPage() {
-  const router = useRouter()
-  const { setAuth } = useAuthStore()
   const [step, setStep] = useState(1)
   const [showPw, setShowPw] = useState(false)
   const [certified, setCertified] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [verifyEmail, setVerifyEmail] = useState<string | null>(null)
+  const [resendSent, setResendSent] = useState(false)
 
   const {
     register,
@@ -141,11 +138,16 @@ export default function RegisterPage() {
     queryFn: () => settingsApi.getApplicationStatus(),
   })
 
+  const resend = useMutation({
+    mutationFn: (email: string) => authApi.resendVerification(email),
+    onSuccess: () => setResendSent(true),
+  })
+
   const signup = useMutation({
     mutationFn: (data: FormData) => authApi.register(data),
-    onSuccess: (res) => {
-      setAuth(res.data, res.token)
-      router.replace(getRoleDashboard(res.data.role))
+    onSuccess: () => {
+      // No auto-login — the applicant must verify their email first.
+      setVerifyEmail(watch('email'))
     },
     onError: (err: ApiError) => {
       if (err.errors) {
@@ -171,6 +173,37 @@ export default function RegisterPage() {
   const [heading, subhead] = HEADINGS[step]
 
   // Application period closed → show a notice instead of the signup form.
+  // After a successful signup, ask the applicant to verify their email.
+  if (verifyEmail) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#EFE6DB] p-4 sm:p-8">
+        <div className="w-full max-w-md rounded-[18px] bg-white p-8 text-center shadow-[0_24px_60px_rgba(60,30,25,0.20)]">
+          <Image src="/dsa-logo.png" alt="DSA Logo" width={64} height={64} className="mx-auto" priority />
+          <div className="mx-auto mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF7EF]">
+            <MailCheck className="h-6 w-6 text-[#4E9657]" />
+          </div>
+          <h1 className="mt-4 font-serif text-2xl font-medium text-[#241715]">Check your email</h1>
+          <p className="mt-2 text-sm leading-relaxed text-[#8A7A73]">
+            We sent a verification link to <span className="font-semibold text-[#241715]">{verifyEmail}</span>.
+            Click it to activate your account, then sign in. (Check your spam folder if you don&apos;t see it.)
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <button
+              onClick={() => resend.mutate(verifyEmail)}
+              disabled={resend.isPending || resendSent}
+              className="rounded-xl border border-[#E7D9C9] bg-white px-6 py-3 text-sm font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] disabled:opacity-60 transition-colors"
+            >
+              {resendSent ? 'Verification email resent ✓' : resend.isPending ? 'Resending…' : 'Resend verification email'}
+            </button>
+            <Link href="/login" className="rounded-xl bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 py-3 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,0.26)] transition hover:brightness-110">
+              Go to sign in
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!statusLoading && appStatus && !appStatus.open) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-[#EFE6DB] p-4 sm:p-8">
