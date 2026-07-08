@@ -87,7 +87,7 @@ export default function StudentLogsPage() {
   const name = student?.name ?? logsData?.student?.name ?? `Student #${studentId}`
   const meta = [student?.office, [student?.academic_year, student?.semester].filter(Boolean).join(' ')].filter(Boolean).join(' · ')
 
-  const required = s?.required ?? logsData?.student?.required_hours ?? 120
+  const required = s?.required ?? logsData?.student?.required_hours ?? 200
   const verified = s?.verified ?? 0
   const remaining = s?.remaining ?? Math.max(0, required - verified)
   const pct = required > 0 ? Math.min(100, (verified / required) * 100) : 0

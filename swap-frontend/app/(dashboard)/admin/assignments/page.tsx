@@ -52,7 +52,7 @@ export default function AdminAssignmentsPage() {
   // Inline assign-panel fields
   const [officeId, setOfficeId] = useState('')
   const [supervisorId, setSupervisorId] = useState('')
-  const [requiredHours, setRequiredHours] = useState('120')
+  const [requiredHours, setRequiredHours] = useState('200')
   const [startDate, setStartDate] = useState(today)
   const [endDate, setEndDate] = useState('')
 
@@ -116,7 +116,7 @@ export default function AdminAssignmentsPage() {
     setSelectedAppId(app.id)
     setOfficeId('')
     setSupervisorId('')
-    setRequiredHours('120')
+    setRequiredHours('200')
     setStartDate(today())
     setEndDate('')
     setToast('')

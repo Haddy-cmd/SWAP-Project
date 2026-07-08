@@ -190,7 +190,7 @@ export default function SupervisorStudentsPage() {
       office: String(s.office_name ?? '—'),
       avatarUrl: (user.avatar_url as string | null) ?? null,
       verified: Number(s.verified_hours ?? 0),
-      required: Number(s.required_hours ?? 120),
+      required: Number(s.required_hours ?? 200),
       pendingRequired: s.pending_required_hours != null ? Number(s.pending_required_hours) : null,
       pendingLogs: Number(s.pending_logs_count ?? 0),
     }
