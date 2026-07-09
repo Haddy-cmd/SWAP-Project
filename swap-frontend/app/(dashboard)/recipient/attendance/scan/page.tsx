@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, AlertTriangle } from 'lucide-react'
 import { QrScanner } from '@/components/attendance/QrScanner'
+import { SelfieCapture } from '@/components/attendance/SelfieCapture'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { getBestPosition } from '@/lib/utils/geolocation'
@@ -12,16 +13,18 @@ export default function ScanAttendancePage() {
   const queryClient = useQueryClient()
   const [result, setResult] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [scanned, setScanned] = useState(false)
+  // After a QR scan we hold the token and ask for a selfie before clocking in.
+  const [pendingToken, setPendingToken] = useState<string | null>(null)
 
   const timeIn = useMutation({
-    mutationFn: async (token: string) => {
+    mutationFn: async ({ token, photo }: { token: string; photo?: Blob }) => {
       let coords
       try {
         coords = await getBestPosition()
       } catch {
         coords = undefined
       }
-      return attendanceApi.timeInGeofence(token, coords)
+      return attendanceApi.timeInGeofence(token, coords, photo)
     },
     onSuccess: (res) => {
       const premises = res.data.location_flagged
@@ -31,17 +34,19 @@ export default function ScanAttendancePage() {
         type: 'success',
         text: `Time-in recorded at ${formatDateTime(res.data.time_in)}.${premises}`,
       })
+      setPendingToken(null)
       setScanned(true)
       queryClient.invalidateQueries({ queryKey: ['hours-summary'] })
     },
     onError: (err: { message?: string }) => {
       setResult({ type: 'error', text: err.message ?? 'Time-in failed. Try again.' })
+      setPendingToken(null)
       setScanned(true)
     },
   })
 
   function handleScan(token: string) {
-    if (!scanned) timeIn.mutate(token)
+    if (!scanned && !pendingToken) setPendingToken(token)
   }
 
   return (
@@ -68,7 +73,15 @@ export default function ScanAttendancePage() {
         </div>
       )}
 
-      {!scanned ? (
+      {pendingToken ? (
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+          <SelfieCapture
+            onCapture={(blob) => timeIn.mutate({ token: pendingToken, photo: blob })}
+            onSkip={() => timeIn.mutate({ token: pendingToken })}
+            busy={timeIn.isPending}
+          />
+        </div>
+      ) : !scanned ? (
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
           <QrScanner onScan={handleScan} onError={(e) => setResult({ type: 'error', text: e })} />
         </div>

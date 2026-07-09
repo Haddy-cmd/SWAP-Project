@@ -7,6 +7,7 @@ import { attendanceApi } from '@/lib/api/attendance.api'
 import { HoursProgress } from '@/components/attendance/HoursProgress'
 import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
+import { SelfieCapture } from '@/components/attendance/SelfieCapture'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { getCurrentPosition, getBestPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
 
@@ -22,6 +23,7 @@ export default function AttendancePage() {
   const [qrToken, setQrToken] = useState('')
   const [geoWarning, setGeoWarning] = useState<string | null>(null)
   const [narrativeOpen, setNarrativeOpen] = useState(false)
+  const [selfieOpen, setSelfieOpen] = useState(false)
   const outsideSinceRef = useRef<number | null>(null)
 
   const { data: summary } = useQuery({
@@ -43,7 +45,7 @@ export default function AttendancePage() {
   }, [currentLog])
 
   const timeIn = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (photo?: Blob) => {
       // Geofenced clock-in: attach GPS when available; backend enforces premises for geofenced offices.
       let coords: Coords | undefined
       try {
@@ -51,10 +53,11 @@ export default function AttendancePage() {
       } catch {
         coords = undefined
       }
-      return attendanceApi.timeInGeofence(qrToken, coords)
+      return attendanceApi.timeInGeofence(qrToken, coords, photo)
     },
     onSuccess: (res) => {
       setOpenLogId(res.data.id)
+      setSelfieOpen(false)
       const premises = res.data.location_flagged
         ? ' Your location couldn’t be fully verified (weak GPS).'
         : ' You’re inside the office premises.'
@@ -64,6 +67,7 @@ export default function AttendancePage() {
       setQrToken('')
     },
     onError: (err: { message?: string }) => {
+      setSelfieOpen(false)
       setMessage({ type: 'error', text: err.message ?? 'Time-in failed. Please try again.' })
     },
   })
@@ -244,7 +248,7 @@ export default function AttendancePage() {
           <div className="flex gap-3">
             {mode === 'idle' ? (
               <button
-                onClick={() => timeIn.mutate()}
+                onClick={() => setSelfieOpen(true)}
                 disabled={timeIn.isPending || !qrToken.trim() || completed}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
@@ -269,6 +273,19 @@ export default function AttendancePage() {
         <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
           <h2 className="mb-4 font-semibold text-[#1E293B]">Hours Summary</h2>
           <HoursProgress summary={summary} />
+        </div>
+      )}
+
+      {/* Proof-of-presence selfie before clocking in. */}
+      {selfieOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => !timeIn.isPending && setSelfieOpen(false)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <SelfieCapture
+              onCapture={(blob) => timeIn.mutate(blob)}
+              onSkip={() => timeIn.mutate(undefined)}
+              busy={timeIn.isPending}
+            />
+          </div>
         </div>
       )}
 
