@@ -75,7 +75,10 @@ class TimeLogRepository implements TimeLogRepositoryInterface
 
     public function paginateForSupervisor(int $supervisorId, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = TimeLog::with(['user.profile', 'assignment.office', 'narrativeReport'])
+        // verifier: offices with co-supervisors share a roster, so a reviewed log must
+        // name who acted on it — otherwise the other supervisor can't tell whether it
+        // still needs them, and the two duplicate each other's work.
+        $query = TimeLog::with(['user.profile', 'assignment.office', 'narrativeReport', 'verifier.profile'])
             ->whereHas('assignment', $this->assignmentClauseFor($supervisorId))
             ->orderByDesc('date');
 

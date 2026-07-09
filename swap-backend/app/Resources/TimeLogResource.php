@@ -20,6 +20,11 @@ class TimeLogResource extends JsonResource
             'status' => $this->status,
             'verified_by' => $this->verified_by,
             'verified_at' => $this->verified_at?->toISOString(),
+            'verifier' => $this->whenLoaded('verifier', fn () => $this->verifier ? [
+                'id' => $this->verifier->id,
+                'name' => $this->verifier->profile?->full_name ?? $this->verifier->name,
+                'avatar_url' => $this->verifier->avatar_url,
+            ] : null),
             'rejection_reason' => $this->rejection_reason,
             'clocked_out_reason' => $this->clocked_out_reason,
             'location_flagged' => (bool) $this->location_flagged,

@@ -3,14 +3,26 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2, FileText, X } from 'lucide-react'
+import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2, FileText, X, TrendingDown } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { supervisorApi, type StudentDocument } from '@/lib/api/supervisor.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
+import { UNKNOWN_PACE, isBehind, paceDetail, type Pace } from '@/lib/utils/pace'
 import { cn } from '@/lib/utils/cn'
+
+/** Shown when verified hours have fallen behind what the elapsed term expects. */
+function BehindBadge({ pace }: { pace: Pace }) {
+  if (!isBehind(pace)) return null
+  return (
+    <span title={paceDetail(pace)}
+      className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-[#FBF3E2] px-2 py-0.5 text-[11px] font-semibold text-[#9A6B12]">
+      <TrendingDown className="h-3 w-3" /> Behind pace
+    </span>
+  )
+}
 
 type Row = {
   userId: number
@@ -22,6 +34,7 @@ type Row = {
   required: number
   pendingRequired: number | null
   pendingLogs: number
+  pace: Pace
 }
 type Selected = { userId: number; name: string; required: number }
 
@@ -35,6 +48,7 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }
 function PendingBadges({ row }: { row: Row }) {
   return (
     <div className="flex flex-shrink-0 flex-col items-end gap-1">
+      <BehindBadge pace={row.pace} />
       {row.pendingLogs > 0 && (
         <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-[#92400E]">
           {row.pendingLogs} to review
@@ -193,6 +207,7 @@ export default function SupervisorStudentsPage() {
       required: Number(s.required_hours ?? 200),
       pendingRequired: s.pending_required_hours != null ? Number(s.pending_required_hours) : null,
       pendingLogs: Number(s.pending_logs_count ?? 0),
+      pace: (s.pace as Pace | undefined) ?? UNKNOWN_PACE,
     }
   })
 
@@ -201,6 +216,7 @@ export default function SupervisorStudentsPage() {
     ? rows.filter((r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.office.toLowerCase().includes(q))
     : rows
   const toReview = rows.reduce((n, r) => n + r.pendingLogs, 0)
+  const behindCount = rows.filter((r) => isBehind(r.pace)).length
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
@@ -264,6 +280,11 @@ export default function SupervisorStudentsPage() {
           {toReview > 0 && (
             <span className="rounded-full border border-[#F3E2B8] bg-[#FFFBEB] px-3 py-1 text-xs font-semibold text-[#92400E]">{toReview} logs to review</span>
           )}
+          {behindCount > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#F0E4C6] bg-[#FBF3E2] px-3 py-1 text-xs font-semibold text-[#9A6B12]">
+              <TrendingDown className="h-3.5 w-3.5" /> {behindCount} behind pace
+            </span>
+          )}
         </div>
       )}
 
@@ -324,11 +345,12 @@ export default function SupervisorStudentsPage() {
                       <div className="flex items-center gap-3">
                         <Avatar name={r.name} avatarUrl={r.avatarUrl} />
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-[#1E293B]">{r.name}</p>
                             {r.pendingLogs > 0 && (
                               <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-[#92400E]">{r.pendingLogs} to review</span>
                             )}
+                            <BehindBadge pace={r.pace} />
                           </div>
                           <p className="truncate text-xs text-[#94A3B8]">{r.email}</p>
                         </div>

@@ -11,6 +11,8 @@ export interface TimeLog {
   status: TimeLogStatus
   verified_by: number | null
   verified_at: string | null
+  /** Who verified or rejected it — offices may have several supervisors sharing a roster. */
+  verifier?: { id: number; name: string; avatar_url?: string | null } | null
   rejection_reason: string | null
   clocked_out_reason?: 'manual' | 'auto' | 'auto_stale' | null
   location_flagged?: boolean

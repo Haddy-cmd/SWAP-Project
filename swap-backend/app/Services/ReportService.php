@@ -41,6 +41,89 @@ class ReportService
         return $data;
     }
 
+    /**
+     * End-of-semester summary of one supervisor's roster — the sheet they hand to
+     * the DSA. Scoped through visibleToSupervisor(), so co-supervisors of an office
+     * export the same students they can already see.
+     */
+    public function supervisorRosterData(User $supervisor): array
+    {
+        $asgs = Assignment::whereHas('user')
+            ->with(['user.profile', 'office'])
+            ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
+            ->withSum(['timeLogs as pending_sum' => fn ($q) => $q->where('status', 'pending_verification')], 'duration_hours')
+            ->visibleToSupervisor($supervisor)
+            ->where('status', 'active')
+            ->get()
+            ->sortBy(fn ($a) => $a->user?->profile?->full_name ?? $a->user?->name ?? '')
+            ->values();
+
+        $verified = round($asgs->sum(fn ($a) => $a->verified_hours), 2);
+        $pending = round($asgs->sum(fn ($a) => $a->pending_hours), 2);
+        $required = (float) $asgs->sum('required_hours');
+        $behind = $asgs->filter(fn ($a) => $a->paceStatus()['status'] === 'behind')->count();
+
+        // The header names the supervisor's own office. A supervisor can also be named
+        // directly on an assignment in another office, so the roster may span several —
+        // the per-row Office column, not this heading, is the authority on where a
+        // student actually serves.
+        $officeNames = $asgs->pluck('office.name')->filter()->unique();
+        $office = $supervisor->office?->name
+            ?? ($officeNames->count() === 1 ? $officeNames->first() : null)
+            ?? ($officeNames->isNotEmpty() ? $officeNames->count() . ' offices' : '—');
+
+        return [
+            'title' => 'Recipient Service Hours Summary',
+            'slug' => 'service-hours-summary',
+            'office' => $office,
+            'supervisor' => $supervisor->profile?->full_name ?? $supervisor->name,
+            'headers' => [
+                'Recipient', 'Student ID', 'Email', 'Office', 'Academic Year', 'Semester',
+                'Required Hours', 'Verified Hours', 'Pending Hours', 'Remaining Hours', '% Complete', 'Pace',
+            ],
+            'stats' => [
+                ['label' => 'Recipients', 'value' => (string) $asgs->count()],
+                ['label' => 'Verified Hours', 'value' => (string) $verified],
+                ['label' => 'Avg Completion', 'value' => ($required > 0 ? round($verified / $required * 100, 1) : 0) . '%'],
+                ['label' => 'Behind Pace', 'value' => (string) $behind],
+            ],
+            'totals' => [
+                'recipients' => $asgs->count(),
+                'required' => $required,
+                'verified' => $verified,
+                'pending' => $pending,
+                'behind' => $behind,
+            ],
+            'rows' => $asgs->map(function ($a) {
+                $pace = $a->paceStatus();
+
+                return [
+                    $a->user?->profile?->full_name ?? $a->user?->name,
+                    $a->user?->profile?->student_id_number,
+                    $a->user?->email,
+                    $a->office?->name,
+                    $a->academic_year,
+                    $a->semester,
+                    $a->required_hours,
+                    round($a->verified_hours, 2),
+                    round($a->pending_hours, 2),
+                    $a->remaining_hours,
+                    $pace['percent'] . '%',
+                    ucwords(str_replace('_', ' ', $pace['status'])),
+                ];
+            })->all(),
+        ];
+    }
+
+    /** The roster summary with a timestamped .csv filename for the streamed download. */
+    public function buildSupervisorExport(User $supervisor): array
+    {
+        $data = $this->supervisorRosterData($supervisor);
+        $data['filename'] = "{$data['slug']}-" . now()->format('Ymd') . '.csv';
+
+        return $data;
+    }
+
     private function applicationsReport(string $ay, string $sem): array
     {
         $apps = Application::whereHas('user')

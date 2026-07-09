@@ -8,6 +8,7 @@ import {
   ExternalLink, CheckCheck, ClipboardCheck, Loader2, ShieldAlert,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { useAuthStore } from '@/lib/store/authStore'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { needsReview, blocksBulkVerify, reviewReason } from '@/lib/utils/attendanceReview'
 import type { TimeLog } from '@/types/attendance.types'
@@ -32,6 +33,7 @@ const REVIEWED_META: Record<string, { label: string; color: string; bg: string; 
 
 export default function VerificationsPage() {
   const qc = useQueryClient()
+  const { user } = useAuthStore()
   const [tab, setTab] = useState<'pending' | 'flagged' | 'reviewed'>('pending')
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState<Record<number, true>>({})
@@ -180,7 +182,7 @@ export default function VerificationsPage() {
           {(['Student', 'Date & Time', 'Hours', 'Narrative'] as const).map((h) => (
             <span key={h} className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{h}</span>
           ))}
-          <span className="text-right text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{tab === 'reviewed' ? 'Status' : 'Actions'}</span>
+          <span className="text-right text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{tab === 'reviewed' ? 'Reviewed by' : 'Actions'}</span>
         </div>
 
         {/* rows */}
@@ -281,10 +283,17 @@ export default function VerificationsPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="flex md:justify-end">
-                    <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-bold" style={{ color: meta.color, background: meta.bg }}>
+                  <div className="flex flex-col gap-1 md:items-end">
+                    <span className="inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1 text-[11.5px] font-bold" style={{ color: meta.color, background: meta.bg }}>
                       <meta.Icon className="h-[15px] w-[15px]" /> {meta.label}
                     </span>
+                    {/* Offices can have several supervisors, so say who acted. */}
+                    {l.verifier && (
+                      <span className="truncate text-[11px] text-[#A38A82]" title={`${meta.label} by ${l.verifier.name}`}>
+                        by <span className="font-semibold text-[#7A6A63]">{l.verifier.id === user?.id ? 'you' : l.verifier.name}</span>
+                        {l.verified_at && ` · ${fmtDate(l.verified_at)}`}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>

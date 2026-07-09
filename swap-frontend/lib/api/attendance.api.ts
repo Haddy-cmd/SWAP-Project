@@ -1,6 +1,7 @@
 import apiClient from './axios'
 import type { TimeLog, HoursSummary, NarrativeReport, StoreNarrativeData, VerifyLogData } from '@/types/attendance.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
+import type { Pace } from '@/lib/utils/pace'
 
 export const attendanceApi = {
   getCurrentLog: () =>
@@ -59,7 +60,7 @@ export const attendanceApi = {
     apiClient.get<{ data: TimeLog[] }>('/supervisor/students/clocked-in').then((r) => r.data.data),
 
   getStudentSummary: (studentId: number) =>
-    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; office?: string | null; academic_year?: string; semester?: string; required_hours?: number } }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; office?: string | null; academic_year?: string; semester?: string; required_hours?: number; pace?: Pace } }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
 
   getStudentLogs: (studentId: number, params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<TimeLog> & { student?: { id: number; name: string; required_hours?: number; pending_required_hours?: number | null } }>(`/supervisor/students/${studentId}/logs`, { params }).then((r) => r.data),

@@ -87,6 +87,26 @@ class ReportController extends Controller
             $validated['semester']
         );
 
+        return $this->streamCsv($report);
+    }
+
+    /** Live preview of the supervisor's end-of-semester roster summary. */
+    public function supervisorRoster(Request $request): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->reportService->supervisorRosterData($request->user()),
+        ]);
+    }
+
+    /** The same roster as a CSV the supervisor can hand to the DSA. */
+    public function exportSupervisorRoster(Request $request): StreamedResponse
+    {
+        return $this->streamCsv($this->reportService->buildSupervisorExport($request->user()));
+    }
+
+    /** @param array{headers:array,rows:array,filename:string} $report */
+    private function streamCsv(array $report): StreamedResponse
+    {
         return response()->streamDownload(function () use ($report) {
             $out = fopen('php://output', 'w');
             // UTF-8 BOM so Excel renders accented characters correctly.

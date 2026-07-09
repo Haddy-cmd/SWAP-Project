@@ -13,7 +13,10 @@ export interface Assignment {
   qr_code: string | null
   rendered_hours: number
   verified_hours: number
+  pending_hours: number
   remaining_hours: number
+  /** Progress against the elapsed term, computed server-side. */
+  pace: import('@/lib/utils/pace').Pace
   created_at: string
   user?: import('./auth.types').User
   office?: Office

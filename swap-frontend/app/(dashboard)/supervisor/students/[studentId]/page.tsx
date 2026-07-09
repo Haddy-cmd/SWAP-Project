@@ -6,12 +6,20 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import {
   ArrowLeft, ReceiptText, Building2, Mail, CalendarDays, Flag, BadgeCheck,
-  History, TrendingUp, Clock, AlertTriangle,
+  History, TrendingUp, Clock, AlertTriangle, CheckCircle2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
+import { PACE_META, UNKNOWN_PACE, paceDetail, type PaceStatus } from '@/lib/utils/pace'
 import type { TimeLog } from '@/types/attendance.types'
+
+const PACE_ICON: Record<PaceStatus, LucideIcon> = {
+  complete: CheckCircle2,
+  on_track: TrendingUp,
+  behind: AlertTriangle,
+  not_started: Clock,
+}
 
 const fmtHrs = (h: number) => (Number.isInteger(h) ? String(h) : h.toFixed(1))
 
@@ -54,18 +62,20 @@ export default function StudentDetailPage() {
   const remaining = summary?.remaining ?? Math.max(0, required - verified)
   const pct = required > 0 ? Math.min(100, (verified / required) * 100) : 0
 
-  // Pace signal, mirroring the mockup's thresholds.
-  const pace: { label: string; color: string; bg: string; Icon: LucideIcon } =
-    verified <= 0 ? { label: 'Not started', color: '#8A7A73', bg: '#F1E7DC', Icon: Clock }
-      : pct >= 25 ? { label: 'On track', color: '#2C5A33', bg: '#EAF5EC', Icon: TrendingUp }
-      : { label: 'Behind pace', color: '#9A6B12', bg: '#FBF3E2', Icon: AlertTriangle }
+  // Pace is decided server-side against the elapsed term, so this page and the
+  // supervisor's at-risk panel can never disagree about who is behind.
+  const pace = student?.pace ?? UNKNOWN_PACE
+  const paceMeta = PACE_META[pace.status]
+  const PaceIcon = PACE_ICON[pace.status]
 
   const note =
     verified <= 0
       ? `No verified hours yet this period — ${fmtHrs(required)} hours required to complete the placement.`
       : remaining <= 0
         ? `Requirement complete — all ${fmtHrs(required)} hours have been verified.`
-        : `${fmtHrs(remaining)} verified hours remaining to complete the ${fmtHrs(required)}-hour requirement.`
+        : pace.status === 'behind' && pace.expected_hours != null
+          ? `${paceDetail(pace)} — about ${fmtHrs(pace.expected_hours)} of the ${fmtHrs(required)} required hours should be verified by now.`
+          : `${fmtHrs(remaining)} verified hours remaining to complete the ${fmtHrs(required)}-hour requirement.`
 
   const details: { Icon: LucideIcon; label: string; value: string }[] = [
     { Icon: Building2, label: 'Office', value: student?.office ?? '—' },
@@ -141,9 +151,9 @@ export default function StudentDetailPage() {
           <div className="min-w-[280px] flex-1">
             <div className="mb-4 flex items-center justify-between gap-3">
               <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#A38A82]">Hours Breakdown</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold"
-                style={{ color: pace.color, background: pace.bg }}>
-                <pace.Icon className="h-[15px] w-[15px]" /> {pace.label}
+              <span title={paceDetail(pace)} className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-bold"
+                style={{ color: paceMeta.color, background: paceMeta.bg }}>
+                <PaceIcon className="h-[15px] w-[15px]" /> {paceMeta.label}
               </span>
             </div>
 

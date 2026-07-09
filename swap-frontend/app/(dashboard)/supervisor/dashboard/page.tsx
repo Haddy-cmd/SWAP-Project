@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, CheckSquare, Clock, AlertCircle, CheckCircle, ArrowRight, Check, MapPinOff, Sparkles, ShieldAlert } from 'lucide-react'
+import { Users, CheckSquare, Clock, AlertCircle, CheckCircle, ArrowRight, Check, MapPinOff, Sparkles, ShieldAlert, TrendingDown } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { needsReview } from '@/lib/utils/attendanceReview'
+import { isBehind, paceDetail, type Pace } from '@/lib/utils/pace'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
 import { formatHours } from '@/lib/utils/formatHours'
@@ -19,12 +20,15 @@ function Avatar({ name, avatarUrl, size = 'md' }: { name: string; avatarUrl?: st
 }
 
 type StudentRow = {
-  user?: { name?: string }
+  user?: { name?: string; avatar_url?: string | null }
   name?: string
   office_name?: string
   user_id?: number
   id?: number
   pending_logs_count?: number
+  verified_hours?: number
+  required_hours?: number
+  pace?: Pace
 }
 
 export default function SupervisorDashboard() {
@@ -63,6 +67,12 @@ export default function SupervisorDashboard() {
 
   // Pending logs the server flagged (or that have no proof-of-presence selfie).
   const flaggedCount = pendingLogs.filter(needsReview).length
+
+  // Students whose verified hours have fallen behind the elapsed term, worst first,
+  // so a supervisor can intervene while there's still semester left to catch up in.
+  const atRisk = students
+    .filter((s) => isBehind(s.pace))
+    .sort((a, b) => (b.pace?.deficit_hours ?? 0) - (a.pace?.deficit_hours ?? 0))
 
   const nameOf = (s: StudentRow) => String(s.user?.name ?? s.name ?? '—')
   const idOf = (s: StudentRow) => String(s.user_id ?? s.id ?? '')
@@ -170,6 +180,67 @@ export default function SupervisorDashboard() {
           </div>
         )}
       </div>
+
+      {/* At-risk roster — only surfaces when someone is actually falling behind */}
+      {atRisk.length > 0 && (
+        <div className="rounded-2xl border border-[#F0E4C6] bg-white p-5 shadow-sm">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-[#9A6B12]" />
+              <h2 className="font-bold text-[#9A6B12]">Falling Behind</h2>
+              <span className="rounded-full bg-[#FBF3E2] px-2 py-0.5 text-xs font-bold text-[#9A6B12]">{atRisk.length}</span>
+            </div>
+            <Link href="/supervisor/reports" className="text-xs font-semibold text-[#7D1A1A] hover:text-[#A52020] transition-colors">
+              Semester summary →
+            </Link>
+          </div>
+          <p className="mb-4 text-xs text-[#8A6A6A]">
+            Verified hours are short of what the elapsed term expects. There is still time to intervene.
+          </p>
+
+          <div className="space-y-2.5">
+            {atRisk.slice(0, 5).map((s) => {
+              const pace = s.pace!
+              const pct = Math.min(100, pace.percent)
+              // How far along the term is — the bar the student should have reached by now.
+              const expectedPct = pace.expected_hours != null && s.required_hours
+                ? Math.min(100, (pace.expected_hours / s.required_hours) * 100)
+                : null
+              return (
+                <Link key={idOf(s)} href={`/supervisor/students/${idOf(s)}`}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#F5EDE0] bg-[#FFFDF8] p-3.5 hover:bg-[#FBF3E2] transition-colors">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <Avatar name={nameOf(s)} avatarUrl={s.user?.avatar_url} size="sm" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-[#1E293B]">{nameOf(s)}</p>
+                      <p className="truncate text-xs text-[#8A6A6A]">
+                        {formatHours(s.verified_hours ?? 0)} of {s.required_hours ?? 0}h verified · {paceDetail(pace)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex w-full items-center gap-3 sm:w-auto">
+                    <div className="relative h-2 w-full min-w-[120px] overflow-hidden rounded-full bg-[#EFE7E7] sm:w-40">
+                      <div className="h-full rounded-full bg-[#D8A12B]" style={{ width: `${pct}%` }} />
+                      {expectedPct != null && (
+                        <span title={`Expected by now: ${formatHours(pace.expected_hours!)}h`}
+                          className="absolute top-[-2px] h-3 w-0.5 rounded bg-[#9A6B12]" style={{ left: `${expectedPct}%` }} />
+                      )}
+                    </div>
+                    <span className="flex-shrink-0 text-xs font-bold tabular-nums text-[#9A6B12]">{pct}%</span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+
+          {atRisk.length > 5 && (
+            <Link href="/supervisor/students" className="mt-3 inline-block text-xs font-semibold text-[#7D1A1A] hover:text-[#A52020]">
+              View {atRisk.length - 5} more →
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Two columns */}
       <div className="grid gap-6 lg:grid-cols-2">

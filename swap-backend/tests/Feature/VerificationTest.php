@@ -94,6 +94,30 @@ class VerificationTest extends TestCase
         $this->assertEquals('pending_verification', $other->fresh()->status);
     }
 
+    public function test_reviewed_logs_name_the_co_supervisor_who_acted(): void
+    {
+        $office = $this->makeOffice();
+        $owner = $this->makeUser('supervisor', ['office_id' => $office->id]);
+        $coSupervisor = $this->makeUser('supervisor', ['office_id' => $office->id, 'name' => 'Prof. Omar Macabato']);
+
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $owner, $office);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(3));
+        $this->addNarrative($log);
+        $log->update(['time_out' => now(), 'status' => 'pending_verification']);
+
+        // The co-supervisor clears it...
+        Sanctum::actingAs($coSupervisor);
+        $this->putJson("/api/supervisor/verifications/{$log->id}", ['action' => 'verified'])->assertStatus(200);
+
+        // ...and the owner can see who did, so neither re-reviews the other's work.
+        Sanctum::actingAs($owner);
+        $this->getJson('/api/supervisor/verifications/reviewed')
+            ->assertStatus(200)
+            ->assertJsonPath('data.0.verified_by', $coSupervisor->id)
+            ->assertJsonPath('data.0.verifier.name', 'Prof. Omar Macabato');
+    }
+
     public function test_bulk_verify_skips_location_flagged_logs(): void
     {
         $supervisor = $this->makeUser('supervisor');

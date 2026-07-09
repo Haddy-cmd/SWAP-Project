@@ -111,6 +111,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/students/{id}/manual-hours', [StudentController::class, 'addManualHours']);
         Route::put('/students/{id}/required-hours', [StudentController::class, 'updateRequiredHours']);
         Route::post('/students/{id}/required-hours/decision', [StudentController::class, 'decideRequiredHours']);
+        Route::get('/reports/roster', [ReportController::class, 'supervisorRoster']);
+        Route::get('/reports/roster/export', [ReportController::class, 'exportSupervisorRoster']);
         Route::get('/verifications/pending', [VerificationController::class, 'pending']);
         Route::get('/verifications/reviewed', [VerificationController::class, 'reviewed']);
         Route::post('/verifications/bulk', [VerificationController::class, 'bulkVerify']);
