@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
-import { needsReview, reviewReason } from '@/lib/utils/attendanceReview'
+import { needsReview, blocksBulkVerify, reviewReason } from '@/lib/utils/attendanceReview'
 import type { TimeLog } from '@/types/attendance.types'
 
 const PALETTE: [string, string][] = [
@@ -84,13 +84,14 @@ export default function VerificationsPage() {
 
   const pendHrs = pendingAll.reduce((s, l) => s + (Number(l.duration_hours) || 0), 0)
 
-  // Only clean logs can ever be bulk-verified — a flagged log must be opened and
-  // decided individually, so "select all" can never rubber-stamp a suspicious one.
+  // A location-flagged log must be opened and decided individually, so "select all"
+  // can never rubber-stamp a suspicious one. Logs merely missing a selfie stay
+  // selectable — they're badged, not blocked (see blocksBulkVerify).
   const selIds = Object.keys(sel).map(Number)
-    .filter((id) => pendingAll.some((l) => l.id === id && !needsReview(l)))
+    .filter((id) => pendingAll.some((l) => l.id === id && !blocksBulkVerify(l)))
   const selHrs = pendingAll.filter((l) => selIds.includes(l.id)).reduce((s, l) => s + (Number(l.duration_hours) || 0), 0)
 
-  const canSelect = (l: TimeLog) => tab !== 'reviewed' && !needsReview(l)
+  const canSelect = (l: TimeLog) => tab !== 'reviewed' && !blocksBulkVerify(l)
   const visibleIds = rows.filter(canSelect).map((l) => l.id)
   const allSel = visibleIds.length > 0 && visibleIds.every((id) => sel[id])
   const someSel = visibleIds.some((id) => sel[id])
@@ -170,7 +171,7 @@ export default function VerificationsPage() {
         {/* head */}
         <div className="hidden grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] items-center gap-3 border-b border-[#EFE5DA] bg-[#FBF7F2] px-5 py-3 md:grid">
           {tab !== 'reviewed' && visibleIds.length > 0 ? (
-            <button onClick={toggleAll} title="Select all clean logs (flagged logs are excluded)"
+            <button onClick={toggleAll} title="Select all (location-flagged logs are excluded)"
               className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
               style={{ borderColor: someSel ? '#7C1B26' : '#C9B7AC', background: someSel ? '#7C1B26' : '#fff' }}>
               {someSel && (allSel ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} /> : <span className="h-0.5 w-2.5 rounded bg-white" />)}
@@ -209,6 +210,7 @@ export default function VerificationsPage() {
             const isSel = !!sel[l.id]
             const pending = tab !== 'reviewed'
             const flagged = needsReview(l)
+            const blocked = blocksBulkVerify(l)
             const flagWhy = reviewReason(l)
             const meta = REVIEWED_META[l.status] ?? REVIEWED_META.verified
             return (
@@ -219,8 +221,8 @@ export default function VerificationsPage() {
                 <div className="hidden md:block">
                   {!pending ? (
                     <meta.Icon className="h-[19px] w-[19px]" style={{ color: meta.color }} />
-                  ) : flagged ? (
-                    <span title="Flagged — must be reviewed individually, so it can't be bulk-verified"
+                  ) : blocked ? (
+                    <span title="Location flagged — must be reviewed individually, so it can't be bulk-verified"
                       className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] border-dashed border-[#D8A12B] bg-[#FBF3E2]">
                       <ShieldAlert className="h-3 w-3 text-[#9A6B12]" />
                     </span>
