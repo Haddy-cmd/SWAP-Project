@@ -326,6 +326,9 @@ export default function AdminUsersPage() {
                 const [avBg, avFg] = av(i)
                 const [rc, rb] = roleStyle(user.role)
                 const active = user.is_active
+                // An account that hasn't verified its email is a pending signup,
+                // shown distinctly from an admin-deactivated (Inactive) account.
+                const pending = !user.email_verified_at
                 return (
                   <div key={user.id} className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_180px] items-center gap-4 border-b border-[#F4ECE1] px-5 py-3 last:border-0 hover:bg-[#FBF7F2]/60">
                     <div className="flex min-w-0 items-center gap-3">
@@ -346,9 +349,11 @@ export default function AdminUsersPage() {
                     <span className="text-[13px] text-[#5A4A45]">{formatDate(user.created_at)}</span>
 
                     <span className="inline-flex items-center gap-1.5 justify-self-start rounded-full px-2.5 py-1 text-xs font-bold"
-                      style={active ? { color: '#2C5A33', background: '#EAF5EC' } : { color: '#8A7A73', background: '#F1E7DC' }}>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: active ? '#4E9657' : '#B7A99F' }} />
-                      {active ? 'Active' : 'Inactive'}
+                      style={pending
+                        ? { color: '#9A6B12', background: '#FBF3E2' }
+                        : active ? { color: '#2C5A33', background: '#EAF5EC' } : { color: '#8A7A73', background: '#F1E7DC' }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: pending ? '#D8A12B' : active ? '#4E9657' : '#B7A99F' }} />
+                      {pending ? 'Unverified' : active ? 'Active' : 'Inactive'}
                     </span>
 
                     <div className="flex items-center justify-end gap-2">

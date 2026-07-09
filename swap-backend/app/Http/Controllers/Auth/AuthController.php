@@ -28,12 +28,15 @@ class AuthController extends Controller
             ], 403);
         }
 
+        // Created inactive/unverified — the account is only activated once the
+        // applicant clicks the email verification link (so an unconfirmed signup
+        // never shows as an active applicant to the admins).
         $user = $this->userRepository->create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => $request->password,
             'role' => 'applicant',
-            'is_active' => true,
+            'is_active' => false,
         ]);
 
         $user->profile()->create([
@@ -68,17 +71,19 @@ class AuthController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        if (!$user->is_active) {
-            Auth::logout();
-            throw ValidationException::withMessages([
-                'email' => ['Your account has been deactivated. Please contact the DSA Office.'],
-            ]);
-        }
-
+        // Verification is checked first: an unconfirmed new account is inactive,
+        // and we want to prompt them to verify rather than say "deactivated".
         if (!$user->hasVerifiedEmail()) {
             Auth::logout();
             throw ValidationException::withMessages([
                 'email' => ['Please verify your email first. Check your inbox for the verification link, or resend it below.'],
+            ]);
+        }
+
+        if (!$user->is_active) {
+            Auth::logout();
+            throw ValidationException::withMessages([
+                'email' => ['Your account has been deactivated. Please contact the DSA Office.'],
             ]);
         }
 

@@ -49,6 +49,8 @@ class AuthTest extends TestCase
         $user = User::where('email', 'juan@s.msumain.edu.ph')->first();
         $this->assertNotNull($user);
         $this->assertFalse($user->hasVerifiedEmail());
+        // Unverified accounts start inactive so they don't show as active applicants.
+        $this->assertFalse((bool) $user->is_active);
         Notification::assertSentTo($user, VerifyEmail::class);
     }
 
@@ -109,9 +111,10 @@ class AuthTest extends TestCase
 
     public function test_verification_link_verifies_the_email(): void
     {
+        // A fresh, inactive/unverified registration.
         $user = User::create([
             'name' => 'Verify Me', 'email' => 'verifyme@s.msumain.edu.ph',
-            'password' => 'Student@12345', 'role' => 'applicant', 'is_active' => true,
+            'password' => 'Student@12345', 'role' => 'applicant', 'is_active' => false,
             'email_verified_at' => null,
         ]);
 
@@ -121,7 +124,9 @@ class AuthTest extends TestCase
         ]);
 
         $this->get($url)->assertRedirect();
+        // Verifying both confirms the email and activates the account.
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
+        $this->assertTrue((bool) $user->fresh()->is_active);
 
         // Now login works.
         $this->postJson('/api/auth/login', [
@@ -144,9 +149,11 @@ class AuthTest extends TestCase
 
     public function test_login_inactive_user_is_blocked(): void
     {
+        // Verified but admin-deactivated — should hit the deactivated block.
         User::create([
             'name' => 'Inactive', 'email' => 'inactive@student.msu-marawi.edu.ph',
             'password' => 'Student@12345', 'role' => 'applicant', 'is_active' => false,
+            'email_verified_at' => now(),
         ]);
 
         $this->postJson('/api/auth/login', [

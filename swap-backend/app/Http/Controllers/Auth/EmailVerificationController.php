@@ -26,6 +26,10 @@ class EmailVerificationController extends Controller
 
         if (!$user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
+            // Verifying activates a pending applicant account.
+            if (!$user->is_active) {
+                $user->forceFill(['is_active' => true])->save();
+            }
         }
 
         return redirect(Frontend::url('/login?verified=1'));
