@@ -276,6 +276,22 @@ export default function StudentLogsPage() {
                       </button>
                       {isOpen && (
                         <div className="border-t border-[#F4ECE1] px-[18px] py-4">
+                          {(l.time_in_photo_url || l.location_flag_reason) && (
+                            <div className="mb-3 flex items-start gap-3">
+                              {l.time_in_photo_url && (
+                                <a href={l.time_in_photo_url} target="_blank" rel="noopener noreferrer" className="flex-none">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={l.time_in_photo_url} alt="Clock-in selfie" className="h-16 w-12 rounded-lg border border-[#EFE5DA] object-cover" />
+                                </a>
+                              )}
+                              <div className="min-w-0 text-[12px]">
+                                <span className="font-semibold text-[#8A7A73]">{l.time_in_photo_url ? 'Clock-in selfie' : 'No clock-in selfie'}</span>
+                                {l.location_flag_reason && (
+                                  <p className="mt-1 rounded-md bg-[#FBF3E2] px-2 py-1 font-semibold text-[#9A6B12]">⚠ {l.location_flag_reason}</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-[#A9823C]">Narrative Report</div>
                           <p className="whitespace-pre-line font-serif text-[15.5px] leading-[1.65] text-[#33241F]">{narrative}</p>
                           {l.narrative_report?.challenges && (

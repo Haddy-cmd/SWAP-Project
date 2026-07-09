@@ -8,11 +8,12 @@ import { CheckCircle, AlertTriangle, Loader2, MapPin, LogOut, FileText } from 'l
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { authApi } from '@/lib/api/auth.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
+import { SelfieCapture } from '@/components/attendance/SelfieCapture'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getBestPosition } from '@/lib/utils/geolocation'
 import { formatDateTime } from '@/lib/utils/formatDate'
 
-type Phase = 'working' | 'narrative' | 'success' | 'error'
+type Phase = 'working' | 'selfie' | 'narrative' | 'success' | 'error'
 
 /**
  * Deep-link target encoded into the office QR code. A recipient scans the posted
@@ -37,8 +38,9 @@ export default function ScanPage() {
   const [narrativeOpen, setNarrativeOpen] = useState(false)
   const [premises, setPremises] = useState<{ ok: boolean; text: string } | null>(null)
 
-  async function clockIn() {
+  async function clockIn(photo?: Blob) {
     setKind('in')
+    setPhase('working')
     setMessage('Verifying your location…')
     let coords
     try {
@@ -47,7 +49,7 @@ export default function ScanPage() {
       coords = undefined // backend rejects if the office requires geofencing
     }
     try {
-      const res = await attendanceApi.timeInGeofence(tokenRef.current, coords)
+      const res = await attendanceApi.timeInGeofence(tokenRef.current, coords, photo)
       // A successful geofenced clock-in means the student was on the premises;
       // location_flagged means the GPS fix was too coarse to fully trust.
       setPremises(
@@ -138,7 +140,9 @@ export default function ScanPage() {
           setPhase('narrative')
         }
       } else {
-        await clockIn()
+        // Clock-in requires a proof-of-presence selfie first.
+        setKind('in')
+        setPhase('selfie')
       }
     })()
   }, [router])
@@ -160,6 +164,10 @@ export default function ScanPage() {
               <MapPin className="h-4 w-4" /> {message}
             </p>
           </>
+        )}
+
+        {phase === 'selfie' && (
+          <SelfieCapture onCapture={(blob) => clockIn(blob)} onSkip={() => clockIn()} />
         )}
 
         {phase === 'narrative' && (

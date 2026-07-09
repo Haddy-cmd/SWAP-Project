@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\PasswordResetController;
 use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\Shared\ChatbotController;
 use App\Http\Controllers\Shared\ConcernController;
+use App\Http\Controllers\Shared\AttendancePhotoController;
 use App\Http\Controllers\Shared\AvatarController;
 use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
@@ -54,6 +55,7 @@ Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render'])
 Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
 // Profile photo serving — same in-controller auth so it works in an <img src>.
 Route::get('/users/{id}/avatar', [AvatarController::class, 'show']);
+Route::get('/attendance/{logId}/photo', [AttendancePhotoController::class, 'show']);
 
 // ─── AUTHENTICATED ────────────────────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {

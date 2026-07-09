@@ -61,6 +61,7 @@ class AttendanceController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
         $log = $this->attendanceService->timeInGeofence(
@@ -69,6 +70,7 @@ class AttendanceController extends Controller
             isset($validated['latitude']) ? (float) $validated['latitude'] : null,
             isset($validated['longitude']) ? (float) $validated['longitude'] : null,
             isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
+            $request->file('photo'),
         );
 
         return response()->json([

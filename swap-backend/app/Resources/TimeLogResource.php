@@ -23,6 +23,11 @@ class TimeLogResource extends JsonResource
             'rejection_reason' => $this->rejection_reason,
             'clocked_out_reason' => $this->clocked_out_reason,
             'location_flagged' => (bool) $this->location_flagged,
+            'location_flag_reason' => $this->location_flag_reason,
+            'time_in_photo_url' => $this->time_in_photo_path
+                ? rtrim(config('app.url'), '/') . '/api/attendance/' . $this->id . '/photo'
+                    . ($request->bearerToken() ? '?token=' . urlencode($request->bearerToken()) : '')
+                : null,
             'is_manual' => (bool) $this->is_manual,
             'manual_reason' => $this->manual_reason,
             'time_in_lat' => $this->time_in_lat,

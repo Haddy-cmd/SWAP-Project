@@ -9,6 +9,7 @@ use App\Models\Assignment;
 use App\Models\TimeLog;
 use App\Models\User;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
@@ -17,6 +18,9 @@ class AttendanceService
 {
     /** GPS readings worse than this (meters) are treated as untrustworthy and flagged. */
     private const ACCURACY_THRESHOLD_METERS = 100;
+
+    /** Travelling faster than this between two attendance fixes is physically implausible. */
+    private const MAX_PLAUSIBLE_KMH = 130;
 
     /**
      * Max length of a single attendance session, in hours. A log open longer than
@@ -41,7 +45,7 @@ class AttendanceService
     /**
      * Office-level geofenced clock-in: scan the shared office QR + provide GPS location.
      */
-    public function timeInGeofence(User $user, string $officeToken, ?float $latitude, ?float $longitude, ?float $accuracy = null): TimeLog
+    public function timeInGeofence(User $user, string $officeToken, ?float $latitude, ?float $longitude, ?float $accuracy = null, ?UploadedFile $photo = null): TimeLog
     {
         $office = $this->qrCodeService->validateOffice($officeToken);
 
@@ -88,7 +92,7 @@ class AttendanceService
 
         $this->guardClockIn($assignment, $user);
 
-        return $this->createOpenLog($assignment, $user, $latitude, $longitude, $accuracy);
+        return $this->createOpenLog($assignment, $user, $latitude, $longitude, $accuracy, $photo);
     }
 
     public function timeOut(User $user, int $logId, string $qrToken, ?float $latitude = null, ?float $longitude = null, ?float $accuracy = null): TimeLog
@@ -270,8 +274,52 @@ class AttendanceService
         return $voided;
     }
 
-    private function createOpenLog(Assignment $assignment, User $user, ?float $lat = null, ?float $lng = null, ?float $accuracy = null): TimeLog
+    /**
+     * Integrity signals for a clock-in location. Beyond the geofence, catches the
+     * common spoofing tells: a too-coarse GPS fix, coordinates identical to a past
+     * clock-in (a real GPS never repeats exactly — a spoof does), and travel too
+     * fast to be real. Returns [flagged, reason].
+     */
+    private function assessLocation(User $user, ?float $lat, ?float $lng, ?float $accuracy): array
     {
+        $reasons = [];
+
+        if ($accuracy !== null && $accuracy > self::ACCURACY_THRESHOLD_METERS) {
+            $reasons[] = 'weak GPS signal';
+        }
+
+        if ($lat !== null && $lng !== null) {
+            $repeated = TimeLog::where('user_id', $user->id)
+                ->whereNotNull('time_in_lat')
+                ->where('time_in_lat', $lat)
+                ->where('time_in_lng', $lng)
+                ->exists();
+            if ($repeated) {
+                $reasons[] = 'identical GPS coordinates reused';
+            }
+
+            $prev = TimeLog::where('user_id', $user->id)
+                ->whereNotNull('time_in_lat')
+                ->orderByDesc('time_in')
+                ->first();
+            if ($prev && $prev->time_in) {
+                $distanceKm = $this->geofenceService->distanceMeters(
+                    (float) $prev->time_in_lat, (float) $prev->time_in_lng, $lat, $lng
+                ) / 1000;
+                $hours = max(now()->diffInMinutes($prev->time_in), 1) / 60;
+                if (($distanceKm / $hours) > self::MAX_PLAUSIBLE_KMH) {
+                    $reasons[] = 'improbable travel speed';
+                }
+            }
+        }
+
+        return ['flagged' => count($reasons) > 0, 'reason' => $reasons ? implode('; ', $reasons) : null];
+    }
+
+    private function createOpenLog(Assignment $assignment, User $user, ?float $lat = null, ?float $lng = null, ?float $accuracy = null, ?UploadedFile $photo = null): TimeLog
+    {
+        $assessment = $this->assessLocation($user, $lat, $lng, $accuracy);
+
         try {
             $log = $this->timeLogRepository->create([
                 'assignment_id' => $assignment->id,
@@ -281,14 +329,27 @@ class AttendanceService
                 'time_in_lat' => $lat,
                 'time_in_lng' => $lng,
                 'time_in_accuracy' => $accuracy,
-                // Flag clock-ins where the GPS fix is too coarse to trust the geofence check.
-                'location_flagged' => $accuracy !== null && $accuracy > self::ACCURACY_THRESHOLD_METERS,
+                'location_flagged' => $assessment['flagged'],
+                'location_flag_reason' => $assessment['reason'],
                 'status' => 'open',
             ]);
         } catch (\Illuminate\Database\UniqueConstraintViolationException) {
             // The partial unique index (one open log per user) rejected a racing
             // duplicate clock-in — surface it as a clean conflict, not a 500.
             throw new ConflictHttpException('You are already clocked in. Please clock out before clocking in again.');
+        }
+
+        // Proof-of-presence selfie (best-effort — never fail the clock-in over it).
+        if ($photo) {
+            try {
+                $disk = config('filesystems.documents_disk', 'public');
+                $path = $photo->store("attendance/{$log->id}", $disk);
+                if ($path) {
+                    $log->update(['time_in_photo_path' => $path]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Clock-in selfie upload failed', ['log_id' => $log->id, 'error' => $e->getMessage()]);
+            }
         }
 
         broadcast(new AttendanceStarted(

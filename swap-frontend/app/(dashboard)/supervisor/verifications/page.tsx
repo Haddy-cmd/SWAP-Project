@@ -363,6 +363,30 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
             </div>
           ))}
         </div>
+
+        {/* proof-of-presence selfie + location integrity */}
+        {(log.time_in_photo_url || log.location_flagged) && (
+          <div className="flex items-start gap-3.5 border-b border-[#EFE5DA] px-6 py-4">
+            {log.time_in_photo_url && (
+              <a href={log.time_in_photo_url} target="_blank" rel="noopener noreferrer" className="flex-none">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={log.time_in_photo_url} alt="Clock-in selfie" className="h-20 w-16 rounded-lg border border-[#EFE5DA] object-cover" />
+              </a>
+            )}
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-[#A38A82]">Clock-in check</div>
+              <p className="mt-1 text-[12.5px] text-[#5A4A45]">
+                {log.time_in_photo_url ? 'Selfie captured at clock-in.' : 'No selfie captured for this clock-in.'}
+              </p>
+              {log.location_flagged && (
+                <p className="mt-1.5 inline-flex items-start gap-1.5 rounded-md bg-[#FBF3E2] px-2 py-1 text-[11.5px] font-semibold text-[#9A6B12]">
+                  ⚠ Location needs review{log.location_flag_reason ? ` — ${log.location_flag_reason}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* narrative */}
         <div className="px-6 pb-1.5 pt-5">
           <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#A9823C]">Narrative Report</div>

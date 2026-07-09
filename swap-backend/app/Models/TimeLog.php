@@ -33,6 +33,8 @@ class TimeLog extends Model
         'time_in_accuracy',
         'time_out_accuracy',
         'location_flagged',
+        'location_flag_reason',
+        'time_in_photo_path',
         'is_manual',
         'manual_reason',
         'recorded_by',

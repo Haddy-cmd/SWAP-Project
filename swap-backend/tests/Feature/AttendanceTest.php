@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\TimeLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\MakesSwapData;
 use Tests\TestCase;
@@ -289,6 +291,59 @@ class AttendanceTest extends TestCase
         $names = collect($res->json('data'))->pluck('user.name');
         $this->assertContains($live->name, $names);
         $this->assertNotContains($stuck->name, $names, 'A stale (>12h) open log must not appear as currently clocked in.');
+    }
+
+    public function test_reused_gps_coordinates_are_flagged(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+
+        // A prior log at the exact same coordinates — a real GPS never repeats exactly.
+        TimeLog::create([
+            'assignment_id' => $assignment->id, 'user_id' => $recipient->id,
+            'date' => now()->subDay()->toDateString(), 'time_in' => now()->subDay(),
+            'time_out' => now()->subDay()->addHours(2), 'status' => 'verified',
+            'time_in_lat' => 8.0, 'time_in_lng' => 124.0,
+        ]);
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 8.0, 'longitude' => 124.0,
+        ])->assertStatus(201);
+
+        $log = TimeLog::where('user_id', $recipient->id)->where('status', 'open')->first();
+        $this->assertTrue((bool) $log->location_flagged);
+        $this->assertStringContainsString('identical', (string) $log->location_flag_reason);
+    }
+
+    public function test_clock_in_selfie_is_stored_and_access_controlled(): void
+    {
+        Storage::fake('public');
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $supervisor = $this->makeUser('supervisor');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $supervisor, $office);
+
+        Sanctum::actingAs($recipient);
+        $this->post('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 8.0, 'longitude' => 124.0,
+            'photo' => UploadedFile::fake()->image('selfie.jpg'),
+        ])->assertStatus(201);
+
+        $log = TimeLog::where('user_id', $recipient->id)->first();
+        $this->assertNotNull($log->time_in_photo_path);
+        Storage::disk('public')->assertExists($log->time_in_photo_path);
+
+        // The supervisor may view the selfie; an unrelated recipient may not.
+        $supToken = $supervisor->createToken('t')->plainTextToken;
+        $this->get("/api/attendance/{$log->id}/photo?token=" . urlencode($supToken))->assertOk();
+
+        $stranger = $this->makeUser('recipient');
+        $strangerToken = $stranger->createToken('t')->plainTextToken;
+        $this->get("/api/attendance/{$log->id}/photo?token=" . urlencode($strangerToken))->assertStatus(403);
     }
 
     public function test_hours_summary_returns_expected_keys(): void

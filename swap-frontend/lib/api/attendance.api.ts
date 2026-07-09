@@ -12,10 +12,25 @@ export const attendanceApi = {
   getMyLogs: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<TimeLog>>('/recipient/attendance/logs', { params }).then((r) => r.data),
 
-  timeInGeofence: (qrToken: string, coords?: { latitude: number; longitude: number; accuracy?: number }) =>
-    apiClient.post<ApiResponse<TimeLog>>('/recipient/attendance/time-in-geofence', {
+  timeInGeofence: (qrToken: string, coords?: { latitude: number; longitude: number; accuracy?: number }, photo?: Blob) => {
+    // With a proof-of-presence selfie, send multipart; otherwise a plain JSON body.
+    if (photo) {
+      const fd = new FormData()
+      fd.append('qr_token', qrToken)
+      if (coords) {
+        fd.append('latitude', String(coords.latitude))
+        fd.append('longitude', String(coords.longitude))
+        if (coords.accuracy != null) fd.append('accuracy', String(coords.accuracy))
+      }
+      fd.append('photo', new File([photo], 'selfie.jpg', { type: 'image/jpeg' }))
+      return apiClient.post<ApiResponse<TimeLog>>('/recipient/attendance/time-in-geofence', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then((r) => r.data)
+    }
+    return apiClient.post<ApiResponse<TimeLog>>('/recipient/attendance/time-in-geofence', {
       qr_token: qrToken, ...coords,
-    }).then((r) => r.data),
+    }).then((r) => r.data)
+  },
 
   timeOut: (logId: number, qrToken: string, coords?: { latitude: number; longitude: number; accuracy?: number }) =>
     apiClient.post<ApiResponse<TimeLog>>('/recipient/attendance/time-out', {
