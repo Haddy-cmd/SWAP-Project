@@ -93,4 +93,23 @@ class VerificationTest extends TestCase
         $this->assertEquals('verified', $mine2->fresh()->status);
         $this->assertEquals('pending_verification', $other->fresh()->status);
     }
+
+    public function test_bulk_verify_skips_location_flagged_logs(): void
+    {
+        $supervisor = $this->makeUser('supervisor');
+        $clean = $this->pendingLog($this->makeUser('recipient'), $supervisor);
+        $flagged = $this->pendingLog($this->makeUser('recipient'), $supervisor);
+        $flagged->update(['location_flagged' => true, 'location_flag_reason' => 'identical GPS coordinates reused']);
+
+        Sanctum::actingAs($supervisor);
+        $this->postJson('/api/supervisor/verifications/bulk', [
+            'log_ids' => [$clean->id, $flagged->id],
+        ])->assertStatus(200)
+            ->assertJsonPath('meta.verified', 1)
+            ->assertJsonPath('meta.skipped', 1);
+
+        // A suspicious clock-in must be decided individually, never bulk-approved.
+        $this->assertEquals('verified', $clean->fresh()->status);
+        $this->assertEquals('pending_verification', $flagged->fresh()->status);
+    }
 }

@@ -5,10 +5,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import {
   Search, Check, X, ChevronLeft, ChevronRight, CheckCircle2, XCircle,
-  ExternalLink, CheckCheck, ClipboardCheck, Loader2,
+  ExternalLink, CheckCheck, ClipboardCheck, Loader2, ShieldAlert,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
+import { needsReview, reviewReason } from '@/lib/utils/attendanceReview'
 import type { TimeLog } from '@/types/attendance.types'
 
 const PALETTE: [string, string][] = [
@@ -31,7 +32,7 @@ const REVIEWED_META: Record<string, { label: string; color: string; bg: string; 
 
 export default function VerificationsPage() {
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'pending' | 'reviewed'>('pending')
+  const [tab, setTab] = useState<'pending' | 'flagged' | 'reviewed'>('pending')
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState<Record<number, true>>({})
   const [modalId, setModalId] = useState<number | null>(null)
@@ -43,7 +44,7 @@ export default function VerificationsPage() {
 
   const pendingAll = useMemo(() => pendingQ.data ?? [], [pendingQ.data])
   const reviewedAll = useMemo(() => reviewedQ.data ?? [], [reviewedQ.data])
-  const isLoading = tab === 'pending' ? pendingQ.isLoading : reviewedQ.isLoading
+  const isLoading = tab === 'reviewed' ? reviewedQ.isLoading : pendingQ.isLoading
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast((t) => (t === msg ? null : t)), 2600) }
   const afterMutation = () => {
@@ -77,14 +78,20 @@ export default function VerificationsPage() {
 
   // ── derived ────────────────────────────────────────────────────────────────
   const q = query.trim().toLowerCase()
-  const base = tab === 'pending' ? pendingAll : reviewedAll
+  const flaggedAll = useMemo(() => pendingAll.filter(needsReview), [pendingAll])
+  const base = tab === 'pending' ? pendingAll : tab === 'flagged' ? flaggedAll : reviewedAll
   const rows = q ? base.filter((l) => (l.user?.name ?? '').toLowerCase().includes(q)) : base
 
   const pendHrs = pendingAll.reduce((s, l) => s + (Number(l.duration_hours) || 0), 0)
-  const selIds = Object.keys(sel).map(Number).filter((id) => pendingAll.some((l) => l.id === id))
+
+  // Only clean logs can ever be bulk-verified — a flagged log must be opened and
+  // decided individually, so "select all" can never rubber-stamp a suspicious one.
+  const selIds = Object.keys(sel).map(Number)
+    .filter((id) => pendingAll.some((l) => l.id === id && !needsReview(l)))
   const selHrs = pendingAll.filter((l) => selIds.includes(l.id)).reduce((s, l) => s + (Number(l.duration_hours) || 0), 0)
 
-  const visibleIds = tab === 'pending' ? rows.map((l) => l.id) : []
+  const canSelect = (l: TimeLog) => tab !== 'reviewed' && !needsReview(l)
+  const visibleIds = rows.filter(canSelect).map((l) => l.id)
   const allSel = visibleIds.length > 0 && visibleIds.every((id) => sel[id])
   const someSel = visibleIds.some((id) => sel[id])
 
@@ -128,6 +135,9 @@ export default function VerificationsPage() {
           <h1 className="mt-1 font-serif text-3xl font-medium text-[#241715]">Verifications</h1>
           <p className="mt-1.5 text-[13.5px] text-[#8A7A73]">
             {pendingAll.length} pending {pendingAll.length === 1 ? 'log' : 'logs'} · {pendHrs.toFixed(2)} hrs awaiting review
+            {flaggedAll.length > 0 && (
+              <span className="ml-1.5 font-semibold text-[#9A6B12]">· {flaggedAll.length} need a closer look</span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -141,7 +151,7 @@ export default function VerificationsPage() {
             />
           </div>
           <div className="inline-flex gap-[3px] rounded-[10px] bg-[#F1E7DC] p-1">
-            {([['pending', `Pending (${pendingAll.length})`], ['reviewed', `Reviewed (${reviewedAll.length})`]] as const).map(([key, label]) => {
+            {([['pending', `Pending (${pendingAll.length})`], ['flagged', `Needs review (${flaggedAll.length})`], ['reviewed', `Reviewed (${reviewedAll.length})`]] as const).map(([key, label]) => {
               const on = tab === key
               return (
                 <button key={key} onClick={() => { setTab(key); setSel({}) }}
@@ -159,8 +169,9 @@ export default function VerificationsPage() {
       <div className="overflow-hidden rounded-[15px] border border-[#EFE5DA] bg-white">
         {/* head */}
         <div className="hidden grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] items-center gap-3 border-b border-[#EFE5DA] bg-[#FBF7F2] px-5 py-3 md:grid">
-          {tab === 'pending' ? (
-            <button onClick={toggleAll} className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
+          {tab !== 'reviewed' && visibleIds.length > 0 ? (
+            <button onClick={toggleAll} title="Select all clean logs (flagged logs are excluded)"
+              className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
               style={{ borderColor: someSel ? '#7C1B26' : '#C9B7AC', background: someSel ? '#7C1B26' : '#fff' }}>
               {someSel && (allSel ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} /> : <span className="h-0.5 w-2.5 rounded bg-white" />)}
             </button>
@@ -168,7 +179,7 @@ export default function VerificationsPage() {
           {(['Student', 'Date & Time', 'Hours', 'Narrative'] as const).map((h) => (
             <span key={h} className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{h}</span>
           ))}
-          <span className="text-right text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{tab === 'pending' ? 'Actions' : 'Status'}</span>
+          <span className="text-right text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{tab === 'reviewed' ? 'Status' : 'Actions'}</span>
         </div>
 
         {/* rows */}
@@ -180,17 +191,25 @@ export default function VerificationsPage() {
               <ClipboardCheck className="h-7 w-7" />
             </div>
             <p className="text-[15px] font-semibold text-[#3F2F2A]">
-              {q ? 'No students match your search.' : tab === 'pending' ? 'All caught up — nothing to verify.' : 'No reviewed logs yet.'}
+              {q ? 'No students match your search.'
+                : tab === 'pending' ? 'All caught up — nothing to verify.'
+                : tab === 'flagged' ? 'Nothing suspicious — every pending log looks clean.'
+                : 'No reviewed logs yet.'}
             </p>
             <p className="mt-1 text-[13px] text-[#A38A82]">
-              {q ? 'Try a different name.' : tab === 'pending' ? 'New attendance logs from your students will appear here.' : 'Logs you verify or reject will be listed here.'}
+              {q ? 'Try a different name.'
+                : tab === 'pending' ? 'New attendance logs from your students will appear here.'
+                : tab === 'flagged' ? 'Logs with a location flag or a missing clock-in selfie will appear here.'
+                : 'Logs you verify or reject will be listed here.'}
             </p>
           </div>
         ) : (
           rows.map((l) => {
             const [avBg, avFg] = pal(l.user?.name ?? '')
             const isSel = !!sel[l.id]
-            const pending = tab === 'pending'
+            const pending = tab !== 'reviewed'
+            const flagged = needsReview(l)
+            const flagWhy = reviewReason(l)
             const meta = REVIEWED_META[l.status] ?? REVIEWED_META.verified
             return (
               <div key={l.id}
@@ -198,12 +217,19 @@ export default function VerificationsPage() {
                 style={{ background: isSel ? '#FFF9EE' : 'transparent' }}>
                 {/* checkbox / status icon */}
                 <div className="hidden md:block">
-                  {pending ? (
+                  {!pending ? (
+                    <meta.Icon className="h-[19px] w-[19px]" style={{ color: meta.color }} />
+                  ) : flagged ? (
+                    <span title="Flagged — must be reviewed individually, so it can't be bulk-verified"
+                      className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] border-dashed border-[#D8A12B] bg-[#FBF3E2]">
+                      <ShieldAlert className="h-3 w-3 text-[#9A6B12]" />
+                    </span>
+                  ) : (
                     <button onClick={() => toggleOne(l.id)} className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
                       style={{ borderColor: isSel ? '#7C1B26' : '#C9B7AC', background: isSel ? '#7C1B26' : '#fff' }}>
                       {isSel && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
                     </button>
-                  ) : <meta.Icon className="h-[19px] w-[19px]" style={{ color: meta.color }} />}
+                  )}
                 </div>
 
                 {/* student */}
@@ -212,7 +238,13 @@ export default function VerificationsPage() {
                     className="h-9 w-9 rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }} />
                   <div className="min-w-0 leading-tight">
                     <div className="truncate text-[13.5px] font-semibold text-[#241715]">{l.user?.name ?? '—'}</div>
-                    <div className="truncate text-[11.5px] text-[#A38A82]">{l.office?.name ?? '—'}</div>
+                    {flagged && flagWhy ? (
+                      <div className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded bg-[#FBF3E2] px-1.5 py-px text-[10.5px] font-bold text-[#9A6B12]">
+                        <ShieldAlert className="h-3 w-3 flex-none" /> <span className="truncate">{flagWhy}</span>
+                      </div>
+                    ) : (
+                      <div className="truncate text-[11.5px] text-[#A38A82]">{l.office?.name ?? '—'}</div>
+                    )}
                   </div>
                 </div>
 

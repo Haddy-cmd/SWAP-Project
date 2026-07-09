@@ -57,7 +57,9 @@ class VerificationService
 
     /**
      * Approve many pending logs at once. Logs not owned by the supervisor or not pending
-     * are skipped (not fatal), so one bad id doesn't abort the batch.
+     * are skipped (not fatal), so one bad id doesn't abort the batch. Location-flagged
+     * logs are skipped too: a suspicious clock-in must be opened and decided
+     * individually rather than swept up by a bulk approval.
      */
     public function bulkVerify(array $logIds, User $supervisor): array
     {
@@ -67,7 +69,7 @@ class VerificationService
         foreach ($logIds as $id) {
             $log = $this->timeLogRepository->findById((int) $id);
 
-            if (!$log) {
+            if (!$log || $log->location_flagged) {
                 $skipped++;
                 continue;
             }

@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, CheckSquare, Clock, AlertCircle, CheckCircle, ArrowRight, Check, MapPinOff, Sparkles } from 'lucide-react'
+import { Users, CheckSquare, Clock, AlertCircle, CheckCircle, ArrowRight, Check, MapPinOff, Sparkles, ShieldAlert } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { needsReview } from '@/lib/utils/attendanceReview'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
 import { formatHours } from '@/lib/utils/formatHours'
@@ -60,6 +61,9 @@ export default function SupervisorDashboard() {
   const pendingVerifications = typed?.meta?.pending_verifications ?? 0
   const verifiedThisWeek = typed?.meta?.verified_this_week ?? 0
 
+  // Pending logs the server flagged (or that have no proof-of-presence selfie).
+  const flaggedCount = pendingLogs.filter(needsReview).length
+
   const nameOf = (s: StudentRow) => String(s.user?.name ?? s.name ?? '—')
   const idOf = (s: StudentRow) => String(s.user_id ?? s.id ?? '')
 
@@ -100,6 +104,14 @@ export default function SupervisorDashboard() {
             <h2 className="font-bold text-[#7D1A1A]">Needs Your Attention</h2>
             {pendingLogs.length > 0 && (
               <span className="rounded-full bg-[#F39C12] px-2 py-0.5 text-xs font-bold text-white">{pendingLogs.length}</span>
+            )}
+            {flaggedCount > 0 && (
+              <Link href="/supervisor/verifications"
+                title="These logs were flagged, or have no clock-in selfie — review them individually"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#FBF3E2] px-2.5 py-0.5 text-xs font-bold text-[#9A6B12] ring-1 ring-[#F0E4C6] hover:bg-[#F6E9CE] transition-colors">
+                <ShieldAlert className="h-3.5 w-3.5" />
+                {flaggedCount} {flaggedCount === 1 ? 'log needs' : 'logs need'} a closer look
+              </Link>
             )}
           </div>
           <Link href="/supervisor/verifications" className="text-xs font-semibold text-[#7D1A1A] hover:text-[#A52020] transition-colors">
