@@ -73,7 +73,7 @@ class StudentController extends Controller
 
     public function summary(Request $request, int $studentId): JsonResponse
     {
-        $assignment = Assignment::with(['user.profile', 'office'])
+        $assignment = Assignment::with(['user.profile', 'office', 'supervisor'])
             ->where('user_id', $studentId)
             ->visibleToSupervisor($request->user())
             ->where('status', 'active')
@@ -91,7 +91,12 @@ class StudentController extends Controller
                 'avatar_url' => $assignment->user->avatar_url,
                 'student_id_number' => $assignment->user->profile?->student_id_number,
                 'email' => $assignment->user->email,
+                'program' => $assignment->user->profile?->program,
+                'year_level' => $assignment->user->profile?->year_level,
                 'office' => $assignment->office?->name,
+                // The assigned supervisor of record, for the duty slip's signature line —
+                // may differ from the co-supervisor viewing it.
+                'supervisor' => $assignment->supervisor?->profile?->full_name ?? $assignment->supervisor?->name,
                 'academic_year' => $assignment->academic_year,
                 'semester' => $assignment->semester,
                 'required_hours' => $assignment->required_hours,

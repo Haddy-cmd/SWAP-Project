@@ -1,74 +1,18 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import Image from 'next/image'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Printer, ChevronLeft, ChevronRight } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { useAuthStore } from '@/lib/store/authStore'
+import {
+  DutySlipControls, DutySlipDocument, mondayOf, iso,
+  type DutySlipMode, type DutySlipIdentity,
+} from '@/components/attendance/DutySlip'
 import type { TimeLog } from '@/types/attendance.types'
-
-// ── date/time helpers ────────────────────────────────────────────────────────
-function mondayOf(d: Date): Date {
-  const x = new Date(d)
-  const day = x.getDay() // 0 Sun … 6 Sat
-  x.setDate(x.getDate() + (day === 0 ? -6 : 1 - day))
-  x.setHours(0, 0, 0, 0)
-  return x
-}
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const parse = (s?: string | null) => (s ? new Date(s.replace(' ', 'T')) : null)
-const fmtTime = (s?: string | null) => {
-  const d = parse(s)
-  return d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
-}
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-// Deterministic hash → the same inputs always yield the same control number, so
-// an admin can regenerate it from the recipient's record to confirm the printed
-// slip is legit (and any tampering with the hours breaks the checksum).
-function djb2(s: string): number {
-  let h = 5381
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0
-  return h
-}
-
-function makeControlNo(o: {
-  studentId?: string | null
-  academicYear?: string | null
-  semester?: string | null
-  mode: Mode
-  weekStart: string
-}): string {
-  const sid = (o.studentId ?? 'NA').replace(/[^A-Za-z0-9]/g, '').toUpperCase() || 'NA'
-  const yrs = (o.academicYear ?? '').match(/\d{4}/g) ?? []
-  const y1 = yrs[0] ?? ''
-  const y2 = yrs[1] ?? ''
-  const ay = y1 && y2 ? y1.slice(2) + y2.slice(2) // 2024-2025 → 2425
-    : y1 ? y1.slice(2) + '00' : '0000'
-  const sem = /2/.test(o.semester ?? '') ? 'S2' : /sum/i.test(o.semester ?? '') ? 'SM' : 'S1'
-  const range = o.mode === 'semester' ? 'SEM' : 'W' + o.weekStart.replace(/-/g, '') // W + YYYYMMDD
-  const checksum = djb2(`${sid}|${ay}|${sem}|${range}`)
-    .toString(36).toUpperCase().padStart(6, '0').slice(-6)
-  return `SWAP-${sid}-${ay}${sem}-${range}-${checksum}`
-}
-
-type Row = {
-  dateStr: string
-  date: Date
-  day: string
-  amIn: string
-  amOut: string
-  pmIn: string
-  pmOut: string
-  total: string
-  status: string
-}
-type Mode = 'week' | 'semester'
 
 export default function DutySlipPage() {
   const { user } = useAuthStore()
-  const [mode, setMode] = useState<Mode>('week')
+  const [mode, setMode] = useState<DutySlipMode>('week')
   const [weekStart, setWeekStart] = useState(() => iso(mondayOf(new Date())))
 
   const { data: assignment } = useQuery({
@@ -82,292 +26,26 @@ export default function DutySlipPage() {
   })
   const logs: TimeLog[] = logsData?.data ?? []
 
-  const buildRow = (date: Date, dayLogs: TimeLog[]): Row => {
-    const am = dayLogs.find((l) => (parse(l.time_in)?.getHours() ?? 0) < 12)
-    const pm = dayLogs.find((l) => (parse(l.time_in)?.getHours() ?? 0) >= 12)
-    const dayTotal = dayLogs.reduce((s, l) => s + (Number(l.duration_hours) || 0), 0)
-    const completed = dayLogs.filter((l) => l.time_out)
-    const status = completed.length
-      ? (completed.every((l) => l.status === 'verified') ? 'Verified' : 'Unverified')
-      : ''
-    return {
-      dateStr: iso(date),
-      date,
-      day: DAYS[date.getDay()],
-      amIn: fmtTime(am?.time_in),
-      amOut: fmtTime(am?.time_out),
-      pmIn: fmtTime(pm?.time_in),
-      pmOut: fmtTime(pm?.time_out),
-      total: dayTotal ? dayTotal.toFixed(2) : '',
-      status,
-    }
-  }
-
-  const { rows, totalHours, periodLabel } = useMemo(() => {
-    if (mode === 'semester') {
-      // Every date that has at least one log, ascending — the full duty history.
-      const byDate = new Map<string, TimeLog[]>()
-      for (const l of logs) {
-        const key = (l.date ?? '').slice(0, 10)
-        if (!key) continue
-        if (!byDate.has(key)) byDate.set(key, [])
-        byDate.get(key)!.push(l)
-      }
-      const rows = [...byDate.keys()].sort().map((k) => buildRow(new Date(k + 'T00:00:00'), byDate.get(k)!))
-      const total = rows.reduce((s, r) => s + (parseFloat(r.total) || 0), 0)
-      const label = assignment
-        ? `${assignment.semester ?? ''}${assignment.academic_year ? `, AY ${assignment.academic_year}` : ''}`
-        : ''
-      return { rows, totalHours: total, periodLabel: label }
-    }
-
-    // Week mode: the full week (Mon–Sun) — night and Sunday duty count as
-    // regular hours, so every day of the week gets a row.
-    const start = new Date(weekStart + 'T00:00:00')
-    let total = 0
-    const rows = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start)
-      d.setDate(start.getDate() + i)
-      const row = buildRow(d, logs.filter((l) => (l.date ?? '').slice(0, 10) === iso(d)))
-      total += parseFloat(row.total) || 0
-      return row
-    })
-    return { rows, totalHours: total, periodLabel: start.toLocaleString('en-US', { month: 'long', year: 'numeric' }) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, weekStart, logs, assignment])
-
-  const shiftWeek = (weeks: number) => {
-    const d = new Date(weekStart + 'T00:00:00')
-    d.setDate(d.getDate() + weeks * 7)
-    setWeekStart(iso(d))
-  }
-
   const profile = user?.profile
-  const name = profile?.full_name || user?.name || ''
-  const courseYear = profile ? `${profile.program ?? ''}${profile.year_level ? ` - ${profile.year_level}` : ''}` : ''
-  const office = assignment?.office?.name ?? ''
-  const supervisor = assignment?.supervisor?.name ?? ''
-
-  // Issue Date = the day the slip is generated/printed.
-  const today = new Date()
-  const issueDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`
-
-  const controlNo = makeControlNo({
-    studentId: profile?.student_id_number,
+  const identity: DutySlipIdentity = {
+    name: profile?.full_name || user?.name || '',
+    courseYear: profile ? `${profile.program ?? ''}${profile.year_level ? ` - ${profile.year_level}` : ''}` : '',
+    office: assignment?.office?.name ?? '',
+    supervisor: assignment?.supervisor?.name ?? '',
+    studentIdNumber: profile?.student_id_number,
     academicYear: assignment?.academic_year,
     semester: assignment?.semester,
-    mode,
-    weekStart,
-  })
+  }
 
   return (
     <div className="space-y-5">
-      {/* Controls (hidden when printing) */}
-      <div className="no-print flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Weekly Duty Slip</h1>
-          <p className="mt-1 text-sm text-[#64748B]">
-            Auto-filled from your attendance. Choose a range, then print or save as PDF to submit.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {/* view mode toggle */}
-          <div className="inline-flex rounded-lg bg-[#F1E7DC] p-1">
-            {(['week', 'semester'] as Mode[]).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className="rounded-md px-3 py-1.5 text-[13px] font-semibold capitalize transition-colors"
-                style={mode === m ? { background: '#fff', color: '#7C1B26' } : { color: '#8A7A73' }}
-              >
-                {m === 'week' ? 'This week' : 'Whole semester'}
-              </button>
-            ))}
-          </div>
-
-          {mode === 'week' && (
-            <>
-              <button onClick={() => shiftWeek(-1)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Previous week">
-                <ChevronLeft className="h-5 w-5" />
-              </button>
-              <input
-                type="date"
-                value={weekStart}
-                onChange={(e) => e.target.value && setWeekStart(iso(mondayOf(new Date(e.target.value + 'T00:00:00'))))}
-                className="h-10 rounded-lg border border-[#E2E8F0] bg-white px-3 text-sm text-[#1E293B] focus:border-[#7C1B26] focus:outline-none"
-              />
-              <button onClick={() => shiftWeek(1)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Next week">
-                <ChevronRight className="h-5 w-5" />
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={() => window.print()}
-            className="ml-1 flex h-10 items-center gap-2 rounded-lg bg-[#7C1B26] px-5 text-sm font-semibold text-white hover:bg-[#86202E] transition-colors"
-          >
-            <Printer className="h-4 w-4" /> Print / Download
-          </button>
-        </div>
-      </div>
-
+      <DutySlipControls
+        title="Weekly Duty Slip"
+        subtitle="Auto-filled from your attendance. Choose a range, then print or save as PDF to submit."
+        mode={mode} setMode={setMode} weekStart={weekStart} setWeekStart={setWeekStart}
+      />
       {isLoading && <div className="no-print h-40 animate-pulse rounded-2xl bg-[#E2E8F0]" />}
-
-      {/* ── Printable duty slip ─────────────────────────────────────────────── */}
-      <div className="duty-slip mx-auto w-full max-w-[1000px] rounded-lg border border-[#E2E8F0] bg-white p-6 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
-        <div className="min-w-[640px]">
-        {/* Header table */}
-        <table className="w-full border-collapse text-[11px]">
-          <tbody>
-            <tr>
-              <td rowSpan={5} className="w-[46%] border border-black px-3 py-2 align-middle">
-                <div className="flex items-center gap-3">
-                  <Image src="/dsa-logo.png" alt="DSA" width={54} height={54} className="flex-none" />
-                  <div className="leading-tight">
-                    <p className="text-[13px] font-bold">MINDANAO STATE UNIVERSITY</p>
-                    <p className="text-[11px]">Marawi City</p>
-                    <p className="text-[12px] font-bold">DIVISION OF STUDENT AFFAIRS</p>
-                    <p className="text-[12px] font-bold">SWAP WEEKLY DUTY SLIP</p>
-                  </div>
-                </div>
-              </td>
-              <td className="w-[16%] border border-black px-2 py-1 font-semibold">Doc. Code:</td>
-              <td className="border border-black px-2 py-1">MSU DSA SWAP Weekly Duty Form No.1.6</td>
-            </tr>
-            <tr>
-              <td className="border border-black px-2 py-1 font-semibold">Issue Date</td>
-              <td className="border border-black px-2 py-1">{issueDate}</td>
-            </tr>
-            <tr>
-              <td className="border border-black px-2 py-1 font-semibold">Revision No.</td>
-              <td className="border border-black px-2 py-1">3</td>
-            </tr>
-            <tr>
-              <td className="border border-black px-2 py-1 font-semibold">Page No.</td>
-              <td className="border border-black px-2 py-1">Page 1 of 1</td>
-            </tr>
-            <tr>
-              <td className="border border-black px-2 py-1 font-semibold">Control No.</td>
-              <td className="border border-black px-2 py-1 font-mono font-semibold tracking-tight">{controlNo}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* Identity line */}
-        <div className="mt-3 grid grid-cols-2 gap-x-8 gap-y-1.5 text-[12px]">
-          <Field label="Name" value={name} />
-          <Field label="Course/Year" value={courseYear} />
-          <Field label="Office/College Assigned" value={office} />
-          <Field label={mode === 'semester' ? 'Semester' : 'Month'} value={periodLabel} />
-        </div>
-
-        {/* Duty table */}
-        <table className="mt-3 w-full border-collapse text-center text-[11px]">
-          <thead>
-            <tr>
-              <th rowSpan={2} className="border border-black px-1 py-1">DATE</th>
-              <th rowSpan={2} className="border border-black px-1 py-1">DAY</th>
-              <th colSpan={2} className="border border-black px-1 py-1">AM</th>
-              <th colSpan={2} className="border border-black px-1 py-1">PM</th>
-              <th rowSpan={2} className="border border-black px-1 py-1">TOTAL</th>
-              <th rowSpan={2} className="border border-black px-1 py-1">Immediate<br />Supervisor</th>
-            </tr>
-            <tr>
-              <th className="border border-black px-1 py-1">TIME IN</th>
-              <th className="border border-black px-1 py-1">TIME OUT</th>
-              <th className="border border-black px-1 py-1">TIME IN</th>
-              <th className="border border-black px-1 py-1">TIME OUT</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="border border-black px-2 py-6 text-center text-[#64748B]">
-                  No duty records to show for this {mode === 'semester' ? 'semester' : 'week'} yet.
-                </td>
-              </tr>
-            ) : (
-              rows.map((r) => <RowGroup key={r.dateStr} r={r} />)
-            )}
-          </tbody>
-        </table>
-
-        {/* Total */}
-        <div className="mt-3 flex items-end gap-2 text-[12px]">
-          <span className="font-semibold">Total number of hours:</span>
-          <span className="min-w-[120px] border-b border-black px-2 text-center font-bold">
-            {totalHours ? totalHours.toFixed(2) : ''}
-          </span>
-        </div>
-
-        {/* Signatures */}
-        <div className="mt-8 grid grid-cols-3 gap-6 text-center text-[11px]">
-          <SignatureBlock line={supervisor} role="Immediate Supervisor" sub="Name & Signature" />
-          <SignatureBlock line={name} role="SWAP Beneficiary Signature" sub="" />
-          <SignatureBlock line="" role="SWAP Mentor/Verifier" sub="Name & Signature" />
-        </div>
-        </div>
-      </div>
-
-      {/* Print isolation styles */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          .duty-slip, .duty-slip * { visibility: visible !important; }
-          .duty-slip { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
-          .no-print { display: none !important; }
-          @page { size: A4 landscape; margin: 12mm; }
-        }
-      `}</style>
-    </div>
-  )
-}
-
-/** A horizontal rule used to fill empty cells so nothing can be hand-written in after printing. */
-function Line() {
-  return <span className="mx-auto block h-[1.5px] w-3/4 bg-black" />
-}
-
-function Cell({ v }: { v: string }) {
-  return <td className="border border-black px-1 py-1.5 align-middle">{v ? v : <Line />}</td>
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-end gap-2">
-      <span className="whitespace-nowrap font-semibold">{label}:</span>
-      <span className="flex-1 border-b border-black px-1 text-[12px]">{value || ' '}</span>
-    </div>
-  )
-}
-
-function RowGroup({ r }: { r: Row }) {
-  const dateLabel = r.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  return (
-    <>
-      <tr>
-        <td className="border border-black px-1 py-1.5">{dateLabel}</td>
-        <td className="border border-black px-1 py-1.5">{r.day}</td>
-        <Cell v={r.amIn} />
-        <Cell v={r.amOut} />
-        <Cell v={r.pmIn} />
-        <Cell v={r.pmOut} />
-        <td className="border border-black px-1 py-1.5 font-semibold align-middle">{r.total ? r.total : <Line />}</td>
-        <Cell v={r.status} />
-      </tr>
-      <tr>
-        <td colSpan={8} className="border border-black px-2 py-1.5 text-left">Task Description:</td>
-      </tr>
-    </>
-  )
-}
-
-function SignatureBlock({ line, role, sub }: { line: string; role: string; sub: string }) {
-  return (
-    <div className="pt-4">
-      <div className="mx-auto mb-1 h-4 border-b border-black text-[12px] font-semibold">{line || ' '}</div>
-      <p className="font-bold">{role}</p>
-      {sub && <p>{sub}</p>}
+      <DutySlipDocument mode={mode} weekStart={weekStart} logs={logs} identity={identity} />
     </div>
   )
 }

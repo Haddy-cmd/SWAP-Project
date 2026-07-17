@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import {
   ArrowLeft, ReceiptText, Building2, Mail, CalendarDays, Flag, BadgeCheck,
-  History, TrendingUp, Clock, AlertTriangle, CheckCircle2,
+  History, TrendingUp, Clock, AlertTriangle, CheckCircle2, FileText,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
@@ -121,6 +121,10 @@ export default function StudentDetailPage() {
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EAF5EC] px-3.5 py-[7px] text-[12px] font-bold text-[#2C5A33]">
             <span className="h-[7px] w-[7px] rounded-full bg-[#4E9657]" /> Active recipient
           </span>
+          <Link href={`/supervisor/students/${studentId}/duty-slip`}
+            className="flex h-11 items-center gap-2 rounded-xl border border-[#EADFD4] bg-white px-[18px] text-[13.5px] font-semibold text-[#7C1B26] hover:bg-[#FBF3EF] transition-colors">
+            <FileText className="h-[19px] w-[19px]" /> Duty Slip
+          </Link>
           <Link href={`/supervisor/students/${studentId}/logs`}
             className="flex h-11 items-center gap-2 rounded-xl px-[18px] text-[13.5px] font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.24)]"
             style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>

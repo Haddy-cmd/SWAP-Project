@@ -33,11 +33,16 @@ const schema = z
     contact_number: z.string().optional(),
     college: z.string().min(1, 'College is required'),
     program: z.string().min(1, 'Program is required'),
-    year_level: z.coerce.number().min(1).max(4),
+    year_level: z.coerce.number().min(1).max(5),
   })
   .refine((d) => d.password === d.password_confirmation, {
     message: 'Passwords do not match',
     path: ['password_confirmation'],
+  })
+  // 5th year only exists for the five-year programs; keep 4-year applicants from picking it.
+  .refine((d) => d.year_level <= maxYearFor(d.program), {
+    message: 'A 5th year applies only to Engineering and BS Accountancy programs.',
+    path: ['year_level'],
   })
 
 type FormData = z.infer<typeof schema>
@@ -84,6 +89,10 @@ const LABEL = 'mb-[7px] block text-[12.5px] font-semibold text-[#5A4A45]'
 const ICON = 'h-[19px] w-[19px] flex-none text-[#B79B7E]'
 
 const ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th', '6th']
+
+/** Engineering and BS Accountancy run five years; every other program caps at four. */
+const maxYearFor = (program?: string) =>
+  program && (/engineering/i.test(program) || program.trim().toLowerCase() === 'bs accountancy') ? 5 : 4
 
 function StepDot({ index, step }: { index: number; step: number }) {
   const n = index + 1
@@ -322,7 +331,7 @@ export default function RegisterPage() {
                     <label className={LABEL}>Course / Program</label>
                     <div className={FIELD}>
                       <BookOpen className={ICON} />
-                      <select {...register('program')} defaultValue="" disabled={!selectedCollege} className={`${INPUT} appearance-none disabled:text-[#B7A99F]`}>
+                      <select {...register('program', { onChange: () => setValue('year_level', '' as unknown as number) })} defaultValue="" disabled={!selectedCollege} className={`${INPUT} appearance-none disabled:text-[#B7A99F]`}>
                         <option value="" disabled>{selectedCollege ? 'Select program' : 'Select college first'}</option>
                         {programs.map((p) => <option key={p} value={p}>{p}</option>)}
                       </select>
@@ -336,10 +345,15 @@ export default function RegisterPage() {
                       <GraduationCap className={ICON} />
                       <select {...register('year_level')} defaultValue="" className={`${INPUT} appearance-none`}>
                         <option value="" disabled>Select year</option>
-                        {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{ORDINAL[y]} Year</option>)}
+                        {Array.from({ length: maxYearFor(v.program) }, (_, i) => i + 1).map((y) => (
+                          <option key={y} value={y}>{ORDINAL[y]} Year</option>
+                        ))}
                       </select>
                       <ChevronDown className="h-4 w-4 flex-none text-[#B79B7E]" />
                     </div>
+                    {maxYearFor(v.program) === 5 && (
+                      <p className="mt-1 text-[11px] text-[#8A7A73]">This program runs five years.</p>
+                    )}
                     {(errors.year_level || fieldErrors.year_level) && <p className="mt-1 text-xs text-[#C0392B]">{errors.year_level?.message ?? fieldErrors.year_level}</p>}
                   </div>
                   <div>

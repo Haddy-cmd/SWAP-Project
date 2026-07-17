@@ -54,6 +54,31 @@ class AuthTest extends TestCase
         Notification::assertSentTo($user, VerifyEmail::class);
     }
 
+    public function test_fifth_year_is_allowed_for_engineering_and_accountancy(): void
+    {
+        Notification::fake();
+
+        $this->postJson('/api/auth/register', $this->validRegisterPayload([
+            'email' => 'eng@s.msumain.edu.ph', 'student_id_number' => '2024-0005',
+            'college' => 'CoE', 'program' => 'BS Civil Engineering', 'year_level' => 5,
+        ]))->assertStatus(201);
+
+        $this->postJson('/api/auth/register', $this->validRegisterPayload([
+            'email' => 'acc@s.msumain.edu.ph', 'student_id_number' => '2024-0006',
+            'college' => 'CBAA', 'program' => 'BS Accountancy', 'year_level' => 5,
+        ]))->assertStatus(201);
+    }
+
+    public function test_fifth_year_is_rejected_for_four_year_programs(): void
+    {
+        $res = $this->postJson('/api/auth/register', $this->validRegisterPayload([
+            'email' => 'psy@s.msumain.edu.ph', 'student_id_number' => '2024-0007',
+            'college' => 'CSSH', 'program' => 'BS Psychology', 'year_level' => 5,
+        ]));
+
+        $res->assertStatus(422)->assertJsonValidationErrors('year_level');
+    }
+
     public function test_register_duplicate_email_is_rejected(): void
     {
         User::create([
