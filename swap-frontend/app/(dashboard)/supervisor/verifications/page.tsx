@@ -413,7 +413,7 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
           <div className="flex items-start gap-3.5 border-b border-[#EFE5DA] px-6 py-4">
             {log.time_in_photo_url && (
               <button type="button" onClick={() => setZoom(true)} title="Click to enlarge"
-                className="group relative flex-none cursor-zoom-in">
+                className="group relative flex-none cursor-default">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={log.time_in_photo_url} alt="Clock-in selfie" className="h-20 w-16 rounded-lg border border-[#EFE5DA] object-cover transition group-hover:brightness-95" />
                 <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
@@ -476,7 +476,7 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
       {/* Selfie lightbox — enlarges over the current page, not a new tab */}
       {zoom && log.time_in_photo_url && (
         <div onClick={() => setZoom(false)}
-          className="fixed inset-0 z-[80] flex cursor-zoom-out items-center justify-center bg-black/80 p-6">
+          className="fixed inset-0 z-[80] flex cursor-default items-center justify-center bg-black/80 p-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={log.time_in_photo_url} alt="Clock-in selfie" className="max-h-[90vh] max-w-[92vw] rounded-xl object-contain shadow-[0_30px_80px_rgba(0,0,0,.6)]" />
           <button onClick={() => setZoom(false)} aria-label="Close"
