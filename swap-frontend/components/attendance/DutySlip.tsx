@@ -23,6 +23,10 @@ const fmtTime = (s?: string | null) => {
 }
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
+// The week is always seven rows; the semester pads up to this same minimum so both
+// tabs print the same complete, consistent grid.
+const MIN_ROWS = 7
+
 // Deterministic hash → the same inputs always yield the same control number, so
 // an admin can regenerate it from the recipient's record to confirm the printed
 // slip is legit (and any tampering with the hours breaks the checksum).
@@ -280,15 +284,12 @@ export function DutySlipDocument({
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="border border-black px-2 py-6 text-center text-[#64748B]">
-                  No duty records to show for this {mode === 'semester' ? 'semester' : 'week'} yet.
-                </td>
-              </tr>
-            ) : (
-              rows.map((r) => <RowGroup key={r.dateStr} r={r} />)
-            )}
+            {rows.map((r) => <RowGroup key={r.dateStr} r={r} />)}
+            {/* Pad out to a full grid so an empty or sparse semester prints as the
+                same complete form as the week — never a collapsed "no records" box. */}
+            {Array.from({ length: Math.max(0, MIN_ROWS - rows.length) }).map((_, i) => (
+              <BlankRowGroup key={`blank-${i}`} />
+            ))}
           </tbody>
         </table>
 
@@ -353,6 +354,22 @@ function RowGroup({ r }: { r: Row }) {
         <Cell v={r.pmOut} />
         <td className="border border-black px-1 py-1.5 font-semibold align-middle">{r.total ? r.total : <Line />}</td>
         <Cell v={r.status} />
+      </tr>
+      <tr>
+        <td colSpan={8} className="border border-black px-2 py-1.5 text-left">Task Description:</td>
+      </tr>
+    </>
+  )
+}
+
+/** An empty date/day/AM/PM row, so the printed grid stays a fillable form when there's little data. */
+function BlankRowGroup() {
+  return (
+    <>
+      <tr>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <td key={i} className="border border-black px-1 py-1.5">&nbsp;</td>
+        ))}
       </tr>
       <tr>
         <td colSpan={8} className="border border-black px-2 py-1.5 text-left">Task Description:</td>
