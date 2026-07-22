@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import {
   ArrowLeft, PlusCircle, Target, CheckCircle, XCircle, Clock, FileText,
-  ChevronDown, Sparkles, MapPinOff, Info, CheckCircle2, Ban, Hourglass, CalendarX, Loader2,
+  ChevronDown, Sparkles, MapPinOff, Info, CheckCircle2, Ban, Hourglass, CalendarX, Loader2, X, ZoomIn,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
@@ -45,6 +45,7 @@ export default function StudentLogsPage() {
   const [expanded, setExpanded] = useState<Record<number, true>>({})
   const [modal, setModal] = useState<'bonus' | 'required' | null>(null)
   const [rejecting, setRejecting] = useState<{ id: number; reason: string } | null>(null)
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null)
 
   const { data: summaryData } = useQuery({
     queryKey: ['student-summary', studentId],
@@ -279,10 +280,14 @@ export default function StudentLogsPage() {
                           {(l.time_in_photo_url || l.location_flag_reason) && (
                             <div className="mb-3 flex items-start gap-3">
                               {l.time_in_photo_url && (
-                                <a href={l.time_in_photo_url} target="_blank" rel="noopener noreferrer" className="flex-none">
+                                <button type="button" onClick={() => setZoomSrc(l.time_in_photo_url!)} title="Click to enlarge"
+                                  className="group relative flex-none cursor-zoom-in">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={l.time_in_photo_url} alt="Clock-in selfie" className="h-16 w-12 rounded-lg border border-[#EFE5DA] object-cover" />
-                                </a>
+                                  <img src={l.time_in_photo_url} alt="Clock-in selfie" className="h-16 w-12 rounded-lg border border-[#EFE5DA] object-cover transition group-hover:brightness-95" />
+                                  <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
+                                    <ZoomIn className="h-3.5 w-3.5 text-white" />
+                                  </span>
+                                </button>
                               )}
                               <div className="min-w-0 text-[12px]">
                                 <span className="font-semibold text-[#8A7A73]">{l.time_in_photo_url ? 'Clock-in selfie' : 'No clock-in selfie'}</span>
@@ -378,6 +383,19 @@ export default function StudentLogsPage() {
           onClose={() => setModal(null)}
           onSubmit={(h) => setRequired.mutate(h)}
         />
+      )}
+
+      {/* Selfie lightbox — enlarges over the current page, not a new tab */}
+      {zoomSrc && (
+        <div onClick={() => setZoomSrc(null)}
+          className="fixed inset-0 z-[80] flex cursor-zoom-out items-center justify-center bg-black/80 p-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoomSrc} alt="Clock-in selfie" className="max-h-[90vh] max-w-[92vw] rounded-xl object-contain shadow-[0_30px_80px_rgba(0,0,0,.6)]" />
+          <button onClick={() => setZoomSrc(null)} aria-label="Close"
+            className="absolute right-5 top-5 rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
       )}
     </div>
   )

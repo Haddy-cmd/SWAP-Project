@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import {
   Search, Check, X, ChevronLeft, ChevronRight, CheckCircle2, XCircle,
-  ExternalLink, CheckCheck, ClipboardCheck, Loader2, ShieldAlert,
+  ExternalLink, CheckCheck, ClipboardCheck, Loader2, ShieldAlert, ZoomIn,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -374,6 +374,7 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
 }) {
   const pending = log.status === 'pending_verification'
   const meta = REVIEWED_META[log.status] ?? REVIEWED_META.verified
+  const [zoom, setZoom] = useState(false)
   return (
     <>
       <div onClick={onClose} className="fixed inset-0 z-50 bg-[rgba(40,12,16,.46)]" />
@@ -411,10 +412,14 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
         {(log.time_in_photo_url || log.location_flagged) && (
           <div className="flex items-start gap-3.5 border-b border-[#EFE5DA] px-6 py-4">
             {log.time_in_photo_url && (
-              <a href={log.time_in_photo_url} target="_blank" rel="noopener noreferrer" className="flex-none">
+              <button type="button" onClick={() => setZoom(true)} title="Click to enlarge"
+                className="group relative flex-none cursor-zoom-in">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={log.time_in_photo_url} alt="Clock-in selfie" className="h-20 w-16 rounded-lg border border-[#EFE5DA] object-cover" />
-              </a>
+                <img src={log.time_in_photo_url} alt="Clock-in selfie" className="h-20 w-16 rounded-lg border border-[#EFE5DA] object-cover transition group-hover:brightness-95" />
+                <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
+                  <ZoomIn className="h-4 w-4 text-white" />
+                </span>
+              </button>
             )}
             <div className="min-w-0">
               <div className="text-[10px] font-bold uppercase tracking-wide text-[#A38A82]">Clock-in check</div>
@@ -467,6 +472,19 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
           )}
         </div>
       </div>
+
+      {/* Selfie lightbox — enlarges over the current page, not a new tab */}
+      {zoom && log.time_in_photo_url && (
+        <div onClick={() => setZoom(false)}
+          className="fixed inset-0 z-[80] flex cursor-zoom-out items-center justify-center bg-black/80 p-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={log.time_in_photo_url} alt="Clock-in selfie" className="max-h-[90vh] max-w-[92vw] rounded-xl object-contain shadow-[0_30px_80px_rgba(0,0,0,.6)]" />
+          <button onClick={() => setZoom(false)} aria-label="Close"
+            className="absolute right-5 top-5 rounded-full bg-white/15 p-2 text-white hover:bg-white/25">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+      )}
     </>
   )
 }
