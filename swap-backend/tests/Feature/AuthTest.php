@@ -27,7 +27,7 @@ class AuthTest extends TestCase
             'email' => 'juan@s.msumain.edu.ph',
             'password' => 'Password@123',
             'password_confirmation' => 'Password@123',
-            'student_id_number' => '2024-9999',
+            'student_id_number' => '202400999',
             'first_name' => 'Juan',
             'last_name' => 'Dela Cruz',
             'college' => 'CSST',
@@ -54,17 +54,26 @@ class AuthTest extends TestCase
         Notification::assertSentTo($user, VerifyEmail::class);
     }
 
+    public function test_student_id_must_be_exactly_nine_digits(): void
+    {
+        foreach (['2024-9999', '12345678', '1234567890', '20240999A'] as $badId) {
+            $this->postJson('/api/auth/register', $this->validRegisterPayload([
+                'email' => 'juan@s.msumain.edu.ph', 'student_id_number' => $badId,
+            ]))->assertStatus(422)->assertJsonValidationErrors('student_id_number');
+        }
+    }
+
     public function test_fifth_year_is_allowed_for_engineering_and_accountancy(): void
     {
         Notification::fake();
 
         $this->postJson('/api/auth/register', $this->validRegisterPayload([
-            'email' => 'eng@s.msumain.edu.ph', 'student_id_number' => '2024-0005',
+            'email' => 'eng@s.msumain.edu.ph', 'student_id_number' => '202400005',
             'college' => 'CoE', 'program' => 'BS Civil Engineering', 'year_level' => 5,
         ]))->assertStatus(201);
 
         $this->postJson('/api/auth/register', $this->validRegisterPayload([
-            'email' => 'acc@s.msumain.edu.ph', 'student_id_number' => '2024-0006',
+            'email' => 'acc@s.msumain.edu.ph', 'student_id_number' => '202400006',
             'college' => 'CBAA', 'program' => 'BS Accountancy', 'year_level' => 5,
         ]))->assertStatus(201);
     }
@@ -72,7 +81,7 @@ class AuthTest extends TestCase
     public function test_fifth_year_is_rejected_for_four_year_programs(): void
     {
         $res = $this->postJson('/api/auth/register', $this->validRegisterPayload([
-            'email' => 'psy@s.msumain.edu.ph', 'student_id_number' => '2024-0007',
+            'email' => 'psy@s.msumain.edu.ph', 'student_id_number' => '202400007',
             'college' => 'CSSH', 'program' => 'BS Psychology', 'year_level' => 5,
         ]));
 

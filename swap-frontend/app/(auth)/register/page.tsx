@@ -26,7 +26,7 @@ const schema = z
       }),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     password_confirmation: z.string(),
-    student_id_number: z.string().min(1, 'Student ID is required'),
+    student_id_number: z.string().regex(/^\d{9}$/, 'Student ID must be exactly 9 digits'),
     first_name: z.string().min(1, 'Required'),
     middle_name: z.string().optional(),
     last_name: z.string().min(1, 'Required'),
@@ -301,7 +301,7 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className={LABEL}>Student ID Number</label>
-                    <div className={FIELD}><Hash className={ICON} /><input {...register('student_id_number')} placeholder="20XX-XXXXX" className={INPUT} /></div>
+                    <div className={FIELD}><Hash className={ICON} /><input {...register('student_id_number')} inputMode="numeric" maxLength={9} placeholder="9-digit student ID" onInput={(e) => { e.currentTarget.value = e.currentTarget.value.replace(/\D/g, '').slice(0, 9) }} className={INPUT} /></div>
                     {(errors.student_id_number || fieldErrors.student_id_number) && <p className="mt-1 text-xs text-[#C0392B]">{errors.student_id_number?.message ?? fieldErrors.student_id_number}</p>}
                   </div>
                   <div>
