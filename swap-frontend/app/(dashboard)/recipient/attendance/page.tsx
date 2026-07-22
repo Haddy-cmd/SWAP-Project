@@ -16,7 +16,7 @@ import type { TimeLog } from '@/types/attendance.types'
 
 type AttendanceMode = 'idle' | 'clocked-in'
 
-const GRACE_MS = 5 * 60 * 1000 // auto clock-out after 5 min outside the geofence
+const GRACE_MS = 10 * 60 * 1000 // auto clock-out after 10 min outside the geofence
 const POLL_MS = 15_000
 
 const pad = (n: number) => String(n).padStart(2, '0')
