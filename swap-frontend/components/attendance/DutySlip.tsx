@@ -70,6 +70,34 @@ type Row = {
 
 export type DutySlipMode = 'week' | 'semester'
 
+/** A specific academic term, e.g. { academicYear: '2024-2025', semester: '1st Semester' }. */
+export interface DutySlipTerm {
+  academicYear: string
+  semester: string
+}
+
+// The three terms of an MSU academic year, in calendar order.
+const SEMS = ['1st Semester', '2nd Semester', 'Summer']
+
+/** Step one term forward (+1) or back (-1), rolling over the academic year at the ends. */
+export function stepTerm(t: DutySlipTerm, dir: 1 | -1): DutySlipTerm {
+  const idx = Math.max(0, SEMS.indexOf(t.semester))
+  const [y1, y2] = t.academicYear.split('-').map(Number)
+  let next = idx + dir
+  let a = y1
+  let b = y2
+  if (next > SEMS.length - 1) { next = 0; if (!isNaN(a)) a++; if (!isNaN(b)) b++ }
+  else if (next < 0) { next = SEMS.length - 1; if (!isNaN(a)) a--; if (!isNaN(b)) b-- }
+  const academicYear = !isNaN(a) && !isNaN(b) ? `${a}-${b}` : t.academicYear
+  return { academicYear, semester: SEMS[next] }
+}
+
+/** Compact label for the nav, e.g. "1st Sem · 2024–2025". */
+export function shortTerm(t: DutySlipTerm): string {
+  const sem = t.semester.replace('Semester', 'Sem').trim()
+  return t.academicYear ? `${sem} · ${t.academicYear.replace('-', '–')}` : sem
+}
+
 /** Everything the printed slip states about who the duty was rendered by. */
 export interface DutySlipIdentity {
   name: string
@@ -104,7 +132,7 @@ function buildRow(date: Date, dayLogs: TimeLog[]): Row {
 
 // ── controls (mode toggle · week nav · print) ────────────────────────────────
 export function DutySlipControls({
-  title, subtitle, mode, setMode, weekStart, setWeekStart,
+  title, subtitle, mode, setMode, weekStart, setWeekStart, term, setTerm,
 }: {
   title: string
   subtitle: string
@@ -112,6 +140,8 @@ export function DutySlipControls({
   setMode: (m: DutySlipMode) => void
   weekStart: string
   setWeekStart: (s: string) => void
+  term: DutySlipTerm
+  setTerm: (t: DutySlipTerm) => void
 }) {
   const shiftWeek = (weeks: number) => {
     const d = new Date(weekStart + 'T00:00:00')
@@ -139,7 +169,7 @@ export function DutySlipControls({
           ))}
         </div>
 
-        {mode === 'week' && (
+        {mode === 'week' ? (
           <>
             <button onClick={() => shiftWeek(-1)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Previous week">
               <ChevronLeft className="h-5 w-5" />
@@ -154,6 +184,18 @@ export function DutySlipControls({
               <ChevronRight className="h-5 w-5" />
             </button>
           </>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setTerm(stepTerm(term, -1))} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Previous semester">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <span className="flex h-10 min-w-[150px] items-center justify-center rounded-lg border border-[#E2E8F0] bg-white px-3 text-sm font-semibold text-[#1E293B]">
+              {shortTerm(term)}
+            </span>
+            <button onClick={() => setTerm(stepTerm(term, 1))} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Next semester">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
         )}
 
         <button
@@ -169,18 +211,36 @@ export function DutySlipControls({
 
 // ── the printable slip ───────────────────────────────────────────────────────
 export function DutySlipDocument({
-  mode, weekStart, logs, identity,
+  mode, weekStart, logs, identity, term,
 }: {
   mode: DutySlipMode
   weekStart: string
   logs: TimeLog[]
   identity: DutySlipIdentity
+  term: DutySlipTerm
 }) {
+  // In semester mode the slip is scoped to the selected term; a term the student
+  // was never assigned to has no data to show (see recipientThisTerm below).
+  const inSemester = mode === 'semester'
+  const slipAy = inSemester ? term.academicYear : (identity.academicYear ?? '')
+  const slipSem = inSemester ? term.semester : (identity.semester ?? '')
+
+  // Which terms was this student actually a SWAP recipient in? Derived from the terms
+  // their logs belong to, plus the current assignment (they may be assigned but not
+  // yet have logged any duty).
+  const recipientThisTerm = useMemo(() => {
+    const terms = new Set<string>()
+    for (const l of logs) if (l.academic_year && l.semester) terms.add(`${l.academic_year}|${l.semester}`)
+    if (identity.academicYear && identity.semester) terms.add(`${identity.academicYear}|${identity.semester}`)
+    return terms.has(`${term.academicYear}|${term.semester}`)
+  }, [logs, identity.academicYear, identity.semester, term.academicYear, term.semester])
+
   const { rows, totalHours, periodLabel } = useMemo(() => {
     if (mode === 'semester') {
-      // Every date that has at least one log, ascending — the full duty history.
+      // Only this term's logs, one row per date with activity, ascending.
+      const termLogs = logs.filter((l) => l.academic_year === term.academicYear && l.semester === term.semester)
       const byDate = new Map<string, TimeLog[]>()
-      for (const l of logs) {
+      for (const l of termLogs) {
         const key = (l.date ?? '').slice(0, 10)
         if (!key) continue
         if (!byDate.has(key)) byDate.set(key, [])
@@ -188,7 +248,7 @@ export function DutySlipDocument({
       }
       const rows = [...byDate.keys()].sort().map((k) => buildRow(new Date(k + 'T00:00:00'), byDate.get(k)!))
       const total = rows.reduce((s, r) => s + (parseFloat(r.total) || 0), 0)
-      const label = `${identity.semester ?? ''}${identity.academicYear ? `, AY ${identity.academicYear}` : ''}`
+      const label = `${term.semester}${term.academicYear ? `, AY ${term.academicYear}` : ''}`
       return { rows, totalHours: total, periodLabel: label }
     }
 
@@ -204,15 +264,17 @@ export function DutySlipDocument({
       return row
     })
     return { rows, totalHours: total, periodLabel: start.toLocaleString('en-US', { month: 'long', year: 'numeric' }) }
-  }, [mode, weekStart, logs, identity.semester, identity.academicYear])
+  }, [mode, weekStart, logs, term.semester, term.academicYear])
 
   const today = new Date()
   const issueDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`
 
+  const noData = inSemester && !recipientThisTerm
+
   const controlNo = makeControlNo({
     studentId: identity.studentIdNumber,
-    academicYear: identity.academicYear,
-    semester: identity.semester,
+    academicYear: slipAy,
+    semester: slipSem,
     mode,
     weekStart,
   })
@@ -284,12 +346,22 @@ export function DutySlipDocument({
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => <RowGroup key={r.dateStr} r={r} />)}
-            {/* Pad out to a full grid so an empty or sparse semester prints as the
-                same complete form as the week — never a collapsed "no records" box. */}
-            {Array.from({ length: Math.max(0, MIN_ROWS - rows.length) }).map((_, i) => (
-              <BlankRowGroup key={`blank-${i}`} />
-            ))}
+            {noData ? (
+              <tr>
+                <td colSpan={8} className="border border-black px-2 py-8 text-center text-[#64748B]">
+                  No SWAP assignment for {periodLabel} — no duty records for this semester.
+                </td>
+              </tr>
+            ) : (
+              <>
+                {rows.map((r) => <RowGroup key={r.dateStr} r={r} />)}
+                {/* Pad out to a full grid so an empty or sparse semester prints as the
+                    same complete form as the week — never a collapsed box. */}
+                {Array.from({ length: Math.max(0, MIN_ROWS - rows.length) }).map((_, i) => (
+                  <BlankRowGroup key={`blank-${i}`} />
+                ))}
+              </>
+            )}
           </tbody>
         </table>
 

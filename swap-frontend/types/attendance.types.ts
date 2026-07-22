@@ -23,6 +23,9 @@ export interface TimeLog {
   time_in_accuracy?: number | string | null
   time_out_accuracy?: number | string | null
   has_narrative: boolean
+  /** The term this log belongs to (from its assignment) — used to group the duty slip by semester. */
+  academic_year?: string | null
+  semester?: string | null
   created_at: string
   narrative_report?: NarrativeReport | null
   verifications?: Verification[]

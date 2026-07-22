@@ -55,6 +55,10 @@ class TimeLogResource extends JsonResource
                 'radius_meters' => $this->assignment->office->radius_meters,
                 'geofence_enabled' => $this->assignment->office->geofence_enabled,
             ] : null),
+            // The term this log belongs to, from its assignment — lets the duty slip
+            // group and navigate a student's duty by semester.
+            'academic_year' => $this->whenLoaded('assignment', fn () => $this->assignment?->academic_year),
+            'semester' => $this->whenLoaded('assignment', fn () => $this->assignment?->semester),
             'has_narrative' => $this->whenLoaded('narrativeReport', fn () => $this->narrativeReport !== null, false),
             'narrative_report' => $this->whenLoaded('narrativeReport', fn () => $this->narrativeReport ? new NarrativeResource($this->narrativeReport) : null),
             'verifications' => $this->whenLoaded('verifications', fn () =>
