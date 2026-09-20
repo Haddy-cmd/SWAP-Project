@@ -10,17 +10,60 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
+import {
+  manilaToday, manilaNowMinutes, manilaToISO, minutesToLabel,
+  slotsFor, slotViolation, windowFor, type InterviewMode,
+} from '@/lib/utils/interviewWindow'
 
 export default function AdminApplicationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
   const DSA_OFFICE = 'Office of the Dean of Students Affairs (DSA)'
+  // Online interviews are usually hosted from the DSA, so it is offered as a venue there too.
+  const DSA_DIVISION = 'Division of Student Affairs (DSA)'
+  const ONLINE_VENUES = [DSA_DIVISION, DSA_OFFICE, 'Remote / Applicant’s location']
   const [remarks, setRemarks] = useState('')
-  const [interviewDate, setInterviewDate] = useState('')
+  const [interviewDay, setInterviewDay] = useState('')
+  const [slotMinute, setSlotMinute] = useState<number | null>(null)
+  const [duration, setDuration] = useState(30)
   const [location, setLocation] = useState(DSA_OFFICE)
-  const [mode, setMode] = useState<'in_person' | 'online'>('in_person')
+  const [meetingLink, setMeetingLink] = useState('')
+  const [mode, setMode] = useState<InterviewMode>('in_person')
+  const [modeNotice, setModeNotice] = useState<string | null>(null)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
   const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
+
+  const slotIssue = slotViolation(interviewDay, slotMinute, mode, duration)
+  const canSchedule = !!interviewDay && slotMinute !== null && !slotIssue && (mode !== 'online' || !!meetingLink.trim())
+
+  /**
+   * Switching mode can invalidate what was already picked — a Saturday becomes
+   * illegal for face-to-face, a 10 PM slot illegal once it is no longer online.
+   * Drop just the invalid part and say why.
+   */
+  const changeMode = (next: InterviewMode) => {
+    setMode(next)
+    setScheduleError(null)
+
+    const issue = slotViolation(interviewDay, slotMinute, next, duration)
+    if (issue) {
+      setModeNotice(`${issue} Your previous selection was cleared.`)
+      if (interviewDay && slotViolation(interviewDay, null, next, duration)) setInterviewDay('')
+      setSlotMinute(null)
+    } else {
+      setModeNotice(null)
+    }
+
+    // Keep the venue sensible for the new mode.
+    if (next === 'in_person') {
+      setMeetingLink('')
+      if (!location || !ONLINE_VENUES.includes(location)) setLocation(DSA_OFFICE)
+      else setLocation(DSA_OFFICE)
+    } else if (!ONLINE_VENUES.includes(location)) {
+      setLocation(DSA_DIVISION)
+    }
+  }
 
   const { data: application, isLoading } = useQuery({
     queryKey: ['admin-application', id],
@@ -36,13 +79,22 @@ export default function AdminApplicationDetailPage() {
   const scheduleInterview = useMutation({
     mutationFn: () =>
       applicationsApi.adminScheduleInterview(Number(id), {
-        scheduled_at: interviewDate,
+        scheduled_at: manilaToISO(interviewDay, slotMinute as number),
+        duration_minutes: duration,
         location,
+        ...(mode === 'online' ? { meeting_link: meetingLink.trim() } : {}),
         mode,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
-      setInterviewDate('')
+      setInterviewDay('')
+      setSlotMinute(null)
+      setScheduleError(null)
+      setModeNotice(null)
+    },
+    onError: (err: { message?: string; errors?: Record<string, string[]> }) => {
+      const first = err.errors && Object.values(err.errors)[0]?.[0]
+      setScheduleError(first || err.message || 'Could not schedule the interview.')
     },
   })
 
@@ -135,39 +187,96 @@ export default function AdminApplicationDetailPage() {
           {application.status === 'under_review' && (
             <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm space-y-4">
               <h2 className="font-semibold text-[#1E293B]">Schedule Interview</h2>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-[#64748B]">Interview Mode</label>
+                <select value={mode} onChange={(e) => changeMode(e.target.value as InterviewMode)}
+                  className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
+                  <option value="in_person">Face-to-Face</option>
+                  <option value="online">Online</option>
+                </select>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  {mode === 'in_person'
+                    ? 'Monday to Friday, between 7:00 AM and 5:00 PM (Asia/Manila).'
+                    : 'Any day, between 8:00 AM and 11:00 PM (Asia/Manila).'}
+                </p>
+              </div>
+
+              {modeNotice && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-[#92400E]">{modeNotice}</p>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Date & Time</label>
-                  <input type="datetime-local" value={interviewDate} onChange={(e) => setInterviewDate(e.target.value)}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Date</label>
+                  <input
+                    type="date"
+                    value={interviewDay}
+                    min={manilaToday()}
+                    onChange={(e) => { setInterviewDay(e.target.value); setModeNotice(null); setScheduleError(null) }}
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none"
+                  />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Mode</label>
-                  <select value={mode} onChange={(e) => {
-                    const next = e.target.value as 'in_person' | 'online'
-                    setMode(next)
-                    // Default an in-person venue to the DSA office; clear it for online links.
-                    if (next === 'in_person' && (!location || location === '')) setLocation(DSA_OFFICE)
-                    if (next === 'online' && location === DSA_OFFICE) setLocation('')
-                  }}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
-                    <option value="in_person">In Person</option>
-                    <option value="online">Online</option>
+                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Start time</label>
+                  <select
+                    value={slotMinute ?? ''}
+                    disabled={!interviewDay}
+                    onChange={(e) => { setSlotMinute(e.target.value === '' ? null : Number(e.target.value)); setModeNotice(null); setScheduleError(null) }}
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none disabled:opacity-60"
+                  >
+                    <option value="">{interviewDay ? 'Select a time' : 'Pick a date first'}</option>
+                    {slotsFor(mode, duration).map((m) => {
+                      // Slots already gone by in Manila are not selectable today.
+                      const past = interviewDay === manilaToday() && m <= manilaNowMinutes()
+                      return (
+                        <option key={m} value={m} disabled={past}>
+                          {minutesToLabel(m)}{past ? ' — passed' : ''}
+                        </option>
+                      )
+                    })}
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-[#64748B]">
-                  {mode === 'in_person' ? 'Venue' : 'Meeting link'}
-                </label>
-                <input value={location} onChange={(e) => setLocation(e.target.value)}
-                  placeholder={mode === 'in_person' ? 'Office of the Dean of Students Affairs (DSA)' : 'https://meet.example.com/…'}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
-                {mode === 'in_person' && (
-                  <p className="mt-1 text-xs text-[#64748B]">In-person interviews are held at the DSA office. Leave as-is unless it changes.</p>
-                )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Duration</label>
+                  <select value={duration} onChange={(e) => { setDuration(Number(e.target.value)); setSlotMinute(null) }}
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
+                    {[15, 30, 45, 60, 90].map((m) => <option key={m} value={m}>{m} minutes</option>)}
+                  </select>
+                  <p className="mt-1 text-xs text-[#64748B]">Must finish by {minutesToLabel(windowFor(mode).endMinute)}.</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Venue</label>
+                  {mode === 'online' ? (
+                    <select value={location} onChange={(e) => setLocation(e.target.value)}
+                      className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
+                      {ONLINE_VENUES.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  ) : (
+                    <input value={location} onChange={(e) => setLocation(e.target.value)}
+                      placeholder={DSA_OFFICE}
+                      className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+                  )}
+                </div>
               </div>
-              <button onClick={() => scheduleInterview.mutate()} disabled={scheduleInterview.isPending || !interviewDate}
+
+              {mode === 'online' && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Meeting Link</label>
+                  <input value={meetingLink} onChange={(e) => { setMeetingLink(e.target.value); setScheduleError(null) }}
+                    placeholder="https://meet.example.com/…"
+                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+                  {!meetingLink.trim() && <p className="mt-1 text-xs text-[#64748B]">An online interview needs a meeting link.</p>}
+                </div>
+              )}
+
+              {slotIssue && <p className="text-xs font-medium text-[#E74C3C]">{slotIssue}</p>}
+              {scheduleError && <p className="text-xs font-medium text-[#E74C3C]">{scheduleError}</p>}
+
+              <button onClick={() => scheduleInterview.mutate()} disabled={scheduleInterview.isPending || !canSchedule}
                 className="flex items-center gap-2 rounded-xl bg-[#1B4F72] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2980B9] disabled:opacity-50 transition-colors">
                 <Calendar className="h-4 w-4" />
                 Schedule Interview
@@ -198,7 +307,7 @@ export default function AdminApplicationDetailPage() {
           )}
         </div>
       </div>
-      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={application.documents ?? []} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

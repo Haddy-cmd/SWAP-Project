@@ -21,12 +21,14 @@ export interface Assignment {
   user?: import('./auth.types').User
   office?: Office
   supervisor?: import('./auth.types').User
+  /** Whether this recipient's supervisor requires a selfie at clock-in. */
+  selfie_required?: boolean
 }
 
 export interface Office {
   id: number
   name: string
-  code: string
+  logo_url: string | null
   description: string | null
   head_name: string | null
   location: string | null

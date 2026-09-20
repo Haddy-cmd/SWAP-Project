@@ -78,7 +78,7 @@ export default function DocumentsPage() {
           </table></div>
         </div>
       )}
-      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={allDocs} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

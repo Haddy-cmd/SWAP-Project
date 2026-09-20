@@ -154,7 +154,7 @@ function StudentDocumentsModal({ student, onClose }: { student: Selected; onClos
           </div>
         )}
       </div>
-      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={docs ?? []} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

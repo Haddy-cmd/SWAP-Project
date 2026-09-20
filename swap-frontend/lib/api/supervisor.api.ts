@@ -1,6 +1,10 @@
 import apiClient from './axios'
 import type { ApiResponse } from '@/types/api.types'
 
+export interface SupervisorSettings {
+  require_clock_in_selfie: boolean
+}
+
 export interface OfficeQr {
   office: { id: number; name: string; location: string | null }
   qr_code: string
@@ -43,4 +47,10 @@ export const supervisorApi = {
 
   exportRosterCsv: () =>
     apiClient.get<Blob>('/supervisor/reports/roster/export', { responseType: 'blob' }).then((r) => r.data),
+
+  getSettings: () =>
+    apiClient.get<ApiResponse<SupervisorSettings>>('/supervisor/settings').then((r) => r.data.data),
+
+  updateSettings: (data: SupervisorSettings) =>
+    apiClient.put<ApiResponse<SupervisorSettings> & { message: string }>('/supervisor/settings', data).then((r) => r.data),
 }

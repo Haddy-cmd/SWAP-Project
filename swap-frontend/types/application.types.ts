@@ -44,6 +44,8 @@ export interface Interview {
   application_id: number
   scheduled_at: string
   location: string | null
+  meeting_link?: string | null
+  duration_minutes?: number
   mode: 'in_person' | 'online'
   notes: string | null
   status: string
@@ -63,6 +65,8 @@ export interface StoreApplicationData {
 export interface ScheduleInterviewData {
   scheduled_at: string
   location?: string
+  meeting_link?: string
+  duration_minutes?: number
   mode: 'in_person' | 'online'
   notes?: string
 }

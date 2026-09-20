@@ -36,6 +36,17 @@ export const assignmentsApi = {
   generateOfficeQr: (id: number) =>
     apiClient.post<ApiResponse<{ qr_code: string }>>(`/admin/offices/${id}/qr`).then((r) => r.data),
 
+  uploadOfficeLogo: (id: number, file: File) => {
+    const fd = new FormData()
+    fd.append('logo', file)
+    return apiClient
+      .post<ApiResponse<Office>>(`/admin/offices/${id}/logo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data.data)
+  },
+
+  removeOfficeLogo: (id: number) =>
+    apiClient.delete<ApiResponse<Office>>(`/admin/offices/${id}/logo`).then((r) => r.data.data),
+
   getOfficeSupervisors: (id: number) =>
     apiClient.get<{ data: import('@/types/auth.types').User[] }>(`/admin/offices/${id}/supervisors`).then((r) => r.data.data),
 

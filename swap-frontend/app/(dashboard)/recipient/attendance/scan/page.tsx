@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle, AlertTriangle } from 'lucide-react'
 import { QrScanner } from '@/components/attendance/QrScanner'
 import { SelfieCapture } from '@/components/attendance/SelfieCapture'
@@ -15,6 +15,15 @@ export default function ScanAttendancePage() {
   const [scanned, setScanned] = useState(false)
   // After a QR scan we hold the token and ask for a selfie before clocking in.
   const [pendingToken, setPendingToken] = useState<string | null>(null)
+
+  // The recipient's supervisor decides whether the selfie step happens at all.
+  // Default to requiring it until we know, so the step is never skipped by a
+  // slow response. The backend enforces the same rule regardless.
+  const { data: assignment } = useQuery({
+    queryKey: ['recipient-assignment'],
+    queryFn: () => attendanceApi.getMyAssignment(),
+  })
+  const selfieRequired = assignment?.selfie_required ?? true
 
   const timeIn = useMutation({
     mutationFn: async ({ token, photo }: { token: string; photo?: Blob }) => {
@@ -46,7 +55,15 @@ export default function ScanAttendancePage() {
   })
 
   function handleScan(token: string) {
-    if (!scanned && !pendingToken) setPendingToken(token)
+    if (scanned || pendingToken || timeIn.isPending) return
+
+    // Selfie turned off for this office: clock straight in, no camera step.
+    if (!selfieRequired) {
+      timeIn.mutate({ token })
+      return
+    }
+
+    setPendingToken(token)
   }
 
   return (
@@ -79,6 +96,7 @@ export default function ScanAttendancePage() {
             onCapture={(blob) => timeIn.mutate({ token: pendingToken, photo: blob })}
             onSkip={() => timeIn.mutate({ token: pendingToken })}
             busy={timeIn.isPending}
+            required={selfieRequired}
           />
         </div>
       ) : !scanned ? (

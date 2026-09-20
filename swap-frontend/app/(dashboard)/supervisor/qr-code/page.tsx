@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { QrCode, MapPin, Printer, Copy, Check, AlertCircle } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { QrCode, MapPin, Printer, Copy, Check, AlertCircle, Camera } from 'lucide-react'
 import { supervisorApi } from '@/lib/api/supervisor.api'
 import { QrDisplay } from '@/components/attendance/QrDisplay'
 
@@ -22,6 +22,71 @@ function CopyField({ label, value }: { label: string; value: string }) {
           {copied ? <Check className="h-3.5 w-3.5 text-[#27AE60]" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Per-supervisor switch for the clock-in selfie. Turning it off only affects
+ * future clock-ins — attendance already recorded keeps the photo it was saved
+ * with. The backend enforces the same rule, so this is a convenience, not the
+ * security boundary.
+ */
+function SelfieSettingCard() {
+  const queryClient = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['supervisor-settings'],
+    queryFn: () => supervisorApi.getSettings(),
+  })
+
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const save = useMutation({
+    mutationFn: (value: boolean) => supervisorApi.updateSettings({ require_clock_in_selfie: value }),
+    onSuccess: (res) => {
+      setNotice(res.message)
+      queryClient.invalidateQueries({ queryKey: ['supervisor-settings'] })
+    },
+  })
+
+  const enabled = data?.require_clock_in_selfie ?? true
+
+  return (
+    <div className="rounded-2xl border border-[#EAD9D9] bg-white p-6 shadow-sm print:hidden">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#FEF0F0] text-[#7D1A1A]">
+          <Camera className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-[#1E293B]">Require selfie on clock-in</p>
+          <p className="mt-1 text-sm text-[#8A6A6A]">
+            When on, your students must take a photo before they can clock in. When off, they clock in
+            straight after scanning. Past attendance and its photos are not affected.
+          </p>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            disabled={isLoading || save.isPending}
+            onClick={() => { setNotice(null); save.mutate(!enabled) }}
+            className={`mt-3 inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors disabled:opacity-50 ${
+              enabled ? 'bg-[#7D1A1A]' : 'bg-[#D8C7C7]'
+            }`}
+          >
+            <span
+              className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                enabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+          <span className="ml-2 align-middle text-sm font-medium text-[#475569]">
+            {isLoading ? 'Loading\u2026' : enabled ? 'On' : 'Off'}
+          </span>
+
+          {notice && <p className="mt-2 text-xs font-medium text-[#27AE60]">{notice}</p>}
+        </div>
       </div>
     </div>
   )
@@ -50,6 +115,8 @@ export default function SupervisorQrPage() {
           Display or print this code at your office. Recipients scan it to clock in and out.
         </p>
       </div>
+
+      <SelfieSettingCard />
 
       {isLoading ? (
         <div className="h-80 animate-pulse rounded-2xl bg-[#EAD9D9]/50" />

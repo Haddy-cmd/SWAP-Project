@@ -186,7 +186,7 @@ export default function ApplicationDetailPage() {
           )}
         </div>
       </div>
-      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={application.documents ?? []} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

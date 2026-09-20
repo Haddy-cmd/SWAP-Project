@@ -15,21 +15,74 @@ import { authApi } from '@/lib/api/auth.api'
 import { settingsApi } from '@/lib/api/settings.api'
 import type { ApiError } from '@/types/api.types'
 
+/** Only MSU Main Campus student addresses may register. Mirrors RegisterRequest::EMAIL_DOMAIN. */
+const EMAIL_DOMAIN = '@s.msumain.edu.ph'
+
+/** Letters (incl. ñ/Ñ and accented forms), spaces, hyphens, apostrophes, periods. */
+const NAME_RE = /^[\p{L}\p{M}\-'. ]+$/u
+
+const NAME_CHARS_MSG = 'Use letters, spaces, hyphens, apostrophes and periods only.'
+const EMAIL_DOMAIN_MSG = `Please use your MSU-Main student email (${EMAIL_DOMAIN}).`
+const FULL_NAME_MSG = 'Full name must match your first, middle, and last name.'
+
+/** Trim, then collapse every run of whitespace to one space. Mirrors the backend. */
+const normalizeName = (value?: string) => (value ?? '').trim().replace(/\s+/gu, ' ')
+
+/**
+ * Every spelling of the full name we accept. University records write the middle
+ * name in full ("Juan Macalabo Asimpin"), as an initial ("Juan M. Asimpin", with
+ * or without the period), or leave it out altogether. Mirrors the backend.
+ */
+const acceptedFullNames = (first?: string, middle?: string, last?: string) => {
+  const f = normalizeName(first)
+  const m = normalizeName(middle)
+  const l = normalizeName(last)
+  const join = (mid: string) => [f, mid, l].filter(Boolean).join(' ')
+
+  const variants = [join('')]
+
+  if (m) {
+    variants.push(join(m))
+    // A multi-word middle name initialises word by word: "Dela Cruz" -> "D. C."
+    const letters = m.split(' ').map((word) => word[0])
+    variants.push(join(letters.join(' ')))
+    variants.push(join(letters.map((letter) => `${letter}.`).join(' ')))
+  }
+
+  return variants
+}
+
+/** True when the typed full name is one of the accepted spellings. */
+const fullNameMatches = (name?: string, first?: string, middle?: string, last?: string) =>
+  acceptedFullNames(first, middle, last).some(
+    (variant) => variant.toLowerCase() === normalizeName(name).toLowerCase()
+  )
+
+/** Validates the normalized value, so stray spaces are never the reason a name is rejected. */
+const nameField = (max: number, requiredMsg: string) =>
+  z
+    .string()
+    .refine((val) => normalizeName(val).length > 0, requiredMsg)
+    .refine((val) => normalizeName(val).length <= max, `Must be ${max} characters or fewer`)
+    .refine((val) => normalizeName(val) === '' || NAME_RE.test(normalizeName(val)), NAME_CHARS_MSG)
+
 const schema = z
   .object({
-    name: z.string().min(2, 'Full name is required'),
+    name: nameField(255, 'Full name is required'),
     email: z
       .string()
       .email('Enter a valid email')
-      .refine((e) => e.toLowerCase().endsWith('@s.msumain.edu.ph'), {
-        message: 'Use your institutional email to register',
-      }),
+      .refine((e) => e.trim().toLowerCase().endsWith(EMAIL_DOMAIN), { message: EMAIL_DOMAIN_MSG }),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     password_confirmation: z.string(),
     student_id_number: z.string().regex(/^\d{9}$/, 'Student ID must be exactly 9 digits'),
-    first_name: z.string().min(1, 'Required'),
-    middle_name: z.string().optional(),
-    last_name: z.string().min(1, 'Required'),
+    first_name: nameField(100, 'Required'),
+    middle_name: z
+      .string()
+      .optional()
+      .refine((val) => normalizeName(val).length <= 100, 'Must be 100 characters or fewer')
+      .refine((val) => normalizeName(val) === '' || NAME_RE.test(normalizeName(val)), NAME_CHARS_MSG),
+    last_name: nameField(100, 'Required'),
     contact_number: z.string().optional(),
     college: z.string().min(1, 'College is required'),
     program: z.string().min(1, 'Program is required'),
@@ -44,10 +97,15 @@ const schema = z
     message: 'A 5th year applies only to Engineering and BS Accountancy programs.',
     path: ['year_level'],
   })
+  // "Full Name (as per records)" must be one of the accepted spellings of the parts.
+  .refine((d) => fullNameMatches(d.name, d.first_name, d.middle_name, d.last_name), {
+    message: FULL_NAME_MSG,
+    path: ['name'],
+  })
 
 type FormData = z.infer<typeof schema>
 
-const STEP1_FIELDS = ['first_name', 'last_name', 'name', 'student_id_number', 'email'] as const
+const STEP1_FIELDS = ['first_name', 'middle_name', 'last_name', 'name', 'student_id_number', 'email'] as const
 const STEP2_FIELDS = ['college', 'program', 'year_level', 'password', 'password_confirmation'] as const
 
 /** Colleges of MSU Main Campus, Marawi City, and the programs they offer there.
@@ -132,8 +190,10 @@ export default function RegisterPage() {
     trigger,
     watch,
     setValue,
+    setError,
+    clearErrors,
     formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) })
+  } = useForm<FormData>({ resolver: zodResolver(schema), mode: 'onTouched' })
 
   const selectedCollege = watch('college')
   const programs = COLLEGES.find((c) => c.value === selectedCollege)?.programs ?? []
@@ -153,7 +213,15 @@ export default function RegisterPage() {
   })
 
   const signup = useMutation({
-    mutationFn: (data: FormData) => authApi.register(data),
+    mutationFn: (data: FormData) =>
+      authApi.register({
+        ...data,
+        first_name: normalizeName(data.first_name),
+        middle_name: normalizeName(data.middle_name) || undefined,
+        last_name: normalizeName(data.last_name),
+        name: normalizeName(data.name),
+        email: data.email.trim().toLowerCase(),
+      }),
     onSuccess: () => {
       // No auto-login — the applicant must verify their email first.
       setVerifyEmail(watch('email'))
@@ -173,8 +241,21 @@ export default function RegisterPage() {
   const next = async () => {
     const fields = step === 1 ? STEP1_FIELDS : STEP2_FIELDS
     const ok = await trigger([...fields])
+
+    if (step === 1) {
+      const current = watch()
+
+      if (!fullNameMatches(current.name, current.first_name, current.middle_name, current.last_name)) {
+        setError('name', { type: 'manual', message: FULL_NAME_MSG })
+        return
+      }
+
+      if (errors.name?.type === 'manual') clearErrors('name')
+    }
+
     if (ok) {
       setServerError(null)
+      setFieldErrors({})
       setStep((s) => Math.min(3, s + 1))
     }
   }
@@ -279,24 +360,36 @@ export default function RegisterPage() {
             <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-[#C0392B]">{serverError}</div>
           )}
 
-          <form onSubmit={handleSubmit((d) => signup.mutate(d))} className="mt-6 flex flex-1 flex-col">
+          <form
+            onSubmit={handleSubmit((d) => {
+              if (step === 3 && !signup.isPending) signup.mutate(d)
+            })}
+            className="mt-6 flex flex-1 flex-col"
+          >
             <div className="flex-1">
               {/* STEP 1 — Personal */}
               {step === 1 && (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className={LABEL}>First Name</label>
-                    <div className={FIELD}><User className={ICON} /><input {...register('first_name')} placeholder="Juan" className={INPUT} /></div>
-                    {(errors.first_name || fieldErrors.first_name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.first_name?.message ?? fieldErrors.first_name}</p>}
-                  </div>
-                  <div>
-                    <label className={LABEL}>Last Name</label>
-                    <div className={FIELD}><User className={ICON} /><input {...register('last_name')} placeholder="dela Cruz" className={INPUT} /></div>
-                    {(errors.last_name || fieldErrors.last_name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.last_name?.message ?? fieldErrors.last_name}</p>}
+                  <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
+                    <div>
+                      <label className={LABEL}>First Name</label>
+                      <div className={FIELD}><User className={ICON} /><input {...register('first_name')} maxLength={100} placeholder="Juan" className={INPUT} /></div>
+                      {(errors.first_name || fieldErrors.first_name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.first_name?.message ?? fieldErrors.first_name}</p>}
+                    </div>
+                    <div>
+                      <label className={LABEL}>Middle Name <span className="font-normal text-[#A2938C]">(optional)</span></label>
+                      <div className={FIELD}><User className={ICON} /><input {...register('middle_name')} maxLength={100} placeholder="Andres" className={INPUT} /></div>
+                      {(errors.middle_name || fieldErrors.middle_name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.middle_name?.message ?? fieldErrors.middle_name}</p>}
+                    </div>
+                    <div>
+                      <label className={LABEL}>Last Name</label>
+                      <div className={FIELD}><User className={ICON} /><input {...register('last_name')} maxLength={100} placeholder="dela Cruz" className={INPUT} /></div>
+                      {(errors.last_name || fieldErrors.last_name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.last_name?.message ?? fieldErrors.last_name}</p>}
+                    </div>
                   </div>
                   <div className="sm:col-span-2">
                     <label className={LABEL}>Full Name (as per records)</label>
-                    <div className={FIELD}><Contact className={ICON} /><input {...register('name')} placeholder="Juan A. dela Cruz" className={INPUT} /></div>
+                    <div className={FIELD}><Contact className={ICON} /><input {...register('name')} maxLength={255} placeholder="Juan Andres dela Cruz" className={INPUT} /></div>
                     {(errors.name || fieldErrors.name) && <p className="mt-1 text-xs text-[#C0392B]">{errors.name?.message ?? fieldErrors.name}</p>}
                   </div>
                   <div>
@@ -417,7 +510,7 @@ export default function RegisterPage() {
               )}
 
               {step < 3 ? (
-                <button type="button" onClick={next} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 text-[14.5px] font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,0.26)] transition hover:brightness-110">
+                <button type="button" onClick={next} disabled={signup.isPending} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 text-[14.5px] font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,0.26)] transition hover:brightness-110 disabled:opacity-50">
                   Continue <ArrowRight className="h-[18px] w-[18px]" />
                 </button>
               ) : (

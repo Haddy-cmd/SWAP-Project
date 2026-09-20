@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -38,31 +38,38 @@ function toNum(v: number | string | null | undefined): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+/** Up to two initials from an office name, for the no-logo fallback. */
+function officeInitials(name: string): string {
+  const words = name.trim().split(/\s+/).filter((w) => !/^(of|the|and|for|in)$/i.test(w))
+  const letters = (words.length ? words : name.trim().split(/\s+/)).map((w) => w[0]).filter(Boolean)
+  return letters.slice(0, 2).join('').toUpperCase()
+}
+
 /**
- * Per-office logo. Looks for a deploy-time image at `/public/offices/{code}.png`
- * (case-insensitive). Drop a file there to replace the placeholder — no code
- * change needed. Falls back to a tinted building monogram when absent/broken.
+ * Per-office logo. Renders the uploaded image when the office has one, and
+ * otherwise a clean monogram of the office's initials in a tinted circle.
  */
 function OfficeLogo({ office, bg, fg, size = 44 }: { office: Office; bg: string; fg: string; size?: number }) {
   const [broken, setBroken] = useState(false)
-  const code = (office.code ?? '').trim().toLowerCase()
-  const showImage = !!code && !broken
+  const showImage = !!office.logo_url && !broken
 
   return (
     <span
-      className="flex flex-none items-center justify-center overflow-hidden rounded-xl"
+      className="flex flex-none items-center justify-center overflow-hidden rounded-full"
       style={{ width: size, height: size, background: showImage ? '#FFFFFF' : bg, color: fg, border: showImage ? '1px solid #EFE5DA' : 'none' }}
     >
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={`/offices/${code}.png`}
+          src={office.logo_url as string}
           alt={`${office.name} logo`}
           onError={() => setBroken(true)}
           className="h-full w-full object-contain p-1"
         />
       ) : (
-        <Building2 style={{ width: size * 0.5, height: size * 0.5 }} />
+        <span className="font-bold leading-none" style={{ fontSize: size * 0.36 }}>
+          {officeInitials(office.name) || <Building2 style={{ width: size * 0.5, height: size * 0.5 }} />}
+        </span>
       )}
     </span>
   )
@@ -113,14 +120,109 @@ const inputCls =
   'w-full rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3.5 py-2.5 text-sm text-[#2B1E1B] placeholder:text-[#B7A99F] focus:border-[#7C1B26] focus:outline-none focus:ring-2 focus:ring-[#7C1B26]/10'
 const labelCls = 'mb-1.5 block text-[12.5px] font-semibold text-[#5A4A45]'
 
+const LOGO_MAX_BYTES = 2 * 1024 * 1024
+const LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
+/**
+ * Office logo chooser: shows the current logo (or the pending pick), validates
+ * type and size in the browser so a bad file never reaches the API, and lets the
+ * admin replace or remove an existing one.
+ */
+function LogoPicker({ name, currentUrl, file, remove, onPick, onRemove, onUndoRemove }: {
+  name: string
+  currentUrl: string | null
+  file: File | null
+  remove: boolean
+  onPick: (file: File) => void
+  onRemove: () => void
+  onUndoRemove: () => void
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+
+  // Preview the pending file, and release the object URL when it changes.
+  useEffect(() => {
+    if (!file) { setPreviewUrl(null); return }
+    const url = URL.createObjectURL(file)
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [file])
+
+  const shown = previewUrl ?? (remove ? null : currentUrl)
+
+  const choose = (picked: File | undefined) => {
+    if (!picked) return
+    if (!LOGO_TYPES.includes(picked.type)) {
+      setError('The logo must be a JPG, PNG or WEBP image.')
+      return
+    }
+    if (picked.size > LOGO_MAX_BYTES) {
+      setError('The logo must be 2 MB or smaller.')
+      return
+    }
+    setError(null)
+    onPick(picked)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-4">
+        <span
+          className="flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-full border border-[#EFE5DA] bg-[#FBF7F2] text-[#7C1B26]"
+        >
+          {shown ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={shown} alt="Office logo preview" className="h-full w-full object-contain p-1" />
+          ) : (
+            <span className="text-lg font-bold leading-none">{officeInitials(name) || '\u2014'}</span>
+          )}
+        </span>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => { choose(e.target.files?.[0]); e.target.value = '' }}
+          />
+          <button type="button" onClick={() => inputRef.current?.click()}
+            className="rounded-lg border border-[#EADFD4] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] transition-colors">
+            {shown ? 'Replace logo' : 'Upload logo'}
+          </button>
+          {shown && (
+            <button type="button" onClick={onRemove}
+              className="rounded-lg border border-[#EADFD4] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#8A7A73] hover:bg-[#FBF7F2] transition-colors">
+              Remove
+            </button>
+          )}
+          {remove && !previewUrl && currentUrl && (
+            <button type="button" onClick={onUndoRemove}
+              className="rounded-lg border border-[#EADFD4] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#8A7A73] hover:bg-[#FBF7F2] transition-colors">
+              Undo
+            </button>
+          )}
+        </div>
+      </div>
+
+      <p className="mt-1.5 text-[11px] text-[#A38A82]">JPG, PNG or WEBP, up to 2 MB. Offices without a logo show their initials.</p>
+      {remove && !previewUrl && <p className="mt-1 text-[11px] font-medium text-[#B45309]">The logo will be removed when you save.</p>}
+      {error && <p className="mt-1 text-[11px] font-medium text-[#C0392B]">{error}</p>}
+    </div>
+  )
+}
+
 function OfficeFormModal({ initial, onSave, onCancel, loading }: {
   initial?: Partial<Office>
-  onSave: (data: Partial<Office>) => void
+  onSave: (data: Partial<Office>, logo: { file: File | null; remove: boolean }) => void
   onCancel: () => void
   loading?: boolean
 }) {
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [removeLogo, setRemoveLogo] = useState(false)
   const [form, setForm] = useState<Partial<Office>>({
-    name: '', code: '', description: '', head_name: '', location: '', max_recipients: 10, is_active: true,
+    name: '', description: '', head_name: '', location: '', max_recipients: 10, is_active: true,
     geofence_enabled: false, radius_meters: 100,
     ...initial,
   })
@@ -161,11 +263,17 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
               <input value={String(form.name ?? '')} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="e.g. University Registrar" className={inputCls} />
             </div>
-            <div>
-              <label className={labelCls}>Code</label>
-              <input value={String(form.code ?? '')} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
-                placeholder="e.g. REG" className={inputCls} />
-              <p className="mt-1 text-[11px] text-[#A38A82]">Logo file: <span className="font-mono">/offices/{(form.code ?? '').trim().toLowerCase() || 'code'}.png</span></p>
+            <div className="sm:col-span-2">
+              <label className={labelCls}>Office Logo <span className="font-normal text-[#A38A82]">(optional)</span></label>
+              <LogoPicker
+                name={String(form.name ?? '')}
+                currentUrl={form.logo_url ?? null}
+                file={logoFile}
+                remove={removeLogo}
+                onPick={(f) => { setLogoFile(f); setRemoveLogo(false) }}
+                onRemove={() => { setLogoFile(null); setRemoveLogo(true) }}
+                onUndoRemove={() => setRemoveLogo(false)}
+              />
             </div>
             <div>
               <label className={labelCls}>Office Head</label>
@@ -245,7 +353,7 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
             className="h-11 rounded-xl border border-[#E7D9C9] bg-white px-5 text-sm font-semibold text-[#7A6A63] hover:bg-[#FBF7F2] transition-colors">
             Cancel
           </button>
-          <button onClick={() => onSave(form)} disabled={loading || geoInvalid}
+          <button onClick={() => onSave(form, { file: logoFile, remove: removeLogo })} disabled={loading || geoInvalid}
             className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity disabled:opacity-50"
             style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
             <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
@@ -428,13 +536,30 @@ export default function AdminOfficesPage() {
     queryFn: () => assignmentsApi.getOffices(),
   })
 
+  type LogoChange = { file: File | null; remove: boolean }
+
+  /** Apply a pending logo pick to an office that already exists. */
+  const applyLogo = async (officeId: number, logo: LogoChange) => {
+    if (logo.file) await assignmentsApi.uploadOfficeLogo(officeId, logo.file)
+    else if (logo.remove) await assignmentsApi.removeOfficeLogo(officeId)
+  }
+
   const create = useMutation({
-    mutationFn: (d: Partial<Office>) => assignmentsApi.createOffice(d),
+    mutationFn: async ({ data, logo }: { data: Partial<Office>; logo: LogoChange }) => {
+      // The office must exist before its logo can be attached to it.
+      const office = await assignmentsApi.createOffice(data)
+      await applyLogo(office.id, logo)
+      return office
+    },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); setShowNew(false) },
   })
 
   const update = useMutation({
-    mutationFn: (d: Partial<Office>) => assignmentsApi.updateOffice(d.id!, d),
+    mutationFn: async ({ data, logo }: { data: Partial<Office>; logo: LogoChange }) => {
+      const office = await assignmentsApi.updateOffice(data.id!, data)
+      await applyLogo(data.id!, logo)
+      return office
+    },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); setEditing(null) },
   })
 
@@ -448,7 +573,7 @@ export default function AdminOfficesPage() {
 
   const q = search.trim().toLowerCase()
   let list = offices.filter((o) =>
-    !q || o.name.toLowerCase().includes(q) || (o.head_name ?? '').toLowerCase().includes(q) || (o.code ?? '').toLowerCase().includes(q))
+    !q || o.name.toLowerCase().includes(q) || (o.head_name ?? '').toLowerCase().includes(q))
   if (filter === 'Active') list = list.filter((o) => o.is_active)
   if (filter === 'Has space') list = list.filter((o) => (o.active_recipients ?? 0) < o.max_recipients)
   list = [...list].sort((a, b) => {
@@ -576,7 +701,7 @@ export default function AdminOfficesPage() {
                   <OfficeLogo office={office} bg={bg} fg={fg} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-bold leading-tight text-[#241715]">{office.name}</p>
-                    <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A38A82]">{office.code}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A38A82]">{office.location || 'Host office'}</p>
                   </div>
                   <button
                     onClick={() => setEditing(office)}
@@ -670,10 +795,10 @@ export default function AdminOfficesPage() {
 
       {/* Add / Edit modal */}
       {showNew && (
-        <OfficeFormModal onSave={(d) => create.mutate(d)} onCancel={() => setShowNew(false)} loading={create.isPending} />
+        <OfficeFormModal onSave={(d, logo) => create.mutate({ data: d, logo })} onCancel={() => setShowNew(false)} loading={create.isPending} />
       )}
       {editing && (
-        <OfficeFormModal initial={editing} onSave={(d) => update.mutate({ ...editing, ...d })} onCancel={() => setEditing(null)} loading={update.isPending} />
+        <OfficeFormModal initial={editing} onSave={(d, logo) => update.mutate({ data: { ...editing, ...d }, logo })} onCancel={() => setEditing(null)} loading={update.isPending} />
       )}
 
       {/* Office QR modal */}
