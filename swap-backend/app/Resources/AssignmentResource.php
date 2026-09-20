@@ -39,9 +39,11 @@ class AssignmentResource extends JsonResource
             ]),
             'office_name' => $this->whenLoaded('office', fn () => $this->office?->name),
             'supervisor' => $this->whenLoaded('supervisor', fn () => new UserResource($this->supervisor)),
-            // Whether this recipient's supervisor wants a clock-in selfie. The
-            // backend enforces it too; this just lets the UI skip the step.
-            'selfie_required' => (bool) ($this->supervisor?->require_clock_in_selfie ?? true),
+            // Whether a clock-in selfie is required for this student. Resolved by
+            // the same rule the clock-in itself enforces, so the UI never shows
+            // a step the API would skip (or skips one it would reject).
+            'selfie_required' => app(\App\Services\AttendanceService::class)
+                ->selfieRequiredFor($this->resource),
         ];
     }
 }

@@ -393,4 +393,28 @@ class AttendanceTest extends TestCase
 
         $this->assertDatabaseHas('time_logs', ['user_id' => $recipient->id, 'status' => 'open']);
     }
+
+    public function test_office_supervisor_can_turn_the_selfie_off_for_a_student_assigned_to_a_colleague(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+
+        // The student reports to one supervisor, but a co-supervisor of the same
+        // office turns the selfie off. Both oversee this student, so it applies.
+        $directSupervisor = $this->makeUser('supervisor', ['office_id' => $office->id]);
+        $this->makeSupervisorWithoutSelfie(['office_id' => $office->id]);
+
+        $this->makeAssignment($recipient, $directSupervisor, $office);
+        $token = $this->qrForOffice($office);
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertStatus(201);
+
+        // The recipient's own assignment payload must agree, or the UI would
+        // still show a selfie step the API no longer requires.
+        $this->getJson('/api/recipient/assignment')->assertJsonPath('data.selfie_required', false);
+    }
 }

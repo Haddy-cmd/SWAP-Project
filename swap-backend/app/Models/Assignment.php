@@ -74,6 +74,25 @@ class Assignment extends Model
     }
 
     /**
+     * The supervisors who oversee this assignment: the one assigned directly,
+     * plus every supervisor of the host office. Mirrors visibleToSupervisor(),
+     * so anyone who can see this student in their roster also governs the
+     * settings that apply to them.
+     */
+    public function governingSupervisors(): \Illuminate\Support\Collection
+    {
+        return User::query()
+            ->where('role', 'supervisor')
+            ->where(function (Builder $q) {
+                $q->where('id', $this->supervisor_id);
+                if ($this->office_id !== null) {
+                    $q->orWhere('office_id', $this->office_id);
+                }
+            })
+            ->get();
+    }
+
+    /**
      * How far below the expected pace a student may fall before we call them behind.
      * A little slack absorbs the normal rhythm of a semester — a quiet exam week
      * shouldn't light up the supervisor's dashboard.

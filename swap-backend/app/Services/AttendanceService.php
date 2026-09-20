@@ -105,16 +105,26 @@ class AttendanceService
     }
 
     /**
-     * Whether this assignment's supervisor requires a clock-in selfie.
-     * Defaults to true when no supervisor is set, matching the column default.
+     * Whether a clock-in selfie is required for this assignment.
+     *
+     * A student is overseen by their directly assigned supervisor AND by every
+     * supervisor of the office they report to — the same set the roster uses.
+     * If any of them has turned the selfie off, it is off: the supervisor who
+     * flipped the switch expects it to apply to the students on their own
+     * roster, not only to those whose supervisor_id happens to point at them.
+     *
+     * Defaults to true when no supervisor governs the assignment at all,
+     * matching the column default.
      */
     public function selfieRequiredFor(Assignment $assignment): bool
     {
-        $supervisor = $assignment->relationLoaded('supervisor')
-            ? $assignment->supervisor
-            : $assignment->supervisor()->first();
+        $supervisors = $assignment->governingSupervisors();
 
-        return (bool) ($supervisor->require_clock_in_selfie ?? true);
+        if ($supervisors->isEmpty()) {
+            return true;
+        }
+
+        return !$supervisors->contains(fn ($supervisor) => !$supervisor->require_clock_in_selfie);
     }
 
     public function timeOut(User $user, int $logId, string $qrToken, ?float $latitude = null, ?float $longitude = null, ?float $accuracy = null): TimeLog
