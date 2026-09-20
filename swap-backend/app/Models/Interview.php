@@ -14,6 +14,8 @@ class Interview extends Model
         'application_id',
         'scheduled_at',
         'location',
+        'meeting_link',
+        'duration_minutes',
         'mode',
         'notes',
         'status',
@@ -23,6 +25,7 @@ class Interview extends Model
     {
         return [
             'scheduled_at' => 'datetime',
+            'duration_minutes' => 'integer',
         ];
     }
 

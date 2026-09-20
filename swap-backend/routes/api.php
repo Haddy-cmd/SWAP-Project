@@ -21,6 +21,7 @@ use App\Http\Controllers\Recipient\HoursController;
 use App\Http\Controllers\Recipient\NarrativeController;
 use App\Http\Controllers\Recipient\RenewalController;
 use App\Http\Controllers\Supervisor\OfficeController as SupervisorOfficeController;
+use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsController;
 use App\Http\Controllers\Supervisor\StudentController;
 use App\Http\Controllers\Supervisor\VerificationController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
@@ -103,6 +104,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // ─── SUPERVISOR ───────────────────────────────────────────────────────────
     Route::middleware('role:supervisor')->prefix('supervisor')->group(function () {
         Route::get('/office-qr', [SupervisorOfficeController::class, 'qr']);
+        Route::get('/settings', [SupervisorSettingsController::class, 'show']);
+        Route::put('/settings', [SupervisorSettingsController::class, 'update']);
         Route::get('/students', [StudentController::class, 'index']);
         Route::get('/students/clocked-in', [StudentController::class, 'clockedIn']);
         Route::get('/students/{id}/summary', [StudentController::class, 'summary']);
@@ -141,6 +144,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/offices/{id}', [OfficeController::class, 'update']);
         Route::delete('/offices/{id}', [OfficeController::class, 'destroy']);
         Route::post('/offices/{id}/qr', [OfficeController::class, 'qr']);
+        Route::post('/offices/{id}/logo', [OfficeController::class, 'uploadLogo']);
+        Route::delete('/offices/{id}/logo', [OfficeController::class, 'removeLogo']);
         Route::get('/offices/{id}/supervisors', [OfficeController::class, 'supervisors']);
         Route::post('/offices/{id}/supervisors', [OfficeController::class, 'assignSupervisor']);
         Route::delete('/offices/{id}/supervisors/{supervisorId}', [OfficeController::class, 'removeSupervisor']);

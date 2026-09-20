@@ -33,12 +33,15 @@ class AssignmentResource extends JsonResource
             'office' => $this->whenLoaded('office', fn () => [
                 'id' => $this->office->id,
                 'name' => $this->office->name,
-                'code' => $this->office->code,
+                'logo_url' => $this->office->logo_url,
                 'location' => $this->office->location,
                 'head_name' => $this->office->head_name,
             ]),
             'office_name' => $this->whenLoaded('office', fn () => $this->office?->name),
             'supervisor' => $this->whenLoaded('supervisor', fn () => new UserResource($this->supervisor)),
+            // Whether this recipient's supervisor wants a clock-in selfie. The
+            // backend enforces it too; this just lets the UI skip the step.
+            'selfie_required' => (bool) ($this->supervisor?->require_clock_in_selfie ?? true),
         ];
     }
 }

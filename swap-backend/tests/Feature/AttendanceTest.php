@@ -27,7 +27,7 @@ class AttendanceTest extends TestCase
         $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
         $token = $this->qrForOffice($office);
 
         Sanctum::actingAs($recipient);
@@ -47,7 +47,7 @@ class AttendanceTest extends TestCase
         $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
         $token = $this->qrForOffice($office);
         $payload = ['qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0];
 
@@ -61,7 +61,7 @@ class AttendanceTest extends TestCase
         $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
 
         // A forgotten clock-out from yesterday leaves an open log.
         $this->makeOpenLog($assignment, $recipient, now()->subDay());
@@ -75,7 +75,7 @@ class AttendanceTest extends TestCase
     public function test_database_rejects_a_second_open_log_for_the_same_user(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
 
         $this->makeOpenLog($assignment, $recipient, now()->subMinutes(5));
 
@@ -87,7 +87,7 @@ class AttendanceTest extends TestCase
     public function test_void_duplicate_open_logs_closes_an_overlapping_twin(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
         $start = now()->subMinutes(5);
 
         // A completed (clocked-out, pending) session…
@@ -115,7 +115,7 @@ class AttendanceTest extends TestCase
     {
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
         $token = $this->qrForOffice($office);
 
         Sanctum::actingAs($recipient);
@@ -130,7 +130,7 @@ class AttendanceTest extends TestCase
         $this->travelTo(Carbon::create(2026, 7, 5, 9, 0, 0, 'Asia/Manila')); // Sunday 9:00 AM PHT
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
 
         Sanctum::actingAs($recipient);
         $res = $this->postJson('/api/recipient/attendance/time-in-geofence', [
@@ -146,7 +146,7 @@ class AttendanceTest extends TestCase
         $this->travelTo(Carbon::create(2026, 7, 6, 18, 0, 0, 'Asia/Manila')); // Monday 6:00 PM PHT (past 5:30)
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
 
         Sanctum::actingAs($recipient);
         $res = $this->postJson('/api/recipient/attendance/time-in-geofence', [
@@ -161,7 +161,7 @@ class AttendanceTest extends TestCase
     {
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
         $tampered = substr($this->qrForOffice($office), 0, -1).'X';
 
         Sanctum::actingAs($recipient);
@@ -175,7 +175,7 @@ class AttendanceTest extends TestCase
         $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
         $token = $this->qrForOffice($office);
 
         Sanctum::actingAs($recipient);
@@ -192,7 +192,7 @@ class AttendanceTest extends TestCase
     public function test_time_out_without_narrative_is_blocked(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
         $token = $this->qrFor($assignment);
         $log = $this->makeOpenLog($assignment, $recipient);
 
@@ -211,7 +211,7 @@ class AttendanceTest extends TestCase
     {
         Queue::fake();
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
         $token = $this->qrFor($assignment);
         $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(3));
         $this->addNarrative($log);
@@ -232,7 +232,7 @@ class AttendanceTest extends TestCase
     {
         Queue::fake();
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
         $token = $this->qrFor($assignment);
         $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
 
@@ -255,12 +255,12 @@ class AttendanceTest extends TestCase
     public function test_close_stale_command_closes_old_open_logs_and_caps_duration(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
         $stale = $this->makeOpenLog($assignment, $recipient, now()->subHours(15));
 
         // A recent (<12h) open log for a different recipient must be left untouched.
         $fresh = $this->makeUser('recipient');
-        $freshAssignment = $this->makeAssignment($fresh, $this->makeUser('supervisor'));
+        $freshAssignment = $this->makeAssignment($fresh, $this->makeSupervisorWithoutSelfie());
         $freshLog = $this->makeOpenLog($freshAssignment, $fresh, now()->subHours(2));
 
         $this->artisan('attendance:close-stale', ['--hours' => 12])->assertExitCode(0);
@@ -275,7 +275,7 @@ class AttendanceTest extends TestCase
 
     public function test_supervisor_clocked_in_excludes_stale_open_logs(): void
     {
-        $supervisor = $this->makeUser('supervisor');
+        $supervisor = $this->makeSupervisorWithoutSelfie();
 
         // Fresh session (2h ago) — a genuine live clock-in.
         $live = $this->makeUser('recipient');
@@ -298,7 +298,7 @@ class AttendanceTest extends TestCase
         $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
         $office = $this->makeGeofencedOffice();
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
 
         // A prior log at the exact same coordinates — a real GPS never repeats exactly.
         TimeLog::create([
@@ -323,7 +323,7 @@ class AttendanceTest extends TestCase
         Storage::fake('public');
         $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient');
-        $supervisor = $this->makeUser('supervisor');
+        $supervisor = $this->makeSupervisorWithoutSelfie();
         $office = $this->makeGeofencedOffice();
         $this->makeAssignment($recipient, $supervisor, $office);
 
@@ -349,7 +349,7 @@ class AttendanceTest extends TestCase
     public function test_hours_summary_returns_expected_keys(): void
     {
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
 
         Sanctum::actingAs($recipient);
         $this->getJson('/api/recipient/hours/summary')
@@ -357,5 +357,40 @@ class AttendanceTest extends TestCase
             ->assertJsonStructure([
                 'data' => ['required', 'rendered', 'verified', 'pending', 'rejected', 'remaining'],
             ]);
+    }
+
+    public function test_clock_in_is_rejected_when_supervisor_requires_a_selfie_and_none_is_sent(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        // Default for every supervisor is ON.
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'), $office);
+        $token = $this->qrForOffice($office);
+
+        Sanctum::actingAs($recipient);
+        $res = $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ]);
+
+        $res->assertStatus(422);
+        $this->assertStringContainsString('selfie is required', $res->json('message'));
+        $this->assertDatabaseMissing('time_logs', ['user_id' => $recipient->id]);
+    }
+
+    public function test_clock_in_without_a_selfie_is_allowed_when_the_supervisor_turned_it_off(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        $token = $this->qrForOffice($office);
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertStatus(201);
+
+        $this->assertDatabaseHas('time_logs', ['user_id' => $recipient->id, 'status' => 'open']);
     }
 }

@@ -28,12 +28,12 @@ class AssignmentSeeder extends Seeder
         $assignments = [
             [
                 'user' => $recipients->get(0),
-                'office' => $offices->firstWhere('code', 'ITC') ?? $offices->first(),
+                'office' => $offices->firstWhere('name', 'Information Technology Center') ?? $offices->first(),
                 'supervisor' => $supervisors->first(),
             ],
             [
                 'user' => $recipients->get(1),
-                'office' => $offices->firstWhere('code', 'LIB') ?? $offices->skip(1)->first(),
+                'office' => $offices->firstWhere('name', 'University Library') ?? $offices->skip(1)->first(),
                 'supervisor' => $supervisors->skip(1)->first() ?? $supervisors->first(),
             ],
         ];

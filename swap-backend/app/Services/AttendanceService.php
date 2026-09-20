@@ -92,7 +92,29 @@ class AttendanceService
 
         $this->guardClockIn($assignment, $user);
 
+        // The recipient's supervisor decides whether a proof-of-presence selfie
+        // is required. Checked here, not just in the UI, so a hand-crafted
+        // request cannot skip it. Past logs are untouched by a later change.
+        if ($this->selfieRequiredFor($assignment) && !$photo) {
+            throw new UnprocessableEntityHttpException(
+                'A selfie is required to clock in at this office. Please allow camera access and take a photo.'
+            );
+        }
+
         return $this->createOpenLog($assignment, $user, $latitude, $longitude, $accuracy, $photo);
+    }
+
+    /**
+     * Whether this assignment's supervisor requires a clock-in selfie.
+     * Defaults to true when no supervisor is set, matching the column default.
+     */
+    public function selfieRequiredFor(Assignment $assignment): bool
+    {
+        $supervisor = $assignment->relationLoaded('supervisor')
+            ? $assignment->supervisor
+            : $assignment->supervisor()->first();
+
+        return (bool) ($supervisor->require_clock_in_selfie ?? true);
     }
 
     public function timeOut(User $user, int $logId, string $qrToken, ?float $latitude = null, ?float $longitude = null, ?float $accuracy = null): TimeLog

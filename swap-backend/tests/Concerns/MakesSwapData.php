@@ -33,11 +33,19 @@ trait MakesSwapData
 
         return Office::create(array_merge([
             'name' => "Office {$this->seq}",
-            'code' => "OFC{$this->seq}",
             'description' => 'Test office',
             'max_recipients' => 10,
             'is_active' => true,
         ], $attrs));
+    }
+
+    /**
+     * A supervisor who does not require a clock-in selfie, so tests about other
+     * attendance rules can clock in without attaching a photo.
+     */
+    protected function makeSupervisorWithoutSelfie(array $attrs = []): User
+    {
+        return $this->makeUser('supervisor', array_merge(['require_clock_in_selfie' => false], $attrs));
     }
 
     protected function makeAssignment(User $recipient, User $supervisor, ?Office $office = null, array $attrs = []): Assignment

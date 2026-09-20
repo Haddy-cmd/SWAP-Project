@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Office extends Model
 {
@@ -12,7 +13,7 @@ class Office extends Model
 
     protected $fillable = [
         'name',
-        'code',
+        'logo_path',
         'description',
         'head_name',
         'location',
@@ -30,6 +31,11 @@ class Office extends Model
         'qr_secret',
     ];
 
+    /** Serialized alongside the office so lists can render the logo directly. */
+    protected $appends = [
+        'logo_url',
+    ];
+
     protected function casts(): array
     {
         return [
@@ -40,6 +46,16 @@ class Office extends Model
             'radius_meters' => 'integer',
             'geofence_enabled' => 'boolean',
         ];
+    }
+
+    /** Public URL of the uploaded logo, or null when the office has none. */
+    public function getLogoUrlAttribute(): ?string
+    {
+        if (!$this->logo_path) {
+            return null;
+        }
+
+        return Storage::disk(config('filesystems.documents_disk', 'public'))->url($this->logo_path);
     }
 
     public function assignments(): HasMany

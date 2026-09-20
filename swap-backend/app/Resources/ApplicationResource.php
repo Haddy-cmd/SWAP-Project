@@ -63,6 +63,8 @@ class ApplicationResource extends JsonResource
                 'id' => $this->interview->id,
                 'scheduled_at' => $this->interview->scheduled_at->toISOString(),
                 'location' => $this->interview->location,
+                'meeting_link' => $this->interview->meeting_link,
+                'duration_minutes' => $this->interview->duration_minutes,
                 'mode' => $this->interview->mode,
                 'notes' => $this->interview->notes,
                 'status' => $this->interview->status,

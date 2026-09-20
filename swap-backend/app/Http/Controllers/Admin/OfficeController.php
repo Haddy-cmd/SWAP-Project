@@ -9,6 +9,7 @@ use App\Resources\UserResource;
 use App\Services\QrCodeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class OfficeController extends Controller
 {
@@ -37,7 +38,6 @@ class OfficeController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
-            'code' => ['required', 'string', 'max:20', 'unique:offices,code'],
             'description' => ['nullable', 'string', 'max:500'],
             'head_name' => ['nullable', 'string', 'max:150'],
             'location' => ['nullable', 'string', 'max:255'],
@@ -59,7 +59,6 @@ class OfficeController extends Controller
 
         $validated = $request->validate([
             'name' => ['sometimes', 'string', 'max:150'],
-            'code' => ['sometimes', 'string', 'max:20', "unique:offices,code,{$id}"],
             'description' => ['nullable', 'string', 'max:500'],
             'head_name' => ['nullable', 'string', 'max:150'],
             'location' => ['nullable', 'string', 'max:255'],
@@ -82,6 +81,60 @@ class OfficeController extends Controller
         $office->update(['is_active' => false]);
 
         return response()->json(['message' => 'Office deactivated.']);
+    }
+
+    /**
+     * Upload or replace an office logo. The previous file is deleted so replacing
+     * a logo repeatedly does not leave orphans behind on the disk.
+     */
+    public function uploadLogo(Request $request, int $id): JsonResponse
+    {
+        $office = Office::findOrFail($id);
+
+        $request->validate([
+            'logo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'logo.max' => 'The logo must be 2 MB or smaller.',
+            'logo.mimes' => 'The logo must be a JPG, PNG or WEBP image.',
+        ]);
+
+        $disk = config('filesystems.documents_disk', 'public');
+        $old = $office->logo_path;
+
+        try {
+            $path = $request->file('logo')->store('office-logos', $disk);
+
+            if ($path === false) {
+                throw new \RuntimeException('Storage driver returned false (check permissions).');
+            }
+        } catch (\Throwable $e) {
+            return response()->json(['message' => 'Failed to upload the logo.', 'error' => $e->getMessage()], 500);
+        }
+
+        $office->update(['logo_path' => $path]);
+
+        if ($old && $old !== $path) {
+            try { Storage::disk($disk)->delete($old); } catch (\Throwable) { /* best effort */ }
+        }
+
+        return response()->json(['data' => $office->fresh(), 'message' => 'Office logo updated.']);
+    }
+
+    /** Remove an office logo and delete the stored file. */
+    public function removeLogo(int $id): JsonResponse
+    {
+        $office = Office::findOrFail($id);
+        $old = $office->logo_path;
+
+        $office->update(['logo_path' => null]);
+
+        if ($old) {
+            try {
+                Storage::disk(config('filesystems.documents_disk', 'public'))->delete($old);
+            } catch (\Throwable) { /* best effort */ }
+        }
+
+        return response()->json(['data' => $office->fresh(), 'message' => 'Office logo removed.']);
     }
 
     /**

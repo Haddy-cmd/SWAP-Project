@@ -23,6 +23,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'role',
         'is_active',
+        'require_clock_in_selfie',
         'office_id',
         'avatar_path',
         'email_verified_at',
@@ -39,6 +40,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'require_clock_in_selfie' => 'boolean',
         ];
     }
 

@@ -29,29 +29,52 @@ class InterviewLifecycleTest extends TestCase
 
         Sanctum::actingAs($admin);
         $this->postJson("/api/admin/applications/{$application->id}/interview", [
-            'scheduled_at' => now()->addDays(3)->toDateTimeString(),
+            // Times are sent with an explicit offset: the scheduling rules are
+            // expressed in Asia/Manila, not in the app's UTC default.
+            'scheduled_at' => self::manilaSlot(3, 10)->toIso8601String(),
             'mode' => 'in_person',
         ])->assertOk();
 
         return [$admin, $application->fresh()];
     }
 
+    /**
+     * A future weekday at `hour` o'clock Manila time, at least `minDays` away.
+     * Skips forward over weekends so face-to-face slots stay legal.
+     */
+    private static function manilaSlot(int $minDays, int $hour): \Illuminate\Support\Carbon
+    {
+        $at = \Illuminate\Support\Carbon::now(\App\Support\InterviewWindow::TIMEZONE)
+            ->addDays($minDays)
+            ->setTime($hour, 0, 0, 0);
+
+        while ($at->isWeekend()) {
+            $at->addDay();
+        }
+
+        return $at;
+    }
+
     public function test_reschedule_updates_time_and_logs_history(): void
     {
         [, $application] = $this->makeScheduledInterview();
         $originalAt = $application->interview->scheduled_at;
-        $newAt = now()->addDays(7)->startOfHour();
+        $newAt = self::manilaSlot(7, 14);
 
         $res = $this->putJson("/api/admin/applications/{$application->id}/interview", [
-            'scheduled_at' => $newAt->toDateTimeString(),
+            'scheduled_at' => $newAt->toIso8601String(),
             'mode' => 'online',
-            'location' => 'https://meet.example/dsa',
+            'location' => 'Division of Student Affairs (DSA)',
+            'meeting_link' => 'https://meet.example/dsa',
         ]);
 
         $res->assertOk();
 
         $interview = $application->fresh('interview')->interview;
-        $this->assertTrue($interview->scheduled_at->equalTo($newAt));
+        $this->assertSame(
+            $newAt->utc()->format('Y-m-d H:i:s'),
+            $interview->scheduled_at->utc()->format('Y-m-d H:i:s')
+        );
         $this->assertSame('scheduled', $interview->status);
 
         // History: an audit entry records old + new time and the actor.

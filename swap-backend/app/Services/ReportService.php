@@ -235,7 +235,7 @@ class ReportService
                 ->where('office_id', $o->id)->where('academic_year', $ay)->where('semester', $sem)
                 ->where('status', 'active')->count();
             $sup = User::where('role', 'supervisor')->where('office_id', $o->id)->count();
-            return ['name' => $o->name, 'code' => $o->code, 'head' => $o->head_name ?? '—', 'location' => $o->location ?? '—', 'cap' => $o->max_recipients, 'active' => $active, 'sup' => $sup];
+            return ['name' => $o->name, 'head' => $o->head_name ?? '—', 'location' => $o->location ?? '—', 'cap' => $o->max_recipients, 'active' => $active, 'sup' => $sup];
         });
 
         return [
@@ -248,7 +248,7 @@ class ReportService
                 ['label' => 'Full Offices', 'value' => (string) $detail->filter(fn ($r) => $r['cap'] > 0 && $r['active'] >= $r['cap'])->count()],
                 ['label' => 'Supervisors', 'value' => (string) $detail->sum('sup')],
             ],
-            'rows' => $detail->map(fn ($r) => [$r['name'], $r['code'], $r['head'], $r['location'], $r['cap'], $r['active'], $r['sup']])->all(),
+            'rows' => $detail->map(fn ($r) => [$r['name'], $r['head'], $r['location'], $r['cap'], $r['active'], $r['sup']])->all(),
         ];
     }
 
