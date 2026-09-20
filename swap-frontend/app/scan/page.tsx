@@ -37,6 +37,10 @@ export default function ScanPage() {
   const [openLogId, setOpenLogId] = useState<number | null>(null)
   const [narrativeOpen, setNarrativeOpen] = useState(false)
   const [premises, setPremises] = useState<{ ok: boolean; text: string } | null>(null)
+  // Whether this student's supervisor requires a clock-in selfie. Default to
+  // true until the assignment says otherwise, so the step is never skipped by a
+  // failed lookup; the backend enforces the same rule either way.
+  const [selfieRequired, setSelfieRequired] = useState(true)
 
   async function clockIn(photo?: Blob) {
     setKind('in')
@@ -140,9 +144,25 @@ export default function ScanPage() {
           setPhase('narrative')
         }
       } else {
-        // Clock-in requires a proof-of-presence selfie first.
         setKind('in')
-        setPhase('selfie')
+
+        // The supervisor decides whether a proof-of-presence selfie is needed.
+        let needsSelfie = true
+        try {
+          const assignment = await attendanceApi.getMyAssignment()
+          needsSelfie = assignment?.selfie_required ?? true
+        } catch {
+          needsSelfie = true // couldn't ask — take the safe path
+        }
+
+        setSelfieRequired(needsSelfie)
+
+        if (needsSelfie) {
+          setPhase('selfie')
+        } else {
+          // Nothing else to collect: clock straight in.
+          await clockIn()
+        }
       }
     })()
   }, [router])
@@ -167,7 +187,11 @@ export default function ScanPage() {
         )}
 
         {phase === 'selfie' && (
-          <SelfieCapture onCapture={(blob) => clockIn(blob)} onSkip={() => clockIn()} />
+          <SelfieCapture
+            onCapture={(blob) => clockIn(blob)}
+            onSkip={() => clockIn()}
+            required={selfieRequired}
+          />
         )}
 
         {phase === 'narrative' && (

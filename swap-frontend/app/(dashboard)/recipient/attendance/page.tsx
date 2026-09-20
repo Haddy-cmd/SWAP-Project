@@ -83,6 +83,15 @@ export default function AttendancePage() {
     queryFn: () => attendanceApi.getMyLogs({ per_page: '50' }),
   })
 
+  // The supervisor decides whether a clock-in selfie is needed. Assume it is
+  // until the assignment says otherwise, so a slow or failed lookup never skips
+  // a step the backend would then reject.
+  const { data: myAssignment } = useQuery({
+    queryKey: ['recipient-assignment'],
+    queryFn: () => attendanceApi.getMyAssignment(),
+  })
+  const selfieRequired = myAssignment?.selfie_required ?? true
+
   // Keep the clocked-in state fully in sync with the server: clear it the moment the open log is gone.
   useEffect(() => {
     setOpenLogId(currentLog?.id ?? null)
@@ -334,7 +343,7 @@ export default function AttendancePage() {
                 <LogOut className="h-5 w-5" /> {timeOut.isPending ? 'Recording…' : 'Clock Out'}
               </button>
             ) : (
-              <button onClick={() => setSelfieOpen(true)} disabled={timeIn.isPending || !canClock}
+              <button onClick={() => (selfieRequired ? setSelfieOpen(true) : timeIn.mutate(undefined))} disabled={timeIn.isPending || !canClock}
                 className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[13px] text-[15px] font-bold text-[#FFF8F2] transition-opacity disabled:cursor-not-allowed"
                 style={canClock
                   ? { background: 'linear-gradient(180deg,#86202E,#6C1620)', boxShadow: '0 12px 24px rgba(108,22,32,.26)' }
@@ -444,6 +453,7 @@ export default function AttendancePage() {
               onCapture={(blob) => timeIn.mutate(blob)}
               onSkip={() => timeIn.mutate(undefined)}
               busy={timeIn.isPending}
+              required={selfieRequired}
             />
           </div>
         </div>
