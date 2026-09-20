@@ -12,6 +12,8 @@ use App\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -31,32 +33,55 @@ class AuthController extends Controller
         // Created inactive/unverified — the account is only activated once the
         // applicant clicks the email verification link (so an unconfirmed signup
         // never shows as an active applicant to the admins).
-        $user = $this->userRepository->create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => $request->password,
-            'role' => 'applicant',
-            'is_active' => false,
-        ]);
+        //
+        // User and profile go in one transaction: a half-written signup used to
+        // leave a committed user row behind, and the applicant's retry then hit
+        // "email has already been taken" against their own failed attempt.
+        $user = DB::transaction(function () use ($request) {
+            $user = $this->userRepository->create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => $request->password,
+                'role' => 'applicant',
+                'is_active' => false,
+            ]);
 
-        $user->profile()->create([
-            'student_id_number' => $request->student_id_number,
-            'first_name' => $request->first_name,
-            'middle_name' => $request->middle_name,
-            'last_name' => $request->last_name,
-            'contact_number' => $request->contact_number,
-            'college' => $request->college,
-            'program' => $request->program,
-            'year_level' => $request->year_level,
-        ]);
+            $user->profile()->create([
+                'student_id_number' => $request->student_id_number,
+                'first_name' => $request->first_name,
+                'middle_name' => $request->middle_name,
+                'last_name' => $request->last_name,
+                'contact_number' => $request->contact_number,
+                'college' => $request->college,
+                'program' => $request->program,
+                'year_level' => $request->year_level,
+            ]);
+
+            return $user;
+        });
 
         // Prove the applicant owns the email before they can sign in: send a
         // verification link and withhold sign-in (no token) until they confirm.
-        $user->sendEmailVerificationNotification();
+        // A mail outage must not fail the request — the account is already valid
+        // and the applicant can use "Resend verification email".
+        $verificationSent = true;
+
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            $verificationSent = false;
+            Log::error('Verification email failed to send', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
-            'message' => 'Registration successful. Please check your email for a verification link before signing in.',
+            'message' => $verificationSent
+                ? 'Registration successful. Please check your email for a verification link before signing in.'
+                : 'Account created, but the verification email could not be sent. Use "Resend verification email" below.',
             'verification_required' => true,
+            'verification_email_sent' => $verificationSent,
         ], 201);
     }
 

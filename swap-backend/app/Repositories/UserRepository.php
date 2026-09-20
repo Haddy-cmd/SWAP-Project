@@ -62,6 +62,11 @@ class UserRepository implements UserRepositoryInterface
         $user->email = $user->email . '_deleted_' . time();
         $user->save();
 
+        // The profile holds the student ID under its own unique index. Soft-delete
+        // it alongside the user, or that ID stays taken forever and the student can
+        // never sign up again.
+        $user->profile()?->delete();
+
         $user->delete();
     }
 
