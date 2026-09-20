@@ -83,13 +83,13 @@ class RegisterRequest extends FormRequest
                 return;
             }
 
-            $expected = self::expectedFullName(
+            $accepted = array_map('mb_strtolower', self::acceptedFullNames(
                 (string) $this->first_name,
                 $this->middle_name,
                 (string) $this->last_name
-            );
+            ));
 
-            if (mb_strtolower($expected) !== mb_strtolower((string) $this->name)) {
+            if (!in_array(mb_strtolower((string) $this->name), $accepted, true)) {
                 $validator->errors()->add('name', 'Full name must match your first, middle, and last name.');
             }
         });
@@ -109,6 +109,38 @@ class RegisterRequest extends FormRequest
     public static function expectedFullName(string $first, ?string $middle, string $last): string
     {
         return implode(' ', array_filter([$first, $middle, $last], fn ($p) => $p !== null && $p !== ''));
+    }
+
+    /**
+     * Every spelling of the full name we accept. University records write the
+     * middle name in full ("Juan Macalabo Asimpin"), as an initial ("Juan M.
+     * Asimpin", with or without the period), or leave it out altogether — all
+     * three are the same person, so all three match.
+     */
+    public static function acceptedFullNames(string $first, ?string $middle, string $last): array
+    {
+        $first = self::normalizeName($first) ?? '';
+        $middle = self::normalizeName($middle) ?? '';
+        $last = self::normalizeName($last) ?? '';
+
+        $join = fn (string $mid) => trim(implode(' ', array_filter([$first, $mid, $last], fn ($p) => $p !== '')));
+
+        $variants = [$join('')];
+
+        if ($middle !== '') {
+            $variants[] = $join($middle);
+
+            // A multi-word middle name initialises word by word: "Dela Cruz" -> "D. C."
+            $letters = array_map(
+                fn (string $word) => mb_substr($word, 0, 1),
+                preg_split('/\s+/u', $middle) ?: []
+            );
+
+            $variants[] = $join(implode(' ', $letters));
+            $variants[] = $join(implode(' ', array_map(fn ($l) => $l . '.', $letters)));
+        }
+
+        return array_values(array_unique($variants));
     }
 
     /** Programs that run a five-year curriculum at MSU Main. */
