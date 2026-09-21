@@ -14,6 +14,8 @@ use App\Http\Controllers\Shared\ProfileController;
 use App\Http\Controllers\Shared\ReportController;
 use App\Http\Controllers\Shared\InvitationController;
 use App\Http\Controllers\Shared\SettingController;
+use App\Http\Controllers\Shared\StipendVerifyController;
+use App\Http\Controllers\Recipient\StipendClaimController;
 use App\Http\Controllers\Applicant\ApplicationController as ApplicantApplicationController;
 use App\Http\Controllers\Applicant\DocumentController;
 use App\Http\Controllers\Recipient\AttendanceController;
@@ -50,6 +52,9 @@ Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middl
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware('throttle:6,1');
 Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
 Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
+
+// Banking Office claim verification — token-gated, single-use (consumed on receipt).
+Route::get('/stipend/verify/{claimToken}', [StipendVerifyController::class, 'show'])->middleware('throttle:30,1');
 
 // Document file serving — auth is handled inside the controller (Bearer header
 // OR ?token= query param) so that links opened in new browser tabs still work.
@@ -97,6 +102,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/monthly', [ReportController::class, 'monthly']);
         Route::get('/reports/semester', [ReportController::class, 'semester']);
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
+        Route::get('/stipend/{id}/slip', [StipendClaimController::class, 'slip']);
+        Route::post('/stipend/{id}/confirm-receipt', [StipendClaimController::class, 'confirmReceipt']);
         Route::get('/renewals', [RenewalController::class, 'index']);
         Route::post('/renewals', [RenewalController::class, 'store']);
     });
@@ -159,6 +166,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/stipend', [StipendController::class, 'index']);
         Route::get('/stipend/eligible', [StipendController::class, 'eligible']);
         Route::post('/stipend/release', [StipendController::class, 'release']);
+        Route::post('/stipend/{id}/void', [StipendController::class, 'void']);
 
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);

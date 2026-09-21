@@ -2,17 +2,15 @@
 
 namespace App\Services;
 
-use App\Events\StipendReleased;
 use App\Models\Assignment;
-use App\Models\AuditLog;
 use App\Models\StipendHistory;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class StipendService
 {
-    /** Default monthly stipend (PHP) suggested when releasing — admin can override. */
-    private const DEFAULT_STIPEND_AMOUNT = 1500;
+    /** Fixed SWAP stipend per semester (PHP). Eligibility is semester-based. */
+    public const DEFAULT_STIPEND_AMOUNT = 5000;
 
     /**
      * Recipients whose active assignment has met its required verified hours and who have
@@ -27,7 +25,9 @@ class StipendService
             ->get()
             ->filter(fn ($a) => (float) ($a->verified_sum ?? 0) >= (float) $a->required_hours);
 
-        $releasedKeys = StipendHistory::where('status', 'released')
+        // Exclude anyone who already has a live stipend for the period (prepared,
+        // certified, claimed, or legacy-released). A voided one frees them up again.
+        $releasedKeys = StipendHistory::whereIn('status', ['pending', 'certified', 'claimed', 'released'])
             ->get(['user_id', 'academic_year', 'semester'])
             ->map(fn ($s) => "{$s->user_id}|{$s->academic_year}|{$s->semester}")
             ->flip();
@@ -68,26 +68,6 @@ class StipendService
         }
 
         return $query->paginate($perPage);
-    }
-
-    public function release(array $data, User $admin): StipendHistory
-    {
-        $stipend = StipendHistory::create([
-            'user_id' => $data['user_id'],
-            'amount' => $data['amount'],
-            'academic_year' => $data['academic_year'],
-            'semester' => $data['semester'],
-            'period_label' => $data['period_label'] ?? null,
-            'status' => 'released',
-            'released_by' => $admin->id,
-            'released_at' => now(),
-            'remarks' => $data['remarks'] ?? null,
-        ]);
-
-        AuditLog::record('created', $stipend, null, $stipend->toArray(), $admin->id);
-        event(new StipendReleased($stipend));
-
-        return $stipend->load(['recipient.profile', 'releasedBy']);
     }
 
     public function getSummary(string $academicYear, string $semester): array

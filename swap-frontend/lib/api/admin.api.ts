@@ -45,15 +45,21 @@ export const adminApi = {
   getEligibleStipends: () =>
     apiClient.get<{ data: EligibleStipend[] }>('/admin/stipend/eligible').then((r) => r.data.data),
 
+  // Releases + certifies a claim stub in one step. `password` is the admin's
+  // step-up re-auth; `amount` is optional (defaults to the fixed semester stipend).
   releaseStipend: (data: {
     user_id: number
-    amount: number
+    amount?: number
     academic_year: string
     semester: string
     period_label?: string
     remarks?: string
+    password: string
   }) =>
     apiClient.post<ApiResponse<StipendRecord>>('/admin/stipend/release', data).then((r) => r.data.data),
+
+  voidStipend: (id: number, reason: string) =>
+    apiClient.post<ApiResponse<StipendRecord>>(`/admin/stipend/${id}/void`, { reason }).then((r) => r.data.data),
 
   broadcastNotification: (data: { title: string; message: string; type?: string }) =>
     apiClient.post('/admin/notifications/broadcast', data).then((r) => r.data),

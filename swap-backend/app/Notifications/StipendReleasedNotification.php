@@ -21,12 +21,13 @@ class StipendReleasedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         $amount = number_format((float) ($this->data['amount'] ?? 0), 2);
+        $period = $this->data['period_label'] ?? 'this period';
 
         return (new MailMessage())
-            ->subject('SWAP Stipend Released')
+            ->subject('SWAP Stipend Received')
             ->greeting("Dear {$notifiable->name},")
-            ->line("Your SWAP stipend of ₱{$amount} has been released.")
-            ->line('Please coordinate with the DSA Office for the release schedule.')
+            ->line("Your SWAP stipend of ₱{$amount} for {$period} has been released and received.")
+            ->line('Your Receiving Slip is available for your records.')
             ->action('View Stipend History', \App\Support\Frontend::url('/recipient/stipend'))
             ->line('Thank you for your dedicated service.');
     }
@@ -34,8 +35,8 @@ class StipendReleasedNotification extends Notification implements ShouldQueue
     public function toArray(object $notifiable): array
     {
         return [
-            'title' => 'Stipend Released',
-            'message' => "Your stipend of ₱" . number_format((float) ($this->data['amount'] ?? 0), 2) . " has been released.",
+            'title' => 'Stipend Received',
+            'message' => "Your stipend of ₱" . number_format((float) ($this->data['amount'] ?? 0), 2) . " has been released and received.",
             'type' => 'stipend',
             'stipend_id' => $this->data['stipend_id'] ?? null,
         ];

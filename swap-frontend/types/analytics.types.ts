@@ -57,6 +57,16 @@ export interface StipendSummary {
   total_pending: number
 }
 
+export type StipendStatus = 'pending' | 'certified' | 'claimed' | 'void' | 'released'
+
+export interface StipendSignatureView {
+  signatory_role: 'supervisor' | 'director' | 'beneficiary' | 'releasing_officer'
+  printed_name: string
+  method: 'authenticated' | 'drawn'
+  signed_at: string | null
+  remarks: string | null
+}
+
 export interface StipendRecord {
   id: number
   user_id: number
@@ -64,12 +74,21 @@ export interface StipendRecord {
   academic_year: string
   semester: string
   period_label: string | null
-  status: 'pending' | 'released'
+  status: StipendStatus
+  control_number: string | null
+  certified_by: number | null
+  certified_at: string | null
   released_by: number | null
   released_at: string | null
+  claimed_at: string | null
+  releasing_officer_name: string | null
+  void_reason: string | null
+  has_slip: boolean
   remarks: string | null
   created_at: string
   recipient?: import('./auth.types').User
+  certifier?: { id: number; name: string } | null
+  signatures?: StipendSignatureView[]
 }
 
 export interface EligibleStipend {
