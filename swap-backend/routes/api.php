@@ -14,8 +14,12 @@ use App\Http\Controllers\Shared\ProfileController;
 use App\Http\Controllers\Shared\ReportController;
 use App\Http\Controllers\Shared\InvitationController;
 use App\Http\Controllers\Shared\SettingController;
+use App\Http\Controllers\Shared\SignatureController;
 use App\Http\Controllers\Shared\StipendVerifyController;
+use App\Http\Controllers\Admin\PromissoryController as AdminPromissoryController;
+use App\Http\Controllers\Recipient\PromissoryController as RecipientPromissoryController;
 use App\Http\Controllers\Recipient\StipendClaimController;
+use App\Http\Controllers\Supervisor\PromissoryController as SupervisorPromissoryController;
 use App\Http\Controllers\Applicant\ApplicationController as ApplicantApplicationController;
 use App\Http\Controllers\Applicant\DocumentController;
 use App\Http\Controllers\Recipient\AttendanceController;
@@ -61,6 +65,8 @@ Route::get('/stipend/verify/{claimToken}', [StipendVerifyController::class, 'sho
 Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
 // Profile photo serving — same in-controller auth so it works in an <img src>.
 Route::get('/users/{id}/avatar', [AvatarController::class, 'show']);
+// Signature specimen serving — same pattern (self, admin, supervising supervisor).
+Route::get('/users/{id}/signature', [SignatureController::class, 'show']);
 Route::get('/attendance/{logId}/photo', [AttendancePhotoController::class, 'show']);
 
 // ─── AUTHENTICATED ────────────────────────────────────────────────────────────
@@ -71,6 +77,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile', [ProfileController::class, 'update']);
     Route::post('/profile/photo', [ProfileController::class, 'updatePhoto']);
     Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto']);
+    Route::post('/profile/signature', [ProfileController::class, 'updateSignature']);
+    Route::delete('/profile/signature', [ProfileController::class, 'deleteSignature']);
     Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markRead']);
@@ -104,6 +112,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
         Route::get('/stipend/{id}/slip', [StipendClaimController::class, 'slip']);
         Route::post('/stipend/{id}/confirm-receipt', [StipendClaimController::class, 'confirmReceipt']);
+        Route::get('/promissory', [RecipientPromissoryController::class, 'index']);
+        Route::post('/promissory', [RecipientPromissoryController::class, 'store']);
+        Route::get('/promissory/{id}/file', [RecipientPromissoryController::class, 'file']);
         Route::get('/renewals', [RenewalController::class, 'index']);
         Route::post('/renewals', [RenewalController::class, 'store']);
     });
@@ -127,6 +138,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/verifications/reviewed', [VerificationController::class, 'reviewed']);
         Route::post('/verifications/bulk', [VerificationController::class, 'bulkVerify']);
         Route::put('/verifications/{logId}', [VerificationController::class, 'update']);
+        Route::get('/promissory', [SupervisorPromissoryController::class, 'index']);
+        Route::post('/promissory/{id}/review', [SupervisorPromissoryController::class, 'review']);
+        Route::get('/promissory/{id}/file', [SupervisorPromissoryController::class, 'file']);
     });
 
     // ─── ADMIN ────────────────────────────────────────────────────────────────
@@ -165,8 +179,14 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/stipend', [StipendController::class, 'index']);
         Route::get('/stipend/eligible', [StipendController::class, 'eligible']);
+        // Page-level step-up gate (throttled like login): one password entry unlocks
+        // the release/void calls for a short window instead of per-action passwords.
+        Route::post('/stipend/unlock', [StipendController::class, 'unlock'])->middleware('throttle:6,1');
         Route::post('/stipend/release', [StipendController::class, 'release']);
+        Route::post('/stipend/release-bulk', [StipendController::class, 'releaseBulk']);
         Route::post('/stipend/{id}/void', [StipendController::class, 'void']);
+        Route::get('/promissory', [AdminPromissoryController::class, 'index']);
+        Route::get('/promissory/{id}/file', [AdminPromissoryController::class, 'file']);
 
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);

@@ -45,8 +45,14 @@ export const adminApi = {
   getEligibleStipends: () =>
     apiClient.get<{ data: EligibleStipend[] }>('/admin/stipend/eligible').then((r) => r.data.data),
 
-  // Releases + certifies a claim stub in one step. `password` is the admin's
-  // step-up re-auth; `amount` is optional (defaults to the fixed semester stipend).
+  // Page-level step-up: one password entry unlocks the release/void calls for a
+  // short window. The token lives in component memory only — never persisted.
+  unlockStipend: (password: string) =>
+    apiClient.post<{ data: { unlock_token: string; expires_in: number } }>('/admin/stipend/unlock', { password }).then((r) => r.data.data),
+
+  // Releases + certifies a claim stub in one step. Authorized by the step-up
+  // `password` OR the page-level `unlock_token` — exactly one of them.
+  // `amount` is optional (defaults to the fixed semester stipend).
   releaseStipend: (data: {
     user_id: number
     amount?: number
@@ -54,12 +60,24 @@ export const adminApi = {
     semester: string
     period_label?: string
     remarks?: string
-    password: string
+    password?: string
+    unlock_token?: string
   }) =>
     apiClient.post<ApiResponse<StipendRecord>>('/admin/stipend/release', data).then((r) => r.data.data),
 
-  voidStipend: (id: number, reason: string) =>
-    apiClient.post<ApiResponse<StipendRecord>>(`/admin/stipend/${id}/void`, { reason }).then((r) => r.data.data),
+  // Bulk release from the eligible checklist. Per-item outcomes come back as
+  // released/skipped — one bad item never aborts the batch.
+  releaseBulkStipend: (data: {
+    unlock_token: string
+    items: { user_id: number; amount?: number; academic_year: string; semester: string; period_label?: string; remarks?: string }[]
+  }) =>
+    apiClient.post<{
+      data: { released: StipendRecord[]; skipped: { user_id: number; reason: string }[] }
+      message: string
+    }>('/admin/stipend/release-bulk', data).then((r) => r.data),
+
+  voidStipend: (id: number, reason: string, auth: { password?: string; unlock_token?: string }) =>
+    apiClient.post<ApiResponse<StipendRecord>>(`/admin/stipend/${id}/void`, { reason, ...auth }).then((r) => r.data.data),
 
   broadcastNotification: (data: { title: string; message: string; type?: string }) =>
     apiClient.post('/admin/notifications/broadcast', data).then((r) => r.data),

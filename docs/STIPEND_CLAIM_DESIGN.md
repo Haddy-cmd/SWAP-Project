@@ -150,11 +150,15 @@ closes the forgery gap.
 - **(c) 3rd-party e-signature provider** — vendor cost + dependency; overkill for an internal
   flow and against the free-tier / self-hosted posture.
 
-**Recommendation: (a) as the source of truth, + (b) as a rendered image on the PDF for human
-familiarity, + step-up auth on the two money-critical actions** (Director certify, student
-receipt) — re-enter password or an emailed OTP. In this stack an authenticated, audit-logged
-action is stronger and cheaper than an ink scrawl, and it is already how the app establishes
-identity.
+**Implemented 2026-09-21 (branch `feature/stipend-claim`):** (a) stays the source of truth;
+(b) is implemented as **specimens**: admin/supervisor draw or upload once on their Profile
+page (`POST /profile/signature`, `users.signature_image_path`), auto-applied at release —
+director cert uses a per-release drawing if supplied else the admin specimen, mentor co-sign
+uses the supervisor specimen — and embedded as ink on the PDF via base64 data-URI
+(`$ink()` in `slip.blade.php`), with typed fallback when no specimen exists. Fixed alongside:
+the blade looked up role `chairperson` while the service writes `supervisor`, so the mentor
+block always read "(not yet signed)" — now uses `supervisor`. The audit-logged authenticated
+action remains the signature's legal weight; the image is its human-readable face.
 
 - **Storage:** signature images and slip PDFs → **object storage (R2/S3)**, path recorded on
   the signatures row. Same ephemeral-disk problem as audit item R1 — receipts you legally cannot
@@ -222,3 +226,32 @@ The distinction the PO asked for: **"available" = certified, claimable** (new em
    in-system confirmation as a valid disbursement signature, or is a wet signature / specific
    e-sign standard still required — i.e., does digital *replace* paper, or run *parallel* to it
    initially?
+
+## Implemented follow-ups (2026-09-21, branch `feature/stipend-claim`)
+
+- **Receipt without password.** The beneficiary confirms with releasing-officer name only
+  (`ConfirmStipendReceiptRequest` dropped the step-up); step-up stays on the admin side.
+- **Page gate + bulk release.** `POST /admin/stipend/unlock` issues a 15-min sliding,
+  memory-only token (`App\Support\StipendUnlock`); `POST /admin/stipend/release-bulk`
+  releases a checklist (per-item released/skipped, cap 100); single `/release` and `/void`
+  accept password **or** unlock token. Admin UI gates the whole page behind a popup and
+  adds the multi-select checklist.
+- **Promissory workflow.** New `promissory_notes` table; recipient submits after semester end
+  (assignment `end_date`, else `semester_end_date` setting, Asia/Manila) when short on hours;
+  governing supervisor approves (records `lacking_hours`, server-computed `makeup_deadline` =
+  semester end + 7 days) or rejects (remarks required); approval makes the student eligible
+  (`via_promissory` flag) and the release row records `via approved promissory #id`.
+  Notifications: `promissory_submitted` → supervisors, `promissory_reviewed` → student.
+- **Admin position title.** `users.position_title` (profile-editable, staff only), rendered
+  under the director's name on the stub; empty keeps the old layout.
+- **Signatory titles + stub cleanup.** Single `App\Support\SignatoryTitles` definition:
+  supervisor → auto `SWAP Mentor`, beneficiary → auto `SWAP BENEFICIARY`, director → the
+  admin's profile title; release (single + bulk) is blocked 422 without an admin title.
+  Ack-receipt cert blocks and beneficiary blocks are borderless with no role caps
+  (releasing-officer block unchanged); ink sits in a fixed 34px cell.
+- **Recipient e-signature gate.** Recipients save a specimen on their Profile page
+  (required copy); `timeInGeofence()` rejects clock-in without one (all three entry
+  points); receipt attaches the specimen as the beneficiary signature with typed fallback.
+- **Missing-signature reminders.** Persistent `MissingSignatureBanner` on every recipient
+  page (store-driven, vanishes on upload) + weekly `remind:missing-signatures` command
+  (mail + in-app, skips holders/inactive/already-nudged).

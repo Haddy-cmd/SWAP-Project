@@ -26,6 +26,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'require_clock_in_selfie',
         'office_id',
         'avatar_path',
+        'signature_image_path',
+        'position_title',
         'email_verified_at',
     ];
 

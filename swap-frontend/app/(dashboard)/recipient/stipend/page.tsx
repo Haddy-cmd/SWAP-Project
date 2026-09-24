@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, CheckCircle, Clock, Download, Lock, HandCoins, Ban, Loader2 } from 'lucide-react'
+import { DollarSign, CheckCircle, Clock, Download, HandCoins, Ban, Loader2, FileText, Upload } from 'lucide-react'
 import { stipendApi } from '@/lib/api/stipend.api'
+import { promissoryApi } from '@/lib/api/promissory.api'
 import { formatDate } from '@/lib/utils/formatDate'
 import type { StipendRecord, StipendStatus } from '@/types/analytics.types'
+import type { PromissoryStatus } from '@/types/promissory.types'
 
 const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
 
@@ -17,10 +19,16 @@ const STATUS: Record<StipendStatus, { label: string; cls: string; Icon: typeof C
   pending: { label: 'Pending', cls: 'bg-yellow-50 text-[#F39C12]', Icon: Clock },
 }
 
+const PROMISSORY_STATUS: Record<PromissoryStatus, { label: string; cls: string }> = {
+  pending: { label: 'Pending review', cls: 'bg-yellow-50 text-[#F39C12]' },
+  approved: { label: 'Approved', cls: 'bg-green-50 text-[#27AE60]' },
+  rejected: { label: 'Rejected', cls: 'bg-[#FDF0E9] text-[#B0562F]' },
+}
+
 export default function StipendPage() {
   const qc = useQueryClient()
   const [confirming, setConfirming] = useState<number | null>(null)
-  const [form, setForm] = useState({ releasing_officer_name: '', password: '' })
+  const [form, setForm] = useState({ releasing_officer_name: '' })
   const [error, setError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
 
@@ -29,13 +37,36 @@ export default function StipendPage() {
     queryFn: () => stipendApi.getHistory(),
   })
 
+  const { data: promissory } = useQuery({
+    queryKey: ['promissory-mine'],
+    queryFn: () => promissoryApi.getMine(),
+  })
+  const notes = promissory?.notes ?? []
+  const submission = promissory?.submission
+
+  const [reason, setReason] = useState('')
+  const [doc, setDoc] = useState<File | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const submitPromissory = useMutation({
+    mutationFn: () => promissoryApi.submit(submission!.assignment_id!, reason, doc!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['promissory-mine'] })
+      setReason(''); setDoc(null); setSubmitError(null)
+    },
+    onError: (e: { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }) =>
+      setSubmitError(Object.values(e.response?.data?.errors ?? {}).flat()[0] ?? e.response?.data?.message ?? 'Could not submit.'),
+  })
+
   const totalReceived = history.filter((s) => s.status === 'claimed' || s.status === 'released')
     .reduce((sum, s) => sum + Number(s.amount || 0), 0)
 
   async function downloadSlip(s: StipendRecord) {
     setDownloadingId(s.id)
     try {
-      const blob = await stipendApi.getSlip(s.id)
+      // Versioned by lifecycle timestamps so a post-confirm download can never
+      // serve the pre-confirm bytes from cache.
+      const blob = await stipendApi.getSlip(s.id, s.claimed_at ?? s.certified_at ?? s.created_at)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -50,10 +81,10 @@ export default function StipendPage() {
     mutationFn: (id: number) => stipendApi.confirmReceipt(id, { ...form }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['stipend-history'] })
-      setConfirming(null); setForm({ releasing_officer_name: '', password: '' })
+      setConfirming(null); setForm({ releasing_officer_name: '' })
     },
     onError: (e: { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }) =>
-      setError(e.response?.data?.errors?.password?.[0] ?? e.response?.data?.message ?? 'Could not confirm receipt.'),
+      setError(e.response?.data?.message ?? 'Could not confirm receipt.'),
   })
 
   return (
@@ -121,15 +152,10 @@ export default function StipendPage() {
                     <p className="text-xs text-[#64748B]">Confirm only after you have received the cash at the Banking Office.</p>
                     <input value={form.releasing_officer_name} onChange={(e) => setForm((f) => ({ ...f, releasing_officer_name: e.target.value }))}
                       placeholder="Releasing officer / cashier name" className={INPUT} />
-                    <div className="relative">
-                      <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94A3B8]" />
-                      <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                        placeholder="Your password (to sign)" className={`${INPUT} pl-9`} />
-                    </div>
                     {error && <p className="text-sm text-[#C0392B]">{error}</p>}
                     <div className="flex gap-2">
                       <button onClick={() => { setError(null); confirmReceipt.mutate(s.id) }}
-                        disabled={confirmReceipt.isPending || !form.releasing_officer_name || !form.password}
+                        disabled={confirmReceipt.isPending || !form.releasing_officer_name}
                         className="rounded-lg bg-[#27AE60] px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
                         {confirmReceipt.isPending ? 'Confirming…' : 'I received this stipend'}
                       </button>
@@ -142,6 +168,66 @@ export default function StipendPage() {
           })}
         </div>
       )}
+
+      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-[#1B4F72]" />
+          <h2 className="font-semibold text-[#1E293B]">Promissory Note</h2>
+        </div>
+        <p className="mt-1 text-xs text-[#64748B]">
+          Short on hours after the semester ended? Upload a promissory note — once your supervisor approves it and records the lacking hours, the admin can release your stipend.
+        </p>
+
+        {submission?.can_submit ? (
+          <div className="mt-3 space-y-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+            <p className="text-xs text-[#64748B]">
+              Lacking: <span className="font-semibold text-[#1B4F72]">{submission.lacking_hours} hrs</span> — to be rendered ASAP (deadline: 1 week after semester end).
+            </p>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
+              placeholder="Why did you fall short, and when will you render the lacking hours?"
+              className="w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-[#CBD5E1] bg-white px-3 py-2.5 text-sm text-[#64748B] hover:bg-[#F8FAFC]">
+              <Upload className="h-4 w-4" />
+              {doc ? doc.name : 'Attach promissory document (PDF/JPG/PNG, max 5MB)'}
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+                onChange={(e) => setDoc(e.target.files?.[0] ?? null)} />
+            </label>
+            {submitError && <p className="text-sm text-[#C0392B]">{submitError}</p>}
+            <button onClick={() => { setSubmitError(null); submitPromissory.mutate() }}
+              disabled={submitPromissory.isPending || !reason.trim() || !doc}
+              className="rounded-lg bg-[#1B4F72] px-4 py-2 text-xs font-semibold text-white hover:bg-[#2980B9] disabled:opacity-50">
+              {submitPromissory.isPending ? 'Submitting…' : 'Submit promissory note'}
+            </button>
+          </div>
+        ) : submission?.reason ? (
+          <p className="mt-3 rounded-xl bg-[#F8FAFC] px-3 py-2 text-xs text-[#64748B]">{submission.reason}</p>
+        ) : null}
+
+        {notes.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {notes.map((n) => {
+              const meta = PROMISSORY_STATUS[n.status]
+              return (
+                <div key={n.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#F1F5F9] px-3 py-2.5">
+                  <div className="min-w-0">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
+                    <p className="mt-1 text-xs text-[#64748B]">
+                      Lacking {n.lacking_hours ?? '—'} hrs
+                      {n.makeup_deadline && <> · render ASAP by {formatDate(n.makeup_deadline)}</>}
+                      {n.status === 'approved' && n.overdue && <span className="font-semibold text-[#B0562F]"> · deadline passed</span>}
+                    </p>
+                    {n.review_remarks && <p className="text-xs italic text-[#64748B]">“{n.review_remarks}”</p>}
+                  </div>
+                  <button onClick={() => promissoryApi.downloadFile(n.id, n.file_name)}
+                    className="flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-xs font-semibold text-[#1B4F72] hover:bg-[#F8FAFC]">
+                    <Download className="h-3.5 w-3.5" /> Document
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

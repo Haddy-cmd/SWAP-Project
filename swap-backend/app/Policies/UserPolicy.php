@@ -16,4 +16,13 @@ class UserPolicy
             || $viewer->role === 'admin'
             || $viewer->supervises($subject->id);
     }
+
+    /**
+     * Same circle as the photo: only the owner, an admin, or a supervising
+     * supervisor may see the signature specimen (it lands on signed stubs).
+     */
+    public function viewSignature(User $viewer, User $subject): bool
+    {
+        return $this->viewAvatar($viewer, $subject);
+    }
 }

@@ -99,4 +99,9 @@ export interface EligibleStipend {
   required_hours: number
   verified_hours: number
   suggested_amount: number
+  // Set for short students released via an approved promissory note.
+  via_promissory: boolean
+  promissory_id?: number
+  lacking_hours?: number | null
+  makeup_deadline?: string | null
 }

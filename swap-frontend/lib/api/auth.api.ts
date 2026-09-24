@@ -47,6 +47,20 @@ export const authApi = {
   removePhoto: () =>
     apiClient.delete<ApiResponse<User>>('/profile/photo').then((r) => r.data.data),
 
+  // Digital-signature specimen (drawn on screen or uploaded). Auto-applied to
+  // this user's stipend signatures: director certification for admins, mentor
+  // co-sign for supervisors.
+  uploadSignature: (file: File) => {
+    const fd = new FormData()
+    fd.append('signature', file)
+    return apiClient
+      .post<ApiResponse<User>>('/profile/signature', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data.data)
+  },
+
+  removeSignature: () =>
+    apiClient.delete<ApiResponse<User>>('/profile/signature').then((r) => r.data.data),
+
   updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) =>
     apiClient.put('/profile/password', data).then((r) => r.data),
 }

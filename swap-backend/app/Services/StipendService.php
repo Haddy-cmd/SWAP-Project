@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Assignment;
+use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -13,8 +14,9 @@ class StipendService
     public const DEFAULT_STIPEND_AMOUNT = 5000;
 
     /**
-     * Recipients whose active assignment has met its required verified hours and who have
-     * not yet been paid for that academic period.
+     * Recipients who can be paid for an academic period: those whose active
+     * assignment met its required verified hours, PLUS short students whose
+     * promissory note was approved for the period — minus anyone already paid.
      */
     public function eligibleRecipients(): array
     {
@@ -32,7 +34,7 @@ class StipendService
             ->map(fn ($s) => "{$s->user_id}|{$s->academic_year}|{$s->semester}")
             ->flip();
 
-        return $assignments
+        $standard = $assignments
             ->reject(fn ($a) => $releasedKeys->has("{$a->user_id}|{$a->academic_year}|{$a->semester}"))
             ->map(fn ($a) => [
                 'user_id' => $a->user_id,
@@ -42,9 +44,58 @@ class StipendService
                 'required_hours' => (float) $a->required_hours,
                 'verified_hours' => (float) ($a->verified_sum ?? 0),
                 'suggested_amount' => self::DEFAULT_STIPEND_AMOUNT,
-            ])
+                'via_promissory' => false,
+            ]);
+
+        return $standard
+            ->concat($this->promissoryEligibleRecipients($releasedKeys))
             ->values()
             ->all();
+    }
+
+    /**
+     * Short students (verified < required) whose promissory note was approved for
+     * the period and who have not been paid yet. Flagged so the admin UI shows
+     * the lacking-hours badge and the audit trail records the override.
+     */
+    private function promissoryEligibleRecipients(\Illuminate\Support\Collection $releasedKeys): \Illuminate\Support\Collection
+    {
+        return Assignment::with(['user.profile', 'promissoryNotes'])
+            ->where('status', 'active')
+            ->where('required_hours', '>', 0)
+            ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
+            ->whereHas('promissoryNotes', fn ($q) => $q->where('status', PromissoryNote::STATUS_APPROVED))
+            ->get()
+            ->filter(fn ($a) => (float) ($a->verified_sum ?? 0) < (float) $a->required_hours)
+            ->reject(fn ($a) => $releasedKeys->has("{$a->user_id}|{$a->academic_year}|{$a->semester}"))
+            ->map(function ($a) {
+                $note = $a->promissoryNotes
+                    ->where('status', PromissoryNote::STATUS_APPROVED)
+                    ->where('academic_year', $a->academic_year)
+                    ->where('semester', $a->semester)
+                    ->sortByDesc('id')
+                    ->first();
+
+                if (!$note) {
+                    return null;
+                }
+
+                return [
+                    'user_id' => $a->user_id,
+                    'name' => $a->user->profile?->full_name ?? $a->user->name,
+                    'academic_year' => $a->academic_year,
+                    'semester' => $a->semester,
+                    'required_hours' => (float) $a->required_hours,
+                    'verified_hours' => (float) ($a->verified_sum ?? 0),
+                    'suggested_amount' => self::DEFAULT_STIPEND_AMOUNT,
+                    'via_promissory' => true,
+                    'promissory_id' => $note->id,
+                    'lacking_hours' => (float) $note->lacking_hours,
+                    'makeup_deadline' => $note->makeup_deadline?->toDateString(),
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     public function getHistory(User $user, int $perPage = 15): LengthAwarePaginator

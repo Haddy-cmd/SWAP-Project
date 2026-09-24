@@ -6,6 +6,7 @@ use App\Events\StipendReleased;
 use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
 use App\Models\AuditLog;
+use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
 use App\Models\StipendSignature;
 use App\Models\User;
@@ -27,6 +28,7 @@ class StipendClaimService
     public function __construct(
         private readonly StipendClaimRepositoryInterface $repository,
         private readonly StipendSlipService $slipService,
+        private readonly StipendService $stipendService,
     ) {}
 
     /**
@@ -36,6 +38,13 @@ class StipendClaimService
      */
     public function releaseClaimStub(array $data, User $admin): StipendHistory
     {
+        // The director's title prints on every stub — refuse to certify without it.
+        // Bulk inherits this: one missing title fails the whole batch, correctly,
+        // since it is an admin-level precondition, not a per-item problem.
+        if (empty($admin->position_title)) {
+            throw new UnprocessableEntityHttpException('Set your position title on your Profile page before releasing stipends.');
+        }
+
         $amount = $data['amount'] ?? StipendService::DEFAULT_STIPEND_AMOUNT;
 
         $stipend = DB::transaction(function () use ($data, $amount, $admin) {
@@ -58,30 +67,52 @@ class StipendClaimService
             ]);
 
             // Supervisor (SWAP Mentor) co-signature — attested by the hours they verified.
+            // Carries their drawn specimen when they saved one on their profile.
             $supervisor = $this->recipientSupervisor((int) $data['user_id']);
             if ($supervisor) {
                 $this->repository->addSignature($stipend, [
                     'signatory_role' => StipendSignature::ROLE_SUPERVISOR,
                     'user_id' => $supervisor->id,
                     'printed_name' => $supervisor->name,
-                    'method' => StipendSignature::METHOD_AUTHENTICATED,
+                    'method' => $supervisor->signature_image_path
+                        ? StipendSignature::METHOD_DRAWN
+                        : StipendSignature::METHOD_AUTHENTICATED,
+                    'signature_image_path' => $supervisor->signature_image_path,
                     'signed_at' => now(),
                     'remarks' => 'Attested via verified service hours.',
                 ]);
             }
 
             // DSA (admin) certification signature — the money-authorizing act (step-up).
+            // A per-release drawing wins; otherwise the admin's saved specimen applies.
+            $directorImage = $data['signature_image_path'] ?? $admin->signature_image_path;
             $this->repository->addSignature($stipend, [
                 'signatory_role' => StipendSignature::ROLE_DIRECTOR,
                 'user_id' => $admin->id,
                 'printed_name' => $admin->name,
-                'method' => !empty($data['signature_image_path']) ? StipendSignature::METHOD_DRAWN : StipendSignature::METHOD_AUTHENTICATED,
-                'signature_image_path' => $data['signature_image_path'] ?? null,
+                'method' => $directorImage ? StipendSignature::METHOD_DRAWN : StipendSignature::METHOD_AUTHENTICATED,
+                'signature_image_path' => $directorImage,
                 'signed_at' => now(),
                 'remarks' => $data['remarks'] ?? null,
             ]);
 
             $stipend->refresh();
+
+            // Promissory override stays visible on the row: when the recipient was
+            // short on hours, the approving note id is recorded with the release.
+            $promissory = PromissoryNote::where('user_id', $stipend->user_id)
+                ->where('academic_year', $stipend->academic_year)
+                ->where('semester', $stipend->semester)
+                ->where('status', PromissoryNote::STATUS_APPROVED)
+                ->latest('id')
+                ->first();
+            if ($promissory) {
+                $via = "via approved promissory #{$promissory->id}";
+                if (!str_contains((string) $stipend->remarks, $via)) {
+                    $stipend->update(['remarks' => trim(($stipend->remarks ? $stipend->remarks.' · ' : '').$via)]);
+                }
+            }
+
             $this->renderSlip($stipend);
 
             AuditLog::record('released', $stipend, null, $stipend->only(['status', 'control_number', 'amount']), $admin->id);
@@ -100,6 +131,59 @@ class StipendClaimService
         ]);
 
         return $stipend->load(['recipient.profile', 'certifiedBy', 'signatures']);
+    }
+
+    /**
+     * Bulk release from the eligible checklist. Each item follows the single-release
+     * rules; one bad item never aborts the batch (mirrors VerificationService::bulkVerify).
+     *
+     * @return array{released: StipendHistory[], skipped: array<int, array{user_id: int, reason: string}>}
+     */
+    public function releaseMany(array $items, User $admin): array
+    {
+        // Admin-level precondition: fail the whole batch, not per item.
+        if (empty($admin->position_title)) {
+            throw new UnprocessableEntityHttpException('Set your position title on your Profile page before releasing stipends.');
+        }
+
+        $eligibleKeys = collect($this->stipendService->eligibleRecipients())
+            ->map(fn ($e) => "{$e['user_id']}|{$e['academic_year']}|{$e['semester']}")
+            ->flip();
+
+        $released = [];
+        $skipped = [];
+
+        foreach ($items as $item) {
+            $key = "{$item['user_id']}|{$item['academic_year']}|{$item['semester']}";
+            if (!$eligibleKeys->has($key)) {
+                $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Not eligible for this period.'];
+                continue;
+            }
+            // Re-check live rows per item so an intra-batch duplicate is skipped.
+            if ($this->hasLiveStipend((int) $item['user_id'], $item['academic_year'], $item['semester'])) {
+                $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Already has a live stipend for this period.'];
+                continue;
+            }
+            try {
+                $released[] = $this->releaseClaimStub($item, $admin);
+            } catch (\Throwable $e) {
+                // Generic reason to the caller; the real error goes to the log.
+                $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Release failed.'];
+                Log::warning('Bulk stipend release item failed', ['user_id' => $item['user_id'], 'error' => $e->getMessage()]);
+            }
+        }
+
+        return ['released' => $released, 'skipped' => $skipped];
+    }
+
+    /** Any not-yet-closed stipend for the period (mirrors the eligibleRecipients dedupe set). */
+    private function hasLiveStipend(int $userId, string $academicYear, string $semester): bool
+    {
+        return StipendHistory::where('user_id', $userId)
+            ->where('academic_year', $academicYear)
+            ->where('semester', $semester)
+            ->whereIn('status', ['pending', 'certified', 'claimed', 'released'])
+            ->exists();
     }
 
     /**
@@ -129,12 +213,16 @@ class StipendClaimService
                 'claim_token' => null,
             ]);
 
+            // The beneficiary signs with their specimen when they saved one
+            // (required for clock-in, so normally present); typed fallback keeps
+            // older or specimen-less receipts working.
+            $beneficiaryImage = $data['signature_image_path'] ?? $recipient->signature_image_path;
             $this->repository->addSignature($fresh, [
                 'signatory_role' => StipendSignature::ROLE_BENEFICIARY,
                 'user_id' => $recipient->id,
                 'printed_name' => $recipient->name,
-                'method' => !empty($data['signature_image_path']) ? StipendSignature::METHOD_DRAWN : StipendSignature::METHOD_AUTHENTICATED,
-                'signature_image_path' => $data['signature_image_path'] ?? null,
+                'method' => $beneficiaryImage ? StipendSignature::METHOD_DRAWN : StipendSignature::METHOD_AUTHENTICATED,
+                'signature_image_path' => $beneficiaryImage,
                 'signed_at' => now(),
                 'remarks' => $data['remarks'] ?? null,
             ]);

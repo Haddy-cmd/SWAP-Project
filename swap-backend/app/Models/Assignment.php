@@ -58,6 +58,11 @@ class Assignment extends Model
         return $this->hasMany(TimeLog::class);
     }
 
+    public function promissoryNotes(): HasMany
+    {
+        return $this->hasMany(PromissoryNote::class);
+    }
+
     /**
      * Assignments this supervisor may manage: the ones assigned to them directly,
      * plus — when they belong to an office — every assignment hosted at that

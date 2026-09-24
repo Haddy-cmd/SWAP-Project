@@ -8,10 +8,37 @@
     $date = optional($stipend->certified_at)->timezone('Asia/Manila')->format('F j, Y') ?? '';
 
     $sig = fn (string $role) => $stipend->signatures->firstWhere('signatory_role', $role);
-    $line = function ($signature) {
-        if (!$signature) return '<span style="color:#999">(not yet signed)</span>';
+    // Drawn specimen embedded as ink. Base64 data-URI keeps DomPDF self-contained
+    // (no remote URLs); a missing/unreadable file falls back to the typed line.
+    $ink = function ($signature) {
+        if (!$signature || $signature->method !== 'drawn' || !$signature->signature_image_path) return '';
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk(config('filesystems.documents_disk', 'public'));
+            if (!$disk->exists($signature->signature_image_path)) return '';
+            $mime = $disk->mimeType($signature->signature_image_path) ?: 'image/png';
+            $data = base64_encode($disk->get($signature->signature_image_path));
+            return '<div class="sigink"><img src="data:' . e($mime) . ';base64,' . $data . '"></div>';
+        } catch (\Throwable) {
+            return '';
+        }
+    };
+    // $role feeds the title line from the single SignatoryTitles definition:
+    // fixed policy for mentor/beneficiary, the admin's profile title for director.
+    // $fallbackName pre-prints a "to be signed by" block (empty ink cell + name +
+    // title, no gray placeholder) when no signature row exists yet.
+    $line = function ($signature, $role = null, $fallbackName = null) use ($ink) {
+        if (!$signature) {
+            if ($fallbackName === null) return '<span style="color:#999">(not yet signed)</span>';
+            $title = $role ? \App\Support\SignatoryTitles::for($role) : null;
+            $out = '<div class="sigink"></div>' . e($fallbackName);
+            if ($title) $out .= '<br><span class="sigtitle">' . e($title) . '</span>';
+            return $out;
+        }
         $when = optional($signature->signed_at)->timezone('Asia/Manila')->format('M j, Y g:i A');
-        return e($signature->printed_name) . '<br><span style="font-size:8px;color:#555">signed ' . e($when) . ' · ' . e($signature->method) . '</span>';
+        $out = $ink($signature) . e($signature->printed_name);
+        $title = $role ? \App\Support\SignatoryTitles::for($role, $signature->user) : null;
+        if ($title) $out .= '<br><span class="sigtitle">' . e($title) . '</span>';
+        return $out . '<br><span style="font-size:8px;color:#555">signed ' . e($when) . ' · ' . e($signature->method) . '</span>';
     };
 @endphp
 <!DOCTYPE html>
@@ -32,6 +59,14 @@
         .sigrow { width: 100%; margin-top: 18px; }
         .sigrow td { width: 50%; vertical-align: bottom; padding: 0 10px; }
         .sigbox { border-top: 1px solid #111; padding-top: 2px; font-size: 10px; }
+        /* Fixed signing cell: both columns reserve identical space above the rule,
+           so ink always sits in the designated area however large the stroke is. */
+        .sigink { height: 34px; line-height: 34px; }
+        .sigink img { max-height: 32px; max-width: 160px; vertical-align: bottom; }
+        .sigtitle { font-size: 9px; color: #333; }
+        /* Borderless signing block: with ink signatures the role caps and rule
+           lines are redundant — ink + name + title + timestamp is the block. */
+        .sigfree { padding-top: 2px; font-size: 10px; }
         .role { font-size: 8px; color: #555; text-transform: uppercase; letter-spacing: .04em; }
         .copytag { float: right; font-size: 8px; font-weight: bold; color: #7C1B26; border: 1px solid #7C1B26; padding: 1px 5px; }
         .void { color: #B0562F; font-weight: bold; }
@@ -70,8 +105,8 @@
 
     <table class="sigrow">
         <tr>
-            <td><div class="sigbox"><span class="role">SWAP Mentor / Chairperson</span><br>{!! $line($sig('chairperson')) !!}</div></td>
-            <td><div class="sigbox"><span class="role">Noted by · Director</span><br>{!! $line($sig('director')) !!}</div></td>
+            <td><div class="sigfree">{!! $line($sig('supervisor'), 'supervisor') !!}</div></td>
+            <td><div class="sigfree">{!! $line($sig('director'), 'director') !!}</div></td>
         </tr>
     </table>
 </div>
@@ -91,7 +126,7 @@
     </div>
     <table class="sigrow">
         <tr>
-            <td><div class="sigbox"><span class="role">SWAP Beneficiary</span><br>{!! $line($sig('beneficiary')) !!}</div></td>
+            <td><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>
             <td><div class="sigbox"><span class="role">Releasing Officer / Cashier</span><br>{!! $line($sig('releasing_officer')) !!}</div></td>
         </tr>
     </table>
@@ -112,7 +147,7 @@
     </div>
     <table class="sigrow">
         <tr>
-            <td><div class="sigbox"><span class="role">SWAP Beneficiary</span><br>{!! $line($sig('beneficiary')) !!}</div></td>
+            <td><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>
             <td><div class="sigbox"><span class="role">Releasing Officer / Cashier</span><br>{!! $line($sig('releasing_officer')) !!}</div></td>
         </tr>
     </table>

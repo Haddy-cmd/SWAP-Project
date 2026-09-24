@@ -20,7 +20,11 @@ class StipendSlipService
 {
     public function render(StipendHistory $stipend): ?string
     {
-        $stipend->loadMissing(['recipient.profile', 'signatures', 'certifiedBy']);
+        // Signatures are always re-read, never taken from an already-loaded relation:
+        // confirmReceipt adds the beneficiary + releasing-officer rows through
+        // signatures()->create() after the relation was eager-loaded, and loadMissing
+        // would keep that stale two-row collection — the receipt's ink silently dropped.
+        $stipend->loadMissing(['recipient.profile', 'certifiedBy'])->load('signatures.user');
 
         $pdf = Pdf::loadView('stipend.slip', ['stipend' => $stipend])
             ->setPaper('a4', 'portrait');

@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 
 // Safety net: force-close attendance logs left open past the max session length.
 Schedule::command('attendance:close-stale')->hourly();
+
+// Weekly nudge to recipients without a signature specimen (banner covers the
+// daily reminder; this is the email + in-app ping). Self-dedupes via unread check.
+Schedule::command('remind:missing-signatures')->weekly();

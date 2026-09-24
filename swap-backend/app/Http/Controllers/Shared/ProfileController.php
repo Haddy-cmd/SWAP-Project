@@ -31,7 +31,11 @@ class ProfileController extends Controller
             $user->update(['name' => $validated['name']]);
         }
 
-        $profileFields = array_diff_key($validated, ['name' => true]);
+        if (array_key_exists('position_title', $validated)) {
+            $user->update(['position_title' => $validated['position_title']]);
+        }
+
+        $profileFields = array_diff_key($validated, ['name' => true, 'position_title' => true]);
         if (!empty($profileFields)) {
             $user->profile()->updateOrCreate(['user_id' => $user->id], $profileFields);
         }
@@ -97,6 +101,67 @@ class ProfileController extends Controller
         return response()->json([
             'data' => new UserResource($user->fresh('profile')),
             'message' => 'Profile photo removed.',
+        ]);
+    }
+
+    /**
+     * Save the user's digital-signature specimen (drawn on screen or uploaded).
+     * It is auto-applied to the stipend signatures this user makes — director
+     * certification for admins, mentor co-sign for supervisors. Same storage
+     * discipline as the avatar: one object per user, old file removed.
+     */
+    public function updateSignature(Request $request): JsonResponse
+    {
+        $request->validate([
+            'signature' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        $disk = config('filesystems.documents_disk', 'public');
+
+        try {
+            $path = $request->file('signature')->store("signatures/{$user->id}", $disk);
+            if ($path === false) {
+                throw new \Exception('Storage driver returned false (check credentials/permissions).');
+            }
+        } catch (\Throwable $e) {
+            $root = $e;
+            while ($root->getPrevious()) {
+                $root = $root->getPrevious();
+            }
+            Log::error('Signature upload failed', ['disk' => $disk, 'error' => $e->getMessage(), 'cause' => $root->getMessage()]);
+            return response()->json(['message' => 'Failed to upload signature to storage.', 'error' => $root->getMessage()], 500);
+        }
+
+        $old = $user->signature_image_path;
+        $user->update(['signature_image_path' => $path]);
+        if ($old && $old !== $path) {
+            try { Storage::disk($disk)->delete($old); } catch (\Throwable) { /* best effort */ }
+        }
+
+        return response()->json([
+            'data' => new UserResource($user->fresh('profile')),
+            'message' => 'Digital signature saved. It will appear on newly released claim stubs.',
+        ]);
+    }
+
+    public function deleteSignature(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $old = $user->signature_image_path;
+        $user->update(['signature_image_path' => null]);
+
+        if ($old) {
+            try {
+                Storage::disk(config('filesystems.documents_disk', 'public'))->delete($old);
+            } catch (\Throwable) {
+                // best effort
+            }
+        }
+
+        return response()->json([
+            'data' => new UserResource($user->fresh('profile')),
+            'message' => 'Digital signature removed. New stubs will show your printed name instead.',
         ]);
     }
 

@@ -15,6 +15,7 @@ class UpdateProfileRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:255'],
+            'position_title' => ['nullable', 'string', 'max:150'],
             'contact_number' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string', 'max:500'],
             'college' => ['sometimes', 'string', 'max:150'],

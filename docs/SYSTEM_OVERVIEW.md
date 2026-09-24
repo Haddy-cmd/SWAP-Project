@@ -5,7 +5,7 @@
 > it is built, the rules it enforces, the conventions to follow, and the traps that have already
 > caught people. Read the "Traps" section before changing anything — several of them are
 > non-obvious and have each cost a debugging session.
->
+
 > Last verified against the repository: **2026-09-20**.
 
 ---

@@ -2,13 +2,13 @@
 
 namespace App\Http\Requests\Stipend;
 
+use App\Support\StipendUnlock;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Hash;
 
 /**
  * Release + certify a claim stub in one step (Option C). Amount defaults to the
- * fixed semester stipend; the admin re-enters their password (step-up) to
- * authorize the payout.
+ * fixed semester stipend. Authorized by either the step-up password or the
+ * page-level unlock token from POST /admin/stipend/unlock — exactly one of them.
  */
 class ReleaseStipendRequest extends FormRequest
 {
@@ -28,18 +28,10 @@ class ReleaseStipendRequest extends FormRequest
             'period_label' => ['nullable', 'string', 'max:100'],
             'remarks' => ['nullable', 'string', 'max:500'],
             // Step-up: re-enter the current password to authorize a money-critical action.
-            'password' => ['required', 'string', $this->currentPasswordRule()],
+            'password' => ['required_without:unlock_token', 'string', StipendUnlock::passwordRule($this->user())],
+            // Alternative: the page-level unlock token (one password entry per visit).
+            'unlock_token' => ['required_without:password', 'string', StipendUnlock::tokenRule($this->user())],
             'signature_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
-    }
-
-    /** Sanctum is stateless, so verify the password against the bound user directly. */
-    private function currentPasswordRule(): \Closure
-    {
-        return function (string $attribute, mixed $value, \Closure $fail): void {
-            if (!Hash::check((string) $value, (string) $this->user()->password)) {
-                $fail('The password you entered is incorrect.');
-            }
-        };
     }
 }

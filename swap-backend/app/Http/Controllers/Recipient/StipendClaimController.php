@@ -44,7 +44,7 @@ class StipendClaimController extends Controller
     {
         $stipend = StipendHistory::findOrFail($id);
 
-        $data = $request->safe()->except(['password', 'signature_image']);
+        $data = $request->safe()->except(['signature_image']);
         if ($request->hasFile('signature_image')) {
             $data['signature_image_path'] = $request->file('signature_image')
                 ->store("stipend-signatures/{$id}", config('filesystems.documents_disk', 'public'));
