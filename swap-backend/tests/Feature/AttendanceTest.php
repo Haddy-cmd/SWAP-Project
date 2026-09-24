@@ -417,4 +417,23 @@ class AttendanceTest extends TestCase
         // still show a selfie step the API no longer requires.
         $this->getJson('/api/recipient/assignment')->assertJsonPath('data.selfie_required', false);
     }
+
+    public function test_clock_in_is_blocked_without_a_signature_specimen(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient', ['signature_image_path' => null]);
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        $token = $this->qrForOffice($office);
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertStatus(422)->assertJsonPath(
+            'message',
+            'A digital signature is required before clocking in. Draw or upload one on your Profile page.'
+        );
+
+        $this->assertDatabaseMissing('time_logs', ['user_id' => $recipient->id]);
+    }
 }

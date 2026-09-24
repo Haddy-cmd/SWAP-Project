@@ -11,6 +11,8 @@ export interface User {
   email_verified_at: string | null
   created_at: string
   avatar_url?: string | null
+  signature_url?: string | null
+  position_title?: string | null
   profile?: StudentProfile
 }
 

@@ -61,6 +61,15 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('You have no active assignment.');
         }
 
+        // A digital signature specimen is required before any duty is rendered:
+        // it signs the claim stub at release and the receipt at payout. Checked
+        // here, not just in the UI, so a hand-crafted request cannot skip it.
+        if (empty($user->signature_image_path)) {
+            throw new UnprocessableEntityHttpException(
+                'A digital signature is required before clocking in. Draw or upload one on your Profile page.'
+            );
+        }
+
         if ($assignment->office_id !== $office->id) {
             throw new UnprocessableEntityHttpException('This QR code belongs to a different office than your assignment.');
         }

@@ -13,6 +13,7 @@ class SendStipendReleasedNotification
             'user_id' => $event->stipend->user_id,
             'stipend_id' => $event->stipend->id,
             'amount' => $event->stipend->amount,
+            'period_label' => $event->stipend->period_label,
         ])->onQueue('notifications');
     }
 }

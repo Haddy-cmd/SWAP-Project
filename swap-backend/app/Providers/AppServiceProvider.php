@@ -6,8 +6,10 @@ use App\Repositories\ApplicationRepository;
 use App\Repositories\AssignmentRepository;
 use App\Repositories\Contracts\ApplicationRepositoryInterface;
 use App\Repositories\Contracts\AssignmentRepositoryInterface;
+use App\Repositories\Contracts\StipendClaimRepositoryInterface;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\StipendClaimRepository;
 use App\Repositories\TimeLogRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Support\Facades\Mail;
@@ -37,6 +39,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AssignmentRepositoryInterface::class, AssignmentRepository::class);
         $this->app->bind(TimeLogRepositoryInterface::class, TimeLogRepository::class);
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
+        $this->app->bind(StipendClaimRepositoryInterface::class, StipendClaimRepository::class);
     }
 
     public function boot(): void

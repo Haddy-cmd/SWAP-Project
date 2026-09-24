@@ -42,7 +42,7 @@ class ReportController extends Controller
         $history = $this->stipendService->getHistory($request->user());
 
         return response()->json([
-            'data' => $history->items(),
+            'data' => \App\Resources\StipendResource::collection($history->items()),
             'meta' => [
                 'current_page' => $history->currentPage(),
                 'last_page' => $history->lastPage(),

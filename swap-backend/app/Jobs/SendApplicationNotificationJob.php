@@ -10,6 +10,10 @@ use App\Notifications\HoursPendingVerificationNotification;
 use App\Notifications\HoursRejectedNotification;
 use App\Notifications\HoursVerifiedNotification;
 use App\Notifications\InterviewScheduledNotification;
+use App\Notifications\PromissoryReviewedNotification;
+use App\Notifications\PromissorySubmittedNotification;
+use App\Notifications\SignatureRequiredNotification;
+use App\Notifications\StipendAvailableNotification;
 use App\Notifications\StipendReleasedNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -45,7 +49,11 @@ class SendApplicationNotificationJob implements ShouldQueue
             'hours_verified' => new HoursVerifiedNotification($this->data),
             'hours_rejected' => new HoursRejectedNotification($this->data),
             'supervisor_time_out' => new HoursPendingVerificationNotification($this->data),
+            'stipend_available' => new StipendAvailableNotification($this->data),
             'stipend_released' => new StipendReleasedNotification($this->data),
+            'promissory_submitted' => new PromissorySubmittedNotification($this->data),
+            'promissory_reviewed' => new PromissoryReviewedNotification($this->data),
+            'signature_required' => new SignatureRequiredNotification($this->data),
             default => null,
         };
 

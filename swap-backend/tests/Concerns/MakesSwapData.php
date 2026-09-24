@@ -24,6 +24,13 @@ trait MakesSwapData
             'password' => 'Password@123',
             'role' => $role,
             'is_active' => true,
+            // Clock-in requires a specimen (presence-checked, never read): recipients
+            // carry a stub path by default. Pass explicit null to simulate one who
+            // never saved a signature.
+            'signature_image_path' => $role === 'recipient' ? 'signatures/test.png' : null,
+            // Releases require the director's title: test admins carry one by
+            // default; pass explicit null to simulate a title-less admin.
+            'position_title' => $role === 'admin' ? 'Test Director' : null,
         ], $attrs));
     }
 

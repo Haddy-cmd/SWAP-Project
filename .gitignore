@@ -2,3 +2,6 @@ node_modules/
 swap-frontend/node_modules/
 .next/
 .env
+
+# Abandoned earlier attempt — never tracked again (see docs/SYSTEM_OVERVIEW.md)
+swap-backend-broken/

@@ -9,7 +9,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ChevronRight, ShieldCheck, Mail, Phone, Building2, CalendarDays, LogOut,
   Save, KeyRound, Lock, Bell, CheckCircle2, FileCheck, Clock, Camera, Loader2,
-  Eye, EyeOff,
+  Eye, EyeOff, PenLine,
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useAuth } from '@/lib/hooks/useAuth'
@@ -18,6 +18,7 @@ import { notificationsApi } from '@/lib/api/notifications.api'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import { avatarSrc } from '@/lib/utils/avatar'
 import { AvatarCropper } from '@/components/shared/AvatarCropper'
+import { SignaturePad } from '@/components/shared/SignaturePad'
 import type { UserRole } from '@/types/auth.types'
 import type { ApiError } from '@/types/api.types'
 
@@ -31,6 +32,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
 const profileSchema = z.object({
   name: z.string().min(2, 'Name is required'),
   contact_number: z.string().max(20).optional().or(z.literal('')),
+  position_title: z.string().max(150, 'Max 150 characters').optional().or(z.literal('')),
 })
 type ProfileForm = z.infer<typeof profileSchema>
 
@@ -74,6 +76,8 @@ export default function ProfilePage() {
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
   const [pwMsg, setPwMsg] = useState<string | null>(null)
   const [photoMsg, setPhotoMsg] = useState<string | null>(null)
+  const [sigMsg, setSigMsg] = useState<string | null>(null)
+  const [showPad, setShowPad] = useState(false)
   const [showPw, setShowPw] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -108,8 +112,31 @@ export default function ProfilePage() {
     onError: (err: ApiError) => setPhotoMsg(err.message ?? 'Could not remove photo.'),
   })
 
+  const uploadSignature = useMutation({
+    mutationFn: (file: File) => authApi.uploadSignature(file),
+    onSuccess: (updated) => {
+      setAuth(updated, useAuthStore.getState().token ?? '')
+      setSigMsg(null)
+      setShowPad(false)
+    },
+    onError: (err: ApiError) => setSigMsg(err.message ?? 'Signature upload failed.'),
+  })
+
+  const removeSignature = useMutation({
+    mutationFn: () => authApi.removeSignature(),
+    onSuccess: (updated) => {
+      setAuth(updated, useAuthStore.getState().token ?? '')
+      setSigMsg(null)
+    },
+    onError: (err: ApiError) => setSigMsg(err.message ?? 'Could not remove signature.'),
+  })
+
   const isStudent = !!user?.profile
   const role = (user?.role ?? 'applicant') as UserRole
+  // Digital-signature specimen: admins certify with it, supervisors co-sign with
+  // it, recipients sign receipts with it (and cannot clock in without it).
+  // Applicants never sign, so no card for them.
+  const canSign = role === 'admin' || role === 'supervisor' || role === 'recipient'
   const department =
     role === 'admin' ? 'Division of Students Affairs'
     : role === 'supervisor' ? (user?.office_name ?? 'Unassigned office')
@@ -122,7 +149,7 @@ export default function ProfilePage() {
     formState: { errors: pe },
   } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: user?.name ?? '', contact_number: user?.profile?.contact_number ?? '' },
+    defaultValues: { name: user?.name ?? '', contact_number: user?.profile?.contact_number ?? '', position_title: user?.position_title ?? '' },
   })
 
   const {
@@ -134,7 +161,13 @@ export default function ProfilePage() {
 
   const updateProfile = useMutation({
     mutationFn: (data: ProfileForm) =>
-      authApi.updateProfile({ name: data.name, ...(isStudent ? { contact_number: data.contact_number } : {}) }),
+      authApi.updateProfile({
+        name: data.name,
+        ...(isStudent ? { contact_number: data.contact_number } : {}),
+        // Supervisor titles are fixed policy ("SWAP Mentor"); only the admin's
+        // title is manual, so only it is ever sent.
+        ...(role === 'admin' ? { position_title: data.position_title || null } : {}),
+      }),
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
       setProfileMsg('Profile updated successfully.')
@@ -316,6 +349,14 @@ export default function ProfilePage() {
                     <label className={LABEL}>{isStudent ? 'College' : 'Office / Department'}</label>
                     <input value={department} disabled className={INPUT} />
                   </div>
+                  {!isStudent && role === 'admin' && (
+                    <div className="sm:col-span-2">
+                      <label className={LABEL}>Position Title</label>
+                      <input {...rp('position_title')} placeholder="e.g. Director, Division of Student Affairs" className={INPUT} />
+                      {pe.position_title && <p className="mt-1 text-xs text-[#C0392B]">{pe.position_title.message}</p>}
+                      <p className="mt-1 text-[11px] text-[#A38A82]">Printed under your name on claim stubs you sign. Releases are blocked until this is set.</p>
+                    </div>
+                  )}
                   {isStudent && user.profile?.program && (
                     <div className="sm:col-span-2">
                       <label className={LABEL}>Program</label>
@@ -331,6 +372,60 @@ export default function ProfilePage() {
                   </div>
                 </form>
               </div>
+
+              {/* Digital signature specimen (admins + supervisors only) */}
+              {canSign && (
+                <div className={CARD}>
+                  <div className="mb-5 flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#FBEAEC] text-[#7C1B26]"><PenLine className="h-5 w-5" /></span>
+                    <div>
+                      <div className="text-[16px] font-bold text-[#241715]">Digital Signature</div>
+                      <div className="text-[12.5px] text-[#8A7A73]">
+                        {role === 'admin'
+                          ? 'Drawn on every claim stub you certify as Director'
+                          : role === 'supervisor'
+                            ? 'Drawn on every stub co-signed as SWAP Mentor'
+                            : 'Required before you can clock in — signs your receipts at payout'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {sigMsg && <div className="mb-4 rounded-lg bg-red-50 px-4 py-2.5 text-sm text-[#C0392B]">{sigMsg}</div>}
+
+                  {user.signature_url ? (
+                    <div>
+                      <div className="rounded-xl border border-[#EADFD4] bg-white p-4">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={avatarSrc(user.signature_url, token) ?? ''} alt="Your signature specimen"
+                          className="h-20 w-auto max-w-full" />
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button onClick={() => { setSigMsg(null); setShowPad((s) => !s) }}
+                          className="rounded-xl border border-[#EADFD4] px-4 py-2.5 text-[13px] font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] transition-colors">
+                          {showPad ? 'Close pad' : 'Redraw'}
+                        </button>
+                        <button onClick={() => { setSigMsg(null); removeSignature.mutate() }} disabled={removeSignature.isPending}
+                          className="rounded-xl px-4 py-2.5 text-[13px] font-semibold text-[#A38A82] hover:text-[#C0392B] disabled:opacity-60 transition-colors">
+                          {removeSignature.isPending ? 'Removing…' : 'Remove'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className={`mb-3 text-[13px] ${role === 'recipient' ? 'font-semibold text-[#B0562F]' : 'text-[#8A7A73]'}`}>
+                      {role === 'recipient'
+                        ? 'Clock-in is blocked until you save a signature. Draw below or upload an image.'
+                        : 'No specimen on file — stubs show your printed name instead. Draw below or upload an image.'}
+                    </p>
+                  )}
+
+                  {(!user.signature_url || showPad) && (
+                    <div className="mt-3">
+                      <SignaturePad busy={uploadSignature.isPending}
+                        onSave={(file) => { setSigMsg(null); uploadSignature.mutate(file) }} />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -17,12 +17,18 @@ class UserResource extends JsonResource
             'is_active' => $this->is_active,
             'office_id' => $this->office_id,
             'office_name' => $this->whenLoaded('office', fn () => $this->office?->name),
+            'position_title' => $this->position_title,
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
             // Streamed profile photo (client appends the auth token). The ?v= hash
             // changes whenever a new photo is uploaded so the browser cache busts.
             'avatar_url' => $this->avatar_path
                 ? rtrim(config('app.url'), '/') . '/api/users/' . $this->id . '/avatar?v=' . substr(md5($this->avatar_path), 0, 8)
+                : null,
+            // Same pattern for the signature specimen (drawn/uploaded on the
+            // profile page; auto-applied to this user's stipend signatures).
+            'signature_url' => $this->signature_image_path
+                ? rtrim(config('app.url'), '/') . '/api/users/' . $this->id . '/signature?v=' . substr(md5($this->signature_image_path), 0, 8)
                 : null,
             'profile' => $this->whenLoaded('profile', fn () => new StudentProfileResource($this->profile)),
         ];
