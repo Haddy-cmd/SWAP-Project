@@ -31,6 +31,7 @@ export default function StipendPage() {
   const [form, setForm] = useState({ releasing_officer_name: '' })
   const [error, setError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [downloadError, setDownloadError] = useState<{ id: number; message: string } | null>(null)
 
   const { data: history = [], isLoading } = useQuery({
     queryKey: ['stipend-history'],
@@ -63,6 +64,7 @@ export default function StipendPage() {
 
   async function downloadSlip(s: StipendRecord) {
     setDownloadingId(s.id)
+    setDownloadError(null)
     try {
       // Versioned by lifecycle timestamps so a post-confirm download can never
       // serve the pre-confirm bytes from cache.
@@ -72,6 +74,21 @@ export default function StipendPage() {
       a.href = url
       a.download = `swap-claim-stub-${s.control_number ?? s.id}.pdf`
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+    } catch (e) {
+      // The request asked for a Blob, so the API's JSON error arrives as one too:
+      // read it to show the backend's message verbatim.
+      let message = 'Could not download the claim stub.'
+      const response = (e as { response?: { data?: unknown } }).response
+      if (response?.data instanceof Blob) {
+        try {
+          const parsed = JSON.parse(await response.data.text()) as { message?: string }
+          if (parsed.message) message = parsed.message
+        } catch { /* not JSON — keep the generic message */ }
+      } else if (!response && e instanceof Error && e.message) {
+        // Errors already translated by the API client (e.g. "Server error. Please try again later.").
+        message = e.message
+      }
+      setDownloadError({ id: s.id, message })
     } finally {
       setDownloadingId(null)
     }
@@ -146,6 +163,10 @@ export default function StipendPage() {
                     </div>
                   )}
                 </div>
+
+                {downloadError?.id === s.id && (
+                  <p role="alert" className="mt-3 text-sm text-danger-700">{downloadError.message}</p>
+                )}
 
                 {claimable && confirming === s.id && (
                   <div className="mt-4 space-y-3 rounded-xl border border-ink-200 bg-ink-50 p-4">

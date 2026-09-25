@@ -3,9 +3,13 @@ FROM php:8.2-cli
 
 # System libraries + PHP extensions (PostgreSQL is required: the app uses
 # TO_CHAR / DATE_TRUNC / generated columns that only work on Postgres).
+# GD is required by DomPDF to embed PNG/WebP images — without it every claim stub
+# carrying a drawn signature fails to render ("The PHP GD extension is required").
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git unzip libpq-dev libzip-dev libicu-dev \
-    && docker-php-ext-install pdo pdo_pgsql pgsql zip intl bcmath opcache \
+        libpng-dev libjpeg62-turbo-dev libfreetype-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-freetype --with-webp \
+    && docker-php-ext-install pdo pdo_pgsql pgsql zip intl bcmath opcache gd \
     && rm -rf /var/lib/apt/lists/*
 
 # OPcache tuning (production). enable_cli is essential here because the API is

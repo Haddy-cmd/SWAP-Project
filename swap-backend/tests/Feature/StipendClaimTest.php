@@ -6,8 +6,10 @@ use App\Models\StipendHistory;
 use App\Notifications\StipendAvailableNotification;
 use App\Notifications\StipendReleasedNotification;
 use App\Services\StipendService;
+use App\Services\StipendSlipService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -220,6 +222,32 @@ class StipendClaimTest extends TestCase
         ]);
         // Nobody holds a specimen here, so the stub carries typed lines only.
         $this->assertSame([], $this->pdfImages($disk->get($stipend->slip_path)));
+    }
+
+    public function test_slip_download_reports_a_render_failure_as_a_readable_503(): void
+    {
+        Storage::fake(config('filesystems.documents_disk', 'public'));
+        Log::spy();
+        // The production failure: DomPDF throws when the GD extension is missing.
+        $this->mock(StipendSlipService::class, fn ($mock) => $mock
+            ->shouldReceive('render')
+            ->andThrow(new \Exception('The PHP GD extension is required, but is not installed.')));
+
+        [$recipient] = $this->recipientWithSupervisor();
+        Sanctum::actingAs($this->makeUser('admin'));
+        // A render failure at release stays non-fatal; the stub simply has no archived PDF.
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
+        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
+        $this->assertNull($stipend->slip_path);
+
+        Sanctum::actingAs($recipient);
+        $this->getJson("/api/recipient/stipend/{$stipend->id}/slip")
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'Your claim stub could not be generated right now. Please try again in a few minutes or contact the DSA office.');
+
+        Log::shouldHaveReceived('error')->withArgs(fn ($msg, $ctx) => $msg === 'Stipend slip render failed'
+            && $ctx['stipend_id'] === $stipend->id
+            && str_contains($ctx['error'], 'GD extension'))->once();
     }
 
     public function test_confirm_receipt_rejects_a_non_owner(): void

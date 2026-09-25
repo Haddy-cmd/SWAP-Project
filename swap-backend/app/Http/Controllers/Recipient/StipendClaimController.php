@@ -10,6 +10,7 @@ use App\Services\StipendClaimService;
 use App\Services\StipendSlipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -21,7 +22,7 @@ class StipendClaimController extends Controller
     ) {}
 
     /** Stream the beneficiary's claim-stub PDF (their Receiving Slip copy). */
-    public function slip(Request $request, int $id): StreamedResponse
+    public function slip(Request $request, int $id): StreamedResponse|JsonResponse
     {
         $stipend = StipendHistory::with(['recipient.profile', 'signatures', 'certifiedBy'])->findOrFail($id);
 
@@ -30,9 +31,19 @@ class StipendClaimController extends Controller
 
         $disk = config('filesystems.documents_disk', 'public');
 
-        // Regenerate on demand if the archived copy is missing (e.g. ephemeral disk wiped it).
+        // Regenerate on demand if the archived copy is missing (e.g. ephemeral disk wiped it,
+        // or the render at release/confirm failed). A render failure must reach the student as
+        // a readable message, not a bare 500 — and the real error must reach the logs.
         if (!$stipend->slip_path || !Storage::disk($disk)->exists($stipend->slip_path)) {
-            $path = $this->slipService->render($stipend);
+            try {
+                $path = $this->slipService->render($stipend);
+            } catch (\Throwable $e) {
+                Log::error('Stipend slip render failed', ['stipend_id' => $stipend->id, 'error' => $e->getMessage()]);
+
+                return response()->json([
+                    'message' => 'Your claim stub could not be generated right now. Please try again in a few minutes or contact the DSA office.',
+                ], 503);
+            }
             $stipend->update(['slip_path' => $path]);
         }
 
