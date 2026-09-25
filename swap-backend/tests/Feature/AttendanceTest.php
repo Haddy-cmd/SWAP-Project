@@ -436,4 +436,26 @@ class AttendanceTest extends TestCase
 
         $this->assertDatabaseMissing('time_logs', ['user_id' => $recipient->id]);
     }
+
+    public function test_duty_slip_can_load_several_semesters_of_logs_in_one_page(): void
+    {
+        // The duty slip asks for 300 logs; a 100 ceiling rejected it (422) and left the slip blank.
+        $supervisor = $this->makeUser('supervisor');
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $supervisor);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(3));
+        $log->update(['time_out' => now(), 'status' => 'verified']);
+
+        Sanctum::actingAs($recipient);
+        $this->getJson('/api/recipient/attendance/logs?per_page=300')
+            ->assertOk()
+            ->assertJsonCount(1, 'data');
+        $this->getJson('/api/recipient/attendance/logs?per_page=501')
+            ->assertStatus(422)->assertJsonValidationErrors('per_page');
+
+        Sanctum::actingAs($supervisor);
+        $this->getJson("/api/supervisor/students/{$recipient->id}/logs?per_page=300")
+            ->assertOk()
+            ->assertJsonPath('meta.per_page', 300);
+    }
 }

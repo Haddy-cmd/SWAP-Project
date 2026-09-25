@@ -37,6 +37,9 @@ export default function DutySlipPage() {
     studentIdNumber: profile?.student_id_number,
     academicYear: assignment?.academic_year,
     semester: assignment?.semester,
+    requiredHours: assignment?.required_hours,
+    supervisorSignatureUrl: assignment?.supervisor?.signature_url,
+    beneficiarySignatureUrl: user?.signature_url,
   }
 
   // Default the semester nav to the current assignment's term once it loads.
@@ -48,8 +51,10 @@ export default function DutySlipPage() {
   return (
     <div className="space-y-5">
       <DutySlipControls
-        title="Weekly Duty Slip"
-        subtitle="Auto-filled from your attendance. Choose a range, then print or save as PDF to submit."
+        title={mode === 'semester' ? 'Semestral Service Report' : 'Weekly Duty Slip'}
+        subtitle={mode === 'semester'
+          ? 'A one-page summary of your service this semester, week by week. Print or save as PDF to submit.'
+          : 'Auto-filled from your attendance. Choose a range, then print or save as PDF to submit.'}
         mode={mode} setMode={setMode} weekStart={weekStart} setWeekStart={setWeekStart}
         term={activeTerm} setTerm={setTerm}
       />

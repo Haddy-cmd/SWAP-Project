@@ -141,6 +141,45 @@ class SignatureTest extends TestCase
         $this->get("/api/users/{$owner->id}/signature")->assertStatus(401);
     }
 
+    public function test_recipient_may_view_only_their_own_supervisors_signature(): void
+    {
+        // The duty slip prints the supervisor of record's ink on the student's own slip.
+        $supervisor = $this->makeUser('supervisor', ['signature_image_path' => 'signatures/mentor.png']);
+        $other = $this->makeUser('supervisor', ['signature_image_path' => 'signatures/other.png']);
+        Storage::disk('public')->put('signatures/mentor.png', 'img-bytes');
+        Storage::disk('public')->put('signatures/other.png', 'img-bytes');
+
+        $recipient = $this->makeUser('recipient');
+        $this->makeAssignment($recipient, $supervisor);
+        $token = urlencode($this->tokenFor($recipient));
+
+        $this->get("/api/users/{$supervisor->id}/signature?token={$token}")->assertOk();
+        $this->get("/api/users/{$other->id}/signature?token={$token}")->assertStatus(403);
+
+        // Once the assignment is no longer active, the access goes with it.
+        $recipient->assignment()->update(['status' => 'completed']);
+        $this->get("/api/users/{$supervisor->id}/signature?token={$token}")->assertStatus(403);
+    }
+
+    public function test_student_summary_exposes_both_duty_slip_specimens(): void
+    {
+        $supervisor = $this->makeUser('supervisor', ['signature_image_path' => 'signatures/mentor.png']);
+        $recipient = $this->makeUser('recipient', ['signature_image_path' => 'signatures/student.png']);
+        $this->makeAssignment($recipient, $supervisor);
+
+        Sanctum::actingAs($supervisor);
+        $this->getJson("/api/supervisor/students/{$recipient->id}/summary")
+            ->assertOk()
+            ->assertJsonPath('student.signature_url', $recipient->signatureUrl())
+            ->assertJsonPath('student.supervisor_signature_url', $supervisor->signatureUrl());
+
+        // No specimen on file → null, so the slip keeps the typed name.
+        $supervisor->update(['signature_image_path' => null]);
+        $this->getJson("/api/supervisor/students/{$recipient->id}/summary")
+            ->assertOk()
+            ->assertJsonPath('student.supervisor_signature_url', null);
+    }
+
     public function test_position_title_saved_and_cleared_via_profile(): void
     {
         $admin = $this->makeUser('admin');

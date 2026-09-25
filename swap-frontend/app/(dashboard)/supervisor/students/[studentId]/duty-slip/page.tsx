@@ -41,6 +41,9 @@ export default function SupervisorDutySlipPage() {
     studentIdNumber: s?.student_id_number,
     academicYear: s?.academic_year,
     semester: s?.semester,
+    requiredHours: s?.required_hours,
+    supervisorSignatureUrl: s?.supervisor_signature_url,
+    beneficiarySignatureUrl: s?.signature_url,
   }
 
   // Default the semester nav to the student's current term once the summary loads.
@@ -56,8 +59,10 @@ export default function SupervisorDutySlipPage() {
         <ArrowLeft className="h-[19px] w-[19px]" /> Back to {s?.name ?? 'student'}
       </Link>
       <DutySlipControls
-        title={s?.name ? `${s.name} — Duty Slip` : 'Duty Slip'}
-        subtitle="Auto-filled from this student's verified attendance. Choose a range, then print or save as PDF."
+        title={`${s?.name ? `${s.name} — ` : ''}${mode === 'semester' ? 'Semestral Service Report' : 'Duty Slip'}`}
+        subtitle={mode === 'semester'
+          ? "A one-page summary of this student's service this semester, week by week. Print or save as PDF."
+          : "Auto-filled from this student's verified attendance. Choose a range, then print or save as PDF."}
         mode={mode} setMode={setMode} weekStart={weekStart} setWeekStart={setWeekStart}
         term={activeTerm} setTerm={setTerm}
       />

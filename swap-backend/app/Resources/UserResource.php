@@ -27,9 +27,7 @@ class UserResource extends JsonResource
                 : null,
             // Same pattern for the signature specimen (drawn/uploaded on the
             // profile page; auto-applied to this user's stipend signatures).
-            'signature_url' => $this->signature_image_path
-                ? rtrim(config('app.url'), '/') . '/api/users/' . $this->id . '/signature?v=' . substr(md5($this->signature_image_path), 0, 8)
-                : null,
+            'signature_url' => $this->resource->signatureUrl(),
             'profile' => $this->whenLoaded('profile', fn () => new StudentProfileResource($this->profile)),
         ];
     }

@@ -40,15 +40,27 @@ class DutySlipController extends Controller
 
         $recipient = $profile?->user;
 
-        // Sum the recorded hours for the encoded range.
+        // Sum the recorded hours for the encoded range, by the same rules the printed
+        // slips use: rejected logs never count; regular + bonus (manual) hours do.
         $hours = null;
         $rangeLabel = $parsed['range'];
 
         if ($recipient) {
-            $q = TimeLog::where('user_id', $recipient->id)->whereNotNull('duration_hours');
+            $q = TimeLog::where('user_id', $recipient->id)
+                ->whereNotNull('duration_hours')
+                ->where('status', '!=', 'rejected');
 
             if ($parsed['range'] === 'SEM') {
-                $rangeLabel = 'Whole semester';
+                // A semester slip covers only its own term (the term lives on the assignment).
+                $academicYear = DutySlipControl::academicYear($parsed['ay']);
+                $semester = DutySlipControl::semesterName($parsed['sem']);
+                $q->whereHas('assignment', function ($a) use ($academicYear, $semester) {
+                    $a->where('semester', $semester);
+                    if ($academicYear) {
+                        $a->where('academic_year', $academicYear);
+                    }
+                });
+                $rangeLabel = 'Whole semester — ' . $semester . ($academicYear ? ', AY ' . $academicYear : '');
             } elseif (preg_match('/^W(\d{4})(\d{2})(\d{2})$/', $parsed['range'], $m)) {
                 $start = Carbon::create((int) $m[1], (int) $m[2], (int) $m[3])->startOfDay();
                 $end = $start->copy()->addDays(6); // full week Mon–Sun; Sunday duty counts as regular hours

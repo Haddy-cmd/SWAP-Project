@@ -34,6 +34,21 @@ class DutySlipControl
         return substr(str_pad($b36, 6, '0', STR_PAD_LEFT), -6);
     }
 
+    /** "2425" → "2024-2025"; null when the slip had no full academic year ("0000", "2400"). */
+    public static function academicYear(string $ay): ?string
+    {
+        if (!preg_match('/^(\d{2})(\d{2})$/', $ay, $m) || $m[2] === '00') {
+            return null;
+        }
+        return "20{$m[1]}-20{$m[2]}";
+    }
+
+    /** S1 | S2 | SM → the assignment's semester label. */
+    public static function semesterName(string $sem): string
+    {
+        return ['S1' => '1st Semester', 'S2' => '2nd Semester', 'SM' => 'Summer'][$sem] ?? '1st Semester';
+    }
+
     /**
      * Parse a control number into its parts and whether the checksum is valid.
      * Returns null when the string is malformed.

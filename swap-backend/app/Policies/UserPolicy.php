@@ -18,11 +18,14 @@ class UserPolicy
     }
 
     /**
-     * Same circle as the photo: only the owner, an admin, or a supervising
-     * supervisor may see the signature specimen (it lands on signed stubs).
+     * Same circle as the photo — the owner, an admin, or a supervising supervisor —
+     * plus one addition: a recipient may see the specimen of the supervisor on their
+     * own active assignment, because that ink prints on the recipient's own duty slip
+     * (and already reaches them on their claim stub). Nobody else's.
      */
     public function viewSignature(User $viewer, User $subject): bool
     {
-        return $this->viewAvatar($viewer, $subject);
+        return $this->viewAvatar($viewer, $subject)
+            || $viewer->isSupervisedBy($subject->id);
     }
 }

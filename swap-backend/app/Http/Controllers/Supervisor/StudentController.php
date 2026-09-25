@@ -97,6 +97,11 @@ class StudentController extends Controller
                 // The assigned supervisor of record, for the duty slip's signature line —
                 // may differ from the co-supervisor viewing it.
                 'supervisor' => $assignment->supervisor?->profile?->full_name ?? $assignment->supervisor?->name,
+                // Specimens for the duty slip's signature blocks. The image endpoint still
+                // applies its own policy: a co-supervisor gets 403 for another supervisor's
+                // ink, and the slip falls back to the typed name.
+                'signature_url' => $assignment->user->signatureUrl(),
+                'supervisor_signature_url' => $assignment->supervisor?->signatureUrl(),
                 'academic_year' => $assignment->academic_year,
                 'semester' => $assignment->semester,
                 'required_hours' => $assignment->required_hours,
@@ -117,7 +122,8 @@ class StudentController extends Controller
             return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
         }
 
-        $perPage = min(200, max(1, (int) $request->input('per_page', 15)));
+        // Same ceiling as the recipient's own log feed: the duty slip spans semesters.
+        $perPage = min(500, max(1, (int) $request->input('per_page', 15)));
 
         $logs = $this->timeLogRepository->paginateForSupervisor(
             $request->user()->id,

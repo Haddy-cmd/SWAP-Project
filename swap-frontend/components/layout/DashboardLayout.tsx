@@ -15,7 +15,7 @@ const AMBIENT_BG =
 /** Decorative, non-interactive backdrop: blurred light sweeps and a faint seal watermark. */
 function Backdrop() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden print:hidden">
       <div className="absolute right-10 top-[70px] h-[420px] w-[420px] rounded-full bg-brand-500/5 blur-[80px]" />
       <div
         className="absolute -top-[18%] left-[30%] h-[520px] w-[1100px] -rotate-[14deg] rounded-full blur-[30px]"
@@ -68,13 +68,19 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative h-screen overflow-hidden bg-ink-50" style={{ backgroundImage: AMBIENT_BG }}>
+    // print:* — printable documents (duty slips) are positioned against the page, so
+    // in print this shell must neither clip them (overflow/height) nor act as their
+    // containing block (position); the chrome itself is dropped.
+    <div
+      className="relative h-screen overflow-hidden bg-ink-50 print:static print:h-auto print:overflow-visible"
+      style={{ backgroundImage: AMBIENT_BG }}
+    >
       <Backdrop />
 
       {/* Mobile backdrop */}
       {mobileSidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
+          className="fixed inset-0 z-40 bg-black/40 md:hidden print:hidden"
           onClick={() => setMobileSidebarOpen(false)}
           aria-hidden="true"
         />
@@ -82,7 +88,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* Hover-reveal hot zone on the left edge (desktop, auto-hide mode only) */}
       {!pinned && (
-        <div className="fixed left-0 top-0 z-30 hidden h-full w-3 md:block" onMouseEnter={revealSidebar} aria-hidden="true" />
+        <div className="fixed left-0 top-0 z-30 hidden h-full w-3 md:block print:hidden" onMouseEnter={revealSidebar} aria-hidden="true" />
       )}
 
       {/* Sidebar — fixed overlay; slides in/out */}
@@ -90,7 +96,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         onMouseEnter={revealSidebar}
         onMouseLeave={scheduleHideSidebar}
         className={cn(
-          'fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-in-out',
+          'fixed inset-y-0 left-0 z-50 transition-transform duration-200 ease-in-out print:hidden',
           mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
           revealed ? 'md:translate-x-0' : 'md:-translate-x-full',
           !pinned && 'md:shadow-2xl', // float above content when auto-revealed
@@ -103,12 +109,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       <div
         className={cn(
           'relative z-[1] flex h-full flex-col overflow-hidden transition-[margin] duration-200 ease-in-out',
+          'print:static print:h-auto print:overflow-visible print:ml-0',
           revealed ? 'md:ml-24' : 'md:ml-0',
         )}
       >
         <Topbar />
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-7xl mx-auto p-4 md:p-6">{children}</div>
+        <main className="flex-1 overflow-y-auto print:overflow-visible">
+          <div className="max-w-7xl mx-auto p-4 md:p-6 print:max-w-none print:p-0">{children}</div>
         </main>
       </div>
     </div>

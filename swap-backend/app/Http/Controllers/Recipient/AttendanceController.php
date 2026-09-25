@@ -35,7 +35,9 @@ class AttendanceController extends Controller
     {
         $validated = $request->validate([
             'status' => ['nullable', 'in:open,pending_verification,verified,rejected'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
+            // The duty slip loads several semesters at once (semester navigator +
+            // Semestral Service Report); 100 rejected its request and left it blank.
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],
         ]);
 
         $logs = $this->attendanceService->getLogsForUser(

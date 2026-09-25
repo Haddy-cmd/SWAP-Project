@@ -95,6 +95,34 @@ class User extends Authenticatable implements MustVerifyEmail
             ->exists();
     }
 
+    /**
+     * Whether this user, as a recipient, is supervised by the given user on their
+     * active assignment (the supervisor of record — not office co-supervisors).
+     */
+    public function isSupervisedBy(int $supervisorUserId): bool
+    {
+        if ($this->role !== 'recipient') {
+            return false;
+        }
+
+        return Assignment::where('user_id', $this->id)
+            ->where('status', 'active')
+            ->where('supervisor_id', $supervisorUserId)
+            ->exists();
+    }
+
+    /**
+     * Streamed signature specimen URL (the client appends the auth token), or null
+     * when none is on file. The ?v= hash changes with each new specimen so the
+     * browser cache busts. Single definition for every payload that exposes it.
+     */
+    public function signatureUrl(): ?string
+    {
+        return $this->signature_image_path
+            ? rtrim(config('app.url'), '/') . '/api/users/' . $this->id . '/signature?v=' . substr(md5($this->signature_image_path), 0, 8)
+            : null;
+    }
+
     public function timeLogs(): HasMany
     {
         return $this->hasMany(TimeLog::class);

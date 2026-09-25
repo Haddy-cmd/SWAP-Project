@@ -1,9 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Image from 'next/image'
 import { Printer, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useAuthStore } from '@/lib/store/authStore'
+import { avatarSrc } from '@/lib/utils/avatar'
 import type { TimeLog } from '@/types/attendance.types'
+import { SemesterServiceReport } from './SemesterServiceReport'
 
 // ── shared date helpers ──────────────────────────────────────────────────────
 export function mondayOf(d: Date): Date {
@@ -23,9 +26,8 @@ const fmtTime = (s?: string | null) => {
 }
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// The week is always seven rows; the semester pads up to this same minimum so both
-// tabs print the same complete, consistent grid.
-const MIN_ROWS = 7
+/** Hours with two decimals, or '' for zero (the printed form shows a fill line instead). */
+export const hrs = (n: number) => (n ? n.toFixed(2) : '')
 
 // Deterministic hash → the same inputs always yield the same control number, so
 // an admin can regenerate it from the recipient's record to confirm the printed
@@ -36,7 +38,7 @@ function djb2(s: string): number {
   return h
 }
 
-function makeControlNo(o: {
+export function makeControlNo(o: {
   studentId?: string | null
   academicYear?: string | null
   semester?: string | null
@@ -56,7 +58,8 @@ function makeControlNo(o: {
   return `SWAP-${sid}-${ay}${sem}-${range}-${checksum}`
 }
 
-type Row = {
+/** One calendar day of duty, as both slips print it. */
+export type Row = {
   dateStr: string
   date: Date
   day: string
@@ -64,8 +67,11 @@ type Row = {
   amOut: string
   pmIn: string
   pmOut: string
-  total: string
-  status: string
+  /** Regular (clocked) hours and bonus (supervisor-granted) hours. */
+  regularHours: number
+  bonusHours: number
+  /** '' (nothing completed) | 'Verified' | 'Unverified' — drives the supervisor-ink rule. */
+  status: '' | 'Verified' | 'Unverified'
 }
 
 export type DutySlipMode = 'week' | 'semester'
@@ -107,14 +113,28 @@ export interface DutySlipIdentity {
   studentIdNumber?: string | null
   academicYear?: string | null
   semester?: string | null
+  /** Required hours of the current assignment (applies to its term only). */
+  requiredHours?: number | null
+  /** Specimen URLs (`signature_url` shape; the token is applied at render). */
+  supervisorSignatureUrl?: string | null
+  beneficiarySignatureUrl?: string | null
 }
 
-function buildRow(date: Date, dayLogs: TimeLog[]): Row {
-  const am = dayLogs.find((l) => (parse(l.time_in)?.getHours() ?? 0) < 12)
-  const pm = dayLogs.find((l) => (parse(l.time_in)?.getHours() ?? 0) >= 12)
-  const dayTotal = dayLogs.reduce((s, l) => s + (Number(l.duration_hours) || 0), 0)
-  const completed = dayLogs.filter((l) => l.time_out)
-  const status = completed.length
+const sumHours = (ls: TimeLog[]) => ls.reduce((s, l) => s + (Number(l.duration_hours) || 0), 0)
+
+/**
+ * One day's row. Rejected logs are ignored entirely. Bonus hours (logs a supervisor
+ * granted, `is_manual`) carry a synthetic 8:00 AM time-in, so they are kept out of
+ * the AM/PM time columns and counted separately.
+ */
+export function buildRow(date: Date, dayLogs: TimeLog[]): Row {
+  const live = dayLogs.filter((l) => l.status !== 'rejected')
+  const regular = live.filter((l) => !l.is_manual)
+  const bonus = live.filter((l) => l.is_manual)
+  const am = regular.find((l) => (parse(l.time_in)?.getHours() ?? 0) < 12)
+  const pm = regular.find((l) => (parse(l.time_in)?.getHours() ?? 0) >= 12)
+  const completed = live.filter((l) => l.time_out)
+  const status: Row['status'] = completed.length
     ? (completed.every((l) => l.status === 'verified') ? 'Verified' : 'Unverified')
     : ''
   return {
@@ -125,9 +145,21 @@ function buildRow(date: Date, dayLogs: TimeLog[]): Row {
     amOut: fmtTime(am?.time_out),
     pmIn: fmtTime(pm?.time_in),
     pmOut: fmtTime(pm?.time_out),
-    total: dayTotal ? dayTotal.toFixed(2) : '',
+    regularHours: sumHours(regular),
+    bonusHours: sumHours(bonus),
     status,
   }
+}
+
+/** The supervisor's ink attests the hours shown: only when every completed day is Verified (and there is one). */
+export function allDaysVerified(rows: Row[]): boolean {
+  const statuses = rows.map((r) => r.status).filter(Boolean)
+  return statuses.length > 0 && statuses.every((s) => s === 'Verified')
+}
+
+export const issueDateToday = () => {
+  const t = new Date()
+  return `${String(t.getMonth() + 1).padStart(2, '0')}/${String(t.getDate()).padStart(2, '0')}/${t.getFullYear()}`
 }
 
 // ── controls (mode toggle · week nav · print) ────────────────────────────────
@@ -209,73 +241,49 @@ export function DutySlipControls({
   )
 }
 
-// ── the printable slip ───────────────────────────────────────────────────────
-export function DutySlipDocument({
-  mode, weekStart, logs, identity, term,
-}: {
+// ── the printable document ───────────────────────────────────────────────────
+type DocumentProps = {
   mode: DutySlipMode
   weekStart: string
   logs: TimeLog[]
   identity: DutySlipIdentity
   term: DutySlipTerm
-}) {
-  // In semester mode the slip is scoped to the selected term; a term the student
-  // was never assigned to has no data to show (see recipientThisTerm below).
-  const inSemester = mode === 'semester'
-  const slipAy = inSemester ? term.academicYear : (identity.academicYear ?? '')
-  const slipSem = inSemester ? term.semester : (identity.semester ?? '')
+}
 
-  // Which terms was this student actually a SWAP recipient in? Derived from the terms
-  // their logs belong to, plus the current assignment (they may be assigned but not
-  // yet have logged any duty).
-  const recipientThisTerm = useMemo(() => {
-    const terms = new Set<string>()
-    for (const l of logs) if (l.academic_year && l.semester) terms.add(`${l.academic_year}|${l.semester}`)
-    if (identity.academicYear && identity.semester) terms.add(`${identity.academicYear}|${identity.semester}`)
-    return terms.has(`${term.academicYear}|${term.semester}`)
-  }, [logs, identity.academicYear, identity.semester, term.academicYear, term.semester])
+/** Week → the official weekly duty slip; semester → the one-page Semestral Service Report. */
+export function DutySlipDocument(props: DocumentProps) {
+  // Two distinct components (not a branch inside one), so switching modes never
+  // changes the hook order of a mounted component.
+  return props.mode === 'semester'
+    ? <SemesterServiceReport logs={props.logs} identity={props.identity} term={props.term} />
+    : <WeeklyDutySlip weekStart={props.weekStart} logs={props.logs} identity={props.identity} />
+}
 
-  const { rows, totalHours, periodLabel } = useMemo(() => {
-    if (mode === 'semester') {
-      // Only this term's logs, one row per date with activity, ascending.
-      const termLogs = logs.filter((l) => l.academic_year === term.academicYear && l.semester === term.semester)
-      const byDate = new Map<string, TimeLog[]>()
-      for (const l of termLogs) {
-        const key = (l.date ?? '').slice(0, 10)
-        if (!key) continue
-        if (!byDate.has(key)) byDate.set(key, [])
-        byDate.get(key)!.push(l)
-      }
-      const rows = [...byDate.keys()].sort().map((k) => buildRow(new Date(k + 'T00:00:00'), byDate.get(k)!))
-      const total = rows.reduce((s, r) => s + (parseFloat(r.total) || 0), 0)
-      const label = `${term.semester}${term.academicYear ? `, AY ${term.academicYear}` : ''}`
-      return { rows, totalHours: total, periodLabel: label }
-    }
-
-    // Week mode: the full week (Mon–Sun) — night and Sunday duty count as
-    // regular hours, so every day of the week gets a row.
+function WeeklyDutySlip({ weekStart, logs, identity }: { weekStart: string; logs: TimeLog[]; identity: DutySlipIdentity }) {
+  // The full week (Mon–Sun) — night and Sunday duty count as regular hours, so
+  // every day of the week gets a row.
+  const { rows, regularTotal, bonusTotal, periodLabel } = useMemo(() => {
     const start = new Date(weekStart + 'T00:00:00')
-    let total = 0
     const rows = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start)
       d.setDate(start.getDate() + i)
-      const row = buildRow(d, logs.filter((l) => (l.date ?? '').slice(0, 10) === iso(d)))
-      total += parseFloat(row.total) || 0
-      return row
+      return buildRow(d, logs.filter((l) => (l.date ?? '').slice(0, 10) === iso(d)))
     })
-    return { rows, totalHours: total, periodLabel: start.toLocaleString('en-US', { month: 'long', year: 'numeric' }) }
-  }, [mode, weekStart, logs, term.semester, term.academicYear])
+    return {
+      rows,
+      regularTotal: rows.reduce((s, r) => s + r.regularHours, 0),
+      bonusTotal: rows.reduce((s, r) => s + r.bonusHours, 0),
+      periodLabel: start.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+    }
+  }, [weekStart, logs])
 
-  const today = new Date()
-  const issueDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`
-
-  const noData = inSemester && !recipientThisTerm
+  const totalHours = regularTotal + bonusTotal
 
   const controlNo = makeControlNo({
     studentId: identity.studentIdNumber,
-    academicYear: slipAy,
-    semester: slipSem,
-    mode,
+    academicYear: identity.academicYear,
+    semester: identity.semester,
+    mode: 'week',
     weekStart,
   })
 
@@ -287,22 +295,14 @@ export function DutySlipDocument({
           <tbody>
             <tr>
               <td rowSpan={5} className="w-[46%] border border-black px-3 py-2 align-middle">
-                <div className="flex items-center gap-3">
-                  <Image src="/dsa-logo.png" alt="DSA" width={54} height={54} className="flex-none" />
-                  <div className="leading-tight">
-                    <p className="text-[13px] font-bold">MINDANAO STATE UNIVERSITY</p>
-                    <p className="text-[11px]">Marawi City</p>
-                    <p className="text-[12px] font-bold">DIVISION OF STUDENT AFFAIRS</p>
-                    <p className="text-[12px] font-bold">SWAP WEEKLY DUTY SLIP</p>
-                  </div>
-                </div>
+                <SlipBrand title="SWAP WEEKLY DUTY SLIP" />
               </td>
               <td className="w-[16%] border border-black px-2 py-1 font-semibold">Doc. Code:</td>
               <td className="border border-black px-2 py-1">MSU DSA SWAP Weekly Duty Form No.1.6</td>
             </tr>
             <tr>
               <td className="border border-black px-2 py-1 font-semibold">Issue Date</td>
-              <td className="border border-black px-2 py-1">{issueDate}</td>
+              <td className="border border-black px-2 py-1">{issueDateToday()}</td>
             </tr>
             <tr>
               <td className="border border-black px-2 py-1 font-semibold">Revision No.</td>
@@ -324,7 +324,7 @@ export function DutySlipDocument({
           <Field label="Name" value={identity.name} />
           <Field label="Course/Year" value={identity.courseYear} />
           <Field label="Office/College Assigned" value={identity.office} />
-          <Field label={mode === 'semester' ? 'Semester' : 'Month'} value={periodLabel} />
+          <Field label="Month" value={periodLabel} />
         </div>
 
         {/* Duty table */}
@@ -335,8 +335,8 @@ export function DutySlipDocument({
               <th rowSpan={2} className="border border-black px-1 py-1">DAY</th>
               <th colSpan={2} className="border border-black px-1 py-1">AM</th>
               <th colSpan={2} className="border border-black px-1 py-1">PM</th>
+              <th rowSpan={2} className="border border-black px-1 py-1">BONUS</th>
               <th rowSpan={2} className="border border-black px-1 py-1">TOTAL</th>
-              <th rowSpan={2} className="border border-black px-1 py-1">Immediate<br />Supervisor</th>
             </tr>
             <tr>
               <th className="border border-black px-1 py-1">TIME IN</th>
@@ -346,51 +346,85 @@ export function DutySlipDocument({
             </tr>
           </thead>
           <tbody>
-            {noData ? (
-              <tr>
-                <td colSpan={8} className="border border-black px-2 py-8 text-center text-ink-500">
-                  No SWAP assignment for {periodLabel} — no duty records for this semester.
-                </td>
-              </tr>
-            ) : (
-              <>
-                {rows.map((r) => <RowGroup key={r.dateStr} r={r} />)}
-                {/* Pad out to a full grid so an empty or sparse semester prints as the
-                    same complete form as the week — never a collapsed box. */}
-                {Array.from({ length: Math.max(0, MIN_ROWS - rows.length) }).map((_, i) => (
-                  <BlankRowGroup key={`blank-${i}`} />
-                ))}
-              </>
-            )}
+            {rows.map((r) => <RowGroup key={r.dateStr} r={r} />)}
           </tbody>
         </table>
 
         {/* Total */}
         <div className="mt-3 flex items-end gap-2 text-[12px]">
           <span className="font-semibold">Total number of hours:</span>
-          <span className="min-w-[120px] border-b border-black px-2 text-center font-bold">
-            {totalHours ? totalHours.toFixed(2) : ''}
-          </span>
+          <span className="min-w-[120px] border-b border-black px-2 text-center font-bold">{hrs(totalHours)}</span>
+          {bonusTotal > 0 && <span className="text-[11px]">(incl. {bonusTotal.toFixed(2)} bonus)</span>}
         </div>
 
-        {/* Signatures */}
-        <div className="mt-8 grid grid-cols-3 gap-6 text-center text-[11px]">
-          <SignatureBlock line={identity.supervisor} role="Immediate Supervisor" sub="Name & Signature" />
-          <SignatureBlock line={identity.name} role="SWAP Beneficiary Signature" sub="" />
-          <SignatureBlock line="" role="SWAP Mentor/Verifier" sub="Name & Signature" />
-        </div>
+        <SignaturePair identity={identity} allVerified={allDaysVerified(rows)} hasDuty={rows.some((r) => r.status)} />
       </div>
 
-      {/* Print isolation styles */}
-      <style>{`
-        @media print {
-          body * { visibility: hidden !important; }
-          .duty-slip, .duty-slip * { visibility: visible !important; }
-          .duty-slip { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
-          .no-print { display: none !important; }
-          @page { size: A4 landscape; margin: 12mm; }
-        }
-      `}</style>
+      {/* Portrait keeps the whole form — signatures included — on one A4 page. */}
+      <SlipPrintStyles orientation="portrait" />
+    </div>
+  )
+}
+
+// ── shared building blocks (also used by SemesterServiceReport) ──────────────
+
+/** Seal + institutional lines + the document title, for the header's left cell. */
+export function SlipBrand({ title }: { title: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <Image src="/dsa-logo.png" alt="DSA" width={54} height={54} className="flex-none" />
+      <div className="leading-tight">
+        <p className="text-[13px] font-bold">MINDANAO STATE UNIVERSITY</p>
+        <p className="text-[11px]">Marawi City</p>
+        <p className="text-[12px] font-bold">DIVISION OF STUDENT AFFAIRS</p>
+        <p className="text-[12px] font-bold">{title}</p>
+      </div>
+    </div>
+  )
+}
+
+/** Print only the document, on A4 in the given orientation. */
+export function SlipPrintStyles({ orientation }: { orientation: 'portrait' | 'landscape' }) {
+  return (
+    <style>{`
+      @media print {
+        html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+        body * { visibility: hidden !important; }
+        .duty-slip, .duty-slip * { visibility: visible !important; }
+        .duty-slip { position: absolute; left: 0; top: 0; width: 100%; padding: 0; overflow: visible !important; }
+        .no-print { display: none !important; }
+        @page { size: A4 ${orientation}; margin: 12mm; }
+      }
+    `}</style>
+  )
+}
+
+/** Immediate Supervisor + SWAP Beneficiary blocks with drawn signatures. */
+export function SignaturePair({ identity, allVerified, hasDuty, hideNote = false }: {
+  identity: DutySlipIdentity
+  allVerified: boolean
+  /** At least one completed day on the document — picks the explanation for withheld ink. */
+  hasDuty: boolean
+  /** Suppress the hint entirely (e.g. a term with no assignment). */
+  hideNote?: boolean
+}) {
+  const token = useAuthStore((s) => s.token)
+  const supervisorInk = allVerified ? avatarSrc(identity.supervisorSignatureUrl, token) : null
+  const beneficiaryInk = avatarSrc(identity.beneficiarySignatureUrl, token)
+
+  return (
+    <div className="mx-auto mt-6 grid max-w-[720px] grid-cols-2 gap-10 text-center text-[11px]">
+      <div>
+        <SignatureBlock ink={supervisorInk} line={identity.supervisor} role="Immediate Supervisor" sub="Name & Signature" />
+        {!allVerified && !hideNote && identity.supervisorSignatureUrl && (
+          <p className="no-print mt-1.5 text-[11px] text-ink-500">
+            {hasDuty
+              ? 'The supervisor’s signature appears once every day on this slip is verified.'
+              : 'No duty on this slip — the supervisor’s signature appears once there are verified hours.'}
+          </p>
+        )}
+      </div>
+      <SignatureBlock ink={beneficiaryInk} line={identity.name} role="SWAP Beneficiary Signature" sub="" />
     </div>
   )
 }
@@ -400,11 +434,11 @@ function Line() {
   return <span className="mx-auto block h-[1.5px] w-3/4 bg-black" />
 }
 
-function Cell({ v }: { v: string }) {
-  return <td className="border border-black px-1 py-1.5 align-middle">{v ? v : <Line />}</td>
+function Cell({ v, className = '' }: { v: string; className?: string }) {
+  return <td className={`border border-black px-1 py-1.5 align-middle ${className}`}>{v ? v : <Line />}</td>
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+export function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-end gap-2">
       <span className="whitespace-nowrap font-semibold">{label}:</span>
@@ -424,8 +458,9 @@ function RowGroup({ r }: { r: Row }) {
         <Cell v={r.amOut} />
         <Cell v={r.pmIn} />
         <Cell v={r.pmOut} />
-        <td className="border border-black px-1 py-1.5 font-semibold align-middle">{r.total ? r.total : <Line />}</td>
-        <Cell v={r.status} />
+        <Cell v={hrs(r.bonusHours)} />
+        {/* The day's total includes its bonus hours. */}
+        <Cell v={hrs(r.regularHours + r.bonusHours)} className="font-semibold" />
       </tr>
       <tr>
         <td colSpan={8} className="border border-black px-2 py-1.5 text-left">Task Description:</td>
@@ -434,25 +469,20 @@ function RowGroup({ r }: { r: Row }) {
   )
 }
 
-/** An empty date/day/AM/PM row, so the printed grid stays a fillable form when there's little data. */
-function BlankRowGroup() {
-  return (
-    <>
-      <tr>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <td key={i} className="border border-black px-1 py-1.5">&nbsp;</td>
-        ))}
-      </tr>
-      <tr>
-        <td colSpan={8} className="border border-black px-2 py-1.5 text-left">Task Description:</td>
-      </tr>
-    </>
-  )
-}
+function SignatureBlock({ ink, line, role, sub }: { ink?: string | null; line: string; role: string; sub: string }) {
+  // A missing or forbidden specimen (404/403) hides the image and leaves the typed name.
+  const [failed, setFailed] = useState<string | null>(null)
+  const showInk = !!ink && failed !== ink
 
-function SignatureBlock({ line, role, sub }: { line: string; role: string; sub: string }) {
   return (
-    <div className="pt-4">
+    <div>
+      {/* Fixed signing cell: both blocks reserve the same space above the rule. */}
+      <div className="flex h-10 items-end justify-center">
+        {showInk && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={ink!} alt="" onError={() => setFailed(ink!)} className="max-h-10 max-w-[180px] object-contain" />
+        )}
+      </div>
       <div className="mx-auto mb-1 h-4 border-b border-black text-[12px] font-semibold">{line || ' '}</div>
       <p className="font-bold">{role}</p>
       {sub && <p>{sub}</p>}

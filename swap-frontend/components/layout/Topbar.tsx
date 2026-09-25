@@ -28,7 +28,7 @@ export function Topbar() {
   const onButtonLeave = () => { if (!desktopSidebarOpen) scheduleHideSidebar() }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-5 border-b border-ink-900/10 bg-white/70 px-4 backdrop-blur-md md:pl-8 md:pr-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-5 border-b border-ink-900/10 bg-white/70 px-4 backdrop-blur-md md:pl-8 md:pr-6 print:hidden">
       <div className="flex min-w-0 flex-1 items-center gap-[18px]">
         <button
           onClick={toggleSidebar}
