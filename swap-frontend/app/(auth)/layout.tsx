@@ -56,7 +56,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </div>
 
         <p className="absolute bottom-8 z-10 text-[11px] text-ink-25/55">
-          Division of Students Affairs · dsa@msumain.edu.ph
+          Division of Student Affairs · dsa@msumain.edu.ph
         </p>
       </div>
 

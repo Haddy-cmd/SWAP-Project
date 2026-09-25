@@ -19,7 +19,7 @@ export default function AdminApplicationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const DSA_OFFICE = 'Office of the Dean of Students Affairs (DSA)'
+  const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
   // Online interviews are usually hosted from the DSA, so it is offered as a venue there too.
   const DSA_DIVISION = 'Division of Student Affairs (DSA)'
   const ONLINE_VENUES = [DSA_DIVISION, DSA_OFFICE, 'Remote / Applicant’s location']
@@ -32,6 +32,7 @@ export default function AdminApplicationDetailPage() {
   const [mode, setMode] = useState<InterviewMode>('in_person')
   const [modeNotice, setModeNotice] = useState<string | null>(null)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const [decideError, setDecideError] = useState<string | null>(null)
   const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
   const slotIssue = slotViolation(interviewDay, slotMinute, mode, duration)
@@ -105,6 +106,10 @@ export default function AdminApplicationDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
       queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
       router.push('/admin/applications')
+    },
+    onError: (err: { message?: string; errors?: Record<string, string[]> }) => {
+      const first = err.errors && Object.values(err.errors)[0]?.[0]
+      setDecideError(first || err.message || 'Could not save the decision.')
     },
   })
 
@@ -291,12 +296,18 @@ export default function AdminApplicationDetailPage() {
                 placeholder="Remarks (required for rejection)"
                 rows={3}
                 className="w-full resize-none rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
+              {decideError && <p className="text-sm text-danger-700">{decideError}</p>}
               <div className="flex gap-3">
+                {/* Same rule as the backend: a fresh application needs a held interview
+                    (scheduled, not a no-show); renewals skip the interview. */}
+                {(application.type === 'renewal' ||
+                  (application.status === 'interview_scheduled' && application.interview?.status !== 'no_show')) && (
                 <button onClick={() => decide.mutate('approved')} disabled={decide.isPending}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-success-700 disabled:opacity-50 transition-colors">
                   <CheckCircle className="h-4 w-4" />
                   Approve
                 </button>
+                )}
                 <button onClick={() => decide.mutate('rejected')} disabled={decide.isPending || !remarks.trim()}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-danger-700 disabled:opacity-50 transition-colors">
                   <XCircle className="h-4 w-4" />

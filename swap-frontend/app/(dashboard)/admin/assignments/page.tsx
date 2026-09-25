@@ -376,7 +376,13 @@ export default function AdminAssignmentsPage() {
               </div>
 
               {assign.isError && (
-                <p className="text-xs font-medium text-danger-700">Could not create assignment. Check the fields and try again.</p>
+                <p className="text-xs font-medium text-danger-700">
+                  {/* Show the backend's reason (e.g. "already has an active assignment for this term"). */}
+                  {(() => {
+                    const err = assign.error as { message?: string; errors?: Record<string, string[]> }
+                    return (err.errors && Object.values(err.errors)[0]?.[0]) || err.message || 'Could not create assignment. Check the fields and try again.'
+                  })()}
+                </p>
               )}
 
               <button

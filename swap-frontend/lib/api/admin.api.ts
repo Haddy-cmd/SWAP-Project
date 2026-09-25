@@ -26,9 +26,6 @@ export const adminApi = {
   getUsers: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<User>>('/admin/users', { params }).then((r) => r.data),
 
-  createUser: (data: { name: string; email: string; password: string; role: string; office_id?: number | null }) =>
-    apiClient.post<ApiResponse<User>>('/admin/users', data).then((r) => r.data.data),
-
   // Email an account-creation link instead of creating the staff account directly.
   inviteUser: (data: { email: string; name?: string; role: string; office_id?: number | null }) =>
     apiClient.post<{ message: string }>('/admin/invitations', data).then((r) => r.data),
@@ -78,9 +75,6 @@ export const adminApi = {
 
   voidStipend: (id: number, reason: string, auth: { password?: string; unlock_token?: string }) =>
     apiClient.post<ApiResponse<StipendRecord>>(`/admin/stipend/${id}/void`, { reason, ...auth }).then((r) => r.data.data),
-
-  broadcastNotification: (data: { title: string; message: string; type?: string }) =>
-    apiClient.post('/admin/notifications/broadcast', data).then((r) => r.data),
 
   previewReport: (params: { type: string; academic_year: string; semester: string }) =>
     apiClient.get<{ data: ReportPreview }>('/admin/reports/preview', { params }).then((r) => r.data.data),

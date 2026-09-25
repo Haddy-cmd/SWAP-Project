@@ -14,6 +14,25 @@ trait MakesSwapData
 {
     protected int $seq = 0;
 
+    /**
+     * A future weekday at `hour` o'clock Manila time, at least `minDays` away.
+     * Interview rules are expressed in Asia/Manila while the app clock is UTC, so
+     * a bare now()->addDays() drifts out of the window depending on when the
+     * suite runs. Send it with its offset (toIso8601String()).
+     */
+    protected static function manilaSlot(int $minDays, int $hour): Carbon
+    {
+        $at = Carbon::now(\App\Support\InterviewWindow::TIMEZONE)
+            ->addDays($minDays)
+            ->setTime($hour, 0, 0, 0);
+
+        while ($at->isWeekend()) {
+            $at->addDay();
+        }
+
+        return $at;
+    }
+
     protected function makeUser(string $role, array $attrs = []): User
     {
         $this->seq++;

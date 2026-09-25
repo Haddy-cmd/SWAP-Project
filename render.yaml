@@ -5,7 +5,9 @@
 #
 # This is the free-tier-friendly setup:
 #   • web service  — the API (runs migrations on boot via start.sh)
-#   • cron service — runs the Laravel scheduler (attendance:close-stale + reports)
+#   • cron service — runs the Laravel scheduler (attendance:close-stale, signature
+#     reminders, token pruning). start.sh also runs `schedule:work`; the schedule
+#     uses database locks (onOneServer) so running both never double-fires.
 #   • QUEUE_CONNECTION=sync — notifications send inline. For async delivery off the
 #     request path, add a `worker` service running:
 #       php artisan queue:work --queue=notifications,default --tries=3 --backoff=60
@@ -60,13 +62,21 @@ services:
         value: file
       - key: LOG_CHANNEL
         value: stderr
-      # Set MAIL_* in the dashboard to enable emails (DEPLOYMENT.md §3); defaults to log.
+      # Set MAIL_* in the dashboard to enable emails (DEPLOYMENT.md §3). Not `log`:
+      # the log mailer writes password-reset / verification / invitation links
+      # (bearer-equivalent) into the service logs.
       - key: MAIL_MAILER
-        value: log
+        sync: false
+      # First-boot admin account (ProductionAdminSeeder). Set in the dashboard —
+      # the seeder refuses to create an admin in production without them.
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
 
   # ---- Scheduler (Laravel cron) ----
-  # Runs `schedule:run` every minute so attendance:close-stale and the weekly/
-  # monthly report jobs fire. (Skips start.sh — no migrate/serve here.)
+  # Runs `schedule:run` every minute so the jobs in routes/console.php fire.
+  # (Skips start.sh — no migrate/serve here.)
   - type: cron
     name: swap-scheduler
     runtime: docker

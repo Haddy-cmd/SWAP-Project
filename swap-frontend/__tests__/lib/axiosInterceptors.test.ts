@@ -89,4 +89,36 @@ describe('axios response interceptor', () => {
     const onRejected = await rejectHandler()
     await expect(onRejected({ response: { status: 500 } })).rejects.toThrow(/server error/i)
   })
+
+  it('on 422 keeps the server message and the raw response', async () => {
+    const onRejected = await rejectHandler()
+    const response = { status: 422, data: { message: 'Set your position title first.', errors: {} } }
+    await expect(onRejected({ response })).rejects.toMatchObject({
+      message: 'Set your position title first.',
+      status: 422,
+      response,
+    })
+  })
+
+  it.each([
+    [403, 'Your account has been deactivated. Please contact the DSA Office.'],
+    [409, 'You are already clocked in. Please clock out before clocking in again.'],
+    [429, 'Too Many Attempts.'],
+  ])('on %i rejects with the backend message verbatim', async (status, message) => {
+    const onRejected = await rejectHandler()
+    const response = { status, data: { message } }
+    const err = (await onRejected({ response }).catch((e: unknown) => e)) as Error & { status: number; response: unknown }
+
+    expect(err).toBeInstanceOf(Error)
+    expect(err.message).toBe(message)
+    expect(err.status).toBe(status)
+    // Callers that still read err.response.data.message see the same text.
+    expect(err.response).toBe(response)
+  })
+
+  it('passes a blob error (file download) through untouched', async () => {
+    const onRejected = await rejectHandler()
+    const original = { response: { status: 503, data: new Blob(['{"message":"x"}']) } }
+    await expect(onRejected(original)).rejects.toBe(original)
+  })
 })

@@ -76,27 +76,4 @@ class ApplicationController extends Controller
 
         return response()->json(['message' => 'Application cancelled.']);
     }
-
-    public function status(Request $request, int $id): JsonResponse
-    {
-        $application = $this->applicationService->getApplicationById($id);
-
-        if (!$application || $application->user_id !== $request->user()->id) {
-            return response()->json(['message' => 'Application not found.'], 404);
-        }
-
-        return response()->json([
-            'data' => [
-                'id' => $application->id,
-                'status' => $application->status,
-                'remarks' => $application->remarks,
-                'reviewed_at' => $application->reviewed_at?->toISOString(),
-                'interview' => $application->interview ? [
-                    'scheduled_at' => $application->interview->scheduled_at->toISOString(),
-                    'location' => $application->interview->location,
-                    'mode' => $application->interview->mode,
-                ] : null,
-            ],
-        ]);
-    }
 }

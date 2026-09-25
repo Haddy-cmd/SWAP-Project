@@ -12,6 +12,8 @@ use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Contracts\ApplicationRepositoryInterface;
+use App\Support\AfterCommit;
+use App\Support\ApplicationTransitions;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
@@ -69,7 +71,7 @@ class ApplicationService
         ]);
 
         AuditLog::record('created', $application);
-        event(new ApplicationSubmitted($application));
+        AfterCommit::quietly(fn () => event(new ApplicationSubmitted($application)), 'Application submitted notification', ['application_id' => $application->id]);
 
         return $application;
     }
@@ -132,7 +134,7 @@ class ApplicationService
         ]);
 
         AuditLog::record('created', $application);
-        event(new ApplicationSubmitted($application));
+        AfterCommit::quietly(fn () => event(new ApplicationSubmitted($application)), 'Application submitted notification', ['application_id' => $application->id]);
 
         return $application->load('documents');
     }
@@ -165,6 +167,8 @@ class ApplicationService
 
     public function markUnderReview(Application $application, User $admin): Application
     {
+        ApplicationTransitions::assertCanMarkUnderReview($application);
+
         $old = $application->only(['status']);
         $updated = $this->applicationRepository->update($application, [
             'status' => 'under_review',
@@ -175,18 +179,20 @@ class ApplicationService
         AuditLog::record('updated', $updated, $old, $updated->only(['status']));
 
         // Let the applicant know their submission is being reviewed (in-app only).
-        $updated->loadMissing('user')->user?->notify(new \App\Notifications\ApplicationUnderReviewNotification([
+        AfterCommit::quietly(fn () => $updated->loadMissing('user')->user?->notify(new \App\Notifications\ApplicationUnderReviewNotification([
             'application_id' => $updated->id,
-        ]));
+        ])), 'Under-review notification', ['application_id' => $updated->id]);
 
         return $updated;
     }
 
     /** Default venue for in-person interviews. */
-    public const DSA_OFFICE_LOCATION = 'Office of the Dean of Students Affairs (DSA)';
+    public const DSA_OFFICE_LOCATION = 'Office of the Dean of Student Affairs (DSA)';
 
     public function scheduleInterview(Application $application, array $interviewData, User $admin): Application
     {
+        ApplicationTransitions::assertCanScheduleInterview($application);
+
         $old = $application->only(['status']);
 
         // In-person interviews are always held at the DSA office, so the applicant must
@@ -207,7 +213,7 @@ class ApplicationService
         ]);
 
         AuditLog::record('updated', $updated, $old, $updated->only(['status']));
-        event(new InterviewScheduled($updated));
+        AfterCommit::quietly(fn () => event(new InterviewScheduled($updated)), 'Interview scheduled notification', ['application_id' => $updated->id]);
 
         return $updated->load('interview');
     }
@@ -220,6 +226,8 @@ class ApplicationService
      */
     public function rescheduleInterview(Application $application, array $data, User $admin): Application
     {
+        ApplicationTransitions::assertOpen($application);
+
         $interview = $application->interview;
 
         if (!$interview) {
@@ -253,7 +261,7 @@ class ApplicationService
             'reviewed_at' => now(),
         ]);
 
-        event(new InterviewScheduled($updated));
+        AfterCommit::quietly(fn () => event(new InterviewScheduled($updated)), 'Interview rescheduled notification', ['application_id' => $updated->id]);
 
         return $updated->load('interview');
     }
@@ -261,6 +269,8 @@ class ApplicationService
     /** Record that the applicant did not attend their scheduled interview. */
     public function markInterviewNoShow(Application $application, User $admin): Application
     {
+        ApplicationTransitions::assertOpen($application);
+
         $interview = $application->interview;
 
         if (!$interview) {
@@ -279,14 +289,11 @@ class ApplicationService
 
     public function decideApplication(Application $application, string $decision, ?string $remarks, User $admin): Application
     {
-        // A fresh application can only be approved once its interview has been
-        // scheduled. Renewals skip the interview — the recipient already went
-        // through it and has a service record instead. Rejection is allowed anytime.
-        if ($decision === 'approved' && $application->type !== 'renewal' && $application->status !== 'interview_scheduled') {
-            throw new ConflictHttpException(
-                'An interview must be scheduled before this application can be approved.'
-            );
-        }
+        // A fresh application can only be approved once its interview was held
+        // (scheduled, not a no-show). Renewals skip the interview — the recipient
+        // already went through it and has a service record instead. Rejection is
+        // allowed at any open stage; a decided application is final.
+        ApplicationTransitions::assertCanDecide($application, $decision);
 
         $old = $application->only(['status', 'remarks']);
 
@@ -300,7 +307,7 @@ class ApplicationService
         AuditLog::record('updated', $updated, $old, $updated->only(['status', 'remarks']));
 
         if ($decision === 'approved') {
-            event(new ApplicationApproved($updated));
+            AfterCommit::quietly(fn () => event(new ApplicationApproved($updated)), 'Application approved notification', ['application_id' => $updated->id]);
 
             // Approving a renewal immediately rolls the assignment into the new
             // term — same office and supervisor, hours reset.
@@ -308,7 +315,7 @@ class ApplicationService
                 $this->rolloverRenewal($updated, $admin);
             }
         } elseif ($decision === 'rejected') {
-            event(new ApplicationRejected($updated));
+            AfterCommit::quietly(fn () => event(new ApplicationRejected($updated)), 'Application rejected notification', ['application_id' => $updated->id]);
         }
 
         return $updated;

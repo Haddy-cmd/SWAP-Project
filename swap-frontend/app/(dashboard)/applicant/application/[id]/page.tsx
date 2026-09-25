@@ -139,7 +139,7 @@ export default function ApplicationDetailPage() {
                     <div>
                       <dt className="text-ink-500">Mode — In Person · Venue</dt>
                       <dd className="font-semibold text-ink-900">
-                        {application.interview.location ?? 'Office of the Dean of Students Affairs (DSA)'}
+                        {application.interview.location ?? 'Office of the Dean of Student Affairs (DSA)'}
                       </dd>
                       <dd className="mt-0.5 text-xs text-ink-500">Please arrive at the DSA office on time and bring a valid ID.</dd>
                     </div>

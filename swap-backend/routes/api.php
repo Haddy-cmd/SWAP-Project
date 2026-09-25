@@ -3,7 +3,6 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\PasswordResetController;
-use App\Http\Controllers\QrCodeController;
 use App\Http\Controllers\Shared\ChatbotController;
 use App\Http\Controllers\Shared\ConcernController;
 use App\Http\Controllers\Shared\AttendancePhotoController;
@@ -49,13 +48,12 @@ Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassw
 Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware('signed')->name('verification.verify');
 Route::post('/auth/resend-verification', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
-Route::get('/chatbot/query', [ChatbotController::class, 'query']);
+// Public and backed by a paid LLM when GEMINI_API_KEY is set — rate-limit it.
+Route::get('/chatbot/query', [ChatbotController::class, 'query'])->middleware('throttle:20,1');
 Route::get('/settings/application-status', [SettingController::class, 'applicationStatus']);
 // Staff invitations — the invitee opens the emailed link to create their account.
 Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middleware('throttle:10,1');
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware('throttle:6,1');
-Route::get('/qr-codes/{assignmentId}', [QrCodeController::class, 'show']);
-Route::get('/qr-codes/{assignmentId}/view', [QrCodeController::class, 'render']);
 
 // Banking Office claim verification — token-gated, single-use (consumed on receipt).
 Route::get('/stipend/verify/{claimToken}', [StipendVerifyController::class, 'show'])->middleware('throttle:30,1');
@@ -70,7 +68,8 @@ Route::get('/users/{id}/signature', [SignatureController::class, 'show']);
 Route::get('/attendance/{logId}/photo', [AttendancePhotoController::class, 'show']);
 
 // ─── AUTHENTICATED ────────────────────────────────────────────────────────────
-Route::middleware('auth:sanctum')->group(function () {
+// `active` refuses deactivated accounts even if they still hold a live token.
+Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/profile', [ProfileController::class, 'show']);
@@ -79,7 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/profile/photo', [ProfileController::class, 'deletePhoto']);
     Route::post('/profile/signature', [ProfileController::class, 'updateSignature']);
     Route::delete('/profile/signature', [ProfileController::class, 'deleteSignature']);
-    Route::put('/profile/password', [ProfileController::class, 'updatePassword']);
+    Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1');
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllRead']);
@@ -92,7 +91,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/applications/{id}', [ApplicantApplicationController::class, 'show']);
         Route::delete('/applications/{id}', [ApplicantApplicationController::class, 'destroy']);
         Route::post('/applications/{id}/documents', [DocumentController::class, 'store']);
-        Route::get('/applications/{id}/status', [ApplicantApplicationController::class, 'status']);
     });
 
     // ─── RECIPIENT ────────────────────────────────────────────────────────────
@@ -106,9 +104,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/narratives', [NarrativeController::class, 'store'])->withoutMiddleware('role:recipient');
         Route::get('/narratives/{logId}', [NarrativeController::class, 'show']);
         Route::get('/hours/summary', [HoursController::class, 'summary']);
-        Route::get('/reports/weekly', [ReportController::class, 'weekly']);
-        Route::get('/reports/monthly', [ReportController::class, 'monthly']);
-        Route::get('/reports/semester', [ReportController::class, 'semester']);
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
         Route::get('/stipend/{id}/slip', [StipendClaimController::class, 'slip']);
         Route::post('/stipend/{id}/confirm-receipt', [StipendClaimController::class, 'confirmReceipt']);
@@ -172,7 +167,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/offices/{id}/supervisors/{supervisorId}', [OfficeController::class, 'removeSupervisor']);
 
         Route::get('/users', [UserController::class, 'index']);
-        Route::post('/users', [UserController::class, 'store']);
         Route::post('/invitations', [InvitationController::class, 'store']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
@@ -182,9 +176,11 @@ Route::middleware('auth:sanctum')->group(function () {
         // Page-level step-up gate (throttled like login): one password entry unlocks
         // the release/void calls for a short window instead of per-action passwords.
         Route::post('/stipend/unlock', [StipendController::class, 'unlock'])->middleware('throttle:6,1');
-        Route::post('/stipend/release', [StipendController::class, 'release']);
-        Route::post('/stipend/release-bulk', [StipendController::class, 'releaseBulk']);
-        Route::post('/stipend/{id}/void', [StipendController::class, 'void']);
+        // These accept the admin password as an alternative to the unlock token,
+        // so they get the same throttle — otherwise they're a guessing oracle.
+        Route::post('/stipend/release', [StipendController::class, 'release'])->middleware('throttle:6,1');
+        Route::post('/stipend/release-bulk', [StipendController::class, 'releaseBulk'])->middleware('throttle:6,1');
+        Route::post('/stipend/{id}/void', [StipendController::class, 'void'])->middleware('throttle:6,1');
         Route::get('/promissory', [AdminPromissoryController::class, 'index']);
         Route::get('/promissory/{id}/file', [AdminPromissoryController::class, 'file']);
 

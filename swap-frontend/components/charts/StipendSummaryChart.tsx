@@ -59,7 +59,7 @@ export function StipendSummaryChart({ data }: StipendSummaryChartProps) {
         <Area
           type="monotone"
           dataKey="released"
-          name="Released"
+          name="Claimed"
           stroke="#1F5B3A"
           strokeWidth={2}
           fill="url(#releasedGrad)"
@@ -67,7 +67,7 @@ export function StipendSummaryChart({ data }: StipendSummaryChartProps) {
         <Area
           type="monotone"
           dataKey="pending"
-          name="Pending"
+          name="Awaiting claim"
           stroke="#D97706"
           strokeWidth={2}
           fill="url(#pendingGrad)"

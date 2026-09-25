@@ -2,13 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Events\StipendReleased;
 use App\Models\StipendHistory;
 use App\Notifications\StipendAvailableNotification;
 use App\Notifications\StipendReleasedNotification;
+use App\Services\StipendClaimService;
 use App\Services\StipendService;
 use App\Services\StipendSlipService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -23,12 +27,24 @@ class StipendClaimTest extends TestCase
 
     private const PW = 'Password@123'; // MakesSwapData::makeUser password
 
-    /** A recipient with an active assignment under a supervisor. */
-    private function recipientWithSupervisor(): array
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Releases render and archive PDFs; keep them out of the dev storage folder.
+        Storage::fake(config('filesystems.documents_disk', 'public'));
+    }
+
+    /**
+     * A recipient with an active assignment under a supervisor whose verified hours
+     * already meet the requirement — i.e. payable, as every release now demands.
+     */
+    private function recipientWithSupervisor(int $requiredHours = 3): array
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $supervisor);
+        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => $requiredHours]);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(4));
+        $log->update(['time_out' => now(), 'status' => 'verified']);
 
         return [$recipient, $supervisor];
     }
@@ -46,13 +62,7 @@ class StipendClaimTest extends TestCase
     /** A recipient whose active assignment already meets its required hours. */
     private function eligibleRecipient(int $requiredHours = 3): \App\Models\User
     {
-        $supervisor = $this->makeUser('supervisor');
-        $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => $requiredHours]);
-        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(4));
-        $log->update(['time_out' => now(), 'status' => 'verified']);
-
-        return $recipient;
+        return $this->recipientWithSupervisor($requiredHours)[0];
     }
 
     private function unlockToken(): string
@@ -182,7 +192,6 @@ class StipendClaimTest extends TestCase
 
     public function test_confirmed_stub_shows_the_beneficiarys_transparent_drawn_ink(): void
     {
-        Storage::fake(config('filesystems.documents_disk', 'public'));
         [$recipient] = $this->recipientWithSupervisor();
 
         // Specimen saved through the real Profile endpoint. A distinctive size
@@ -211,7 +220,7 @@ class StipendClaimTest extends TestCase
 
     public function test_confirmed_stub_keeps_the_typed_fallback_without_a_specimen(): void
     {
-        $disk = Storage::fake(config('filesystems.documents_disk', 'public'));
+        $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
         [$recipient] = $this->recipientWithSupervisor();
         $recipient->update(['signature_image_path' => null]);
 
@@ -226,7 +235,6 @@ class StipendClaimTest extends TestCase
 
     public function test_slip_download_reports_a_render_failure_as_a_readable_503(): void
     {
-        Storage::fake(config('filesystems.documents_disk', 'public'));
         Log::spy();
         // The production failure: DomPDF throws when the GD extension is missing.
         $this->mock(StipendSlipService::class, fn ($mock) => $mock
@@ -422,5 +430,125 @@ class StipendClaimTest extends TestCase
         ])->assertStatus(422);
 
         $this->assertDatabaseMissing('stipend_history', ['user_id' => $recipient->id]);
+    }
+
+    public function test_single_release_refuses_a_second_live_stub_for_the_period(): void
+    {
+        $recipient = $this->eligibleRecipient();
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
+            ->assertStatus(422)
+            ->assertJsonPath('message', StipendClaimService::MSG_ALREADY_LIVE);
+
+        $this->assertSame(1, StipendHistory::where('user_id', $recipient->id)->count());
+    }
+
+    public function test_single_release_refuses_a_recipient_who_has_not_met_their_hours(): void
+    {
+        $supervisor = $this->makeUser('supervisor');
+        $recipient = $this->makeUser('recipient');
+        $this->makeAssignment($recipient, $supervisor); // no verified hours
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
+            ->assertStatus(422)
+            ->assertJsonPath('message', StipendClaimService::MSG_NOT_ELIGIBLE);
+
+        $this->assertDatabaseMissing('stipend_history', ['user_id' => $recipient->id]);
+    }
+
+    public function test_a_voided_stub_frees_the_period_for_a_new_release(): void
+    {
+        $recipient = $this->eligibleRecipient();
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
+        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
+        $this->postJson("/api/admin/stipend/{$stipend->id}/void", ['reason' => 'Wrong amount', 'password' => self::PW])
+            ->assertStatus(200);
+
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
+        $this->assertSame(2, StipendHistory::where('user_id', $recipient->id)->count());
+    }
+
+    public function test_the_database_rejects_a_second_live_stipend_for_a_period(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $row = [
+            'user_id' => $recipient->id,
+            'amount' => 5000,
+            'academic_year' => '2024-2025',
+            'semester' => '1st Semester',
+            'status' => StipendHistory::STATUS_CERTIFIED,
+        ];
+        StipendHistory::create($row);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+        StipendHistory::create($row);
+    }
+
+    public function test_release_password_attempts_are_throttled(): void
+    {
+        $recipient = $this->eligibleRecipient();
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        for ($i = 0; $i < 6; $i++) {
+            $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id, ['password' => 'guess-'.$i]))
+                ->assertStatus(422);
+        }
+
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id, ['password' => 'guess-7']))
+            ->assertStatus(429);
+    }
+
+    public function test_confirm_receipt_succeeds_even_when_the_notification_fails(): void
+    {
+        [$recipient] = $this->recipientWithSupervisor();
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
+        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
+
+        // A mail outage after the claim is committed.
+        Event::listen(StipendReleased::class, fn () => throw new \RuntimeException('SMTP connection refused'));
+
+        Sanctum::actingAs($recipient);
+        $this->postJson("/api/recipient/stipend/{$stipend->id}/confirm-receipt", [
+            'releasing_officer_name' => 'Cashier Jane Doe',
+        ])->assertStatus(200)->assertJsonPath('data.status', 'claimed');
+
+        $this->assertEquals('claimed', $stipend->fresh()->status);
+    }
+
+    public function test_a_signed_stub_keeps_its_ink_after_the_signers_replace_their_specimens(): void
+    {
+        [$recipient, $supervisor] = $this->recipientWithSupervisor();
+        $saveSpecimen = function ($user, int $w, int $h) {
+            Sanctum::actingAs($user);
+            $this->post('/api/profile/signature', [
+                'signature' => UploadedFile::fake()->createWithContent('signature.png', $this->transparentInkPng($w, $h)),
+            ], ['Accept' => 'application/json'])->assertSuccessful();
+        };
+
+        // Distinctive sizes identify each signer's ink among the PDF's images.
+        $saveSpecimen($supervisor, 320, 121);
+        $saveSpecimen($recipient, 300, 113);
+        [$stipend] = $this->releaseAndConfirm($recipient->fresh());
+
+        // Both signers later draw new specimens (the old files are deleted)…
+        $saveSpecimen($supervisor, 222, 77);
+        $saveSpecimen($recipient, 211, 66);
+
+        // …and the archived PDF is gone, so the download re-renders from the rows.
+        Storage::disk(config('filesystems.documents_disk', 'public'))->delete($stipend->slip_path);
+
+        Sanctum::actingAs($recipient);
+        $pdf = $this->get("/api/recipient/stipend/{$stipend->id}/slip")->assertStatus(200)->streamedContent();
+        $images = $this->pdfImages($pdf);
+
+        $this->assertArrayHasKey('320x121', $images, 'supervisor ink must be the one signed with');
+        $this->assertArrayHasKey('300x113', $images, 'beneficiary ink must be the one signed with');
+        $this->assertArrayNotHasKey('222x77', $images);
+        $this->assertArrayNotHasKey('211x66', $images);
     }
 }

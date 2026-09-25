@@ -38,23 +38,6 @@ class InterviewLifecycleTest extends TestCase
         return [$admin, $application->fresh()];
     }
 
-    /**
-     * A future weekday at `hour` o'clock Manila time, at least `minDays` away.
-     * Skips forward over weekends so face-to-face slots stay legal.
-     */
-    private static function manilaSlot(int $minDays, int $hour): \Illuminate\Support\Carbon
-    {
-        $at = \Illuminate\Support\Carbon::now(\App\Support\InterviewWindow::TIMEZONE)
-            ->addDays($minDays)
-            ->setTime($hour, 0, 0, 0);
-
-        while ($at->isWeekend()) {
-            $at->addDay();
-        }
-
-        return $at;
-    }
-
     public function test_reschedule_updates_time_and_logs_history(): void
     {
         [, $application] = $this->makeScheduledInterview();
@@ -104,7 +87,7 @@ class InterviewLifecycleTest extends TestCase
 
         // Rescheduling puts the interview back into play.
         $this->putJson("/api/admin/applications/{$application->id}/interview", [
-            'scheduled_at' => now()->addDays(5)->toDateTimeString(),
+            'scheduled_at' => self::manilaSlot(5, 10)->toIso8601String(),
             'mode' => 'in_person',
         ])->assertOk()->assertJsonPath('data.interview.status', 'scheduled');
     }
@@ -120,7 +103,7 @@ class InterviewLifecycleTest extends TestCase
                 ->assertStatus(403);
 
             $this->putJson("/api/admin/applications/{$application->id}/interview", [
-                'scheduled_at' => now()->addDays(5)->toDateTimeString(),
+                'scheduled_at' => self::manilaSlot(5, 10)->toIso8601String(),
                 'mode' => 'in_person',
             ])->assertStatus(403);
         }

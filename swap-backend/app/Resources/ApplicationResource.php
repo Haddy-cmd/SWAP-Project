@@ -20,6 +20,7 @@ class ApplicationResource extends JsonResource
             // decide on evidence (previous office/supervisor + hours rendered).
             'renewal_context' => $this->when(($this->type ?? 'new') === 'renewal', function () {
                 $prev = \App\Models\Assignment::with(['office', 'supervisor'])
+                    ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
                     ->where('user_id', $this->user_id)
                     ->where(fn ($q) => $q->where('academic_year', '!=', $this->academic_year)
                         ->orWhere('semester', '!=', $this->semester))
@@ -69,12 +70,8 @@ class ApplicationResource extends JsonResource
                 'notes' => $this->interview->notes,
                 'status' => $this->interview->status,
                 // Reschedule trail: previous time, new time, who moved it, when.
-                'history' => \App\Models\AuditLog::where('auditable_type', \App\Models\Interview::class)
-                    ->where('auditable_id', $this->interview->id)
-                    ->where('action', 'rescheduled')
-                    ->orderByDesc('created_at')
-                    ->with('user')
-                    ->get()
+                // Eager-loaded on the list page; a single application loads it here.
+                'history' => $this->interview->loadMissing('rescheduleHistory.user')->rescheduleHistory
                     ->map(fn ($log) => [
                         'from' => $log->old_values['scheduled_at'] ?? null,
                         'to' => $log->new_values['scheduled_at'] ?? null,

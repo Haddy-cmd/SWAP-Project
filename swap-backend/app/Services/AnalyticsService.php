@@ -196,9 +196,11 @@ class AnalyticsService
             'applicants_by_college' => $applicantsByCollege,
             'recipients_by_college' => $recipientsByCollege,
             'weekly_hours' => $weeklyHours,
+            // Option C lifecycle: paid = claimed (+ legacy released rows); awaiting
+            // claim = certified (+ legacy pending). Keys unchanged for the frontend.
             'stipend_summary' => [
-                'total_released' => (float) ($stipendSummary['released'] ?? 0),
-                'total_pending' => (float) ($stipendSummary['pending'] ?? 0),
+                'total_released' => (float) (($stipendSummary['claimed'] ?? 0) + ($stipendSummary['released'] ?? 0)),
+                'total_pending' => (float) (($stipendSummary['certified'] ?? 0) + ($stipendSummary['pending'] ?? 0)),
             ],
         ];
     }

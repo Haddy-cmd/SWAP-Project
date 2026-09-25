@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FaqKnowledgeBase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 
 class ChatbotService
@@ -71,22 +72,29 @@ class ChatbotService
         $model = config('swap.gemini_model', 'gemini-2.0-flash');
 
         // Google Gemini (AI Studio) generateContent endpoint. The key goes in the
-        // x-goog-api-key header so it never lands in URL/proxy logs.
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'x-goog-api-key' => $apiKey,
-        ])->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
-            'system_instruction' => [
-                'parts' => [['text' => $systemPrompt]],
-            ],
-            'contents' => [
-                ['role' => 'user', 'parts' => [['text' => $message]]],
-            ],
-            'generationConfig' => [
-                'maxOutputTokens' => 512,
-                'temperature' => 0.3,
-            ],
-        ]);
+        // x-goog-api-key header so it never lands in URL/proxy logs. Tight timeouts:
+        // the API runs on a single `php artisan serve` process, so a hung upstream
+        // call would stall every other request.
+        try {
+            $response = Http::timeout(8)->connectTimeout(3)->withHeaders([
+                'Content-Type' => 'application/json',
+                'x-goog-api-key' => $apiKey,
+            ])->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+                'system_instruction' => [
+                    'parts' => [['text' => $systemPrompt]],
+                ],
+                'contents' => [
+                    ['role' => 'user', 'parts' => [['text' => $message]]],
+                ],
+                'generationConfig' => [
+                    'maxOutputTokens' => 512,
+                    'temperature' => 0.3,
+                ],
+            ]);
+        } catch (ConnectionException) {
+            // Timed out or unreachable → keyword fallback, same as a failed response.
+            return $this->processQuery($message);
+        }
 
         // Gemini unreachable, rate-limited, or rejected the key → keyword fallback.
         if ($response->failed()) {

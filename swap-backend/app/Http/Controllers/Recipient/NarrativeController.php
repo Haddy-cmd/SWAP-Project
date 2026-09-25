@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Recipient;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreNarrativeRequest;
+use App\Models\AuditLog;
 use App\Models\TimeLog;
 use App\Resources\NarrativeResource;
 use Illuminate\Http\JsonResponse;
@@ -31,6 +32,8 @@ class NarrativeController extends Controller
             'challenges' => $request->challenges,
             'submitted_at' => now(),
         ]);
+
+        AuditLog::record('created', $narrative, null, ['time_log_id' => $log->id]);
 
         return response()->json([
             'data' => new NarrativeResource($narrative),

@@ -17,7 +17,7 @@ import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import type { ApplicationStatus } from '@/types/application.types'
 
-const DSA_OFFICE = 'Office of the Dean of Students Affairs (DSA)'
+const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
 
 // ── small presentational helpers ────────────────────────────────────────────
 const AVATARS: [string, string][] = [
@@ -117,34 +117,49 @@ export default function AdminApplicationsPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-application', activeId] })
   }
 
-  // ── mutations (identical endpoints/payloads to the old detail page) ───────
+  // ── mutations (identical endpoints/payloads to the detail page) ───────────
+  // The backend refuses with a message (a window rule, a missing link, a state
+  // conflict) — show it verbatim instead of failing silently.
+  const showError = (err: { message?: string; errors?: Record<string, string[]> }) => {
+    const first = err.errors && Object.values(err.errors)[0]?.[0]
+    setToast({ text: first || err.message || 'Something went wrong. Please try again.', bg: '#FEF3F2', border: '#FBCBC6', color: '#B42318', Icon: XCircle })
+  }
+
+  // Online interviews carry their join link in meeting_link (required by the
+  // backend); the "Meeting Link" field shares the venue input on this page.
+  const interviewPayload = () =>
+    mode === 'online'
+      ? { scheduled_at: interviewDate, mode, meeting_link: location.trim() }
+      : { scheduled_at: interviewDate, mode, location }
+
   const markReview = useMutation({
     mutationFn: () => applicationsApi.adminMarkUnderReview(activeId!),
     onSuccess: () => {
       refresh()
       setToast({ text: 'Moved to Under Review. You can now schedule an interview.', bg: '#FDF8E4', border: '#F7E39A', color: '#7A5C0C', Icon: Clock })
     },
+    onError: showError,
   })
 
   const scheduleInterview = useMutation({
-    mutationFn: () =>
-      applicationsApi.adminScheduleInterview(activeId!, { scheduled_at: interviewDate, location, mode }),
+    mutationFn: () => applicationsApi.adminScheduleInterview(activeId!, interviewPayload()),
     onSuccess: () => {
       refresh()
       setInterviewDate('')
       setToast({ text: 'Interview scheduled. The applicant has been notified.', bg: '#F6F2FB', border: '#E0D5EF', color: '#5A3E86', Icon: CalendarCheck })
     },
+    onError: showError,
   })
 
   const reschedule = useMutation({
-    mutationFn: () =>
-      applicationsApi.adminRescheduleInterview(activeId!, { scheduled_at: interviewDate, location, mode }),
+    mutationFn: () => applicationsApi.adminRescheduleInterview(activeId!, interviewPayload()),
     onSuccess: () => {
       refresh()
       setInterviewDate('')
       setRescheduling(false)
       setToast({ text: 'Interview rescheduled. The applicant has been notified.', bg: '#F6F2FB', border: '#E0D5EF', color: '#5A3E86', Icon: CalendarCheck })
     },
+    onError: showError,
   })
 
   const markNoShow = useMutation({
@@ -153,6 +168,7 @@ export default function AdminApplicationsPage() {
       refresh()
       setToast({ text: 'Marked as no-show. You can reschedule or reject with remarks.', bg: '#FDF8E4', border: '#F7E39A', color: '#7A5C0C', Icon: AlertTriangle })
     },
+    onError: showError,
   })
 
   const decide = useMutation({
@@ -169,7 +185,15 @@ export default function AdminApplicationsPage() {
           : { text: 'Application rejected. The applicant has been notified.', bg: '#FEF3F2', border: '#FBCBC6', color: '#B42318', Icon: XCircle },
       )
     },
+    onError: showError,
   })
+
+  // Venue ↔ meeting-link swap when the mode changes (both schedule forms).
+  const changeMode = (next: 'in_person' | 'online') => {
+    setMode(next)
+    if (next === 'in_person' && !location) setLocation(DSA_OFFICE)
+    if (next === 'online' && location === DSA_OFFICE) setLocation('')
+  }
 
   const setFilter = (s: ApplicationStatus) => {
     setStatusFilter((cur) => (cur === s ? null : s))
@@ -456,12 +480,7 @@ export default function AdminApplicationsPage() {
                         <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-600">Mode</label>
                         <select
                           value={mode}
-                          onChange={(e) => {
-                            const next = e.target.value as 'in_person' | 'online'
-                            setMode(next)
-                            if (next === 'in_person' && !location) setLocation(DSA_OFFICE)
-                            if (next === 'online' && location === DSA_OFFICE) setLocation('')
-                          }}
+                          onChange={(e) => changeMode(e.target.value as 'in_person' | 'online')}
                           className="h-[46px] w-full rounded-[11px] border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
                         >
                           <option value="in_person">In Person</option>
@@ -560,7 +579,7 @@ export default function AdminApplicationsPage() {
                           />
                           <select
                             value={mode}
-                            onChange={(e) => setMode(e.target.value as 'in_person' | 'online')}
+                            onChange={(e) => changeMode(e.target.value as 'in_person' | 'online')}
                             className="h-10 rounded-lg border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
                           >
                             <option value="in_person">In person</option>
@@ -570,7 +589,7 @@ export default function AdminApplicationsPage() {
                         <input
                           value={location}
                           onChange={(e) => setLocation(e.target.value)}
-                          placeholder={mode === 'online' ? 'Meeting link' : 'Venue'}
+                          placeholder={mode === 'online' ? 'https://meet.google.com/…' : 'Venue'}
                           className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
                         />
                         <button
@@ -602,7 +621,8 @@ export default function AdminApplicationsPage() {
                       className="mb-3 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
                     />
                     <div className="flex gap-2.5">
-                      {(status === 'interview_scheduled' || isRenewal) && (
+                      {/* A no-show must be rescheduled before approval (backend rule). */}
+                      {(isRenewal || (status === 'interview_scheduled' && iv?.status !== 'no_show')) && (
                         <button
                           onClick={() => decide.mutate('approved')}
                           disabled={decide.isPending}

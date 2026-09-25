@@ -120,22 +120,4 @@ class StipendService
 
         return $query->paginate($perPage);
     }
-
-    public function getSummary(string $academicYear, string $semester): array
-    {
-        $released = StipendHistory::where('academic_year', $academicYear)
-            ->where('semester', $semester)
-            ->where('status', 'released')
-            ->sum('amount');
-
-        $pending = StipendHistory::where('academic_year', $academicYear)
-            ->where('semester', $semester)
-            ->where('status', 'pending')
-            ->sum('amount');
-
-        return [
-            'total_released' => (float) $released,
-            'total_pending' => (float) $pending,
-        ];
-    }
 }

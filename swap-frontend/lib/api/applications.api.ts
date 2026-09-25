@@ -13,9 +13,6 @@ export const applicationsApi = {
   getApplication: (id: number) =>
     apiClient.get<ApiResponse<Application>>(`/applicant/applications/${id}`).then((r) => r.data.data),
 
-  getApplicationStatus: (id: number) =>
-    apiClient.get<ApiResponse<{ id: number; status: string; remarks: string | null; interview: unknown }>>(`/applicant/applications/${id}/status`).then((r) => r.data.data),
-
   // Semester renewal: the recipient's submission for the current renewal term (or null).
   getMyRenewal: () =>
     apiClient.get<ApiResponse<Application | null>>('/recipient/renewals').then((r) => r.data.data),

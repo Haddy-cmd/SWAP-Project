@@ -34,7 +34,7 @@ class ApplicationRepository implements ApplicationRepositoryInterface
 
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = Application::with(['user.profile', 'interview'])
+        $query = Application::with(['user.profile', 'interview.rescheduleHistory.user'])
             ->whereHas('user') // Exclude applications whose user has been soft-deleted
             ->orderByDesc('created_at');
 

@@ -109,8 +109,10 @@ export default function DutySlipVerifyPage() {
 function fmtSem(s?: string) {
   return s === 'S1' ? '1st Semester' : s === 'S2' ? '2nd Semester' : s === 'SM' ? 'Summer' : (s ?? '—')
 }
+// Mirrors DutySlipControl::academicYear — "0000"/"YY00" means the slip had no term.
 function fmtAy(ay?: string) {
-  if (!ay || ay.length !== 4) return ay ?? '—'
+  if (!ay || !/^\d{4}$/.test(ay)) return ay ?? '—'
+  if (ay.slice(2) === '00') return 'unknown'
   return `20${ay.slice(0, 2)}-20${ay.slice(2)}`
 }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Supervisor;
 
 use App\Http\Controllers\Controller;
 use App\Models\Assignment;
+use App\Models\AuditLog;
 use App\Models\User;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use App\Resources\AssignmentResource;
@@ -227,7 +228,9 @@ class StudentController extends Controller
             'required_hours' => ['required', 'integer', 'min:1', 'max:2000'],
         ]);
 
+        $old = $assignment->only(['required_hours']);
         $assignment->update(['required_hours' => $data['required_hours']]);
+        AuditLog::record('updated', $assignment, $old, $assignment->only(['required_hours']));
 
         return response()->json(['message' => 'Required hours updated.', 'data' => ['required_hours' => $assignment->required_hours]]);
     }
@@ -246,6 +249,8 @@ class StudentController extends Controller
             return response()->json(['message' => 'There is no pending required-hours change.'], 422);
         }
 
+        $old = $assignment->only(['required_hours', 'pending_required_hours']);
+
         if ($data['action'] === 'approve') {
             $assignment->update([
                 'required_hours' => $assignment->pending_required_hours,
@@ -257,6 +262,13 @@ class StudentController extends Controller
             $assignment->update(['pending_required_hours' => null, 'pending_required_by' => null]);
             $message = 'Required-hours change rejected.';
         }
+
+        AuditLog::record(
+            $data['action'] === 'approve' ? 'required_hours_approved' : 'required_hours_rejected',
+            $assignment,
+            $old,
+            $assignment->only(['required_hours', 'pending_required_hours'])
+        );
 
         return response()->json(['message' => $message, 'data' => ['required_hours' => $assignment->required_hours]]);
     }

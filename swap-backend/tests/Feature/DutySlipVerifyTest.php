@@ -118,4 +118,31 @@ class DutySlipVerifyTest extends TestCase
 
         $this->verify($tampered)->assertJsonPath('data.valid', false);
     }
+
+    public function test_an_unrecognised_range_is_invalid_even_with_a_matching_checksum(): void
+    {
+        $this->log($this->firstSem, '2024-09-02', 4, 'verified');
+
+        // Well-formed and correctly checksummed, but no slip the system prints.
+        $this->verify($this->control('2425', 'S1', 'X123'))
+            ->assertJsonPath('data.valid', false)
+            ->assertJsonPath('data.reason', 'This control number has an unrecognised coverage range.')
+            ->assertJsonMissingPath('data.recorded_hours');
+
+        // An impossible week date is not a slip either.
+        $this->verify($this->control('2425', 'S1', 'W20241399'))
+            ->assertJsonPath('data.valid', false);
+    }
+
+    public function test_a_semester_slip_without_a_year_reports_no_hours(): void
+    {
+        $this->log($this->firstSem, '2024-09-02', 4, 'verified');
+
+        // "0000" decodes to no academic year: summing the semester across all
+        // years would report a number no slip ever printed.
+        $this->verify($this->control('0000', 'S1', 'SEM'))
+            ->assertJsonPath('data.valid', true)
+            ->assertJsonPath('data.recorded_hours', null)
+            ->assertJsonPath('data.range', 'Whole semester — 1st Semester, AY unknown');
+    }
 }

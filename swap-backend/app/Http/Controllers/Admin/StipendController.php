@@ -14,6 +14,7 @@ use App\Services\StipendService;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class StipendController extends Controller
 {
@@ -52,13 +53,21 @@ class StipendController extends Controller
      */
     public function release(ReleaseStipendRequest $request): JsonResponse
     {
+        $disk = config('filesystems.documents_disk', 'public');
         $data = $request->safe()->except(['password', 'unlock_token', 'signature_image']);
         if ($request->hasFile('signature_image')) {
-            $data['signature_image_path'] = $request->file('signature_image')
-                ->store('stipend-signatures', config('filesystems.documents_disk', 'public'));
+            $data['signature_image_path'] = $request->file('signature_image')->store('stipend-signatures', $disk);
         }
 
-        $stipend = $this->claimService->releaseClaimStub($data, $request->user());
+        try {
+            $stipend = $this->claimService->releaseClaimStub($data, $request->user());
+        } catch (\Throwable $e) {
+            // A refused release must not leave its one-off drawing behind.
+            if (!empty($data['signature_image_path'])) {
+                Storage::disk($disk)->delete($data['signature_image_path']);
+            }
+            throw $e;
+        }
 
         return response()->json([
             'data' => new StipendResource($stipend),

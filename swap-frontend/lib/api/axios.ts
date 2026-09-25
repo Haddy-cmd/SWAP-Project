@@ -23,6 +23,21 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
+export type ApiRequestError = Error & {
+  status?: number
+  errors: Record<string, string[]>
+  // Kept so existing `err.response?.data?.…` readers keep working.
+  response?: AxiosError<ValidationError>['response']
+}
+
+function apiError(message: string, error: AxiosError<ValidationError>, errors?: Record<string, string[]>): ApiRequestError {
+  return Object.assign(new Error(message), {
+    status: error.response?.status,
+    errors: errors ?? {},
+    response: error.response,
+  })
+}
+
 // Centralized response error handling
 apiClient.interceptors.response.use(
   (response) => response,
@@ -37,17 +52,20 @@ apiClient.interceptors.response.use(
 
     if (error.response?.status === 422) {
       const data = error.response.data
-      const validationError = new Error(data?.message || 'Validation failed') as Error & {
-        errors: Record<string, string[]>
-        status: number
-      }
-      validationError.errors = data?.errors ?? {}
-      validationError.status = 422
-      return Promise.reject(validationError)
+      return Promise.reject(apiError(data?.message || 'Validation failed', error, data?.errors))
     }
 
     if (error.response?.status === 500) {
       return Promise.reject(new Error('Server error. Please try again later.'))
+    }
+
+    // 403 / 404 / 409 / 429 …: surface the backend's own message verbatim, so every
+    // page shows the same text the API enforces (e.g. a clock-in conflict) instead
+    // of axios's "Request failed with status code 409". Blob downloads carry no
+    // parsed message and pass through untouched for the caller to read.
+    const data = error.response?.data
+    if (data && typeof data === 'object' && typeof data.message === 'string') {
+      return Promise.reject(apiError(data.message, error, data.errors))
     }
 
     return Promise.reject(error)

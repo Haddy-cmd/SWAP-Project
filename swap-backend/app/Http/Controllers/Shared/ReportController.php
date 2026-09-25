@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Shared;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Services\ReportService;
 use App\Services\StipendService;
 use Illuminate\Http\JsonResponse;
@@ -16,30 +17,12 @@ class ReportController extends Controller
         private readonly StipendService $stipendService
     ) {}
 
-    public function weekly(Request $request): JsonResponse
-    {
-        $reports = $this->reportService->getWeeklyReports($request->user());
-
-        return response()->json(['data' => $reports]);
-    }
-
-    public function monthly(Request $request): JsonResponse
-    {
-        $reports = $this->reportService->getMonthlyReports($request->user());
-
-        return response()->json(['data' => $reports]);
-    }
-
-    public function semester(Request $request): JsonResponse
-    {
-        $report = $this->reportService->getSemesterReport($request->user());
-
-        return response()->json(['data' => $report]);
-    }
-
     public function stipendHistory(Request $request): JsonResponse
     {
-        $history = $this->stipendService->getHistory($request->user());
+        // The recipient page lists every stub at once (and totals them), so it asks
+        // for a large page; capped so the query stays bounded.
+        $validated = $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:100']]);
+        $history = $this->stipendService->getHistory($request->user(), (int) ($validated['per_page'] ?? 15));
 
         return response()->json([
             'data' => \App\Resources\StipendResource::collection($history->items()),
@@ -87,6 +70,9 @@ class ReportController extends Controller
             $validated['semester']
         );
 
+        // Exports carry personal data out of the system — record who took what.
+        AuditLog::record('report_exported', $request->user(), null, $validated + ['rows' => count($report['rows'])]);
+
         return $this->streamCsv($report);
     }
 
@@ -101,7 +87,25 @@ class ReportController extends Controller
     /** The same roster as a CSV the supervisor can hand to the DSA. */
     public function exportSupervisorRoster(Request $request): StreamedResponse
     {
-        return $this->streamCsv($this->reportService->buildSupervisorExport($request->user()));
+        $report = $this->reportService->buildSupervisorExport($request->user());
+        AuditLog::record('report_exported', $request->user(), null, ['type' => 'supervisor_roster', 'rows' => count($report['rows'])]);
+
+        return $this->streamCsv($report);
+    }
+
+    /**
+     * Names, emails and remarks are user-typed. A cell starting with = + - @ (or a
+     * tab/CR) is run as a formula by Excel/Sheets — e.g. a name like
+     * =HYPERLINK(...). Prefixing an apostrophe makes the spreadsheet show it as text.
+     * Numbers the report itself produced (amounts, hours) are left untouched.
+     */
+    public static function csvSafe(mixed $cell): mixed
+    {
+        if (!is_string($cell) || $cell === '' || is_numeric($cell)) {
+            return $cell;
+        }
+
+        return in_array($cell[0], ['=', '+', '-', '@', "\t", "\r"], true) ? "'" . $cell : $cell;
     }
 
     /** @param array{headers:array,rows:array,filename:string} $report */
@@ -113,7 +117,7 @@ class ReportController extends Controller
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, $report['headers']);
             foreach ($report['rows'] as $row) {
-                fputcsv($out, $row);
+                fputcsv($out, array_map([self::class, 'csvSafe'], $row));
             }
             fclose($out);
         }, $report['filename'], [

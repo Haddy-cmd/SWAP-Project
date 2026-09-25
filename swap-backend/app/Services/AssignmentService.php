@@ -7,10 +7,17 @@ use App\Models\AuditLog;
 use App\Models\User;
 use App\Notifications\OfficeAssignmentNotification;
 use App\Repositories\Contracts\AssignmentRepositoryInterface;
+use App\Support\AfterCommit;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class AssignmentService
 {
+    /** Shared with StoreAssignmentRequest so the validator and the DB backstop agree. */
+    public const MSG_ALREADY_ASSIGNED = 'This recipient already has an active assignment for this term.';
+
     public function __construct(
         private readonly AssignmentRepositoryInterface $assignmentRepository,
         private readonly QrCodeService $qrCodeService
@@ -18,27 +25,37 @@ class AssignmentService
 
     public function createAssignment(array $data, User $admin): Assignment
     {
-        $assignment = $this->assignmentRepository->create($data);
+        // Assignment, QR secret and role promotion land together or not at all; the
+        // unique active-per-term index turns a double-submit into a clean 422.
+        try {
+            $assignment = DB::transaction(function () use ($data, $admin) {
+                $assignment = $this->assignmentRepository->create($data);
 
-        $this->qrCodeService->generateForAssignment($assignment);
+                $this->qrCodeService->generateForAssignment($assignment);
 
-        $user = User::find($data['user_id']);
-        if ($user && $user->isApplicant()) {
-            $user->update(['role' => 'recipient']);
+                $user = User::find($data['user_id']);
+                if ($user && $user->isApplicant()) {
+                    $user->update(['role' => 'recipient']);
+                }
+
+                AuditLog::record('created', $assignment->fresh(), null, $assignment->toArray(), $admin->id);
+
+                return $assignment;
+            });
+        } catch (UniqueConstraintViolationException) {
+            throw new UnprocessableEntityHttpException(self::MSG_ALREADY_ASSIGNED);
         }
-
-        AuditLog::record('created', $assignment->fresh(), null, $assignment->toArray(), $admin->id);
 
         $fresh = $assignment->fresh(['user.profile', 'office', 'supervisor']);
 
         // Tell the recipient where they've been placed and who supervises them.
-        $fresh->user?->notify(new OfficeAssignmentNotification([
+        AfterCommit::quietly(fn () => $fresh->user?->notify(new OfficeAssignmentNotification([
             'office' => $fresh->office?->name,
             'location' => $fresh->office?->location,
             'supervisor' => $fresh->supervisor?->name,
             'assignment_id' => $fresh->id,
             'changed' => false,
-        ]));
+        ])), 'Office assignment notification', ['assignment_id' => $fresh->id]);
 
         return $fresh;
     }
@@ -59,13 +76,13 @@ class AssignmentService
 
         if ($officeChanged || $supervisorChanged) {
             $updated->loadMissing(['user', 'office', 'supervisor']);
-            $updated->user?->notify(new OfficeAssignmentNotification([
+            AfterCommit::quietly(fn () => $updated->user?->notify(new OfficeAssignmentNotification([
                 'office' => $updated->office?->name,
                 'location' => $updated->office?->location,
                 'supervisor' => $updated->supervisor?->name,
                 'assignment_id' => $updated->id,
                 'changed' => true,
-            ]));
+            ])), 'Office reassignment notification', ['assignment_id' => $updated->id]);
         }
 
         return $updated;

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreAssignmentRequest;
+use App\Models\AuditLog;
 use App\Notifications\AdminHoursRequestNotification;
 use App\Resources\AssignmentResource;
 use App\Resources\TimeLogResource;
@@ -127,10 +128,12 @@ class AssignmentController extends Controller
             'required_hours' => ['required', 'integer', 'min:1', 'max:2000'],
         ]);
 
+        $old = $assignment->only(['pending_required_hours']);
         $assignment->update([
             'pending_required_hours' => $data['required_hours'],
             'pending_required_by' => $request->user()->id,
         ]);
+        AuditLog::record('required_hours_requested', $assignment, $old, $assignment->only(['required_hours', 'pending_required_hours']));
 
         $assignment->loadMissing(['supervisor', 'user']);
         $assignment->supervisor?->notify(new AdminHoursRequestNotification([
@@ -153,6 +156,8 @@ class AssignmentController extends Controller
         }
 
         $newToken = $this->assignmentService->regenerateQr($assignment);
+        // Every printed/saved QR for this assignment just stopped working.
+        AuditLog::record('qr_regenerated', $assignment);
 
         return response()->json([
             'data' => ['qr_code' => $newToken],

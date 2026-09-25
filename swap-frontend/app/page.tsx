@@ -68,7 +68,7 @@ export default function LandingPage() {
               </span>
               <span className="min-w-0 leading-[1.2]">
                 <span className="block font-serif text-lg text-ink-25">SWAP</span>
-                <span className="block truncate text-[11px] text-ink-25/60">MSU Marawi · Division of Students Affairs</span>
+                <span className="block truncate text-[11px] text-ink-25/60">MSU Marawi · Division of Student Affairs</span>
               </span>
             </a>
             <nav className="flex flex-none items-center gap-3 text-[13.5px]">
@@ -167,7 +167,7 @@ export default function LandingPage() {
         </Reveal>
         <Reveal delay={80}>
           <p className="mb-[34px] font-serif text-[clamp(28px,3vw,40px)] font-light leading-[1.25] text-ink-950 text-pretty">
-            SWAP is how the Division of Students Affairs keeps capable students in the classroom —{' '}
+            SWAP is how the Division of Student Affairs keeps capable students in the classroom —{' '}
             <span className="italic text-maroon-600">by paying them fairly for real work on campus.</span>
           </p>
           <div className="grid gap-7 text-[14.5px] leading-[1.75] text-ink-600 sm:grid-cols-2">

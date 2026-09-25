@@ -138,7 +138,7 @@ export default function ProfilePage() {
   // Applicants never sign, so no card for them.
   const canSign = role === 'admin' || role === 'supervisor' || role === 'recipient'
   const department =
-    role === 'admin' ? 'Division of Students Affairs'
+    role === 'admin' ? 'Division of Student Affairs'
     : role === 'supervisor' ? (user?.office_name ?? 'Unassigned office')
     : (user?.profile?.college ?? '—')
   const memberSince = user?.created_at ? new Date(user.created_at).getFullYear() : '—'

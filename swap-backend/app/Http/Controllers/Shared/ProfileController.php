@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Shared;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProfileRequest;
+use App\Models\AuditLog;
 use App\Resources\UserResource;
+use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,6 +28,7 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $validated = $request->validated();
+        $before = $user->only(['name', 'position_title']) + ($user->profile?->only(array_keys($validated)) ?? []);
 
         if (isset($validated['name'])) {
             $user->update(['name' => $validated['name']]);
@@ -39,6 +42,8 @@ class ProfileController extends Controller
         if (!empty($profileFields)) {
             $user->profile()->updateOrCreate(['user_id' => $user->id], $profileFields);
         }
+
+        AuditLog::record('profile_updated', $user, array_intersect_key($before, $validated), $validated);
 
         return response()->json([
             'data' => new UserResource($user->fresh('profile')),
@@ -75,6 +80,7 @@ class ProfileController extends Controller
         if ($old && $old !== $path) {
             try { Storage::disk($disk)->delete($old); } catch (\Throwable) { /* best effort */ }
         }
+        AuditLog::record('photo_updated', $user, ['avatar_path' => $old], ['avatar_path' => $path]);
 
         return response()->json([
             'data' => new UserResource($user->fresh('profile')),
@@ -87,6 +93,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $old = $user->avatar_path;
         $user->update(['avatar_path' => null]);
+        AuditLog::record('photo_removed', $user, ['avatar_path' => $old], ['avatar_path' => null]);
 
         // The avatar is always its own object under avatars/{id}, never the ID
         // document, so removing it never affects the application requirement.
@@ -136,8 +143,10 @@ class ProfileController extends Controller
         $old = $user->signature_image_path;
         $user->update(['signature_image_path' => $path]);
         if ($old && $old !== $path) {
+            // Safe: signed stubs keep their own copy (StipendClaimService::snapshotSpecimen).
             try { Storage::disk($disk)->delete($old); } catch (\Throwable) { /* best effort */ }
         }
+        AuditLog::record('signature_updated', $user, ['signature_image_path' => $old], ['signature_image_path' => $path]);
 
         return response()->json([
             'data' => new UserResource($user->fresh('profile')),
@@ -150,6 +159,7 @@ class ProfileController extends Controller
         $user = $request->user();
         $old = $user->signature_image_path;
         $user->update(['signature_image_path' => null]);
+        AuditLog::record('signature_removed', $user, ['signature_image_path' => $old], ['signature_image_path' => null]);
 
         if ($old) {
             try {
@@ -178,7 +188,19 @@ class ProfileController extends Controller
             ]);
         }
 
-        $request->user()->update(['password' => $request->password]);
+        $user = $request->user();
+        $user->update(['password' => $request->password]);
+
+        // A new password ends every other session (a stolen token stops working)
+        // and closes any open stipend step-up window.
+        $current = $user->currentAccessToken();
+        $user->tokens()
+            ->when($current && isset($current->id), fn ($q) => $q->where('id', '!=', $current->id))
+            ->delete();
+        StipendUnlock::revoke($user);
+
+        // Never the password itself — only that it changed.
+        AuditLog::record('password_changed', $user);
 
         return response()->json(['message' => 'Password updated successfully.']);
     }

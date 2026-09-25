@@ -108,18 +108,19 @@ class AttendanceController extends Controller
 
     public function autoClockOut(Request $request): JsonResponse
     {
+        // The location is the evidence that they left — it is required, not optional.
         $validated = $request->validate([
             'log_id' => ['required', 'integer'],
-            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
-            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $log = $this->attendanceService->autoClockOut(
             $request->user(),
             $validated['log_id'],
-            isset($validated['latitude']) ? (float) $validated['latitude'] : null,
-            isset($validated['longitude']) ? (float) $validated['longitude'] : null,
+            (float) $validated['latitude'],
+            (float) $validated['longitude'],
             isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
         );
 

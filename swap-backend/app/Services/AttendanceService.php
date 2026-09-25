@@ -6,6 +6,7 @@ use App\Events\AttendanceCompleted;
 use App\Events\AttendanceStarted;
 use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
+use App\Models\AuditLog;
 use App\Models\TimeLog;
 use App\Models\User;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
@@ -174,14 +175,31 @@ class AttendanceService
 
     /**
      * System-triggered clock-out when a recipient leaves the office geofence.
-     * Does not require a narrative (they have physically left the premises).
+     * Does not require a narrative (they have physically left the premises) — which
+     * is exactly why the server re-checks the fence: otherwise calling this endpoint
+     * directly would skip the manual path's QR + narrative rules.
      */
-    public function autoClockOut(User $user, int $logId, ?float $latitude = null, ?float $longitude = null, ?float $accuracy = null): TimeLog
+    public function autoClockOut(User $user, int $logId, float $latitude, float $longitude, ?float $accuracy = null): TimeLog
     {
         $log = $this->timeLogRepository->findById($logId);
 
         if (!$log || $log->user_id !== $user->id || $log->status !== 'open') {
             throw new UnprocessableEntityHttpException('No open attendance log found with this ID.');
+        }
+
+        $office = $log->assignment?->office;
+
+        if (!$office || !$office->geofence_enabled || $office->latitude === null || $office->longitude === null) {
+            throw new UnprocessableEntityHttpException(
+                'Automatic clock-out only applies to geofenced offices. Scan your office QR to clock out.'
+            );
+        }
+
+        // Same tolerance the page uses to decide the recipient has left.
+        if ($this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
+            throw new UnprocessableEntityHttpException(
+                'You are still within the office premises. Scan your office QR to clock out.'
+            );
         }
 
         return $this->finalizeClockOut($log, $user, 'auto', $latitude, $longitude, null, $accuracy);
@@ -235,6 +253,13 @@ class AttendanceService
 
         // duration_hours is a DB-generated column — reload so it's present in the response.
         $log->refresh();
+
+        AuditLog::record('manual_hours_added', $log, null, [
+            'hours' => $hours,
+            'date' => $log->date,
+            'reason' => $reason,
+            'status' => $log->status,
+        ], $recordedBy->id);
 
         return $log;
     }
@@ -380,6 +405,12 @@ class AttendanceService
             throw new ConflictHttpException('You are already clocked in. Please clock out before clocking in again.');
         }
 
+        AuditLog::record('clocked_in', $log, null, [
+            'assignment_id' => $assignment->id,
+            'time_in' => $log->time_in?->toISOString(),
+            'location_flagged' => $log->location_flagged,
+        ], $user->id);
+
         // Proof-of-presence selfie (best-effort — never fail the clock-in over it).
         if ($photo) {
             try {
@@ -408,7 +439,9 @@ class AttendanceService
      */
     public function closeStaleLog(TimeLog $log, int $maxHours): TimeLog
     {
-        $user = $log->user ?? $log->loadMissing('user')->user;
+        // withTrashed: a recipient deleted mid-session still has their open log closed
+        // (a plain relation resolves to null and the sweep used to crash on it).
+        $user = $log->user()->withTrashed()->first();
         $cap = Carbon::parse($log->time_in)->addHours($maxHours);
         $timeOut = $cap->isFuture() ? now() : $cap;
 
@@ -429,6 +462,14 @@ class AttendanceService
             // Keep an existing time-in flag; also flag a poor time-out fix.
             'location_flagged' => $log->location_flagged || ($accuracy !== null && $accuracy > self::ACCURACY_THRESHOLD_METERS),
         ]);
+
+        // The stale-log sweep runs with no user — record it as a system action.
+        AuditLog::record('clocked_out', $updated, ['status' => 'open'], [
+            'status' => $updated->status,
+            'clocked_out_reason' => $reason,
+            'time_out' => $updated->time_out?->toISOString(),
+            'duration_hours' => $updated->duration_hours,
+        ], $reason === 'auto_stale' ? null : $user->id);
 
         // Notify every supervisor who can verify this log: the assigned one plus
         // any co-supervisor of the hosting office (they share the pending queue).

@@ -18,10 +18,11 @@ export function MissingSignatureBanner() {
   return (
     <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
       <PenLine className="h-4 w-4 flex-shrink-0" />
+      {/* Same wording as the backend's clock-in refusal (AttendanceService). */}
       <p>
-        Clock-in and receipts need your digital signature.{' '}
+        A digital signature is required before clocking in.{' '}
         <Link href="/profile" className="font-semibold underline">
-          Draw or upload it on your Profile page →
+          Draw or upload one on your Profile page.
         </Link>
       </p>
     </div>

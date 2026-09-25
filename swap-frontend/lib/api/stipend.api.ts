@@ -3,9 +3,13 @@ import type { ApiResponse } from '@/types/api.types'
 import type { StipendRecord } from '@/types/analytics.types'
 
 export const stipendApi = {
-  // The recipient's own history (claim stubs), shaped by StipendResource.
+  // The recipient's own history (claim stubs), shaped by StipendResource. One
+  // large page: the page lists and totals every stub (the backend caps at 100;
+  // a recipient earns at most a few per year).
   getHistory: () =>
-    apiClient.get<{ data: StipendRecord[] }>('/recipient/stipend/history').then((r) => r.data.data),
+    apiClient
+      .get<{ data: StipendRecord[] }>('/recipient/stipend/history', { params: { per_page: 100 } })
+      .then((r) => r.data.data),
 
   // Streams the claim-stub PDF as a Blob so the caller can open/download it.
   // `v` cache-busts the download: the stub re-renders at certification AND at

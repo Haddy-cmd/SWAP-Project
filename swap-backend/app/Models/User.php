@@ -149,12 +149,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->morphMany(PersonalAccessToken::class, 'tokenable');
     }
 
+    /** Matches the frontend's 7-day `swap_token` cookie; Sanctum's guard enforces expires_at. */
+    public const TOKEN_TTL_DAYS = 7;
+
     public function createToken(string $name): object
     {
         $token = bin2hex(random_bytes(32));
         $this->tokens()->create([
             'name' => $name,
             'token' => hash('sha256', $token),
+            'expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
         ]);
         return (object) ['plainTextToken' => $token];
     }

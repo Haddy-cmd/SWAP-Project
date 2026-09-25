@@ -11,8 +11,11 @@ use App\Models\StipendHistory;
 use App\Models\StipendSignature;
 use App\Models\User;
 use App\Repositories\Contracts\StipendClaimRepositoryInterface;
+use App\Support\AfterCommit;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -31,6 +34,10 @@ class StipendClaimService
         private readonly StipendService $stipendService,
     ) {}
 
+    public const MSG_NO_POSITION_TITLE = 'Set your position title on your Profile page before releasing stipends.';
+    public const MSG_ALREADY_LIVE = 'This recipient already has a live stipend for this period.';
+    public const MSG_NOT_ELIGIBLE = 'This recipient is not eligible for a stipend for this period.';
+
     /**
      * Release a claim stub for an eligible recipient in one step: create the record,
      * certify it (control number + single-use token + PDF), co-sign it (supervisor +
@@ -38,16 +45,74 @@ class StipendClaimService
      */
     public function releaseClaimStub(array $data, User $admin): StipendHistory
     {
-        // The director's title prints on every stub — refuse to certify without it.
-        // Bulk inherits this: one missing title fails the whole batch, correctly,
-        // since it is an admin-level precondition, not a per-item problem.
-        if (empty($admin->position_title)) {
-            throw new UnprocessableEntityHttpException('Set your position title on your Profile page before releasing stipends.');
+        $this->assertCanRelease($admin);
+
+        // Same rules as the bulk checklist: never a second live stub for a period,
+        // and only for recipients who met their hours (or hold an approved note).
+        $userId = (int) $data['user_id'];
+        if ($this->hasLiveStipend($userId, $data['academic_year'], $data['semester'])) {
+            throw new UnprocessableEntityHttpException(self::MSG_ALREADY_LIVE);
+        }
+        if (!$this->eligibleKeys()->has($this->periodKey($data))) {
+            throw new UnprocessableEntityHttpException(self::MSG_NOT_ELIGIBLE);
         }
 
+        return $this->issueStub($data, $admin);
+    }
+
+    /**
+     * The director's title prints on every stub — refuse to certify without it.
+     * Bulk inherits this: one missing title fails the whole batch, correctly,
+     * since it is an admin-level precondition, not a per-item problem.
+     */
+    private function assertCanRelease(User $admin): void
+    {
+        if (empty($admin->position_title)) {
+            throw new UnprocessableEntityHttpException(self::MSG_NO_POSITION_TITLE);
+        }
+    }
+
+    /** user|year|semester keys of everyone payable right now (StipendService rules). */
+    private function eligibleKeys(): \Illuminate\Support\Collection
+    {
+        return collect($this->stipendService->eligibleRecipients())
+            ->map(fn ($e) => $this->periodKey($e))
+            ->flip();
+    }
+
+    private function periodKey(array $row): string
+    {
+        return "{$row['user_id']}|{$row['academic_year']}|{$row['semester']}";
+    }
+
+    /** Create, certify, co-sign and archive one stub. Callers have already run the guards. */
+    private function issueStub(array $data, User $admin): StipendHistory
+    {
         $amount = $data['amount'] ?? StipendService::DEFAULT_STIPEND_AMOUNT;
 
-        $stipend = DB::transaction(function () use ($data, $amount, $admin) {
+        try {
+            $stipend = $this->createCertifiedStub($data, $amount, $admin);
+        } catch (UniqueConstraintViolationException) {
+            // The partial unique index is the last line against a concurrent release.
+            throw new UnprocessableEntityHttpException(self::MSG_ALREADY_LIVE);
+        }
+
+        // After commit, off the request's critical path: a mail outage must not undo a
+        // committed release (QUEUE_CONNECTION=sync makes dispatch run inline).
+        $this->dispatchQuietly('stipend_available', [
+            'user_id' => $stipend->user_id,
+            'stipend_id' => $stipend->id,
+            'amount' => $stipend->amount,
+            'period_label' => $stipend->period_label,
+            'control_number' => $stipend->control_number,
+        ]);
+
+        return $stipend->load(['recipient.profile', 'certifiedBy', 'signatures']);
+    }
+
+    private function createCertifiedStub(array $data, $amount, User $admin): StipendHistory
+    {
+        return DB::transaction(function () use ($data, $amount, $admin) {
             // Releasing the stub IS the certification — no pending limbo (Option C).
             $stipend = StipendHistory::create([
                 'user_id' => $data['user_id'],
@@ -77,7 +142,9 @@ class StipendClaimService
                     'method' => $supervisor->signature_image_path
                         ? StipendSignature::METHOD_DRAWN
                         : StipendSignature::METHOD_AUTHENTICATED,
-                    'signature_image_path' => $supervisor->signature_image_path,
+                    'signature_image_path' => $this->snapshotSpecimen(
+                        $supervisor->signature_image_path, $stipend->id, StipendSignature::ROLE_SUPERVISOR
+                    ),
                     'signed_at' => now(),
                     'remarks' => 'Attested via verified service hours.',
                 ]);
@@ -85,7 +152,8 @@ class StipendClaimService
 
             // DSA (admin) certification signature — the money-authorizing act (step-up).
             // A per-release drawing wins; otherwise the admin's saved specimen applies.
-            $directorImage = $data['signature_image_path'] ?? $admin->signature_image_path;
+            $directorImage = $data['signature_image_path']
+                ?? $this->snapshotSpecimen($admin->signature_image_path, $stipend->id, StipendSignature::ROLE_DIRECTOR);
             $this->repository->addSignature($stipend, [
                 'signatory_role' => StipendSignature::ROLE_DIRECTOR,
                 'user_id' => $admin->id,
@@ -119,18 +187,6 @@ class StipendClaimService
 
             return $stipend;
         });
-
-        // After commit, off the request's critical path: a mail outage must not undo a
-        // committed release (QUEUE_CONNECTION=sync makes dispatch run inline).
-        $this->dispatchQuietly('stipend_available', [
-            'user_id' => $stipend->user_id,
-            'stipend_id' => $stipend->id,
-            'amount' => $stipend->amount,
-            'period_label' => $stipend->period_label,
-            'control_number' => $stipend->control_number,
-        ]);
-
-        return $stipend->load(['recipient.profile', 'certifiedBy', 'signatures']);
     }
 
     /**
@@ -142,20 +198,16 @@ class StipendClaimService
     public function releaseMany(array $items, User $admin): array
     {
         // Admin-level precondition: fail the whole batch, not per item.
-        if (empty($admin->position_title)) {
-            throw new UnprocessableEntityHttpException('Set your position title on your Profile page before releasing stipends.');
-        }
+        $this->assertCanRelease($admin);
 
-        $eligibleKeys = collect($this->stipendService->eligibleRecipients())
-            ->map(fn ($e) => "{$e['user_id']}|{$e['academic_year']}|{$e['semester']}")
-            ->flip();
+        // Computed once for the batch; issueStub() skips the per-call guard.
+        $eligibleKeys = $this->eligibleKeys();
 
         $released = [];
         $skipped = [];
 
         foreach ($items as $item) {
-            $key = "{$item['user_id']}|{$item['academic_year']}|{$item['semester']}";
-            if (!$eligibleKeys->has($key)) {
+            if (!$eligibleKeys->has($this->periodKey($item))) {
                 $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Not eligible for this period.'];
                 continue;
             }
@@ -165,7 +217,10 @@ class StipendClaimService
                 continue;
             }
             try {
-                $released[] = $this->releaseClaimStub($item, $admin);
+                $released[] = $this->issueStub($item, $admin);
+            } catch (UnprocessableEntityHttpException) {
+                // Lost a race to a concurrent release (unique index).
+                $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Already has a live stipend for this period.'];
             } catch (\Throwable $e) {
                 // Generic reason to the caller; the real error goes to the log.
                 $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Release failed.'];
@@ -216,7 +271,8 @@ class StipendClaimService
             // The beneficiary signs with their specimen when they saved one
             // (required for clock-in, so normally present); typed fallback keeps
             // older or specimen-less receipts working.
-            $beneficiaryImage = $data['signature_image_path'] ?? $recipient->signature_image_path;
+            $beneficiaryImage = $data['signature_image_path']
+                ?? $this->snapshotSpecimen($recipient->signature_image_path, $fresh->id, StipendSignature::ROLE_BENEFICIARY);
             $this->repository->addSignature($fresh, [
                 'signatory_role' => StipendSignature::ROLE_BENEFICIARY,
                 'user_id' => $recipient->id,
@@ -243,8 +299,12 @@ class StipendClaimService
             return $fresh;
         });
 
-        // Reuses the existing StipendReleased → "received" notification wiring.
-        event(new StipendReleased($updated));
+        // Reuses the existing StipendReleased → "received" notification wiring. The
+        // claim is committed: a mail failure here must not turn it into a 500 that
+        // the student retries into "not available to claim".
+        AfterCommit::quietly(fn () => event(new StipendReleased($updated)), 'Stipend received notification', [
+            'stipend_id' => $updated->id,
+        ]);
 
         return $updated;
     }
@@ -312,10 +372,41 @@ class StipendClaimService
 
     private function dispatchQuietly(string $type, array $data): void
     {
-        try {
-            SendApplicationNotificationJob::dispatch($type, $data)->onQueue('notifications');
-        } catch (\Throwable $e) {
-            Log::warning('Stipend notification dispatch failed', ['type' => $type, 'error' => $e->getMessage()]);
+        AfterCommit::quietly(
+            fn () => SendApplicationNotificationJob::dispatch($type, $data)->onQueue('notifications'),
+            'Stipend notification dispatch',
+            ['type' => $type]
+        );
+    }
+
+    /**
+     * Freeze a signer's specimen into the stub at signing time. Signature rows used
+     * to point at the user's *current* specimen file, which is deleted when they
+     * replace it — so any later re-render of an already-signed stub lost its ink
+     * while the row still said "drawn". The copy is the receipt's own record.
+     * Falls back to the live path if the copy can't be made (never blocks signing).
+     */
+    private function snapshotSpecimen(?string $path, int $stipendId, string $role): ?string
+    {
+        if (!$path) {
+            return null;
         }
+
+        $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
+        $ext = pathinfo($path, PATHINFO_EXTENSION) ?: 'png';
+        $copy = "stipend-signatures/{$stipendId}/{$role}.{$ext}";
+
+        try {
+            if ($disk->exists($path)) {
+                $disk->delete($copy);
+                if ($disk->copy($path, $copy)) {
+                    return $copy;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Signature snapshot failed', ['stipend_id' => $stipendId, 'role' => $role, 'error' => $e->getMessage()]);
+        }
+
+        return $path;
     }
 }

@@ -13,17 +13,19 @@ vi.mock('next/image', () => ({
 const AY = '2024-2025'
 const SEM = '1st Semester'
 
-/** A completed log from HH:MM for `hours` hours on `date`. */
+/**
+ * A completed log from HH:MM *Manila time* for `hours` hours on `date`, with the
+ * timestamps shaped exactly like TimeLogResource sends them (UTC ISO strings) —
+ * so the tests pass whatever time zone the machine running them is in.
+ */
 function log(date: string, start: string, hours: number, extra: Partial<TimeLog> = {}): TimeLog {
-  const [h, m] = start.split(':').map(Number)
-  const out = new Date(`${date}T${start}:00`)
-  out.setHours(h + Math.floor(hours), m + Math.round((hours % 1) * 60))
-  const pad = (n: number) => String(n).padStart(2, '0')
+  const timeIn = new Date(`${date}T${start}:00+08:00`)
+  const timeOut = new Date(timeIn.getTime() + hours * 3_600_000)
   return {
     id: Math.floor(Math.random() * 1e9),
     date,
-    time_in: `${date} ${start}:00`,
-    time_out: `${date} ${pad(out.getHours())}:${pad(out.getMinutes())}:00`,
+    time_in: timeIn.toISOString(),
+    time_out: timeOut.toISOString(),
     duration_hours: hours,
     status: 'verified',
     academic_year: AY,
@@ -46,6 +48,20 @@ const identity: DutySlipIdentity = {
 }
 
 describe('buildRow', () => {
+  it('prints clock times and splits AM/PM in Manila time, not the device zone', () => {
+    // 01:30Z and 05:00Z are 9:30 AM and 1:00 PM in Manila — but 1:30 AM / 5:00 AM
+    // on a UTC machine, which used to land both in the AM column.
+    const row = buildRow(new Date('2024-09-02T00:00:00'), [
+      { ...log('2024-09-02', '09:30', 2), time_in: '2024-09-02T01:30:00.000Z', time_out: '2024-09-02T03:30:00.000Z' },
+      { ...log('2024-09-02', '13:00', 3), time_in: '2024-09-02T05:00:00.000Z', time_out: '2024-09-02T08:00:00.000Z' },
+    ])
+
+    expect(row.amIn).toBe('9:30 AM')
+    expect(row.amOut).toBe('11:30 AM')
+    expect(row.pmIn).toBe('1:00 PM')
+    expect(row.pmOut).toBe('4:00 PM')
+  })
+
   it('keeps bonus hours out of the time columns and ignores rejected logs', () => {
     const row = buildRow(new Date('2024-09-02T00:00:00'), [
       log('2024-09-02', '08:00', 2, { is_manual: true, manual_reason: 'Event duty' }), // synthetic 8:00 AM

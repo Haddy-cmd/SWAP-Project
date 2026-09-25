@@ -9,6 +9,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Resources\UserResource;
+use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -128,6 +129,9 @@ class AuthController extends Controller
         if ($token && ! $token instanceof \Laravel\Sanctum\TransientToken) {
             $token->delete();
         }
+
+        // Signing out also closes an open Stipend Management step-up window.
+        StipendUnlock::revoke($request->user());
 
         return response()->json(['message' => 'Logged out successfully.']);
     }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\AfterCommit;
 use App\Support\Frontend;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -40,9 +41,13 @@ class EmailVerificationController extends Controller
     {
         $request->validate(['email' => ['required', 'email']]);
 
+        // A mail failure must not surface as a 500 either: only accounts that exist
+        // reach the send, so an error here would reveal the address is registered.
         $user = User::where('email', $request->email)->first();
         if ($user && !$user->hasVerifiedEmail()) {
-            $user->sendEmailVerificationNotification();
+            AfterCommit::quietly(fn () => $user->sendEmailVerificationNotification(), 'Verification email resend', [
+                'user_id' => $user->id,
+            ]);
         }
 
         return response()->json([

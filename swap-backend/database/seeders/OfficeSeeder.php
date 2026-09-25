@@ -10,7 +10,7 @@ class OfficeSeeder extends Seeder
     public function run(): void
     {
         $offices = [
-            ['name' => 'Office of the Dean of Students Affairs', 'description' => 'Manages student welfare programs and activities.', 'head_name' => 'Dr. Amerah Abutazil', 'location' => 'Main Building, Ground Floor', 'max_recipients' => 8],
+            ['name' => 'Office of the Dean of Student Affairs', 'description' => 'Manages student welfare programs and activities.', 'head_name' => 'Dr. Amerah Abutazil', 'location' => 'Main Building, Ground Floor', 'max_recipients' => 8],
             ['name' => 'University Library', 'description' => 'Provides library and information services to the university community.', 'head_name' => 'Mrs. Saidamen Pangcoga', 'location' => 'Library Building', 'max_recipients' => 6],
             ['name' => 'Office of the Registrar', 'description' => 'Handles student records, enrollment, and academic credentials.', 'head_name' => 'Mr. Macmod Disangcopan', 'location' => 'Administration Building, 2nd Floor', 'max_recipients' => 5],
             ['name' => 'Information Technology Center', 'description' => 'Manages ICT infrastructure and provides technical support.', 'head_name' => 'Engr. Hadji Guimba', 'location' => 'Technology Building', 'max_recipients' => 4],

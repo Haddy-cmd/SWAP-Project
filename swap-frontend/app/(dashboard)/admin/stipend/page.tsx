@@ -161,7 +161,8 @@ export default function AdminStipendPage() {
       {/* Releases are blocked server-side without a title — say so up front. */}
       {!user?.position_title && (
         <div className="rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
-          Set your position title in <Link href="/profile" className="font-semibold underline">Profile</Link> — releases are blocked until then.
+          {/* Same wording as the backend refusal (StipendClaimService). */}
+          Set your position title on your <Link href="/profile" className="font-semibold underline">Profile page</Link> before releasing stipends.
         </div>
       )}
 

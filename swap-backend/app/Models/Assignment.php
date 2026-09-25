@@ -86,6 +86,18 @@ class Assignment extends Model
      */
     public function governingSupervisors(): \Illuminate\Support\Collection
     {
+        // List pages eager-load supervisor + office.supervisors: answer from those
+        // instead of one query per row. Same set as the query below.
+        $officeLoaded = $this->office_id === null
+            || ($this->relationLoaded('office') && $this->office?->relationLoaded('supervisors'));
+        if ($this->relationLoaded('supervisor') && $officeLoaded) {
+            return collect([$this->supervisor])
+                ->filter(fn ($u) => $u && $u->role === 'supervisor')
+                ->merge($this->office?->supervisors ?? [])
+                ->unique('id')
+                ->values();
+        }
+
         return User::query()
             ->where('role', 'supervisor')
             ->where(function (Builder $q) {
@@ -109,6 +121,11 @@ class Assignment extends Model
 
     public function getRenderedHoursAttribute(): float
     {
+        // Preloaded by withSum() on list queries (AssignmentRepository::paginate).
+        if (array_key_exists('rendered_sum', $this->attributes)) {
+            return (float) $this->attributes['rendered_sum'];
+        }
+
         return (float) $this->timeLogs()
             ->whereNotNull('time_out')
             ->sum('duration_hours');

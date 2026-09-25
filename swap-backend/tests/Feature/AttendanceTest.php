@@ -458,4 +458,67 @@ class AttendanceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.per_page', 300);
     }
+
+    public function test_auto_clock_out_closes_the_log_when_the_recipient_is_outside_the_fence(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
+
+        Sanctum::actingAs($recipient);
+        // ~1.1 km north of the office (radius 100 m).
+        $this->postJson('/api/recipient/attendance/auto-clock-out', [
+            'log_id' => $log->id, 'latitude' => 8.01, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertOk()->assertJsonPath('data.status', 'pending_verification');
+    }
+
+    public function test_auto_clock_out_is_refused_inside_the_fence(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
+
+        Sanctum::actingAs($recipient);
+        // Posting straight to the endpoint from the office must not skip the QR + narrative rules.
+        $this->postJson('/api/recipient/attendance/auto-clock-out', [
+            'log_id' => $log->id, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertStatus(422)
+            ->assertJsonPath('message', 'You are still within the office premises. Scan your office QR to clock out.');
+
+        $this->assertEquals('open', $log->fresh()->status);
+    }
+
+    public function test_auto_clock_out_requires_a_location(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/auto-clock-out', ['log_id' => $log->id])
+            ->assertStatus(422)->assertJsonValidationErrors(['latitude', 'longitude']);
+
+        $this->assertEquals('open', $log->fresh()->status);
+    }
+
+    public function test_auto_clock_out_does_not_apply_to_offices_without_a_geofence(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/attendance/auto-clock-out', [
+            'log_id' => $log->id, 'latitude' => 9.0, 'longitude' => 125.0,
+        ])->assertStatus(422);
+
+        $this->assertEquals('open', $log->fresh()->status);
+    }
 }

@@ -34,6 +34,14 @@ class SignatureTest extends TestCase
         return $user->createToken('test')->plainTextToken;
     }
 
+    /** An active assignment whose verified hours already meet the requirement (releasable). */
+    private function payableAssignment(User $recipient, User $supervisor): void
+    {
+        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 3]);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(4));
+        $log->update(['time_out' => now(), 'status' => 'verified']);
+    }
+
     private function releasePayload(int $userId): array
     {
         return [
@@ -76,7 +84,7 @@ class SignatureTest extends TestCase
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $supervisor);
+        $this->payableAssignment($recipient, $supervisor);
         $admin = $this->makeUser('admin');
 
         Sanctum::actingAs($supervisor);
@@ -106,7 +114,7 @@ class SignatureTest extends TestCase
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $supervisor);
+        $this->payableAssignment($recipient, $supervisor);
         Sanctum::actingAs($this->makeUser('admin'));
 
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
@@ -200,7 +208,7 @@ class SignatureTest extends TestCase
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $supervisor);
+        $this->payableAssignment($recipient, $supervisor);
         $admin = $this->makeUser('admin');
         Sanctum::actingAs($admin);
 
@@ -230,7 +238,7 @@ class SignatureTest extends TestCase
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $supervisor);
+        $this->payableAssignment($recipient, $supervisor);
         Sanctum::actingAs($this->makeUser('admin'));
 
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
@@ -261,7 +269,7 @@ class SignatureTest extends TestCase
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $supervisor);
+        $this->payableAssignment($recipient, $supervisor);
         Sanctum::actingAs($this->makeUser('admin'));
 
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
@@ -283,7 +291,7 @@ class SignatureTest extends TestCase
         $supervisor = $this->makeUser('supervisor');
         // Explicit null: the fixture default carries a stub path.
         $recipient = $this->makeUser('recipient', ['signature_image_path' => null]);
-        $this->makeAssignment($recipient, $supervisor);
+        $this->payableAssignment($recipient, $supervisor);
         Sanctum::actingAs($this->makeUser('admin'));
 
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))

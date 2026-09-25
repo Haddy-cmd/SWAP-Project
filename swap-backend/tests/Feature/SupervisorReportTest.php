@@ -103,6 +103,22 @@ class SupervisorReportTest extends TestCase
         $this->assertStringContainsString('Csv Student', $csv);
     }
 
+    public function test_export_neutralises_formula_like_names(): void
+    {
+        $office = $this->makeOffice();
+        $supervisor = $this->makeUser('supervisor', ['office_id' => $office->id]);
+        $evil = '=HYPERLINK("http://evil.example","Click")';
+        $this->makeAssignment($this->makeUser('recipient', ['name' => $evil]), $supervisor, $office);
+
+        Sanctum::actingAs($supervisor);
+        $csv = $this->get('/api/supervisor/reports/roster/export')->assertStatus(200)->streamedContent();
+
+        // The spreadsheet shows it as text instead of running it.
+        $this->assertStringContainsString("\"'=HYPERLINK(", $csv);
+        $this->assertStringNotContainsString(",\"=HYPERLINK(", $csv);
+        $this->assertStringNotContainsString("\n\"=HYPERLINK(", $csv);
+    }
+
     public function test_recipient_cannot_export_a_supervisor_roster(): void
     {
         Sanctum::actingAs($this->makeUser('recipient'));

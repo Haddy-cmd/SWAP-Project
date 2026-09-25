@@ -20,9 +20,16 @@ export const iso = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
 const parse = (s?: string | null) => (s ? new Date(s.replace(' ', 'T')) : null)
+
+// Clock times print in Manila time whatever the viewer's device zone is (the
+// app clock is UTC; a slip opened abroad used to shift every time and AM/PM column).
+const MANILA_TIME = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
+const MANILA_HOUR = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', hourCycle: 'h23' })
+const manilaHour = (d: Date) => Number(MANILA_HOUR.formatToParts(d).find((p) => p.type === 'hour')?.value ?? 0)
+
 const fmtTime = (s?: string | null) => {
   const d = parse(s)
-  return d ? d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''
+  return d ? MANILA_TIME.format(d) : ''
 }
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -131,8 +138,12 @@ export function buildRow(date: Date, dayLogs: TimeLog[]): Row {
   const live = dayLogs.filter((l) => l.status !== 'rejected')
   const regular = live.filter((l) => !l.is_manual)
   const bonus = live.filter((l) => l.is_manual)
-  const am = regular.find((l) => (parse(l.time_in)?.getHours() ?? 0) < 12)
-  const pm = regular.find((l) => (parse(l.time_in)?.getHours() ?? 0) >= 12)
+  const hourIn = (l: TimeLog) => {
+    const d = parse(l.time_in)
+    return d ? manilaHour(d) : 0
+  }
+  const am = regular.find((l) => hourIn(l) < 12)
+  const pm = regular.find((l) => hourIn(l) >= 12)
   const completed = live.filter((l) => l.time_out)
   const status: Row['status'] = completed.length
     ? (completed.every((l) => l.status === 'verified') ? 'Verified' : 'Unverified')
@@ -157,10 +168,9 @@ export function allDaysVerified(rows: Row[]): boolean {
   return statuses.length > 0 && statuses.every((s) => s === 'Verified')
 }
 
-export const issueDateToday = () => {
-  const t = new Date()
-  return `${String(t.getMonth() + 1).padStart(2, '0')}/${String(t.getDate()).padStart(2, '0')}/${t.getFullYear()}`
-}
+// Today's date in Manila, MM/DD/YYYY.
+export const issueDateToday = () =>
+  new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: '2-digit', day: '2-digit', year: 'numeric' }).format(new Date())
 
 // ── controls (mode toggle · week nav · print) ────────────────────────────────
 export function DutySlipControls({

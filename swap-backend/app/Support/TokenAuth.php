@@ -31,10 +31,10 @@ class TokenAuth
             return null;
         }
 
-        // morphTo respects SoftDeletes: a deleted user's token resolves to null,
-        // so deactivated/deleted accounts lose file access immediately.
+        // morphTo respects SoftDeletes: a deleted user's token resolves to null.
+        // Deactivated accounts are refused explicitly, like the `active` middleware.
         $user = $accessToken->tokenable;
 
-        return $user instanceof User ? $user : null;
+        return $user instanceof User && $user->is_active ? $user : null;
     }
 }

@@ -12,9 +12,6 @@ export const assignmentsApi = {
   updateAssignment: (id: number, data: Partial<Assignment>) =>
     apiClient.put<ApiResponse<Assignment>>(`/admin/assignments/${id}`, data).then((r) => r.data.data),
 
-  regenerateQr: (id: number) =>
-    apiClient.post<ApiResponse<{ qr_code: string }>>(`/admin/assignments/${id}/regenerate-qr`).then((r) => r.data),
-
   addManualHours: (id: number, data: { hours: number; date: string; reason: string }) =>
     apiClient.post(`/admin/assignments/${id}/manual-hours`, data).then((r) => r.data),
 
@@ -29,9 +26,6 @@ export const assignmentsApi = {
 
   updateOffice: (id: number, data: Partial<Office>) =>
     apiClient.put<ApiResponse<Office>>(`/admin/offices/${id}`, data).then((r) => r.data.data),
-
-  deleteOffice: (id: number) =>
-    apiClient.delete(`/admin/offices/${id}`).then((r) => r.data),
 
   generateOfficeQr: (id: number) =>
     apiClient.post<ApiResponse<{ qr_code: string }>>(`/admin/offices/${id}/qr`).then((r) => r.data),

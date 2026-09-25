@@ -105,8 +105,11 @@ Files added for this path:
 1. Push to GitHub → Render → **New +** → **Blueprint** → select this repo (reads `render.yaml`).
    It provisions Postgres, the API (`web`), and the **scheduler** (`cron` running `schedule:run` — this
    covers §2 above, so you don't need a separate crontab on Render).
-2. On **swap-backend**, set the three secret vars: `APP_KEY` (`php artisan key:generate --show`),
-   `APP_URL` (the backend URL), and `FRONTEND_URL` (the Vercel URL from below).
+2. On **swap-backend**, set the secret vars: `APP_KEY` (`php artisan key:generate --show`),
+   `APP_URL` (the backend URL), `FRONTEND_URL` (the Vercel URL from below), `ADMIN_EMAIL` /
+   `ADMIN_PASSWORD` (the first admin account — `ProductionAdminSeeder` refuses to create one in
+   production without them), and `MAIL_MAILER` + the `MAIL_*` vars from §3. Don't use the `log`
+   mailer in production: it writes password-reset and invitation links into the service logs.
 3. DB credentials wire automatically from the database via `render.yaml`. The web service runs
    `migrate --force` + config/route caching on boot through [`start.sh`](./swap-backend/start.sh).
 
@@ -121,7 +124,8 @@ Files added for this path:
    the backend so [`config/cors.php`](./swap-backend/config/cors.php) allows it.
 
 ### First-run
-- Create an admin user (Render shell → `php artisan tinker` → `User::create([...])`).
+- The admin account is created on boot from `ADMIN_EMAIL` / `ADMIN_PASSWORD` (step 2). Change the
+  password from the Profile page after first sign-in.
 - **Do not run seeders in production** unless you want the demo data.
 
 > Other hosts (Railway, Fly.io) build the same `Dockerfile` — just set the same env vars by hand, and

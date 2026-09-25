@@ -32,7 +32,12 @@ class AssignmentRepository implements AssignmentRepositoryInterface
 
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = Assignment::with(['user.profile', 'office', 'supervisor'])
+        // Hour sums and the office's supervisors (for the selfie rule) are loaded
+        // once for the page instead of ~4 queries per row in AssignmentResource.
+        $query = Assignment::with(['user.profile', 'office.supervisors', 'supervisor'])
+            ->withSum(['timeLogs as rendered_sum' => fn ($q) => $q->whereNotNull('time_out')], 'duration_hours')
+            ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
+            ->withSum(['timeLogs as pending_sum' => fn ($q) => $q->where('status', 'pending_verification')], 'duration_hours')
             ->orderByDesc('created_at');
 
         if (!empty($filters['office_id'])) {
