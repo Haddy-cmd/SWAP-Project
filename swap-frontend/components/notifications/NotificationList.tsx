@@ -47,8 +47,8 @@ export function NotificationList({ notifications }: NotificationListProps) {
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="font-serif text-[26px] font-medium text-[#1F1512] sm:text-[32px]">Notifications</h1>
-          <span className="text-[13.5px] text-[#A89A8F]">
+          <h1 className="font-serif text-[26px] font-medium text-ink-950 sm:text-[32px]">Notifications</h1>
+          <span className="text-[13.5px] text-ink-400">
             {hasUnread ? `${unread} unread of ${total}` : `All read · ${total} total`}
           </span>
         </div>
@@ -56,14 +56,14 @@ export function NotificationList({ notifications }: NotificationListProps) {
           onClick={() => hasUnread && markAll.mutate()}
           disabled={!hasUnread || markAll.isPending}
           className="whitespace-nowrap text-[13px] font-semibold transition-colors disabled:cursor-default"
-          style={{ color: hasUnread ? '#7C1B26' : '#C4B4A4' }}
+          style={{ color: hasUnread ? '#1F5B3A' : '#ADB5A8' }}
         >
           Mark all read
         </button>
       </div>
 
       {/* Filter */}
-      <div className="mt-2.5 flex justify-end gap-4 border-b border-[#ECE4D8] pb-3.5">
+      <div className="mt-2.5 flex justify-end gap-4 border-b border-ink-200 pb-3.5">
         {(['all', 'unread'] as const).map((key) => {
           const on = filter === key
           return (
@@ -73,8 +73,8 @@ export function NotificationList({ notifications }: NotificationListProps) {
               className="pb-[3px] text-[12.5px] transition-colors"
               style={{
                 fontWeight: on ? 700 : 500,
-                color: on ? '#1F1512' : '#A89A8F',
-                borderBottom: `1.5px solid ${on ? '#7C1B26' : 'transparent'}`,
+                color: on ? '#13241A' : '#8C968F',
+                borderBottom: `1.5px solid ${on ? '#1F5B3A' : 'transparent'}`,
               }}
             >
               {key === 'all' ? 'All' : 'Unread'} {key === 'all' ? total : unread}
@@ -86,8 +86,8 @@ export function NotificationList({ notifications }: NotificationListProps) {
       {/* List */}
       {list.length === 0 ? (
         <div className="px-5 py-[70px] text-center">
-          <p className="font-serif text-[22px] text-[#3F2F2A]">You&apos;re all caught up.</p>
-          <p className="mt-1.5 text-[13.5px] text-[#A89A8F]">
+          <p className="font-serif text-[22px] text-ink-700">You&apos;re all caught up.</p>
+          <p className="mt-1.5 text-[13.5px] text-ink-400">
             {total === 0 ? 'You have no notifications yet.' : 'No unread notifications right now.'}
           </p>
         </div>
@@ -100,16 +100,16 @@ export function NotificationList({ notifications }: NotificationListProps) {
               <div
                 key={n.id}
                 onClick={() => open(n)}
-                className={`-mx-2 flex items-start gap-3.5 rounded-lg border-b border-[#F1EBE1] px-3 py-[17px] transition-colors ${clickable ? 'cursor-pointer hover:bg-[#FBF7F2]' : ''}`}
+                className={`-mx-2 flex items-start gap-3.5 rounded-lg border-b border-ink-100 px-3 py-[17px] transition-colors ${clickable ? 'cursor-pointer hover:bg-ink-50' : ''}`}
               >
-                <span className="mt-[7px] h-[7px] w-[7px] flex-none rounded-full" style={{ background: isUnread ? '#7C1B26' : 'transparent' }} />
+                <span className="mt-[7px] h-[7px] w-[7px] flex-none rounded-full" style={{ background: isUnread ? '#1F5B3A' : 'transparent' }} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[15px]" style={{ fontWeight: isUnread ? 700 : 500, color: isUnread ? '#1F1512' : '#4A3A34' }}>
+                  <div className="text-[15px]" style={{ fontWeight: isUnread ? 700 : 500, color: isUnread ? '#13241A' : '#34433A' }}>
                     {n.data.title}
                   </div>
-                  <div className="mt-0.5 text-[13px] leading-[1.45] text-[#7A6A63]">{n.data.message}</div>
+                  <div className="mt-0.5 text-[13px] leading-[1.45] text-ink-500">{n.data.message}</div>
                 </div>
-                <span className="mt-px flex-none whitespace-nowrap text-[12px] tabular-nums text-[#B0A192]">
+                <span className="mt-px flex-none whitespace-nowrap text-[12px] tabular-nums text-ink-400">
                   {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                 </span>
               </div>

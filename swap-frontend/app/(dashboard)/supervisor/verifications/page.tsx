@@ -14,8 +14,8 @@ import { needsReview, blocksBulkVerify, reviewReason } from '@/lib/utils/attenda
 import type { TimeLog } from '@/types/attendance.types'
 
 const PALETTE: [string, string][] = [
-  ['#FBEAEC', '#7C1B26'], ['#EAF1F7', '#3B7FB5'], ['#EAF5EC', '#4E9657'],
-  ['#FBF3E2', '#B8860B'], ['#F1ECF7', '#6B4E9A'], ['#F7EDE8', '#C0562F'], ['#EAF1F7', '#1F4E6B'],
+  ['#E3EEE5', '#1F5B3A'], ['#F3F7FB', '#4A82B8'], ['#EFF8F4', '#1F8163'],
+  ['#FDF8E4', '#9A7412'], ['#EFE9F7', '#6B4E9A'], ['#FEF3F2', '#E2483B'], ['#F3F7FB', '#234A70'],
 ]
 const fmtDate = (iso?: string | null) => (iso ? format(new Date(iso), 'MMM d, yyyy') : '—')
 const fmtTime = (iso?: string | null) => (iso ? format(new Date(iso), 'h:mm a') : '')
@@ -27,8 +27,8 @@ const narrativeOf = (l: TimeLog) => l.narrative_report?.content || l.narrative_r
 const hoursOf = (l: TimeLog) => (Number(l.duration_hours) || 0).toFixed(2)
 
 const REVIEWED_META: Record<string, { label: string; color: string; bg: string; Icon: typeof CheckCircle2 }> = {
-  verified: { label: 'Verified', color: '#2C5A33', bg: '#EAF5EC', Icon: CheckCircle2 },
-  rejected: { label: 'Rejected', color: '#B0562F', bg: '#FDF0E9', Icon: XCircle },
+  verified: { label: 'Verified', color: '#145643', bg: '#EFF8F4', Icon: CheckCircle2 },
+  rejected: { label: 'Rejected', color: '#B42318', bg: '#FEF3F2', Icon: XCircle },
 }
 
 export default function VerificationsPage() {
@@ -134,32 +134,32 @@ export default function VerificationsPage() {
       {/* header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#A9823C]">Attendance Review</p>
-          <h1 className="mt-1 font-serif text-3xl font-medium text-[#241715]">Verifications</h1>
-          <p className="mt-1.5 text-[13.5px] text-[#8A7A73]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Attendance Review</p>
+          <h1 className="mt-1 font-serif text-3xl font-medium text-ink-950">Verifications</h1>
+          <p className="mt-1.5 text-[13.5px] text-ink-500">
             {pendingAll.length} pending {pendingAll.length === 1 ? 'log' : 'logs'} · {pendHrs.toFixed(2)} hrs awaiting review
             {flaggedAll.length > 0 && (
-              <span className="ml-1.5 font-semibold text-[#9A6B12]">· {flaggedAll.length} need a closer look</span>
+              <span className="ml-1.5 font-semibold text-warning-700">· {flaggedAll.length} need a closer look</span>
             )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-[250px]">
-            <Search className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#B79B7E]" />
+            <Search className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-400" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search student…"
-              className="h-[42px] w-full rounded-[11px] border border-[#EADFD4] bg-white pl-10 pr-3.5 text-[13.5px] text-[#2B1E1B] focus:border-[#7C1B26] focus:outline-none"
+              className="h-[42px] w-full rounded-[11px] border border-ink-200 bg-white pl-10 pr-3.5 text-[13.5px] text-ink-900 focus:border-brand-700 focus:outline-none"
             />
           </div>
-          <div className="inline-flex gap-[3px] rounded-[10px] bg-[#F1E7DC] p-1">
+          <div className="inline-flex gap-[3px] rounded-[10px] bg-ink-100 p-1">
             {([['pending', `Pending (${pendingAll.length})`], ['flagged', `Needs review (${flaggedAll.length})`], ['reviewed', `Reviewed (${reviewedAll.length})`]] as const).map(([key, label]) => {
               const on = tab === key
               return (
                 <button key={key} onClick={() => { setTab(key); setSel({}) }}
                   className="rounded-[7px] px-4 py-2 text-[12.5px] transition-colors"
-                  style={on ? { background: '#fff', color: '#7C1B26', fontWeight: 700, boxShadow: '0 1px 3px rgba(60,30,25,.1)' } : { color: '#8A7A73', fontWeight: 500 }}>
+                  style={on ? { background: '#fff', color: '#1F5B3A', fontWeight: 700, boxShadow: '0 1px 3px rgba(19,36,26,.1)' } : { color: '#6F7B74', fontWeight: 500 }}>
                   {label}
                 </button>
               )
@@ -169,37 +169,37 @@ export default function VerificationsPage() {
       </div>
 
       {/* table */}
-      <div className="overflow-hidden rounded-[15px] border border-[#EFE5DA] bg-white">
+      <div className="overflow-hidden rounded-[15px] border border-ink-200 bg-white">
         {/* head */}
-        <div className="hidden grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] items-center gap-3 border-b border-[#EFE5DA] bg-[#FBF7F2] px-5 py-3 md:grid">
+        <div className="hidden grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] items-center gap-3 border-b border-ink-200 bg-ink-50 px-5 py-3 md:grid">
           {tab !== 'reviewed' && visibleIds.length > 0 ? (
             <button onClick={toggleAll} title="Select all (location-flagged logs are excluded)"
               className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
-              style={{ borderColor: someSel ? '#7C1B26' : '#C9B7AC', background: someSel ? '#7C1B26' : '#fff' }}>
+              style={{ borderColor: someSel ? '#1F5B3A' : '#ADB5A8', background: someSel ? '#1F5B3A' : '#fff' }}>
               {someSel && (allSel ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} /> : <span className="h-0.5 w-2.5 rounded bg-white" />)}
             </button>
           ) : <span />}
           {(['Student', 'Date & Time', 'Hours', 'Narrative'] as const).map((h) => (
-            <span key={h} className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{h}</span>
+            <span key={h} className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-400">{h}</span>
           ))}
-          <span className="text-right text-[11px] font-bold uppercase tracking-[0.1em] text-[#A38A82]">{tab === 'reviewed' ? 'Reviewed by' : 'Actions'}</span>
+          <span className="text-right text-[11px] font-bold uppercase tracking-[0.1em] text-ink-400">{tab === 'reviewed' ? 'Reviewed by' : 'Actions'}</span>
         </div>
 
         {/* rows */}
         {isLoading ? (
-          <div className="space-y-px">{[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-[62px] animate-pulse bg-[#F7F0E7]" />)}</div>
+          <div className="space-y-px">{[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-[62px] animate-pulse bg-ink-50" />)}</div>
         ) : rows.length === 0 ? (
           <div className="px-5 py-16 text-center">
-            <div className="mx-auto mb-3.5 flex h-[58px] w-[58px] items-center justify-center rounded-full bg-[#EAF5EC] text-[#4E9657]">
+            <div className="mx-auto mb-3.5 flex h-[58px] w-[58px] items-center justify-center rounded-full bg-success-50 text-success-600">
               <ClipboardCheck className="h-7 w-7" />
             </div>
-            <p className="text-[15px] font-semibold text-[#3F2F2A]">
+            <p className="text-[15px] font-semibold text-ink-700">
               {q ? 'No students match your search.'
                 : tab === 'pending' ? 'All caught up — nothing to verify.'
                 : tab === 'flagged' ? 'Nothing suspicious — every pending log looks clean.'
                 : 'No reviewed logs yet.'}
             </p>
-            <p className="mt-1 text-[13px] text-[#A38A82]">
+            <p className="mt-1 text-[13px] text-ink-400">
               {q ? 'Try a different name.'
                 : tab === 'pending' ? 'New attendance logs from your students will appear here.'
                 : tab === 'flagged' ? 'Logs with a location flag or a missing clock-in selfie will appear here.'
@@ -217,20 +217,20 @@ export default function VerificationsPage() {
             const meta = REVIEWED_META[l.status] ?? REVIEWED_META.verified
             return (
               <div key={l.id}
-                className="grid grid-cols-1 items-center gap-2 border-b border-[#F4ECE1] px-5 py-3 last:border-0 md:grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] md:gap-3"
-                style={{ background: isSel ? '#FFF9EE' : 'transparent' }}>
+                className="grid grid-cols-1 items-center gap-2 border-b border-ink-100 px-5 py-3 last:border-0 md:grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] md:gap-3"
+                style={{ background: isSel ? '#FDF8E4' : 'transparent' }}>
                 {/* checkbox / status icon */}
                 <div className="hidden md:block">
                   {!pending ? (
                     <meta.Icon className="h-[19px] w-[19px]" style={{ color: meta.color }} />
                   ) : blocked ? (
                     <span title="Location flagged — must be reviewed individually, so it can't be bulk-verified"
-                      className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] border-dashed border-[#D8A12B] bg-[#FBF3E2]">
-                      <ShieldAlert className="h-3 w-3 text-[#9A6B12]" />
+                      className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] border-dashed border-warning-500 bg-gold-50">
+                      <ShieldAlert className="h-3 w-3 text-warning-700" />
                     </span>
                   ) : (
                     <button onClick={() => toggleOne(l.id)} className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
-                      style={{ borderColor: isSel ? '#7C1B26' : '#C9B7AC', background: isSel ? '#7C1B26' : '#fff' }}>
+                      style={{ borderColor: isSel ? '#1F5B3A' : '#ADB5A8', background: isSel ? '#1F5B3A' : '#fff' }}>
                       {isSel && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
                     </button>
                   )}
@@ -241,30 +241,30 @@ export default function VerificationsPage() {
                   <UserAvatar name={l.user?.name} avatarUrl={l.user?.avatar_url}
                     className="h-9 w-9 rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }} />
                   <div className="min-w-0 leading-tight">
-                    <div className="truncate text-[13.5px] font-semibold text-[#241715]">{l.user?.name ?? '—'}</div>
+                    <div className="truncate text-[13.5px] font-semibold text-ink-950">{l.user?.name ?? '—'}</div>
                     {flagged && flagWhy ? (
-                      <div className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded bg-[#FBF3E2] px-1.5 py-px text-[10.5px] font-bold text-[#9A6B12]">
+                      <div className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded bg-gold-50 px-1.5 py-px text-[10.5px] font-bold text-warning-700">
                         <ShieldAlert className="h-3 w-3 flex-none" /> <span className="truncate">{flagWhy}</span>
                       </div>
                     ) : (
-                      <div className="truncate text-[11.5px] text-[#A38A82]">{l.office?.name ?? '—'}</div>
+                      <div className="truncate text-[11.5px] text-ink-400">{l.office?.name ?? '—'}</div>
                     )}
                   </div>
                 </div>
 
                 {/* date & time */}
                 <div className="leading-tight">
-                  <div className="text-[12.5px] font-semibold text-[#3F2F2A]">{fmtDate(l.date)}</div>
-                  <div className="text-[11.5px] tabular-nums text-[#A38A82]">{timeRange(l)}</div>
+                  <div className="text-[12.5px] font-semibold text-ink-700">{fmtDate(l.date)}</div>
+                  <div className="text-[11.5px] tabular-nums text-ink-400">{timeRange(l)}</div>
                 </div>
 
                 {/* hours */}
-                <span className="text-[13px] font-bold tabular-nums text-[#7C1B26]">{hoursOf(l)}</span>
+                <span className="text-[13px] font-bold tabular-nums text-brand-700">{hoursOf(l)}</span>
 
                 {/* narrative */}
                 <button onClick={() => setModalId(l.id)} className="min-w-0 text-left" title="Read full narrative">
-                  <div className="truncate text-[12.5px] leading-snug text-[#5A4A45]">{narrativeOf(l)}</div>
-                  <div className="mt-0.5 flex items-center gap-1 text-[11.5px] font-semibold text-[#A9823C]">
+                  <div className="truncate text-[12.5px] leading-snug text-ink-600">{narrativeOf(l)}</div>
+                  <div className="mt-0.5 flex items-center gap-1 text-[11.5px] font-semibold text-gold-600">
                     <ExternalLink className="h-3.5 w-3.5" /> Read narrative
                   </div>
                 </button>
@@ -273,12 +273,12 @@ export default function VerificationsPage() {
                 {pending ? (
                   <div className="flex items-center gap-2 md:justify-end">
                     <button onClick={() => verify.mutate(l.id)} disabled={busy}
-                      className="flex h-[34px] items-center gap-1.5 rounded-[9px] px-3.5 text-[12px] font-semibold text-[#FFF8F2] disabled:opacity-50"
-                      style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+                      className="flex h-[34px] items-center gap-1.5 rounded-[9px] px-3.5 text-[12px] font-semibold text-ink-25 disabled:opacity-50"
+                      style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
                       <Check className="h-[15px] w-[15px]" strokeWidth={2.5} /> Verify
                     </button>
                     <button onClick={() => startReject(l.id)} disabled={busy} title="Reject log"
-                      className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-[#EADFD4] bg-white text-[#B0562F] hover:bg-[#FDF4F0] disabled:opacity-50">
+                      className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-ink-200 bg-white text-danger-700 hover:bg-danger-50 disabled:opacity-50">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -289,8 +289,8 @@ export default function VerificationsPage() {
                     </span>
                     {/* Offices can have several supervisors, so say who acted. */}
                     {l.verifier && (
-                      <span className="truncate text-[11px] text-[#A38A82]" title={`${meta.label} by ${l.verifier.name}`}>
-                        by <span className="font-semibold text-[#7A6A63]">{l.verifier.id === user?.id ? 'you' : l.verifier.name}</span>
+                      <span className="truncate text-[11px] text-ink-400" title={`${meta.label} by ${l.verifier.name}`}>
+                        by <span className="font-semibold text-ink-500">{l.verifier.id === user?.id ? 'you' : l.verifier.name}</span>
                         {l.verified_at && ` · ${fmtDate(l.verified_at)}`}
                       </span>
                     )}
@@ -304,16 +304,16 @@ export default function VerificationsPage() {
 
       {/* bulk action bar — only shown once at least one log is selected */}
       {selIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-[#4A2228] bg-[#2B1518] px-3 py-3 pl-5 shadow-[0_20px_48px_rgba(40,8,12,.4)]">
-          <span className="whitespace-nowrap text-[13px] text-[#EED9C8]">
-            <strong className="text-[#FFF3E4]">{selIds.length} {selIds.length === 1 ? 'log' : 'logs'} selected</strong> · {selHrs.toFixed(2)} hrs
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-brand-800 bg-brand-950 px-3 py-3 pl-5 shadow-[0_20px_48px_rgba(11,39,22,.4)]">
+          <span className="whitespace-nowrap text-[13px] text-ink-100">
+            <strong className="text-ink-25">{selIds.length} {selIds.length === 1 ? 'log' : 'logs'} selected</strong> · {selHrs.toFixed(2)} hrs
           </span>
           <div className="flex items-center gap-2">
             <button onClick={() => bulkVerify.mutate(selIds)} disabled={bulkVerify.isPending}
-              className="flex h-[38px] items-center gap-2 rounded-[10px] bg-[#F3D9A0] px-[18px] text-[13px] font-bold text-[#4A2A10] disabled:opacity-60">
+              className="flex h-[38px] items-center gap-2 rounded-[10px] bg-gold-300 px-[18px] text-[13px] font-bold text-brand-950 disabled:opacity-60">
               {bulkVerify.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-[17px] w-[17px]" />} Verify selected
             </button>
-            <button onClick={() => setSel({})} className="h-[38px] rounded-[10px] border border-[#5A2E35] px-3.5 text-[13px] font-semibold text-[#D9BBAF]">Clear</button>
+            <button onClick={() => setSel({})} className="h-[38px] rounded-[10px] border border-brand-700 px-3.5 text-[13px] font-semibold text-brand-200">Clear</button>
           </div>
         </div>
       )}
@@ -337,18 +337,18 @@ export default function VerificationsPage() {
 
       {/* reject reason prompt */}
       {rejecting && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(40,12,16,.5)] p-4" onClick={() => setRejecting(null)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(11,39,22,.5)] p-4" onClick={() => setRejecting(null)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-serif text-lg font-semibold text-[#241715]">Reject this log?</h3>
-            <p className="mt-1 text-sm text-[#8A7A73]">The student will be notified with your reason.</p>
+            <h3 className="font-serif text-lg font-semibold text-ink-950">Reject this log?</h3>
+            <p className="mt-1 text-sm text-ink-500">The student will be notified with your reason.</p>
             <textarea autoFocus value={rejecting.reason} onChange={(e) => setRejecting((r) => r && { ...r, reason: e.target.value })}
               rows={3} placeholder="Reason for rejection (required)…"
-              className="mt-4 w-full resize-none rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3.5 py-2.5 text-sm text-[#2B1E1B] focus:border-[#7C1B26] focus:outline-none" />
+              className="mt-4 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none" />
             <div className="mt-4 flex justify-end gap-3">
-              <button onClick={() => setRejecting(null)} className="h-11 rounded-xl border border-[#E7D9C9] bg-white px-5 text-sm font-semibold text-[#7A6A63] hover:bg-[#FBF7F2]">Cancel</button>
+              <button onClick={() => setRejecting(null)} className="h-11 rounded-xl border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
               <button onClick={() => reject.mutate({ id: rejecting.id, feedback: rejecting.reason.trim() })}
                 disabled={!rejecting.reason.trim() || reject.isPending}
-                className="flex h-11 items-center gap-2 rounded-xl bg-[#B0562F] px-5 text-sm font-semibold text-white disabled:opacity-50">
+                className="flex h-11 items-center gap-2 rounded-xl bg-danger-700 px-5 text-sm font-semibold text-white disabled:opacity-50">
                 {reject.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />} Reject log
               </button>
             </div>
@@ -358,7 +358,7 @@ export default function VerificationsPage() {
 
       {/* toast */}
       {toast && (
-        <div className="fixed right-7 top-[78px] z-[70] flex items-center gap-2.5 rounded-xl bg-[#2C5A33] px-[18px] py-3 text-[13px] font-semibold text-[#F0FAF0] shadow-[0_16px_36px_rgba(20,50,25,.3)]">
+        <div className="fixed right-7 top-[78px] z-[70] flex items-center gap-2.5 rounded-xl bg-success-800 px-[18px] py-3 text-[13px] font-semibold text-success-50 shadow-[0_16px_36px_rgba(20,50,25,.3)]">
           <CheckCircle2 className="h-[18px] w-[18px]" /> {toast}
         </div>
       )}
@@ -377,57 +377,57 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
   const [zoom, setZoom] = useState(false)
   return (
     <>
-      <div onClick={onClose} className="fixed inset-0 z-50 bg-[rgba(40,12,16,.46)]" />
-      <div className="fixed left-1/2 top-1/2 z-[60] max-h-[86vh] w-[600px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-[18px] bg-[#FFFDFB] shadow-[0_32px_80px_rgba(40,8,12,.4)]">
+      <div onClick={onClose} className="fixed inset-0 z-50 bg-[rgba(11,39,22,.46)]" />
+      <div className="fixed left-1/2 top-1/2 z-[60] max-h-[86vh] w-[600px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-[18px] bg-ink-25 shadow-[0_32px_80px_rgba(11,39,22,.4)]">
         {/* header */}
-        <div className="bg-gradient-to-br from-[#7C1B26] to-[#530F17] px-6 py-5 text-[#FBEFE0]">
+        <div className="bg-gradient-to-br from-brand-700 to-brand-950 px-6 py-5 text-ink-25">
           <div className="mb-3.5 flex items-center justify-between">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-[#F3D9A0]/80">Attendance Log · {posLabel}</span>
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-gold-300/80">Attendance Log · {posLabel}</span>
             <div className="flex items-center gap-1.5">
               <button onClick={onPrev} disabled={!canPrev} className="p-1 disabled:opacity-30"><ChevronLeft className="h-5 w-5" /></button>
               <button onClick={onNext} disabled={!canNext} className="p-1 disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
-              <button onClick={onClose} className="ml-1.5 p-1 text-[#FBEFE0]/75"><X className="h-5 w-5" /></button>
+              <button onClick={onClose} className="ml-1.5 p-1 text-ink-25/75"><X className="h-5 w-5" /></button>
             </div>
           </div>
           <div className="flex items-center gap-3.5">
             <UserAvatar name={log.user?.name} avatarUrl={log.user?.avatar_url}
-              className="h-[46px] w-[46px] rounded-full bg-[#F3D9A0]/[0.16] text-[15px] font-bold text-[#F3D9A0] ring-1 ring-white/20" />
+              className="h-[46px] w-[46px] rounded-full bg-gold-300/[0.16] text-[15px] font-bold text-gold-300 ring-1 ring-white/20" />
             <div className="leading-tight">
-              <div className="font-serif text-[21px] font-semibold text-[#FFF8EE]">{log.user?.name ?? '—'}</div>
-              <div className="text-[12px] text-[#EED9C8]/75">{log.office?.name ?? '—'}</div>
+              <div className="font-serif text-[21px] font-semibold text-ink-25">{log.user?.name ?? '—'}</div>
+              <div className="text-[12px] text-ink-100/75">{log.office?.name ?? '—'}</div>
             </div>
           </div>
         </div>
         {/* facts */}
-        <div className="grid grid-cols-3 border-b border-[#EFE5DA]">
+        <div className="grid grid-cols-3 border-b border-ink-200">
           {[['Date', fmtDate(log.date)], ['Time', timeRange(log)], ['Hours', `${hoursOf(log)} hrs`]].map(([k, v], i) => (
-            <div key={k} className={`px-5 py-3.5 ${i < 2 ? 'border-r border-[#EFE5DA]' : ''}`}>
-              <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-[#A38A82]">{k}</div>
-              <div className={`text-[13.5px] font-semibold tabular-nums ${k === 'Hours' ? 'text-[#7C1B26]' : 'text-[#241715]'}`}>{v}</div>
+            <div key={k} className={`px-5 py-3.5 ${i < 2 ? 'border-r border-ink-200' : ''}`}>
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ink-400">{k}</div>
+              <div className={`text-[13.5px] font-semibold tabular-nums ${k === 'Hours' ? 'text-brand-700' : 'text-ink-950'}`}>{v}</div>
             </div>
           ))}
         </div>
 
         {/* proof-of-presence selfie + location integrity */}
         {(log.time_in_photo_url || log.location_flagged) && (
-          <div className="flex items-start gap-3.5 border-b border-[#EFE5DA] px-6 py-4">
+          <div className="flex items-start gap-3.5 border-b border-ink-200 px-6 py-4">
             {log.time_in_photo_url && (
               <button type="button" onClick={() => setZoom(true)} title="Click to enlarge"
                 className="group relative flex-none cursor-default">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={log.time_in_photo_url} alt="Clock-in selfie" className="h-20 w-16 rounded-lg border border-[#EFE5DA] object-cover transition group-hover:brightness-95" />
+                <img src={log.time_in_photo_url} alt="Clock-in selfie" className="h-20 w-16 rounded-lg border border-ink-200 object-cover transition group-hover:brightness-95" />
                 <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/0 opacity-0 transition group-hover:bg-black/25 group-hover:opacity-100">
                   <ZoomIn className="h-4 w-4 text-white" />
                 </span>
               </button>
             )}
             <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-wide text-[#A38A82]">Clock-in check</div>
-              <p className="mt-1 text-[12.5px] text-[#5A4A45]">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-ink-400">Clock-in check</div>
+              <p className="mt-1 text-[12.5px] text-ink-600">
                 {log.time_in_photo_url ? 'Selfie captured at clock-in.' : 'No selfie captured for this clock-in.'}
               </p>
               {log.location_flagged && (
-                <p className="mt-1.5 inline-flex items-start gap-1.5 rounded-md bg-[#FBF3E2] px-2 py-1 text-[11.5px] font-semibold text-[#9A6B12]">
+                <p className="mt-1.5 inline-flex items-start gap-1.5 rounded-md bg-gold-50 px-2 py-1 text-[11.5px] font-semibold text-warning-700">
                   ⚠ Location needs review{log.location_flag_reason ? ` — ${log.location_flag_reason}` : ''}
                 </p>
               )}
@@ -437,31 +437,31 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
 
         {/* narrative */}
         <div className="px-6 pb-1.5 pt-5">
-          <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#A9823C]">Narrative Report</div>
-          <p className="m-0 font-serif text-[16.5px] leading-[1.65] text-[#33241F]">{narrativeOf(log)}</p>
+          <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-gold-600">Narrative Report</div>
+          <p className="m-0 font-serif text-[16.5px] leading-[1.65] text-ink-800">{narrativeOf(log)}</p>
           {log.narrative_report?.challenges && (
-            <p className="mt-3 rounded-lg bg-[#FBF7F2] px-3.5 py-2.5 text-[13.5px] text-[#5A4A45]">
-              <span className="font-semibold text-[#8A7A73]">Challenges: </span>{log.narrative_report.challenges}
+            <p className="mt-3 rounded-lg bg-ink-50 px-3.5 py-2.5 text-[13.5px] text-ink-600">
+              <span className="font-semibold text-ink-500">Challenges: </span>{log.narrative_report.challenges}
             </p>
           )}
           {log.status === 'rejected' && log.rejection_reason && (
-            <p className="mt-3 rounded-lg border border-[#F0D9CE] bg-[#FDF0E9] px-3.5 py-2.5 text-[13.5px] text-[#B0562F]">
+            <p className="mt-3 rounded-lg border border-danger-200 bg-danger-50 px-3.5 py-2.5 text-[13.5px] text-danger-700">
               <span className="font-semibold">Rejection reason: </span>{log.rejection_reason}
             </p>
           )}
         </div>
         {/* footer */}
         <div className="flex items-center justify-between gap-2.5 px-6 pb-[22px] pt-[18px]">
-          <span className="text-[12px] text-[#A38A82]">{log.narrative_report?.submitted_at ? `Submitted ${fmtDate(log.narrative_report.submitted_at)}` : ''}</span>
+          <span className="text-[12px] text-ink-400">{log.narrative_report?.submitted_at ? `Submitted ${fmtDate(log.narrative_report.submitted_at)}` : ''}</span>
           {pending ? (
             <div className="flex items-center gap-2.5">
               <button onClick={onReject} disabled={busy}
-                className="flex h-[42px] items-center gap-1.5 rounded-[11px] border border-[#E8C9BC] bg-[#FDF4F0] px-[18px] text-[13px] font-semibold text-[#B0562F] disabled:opacity-50">
+                className="flex h-[42px] items-center gap-1.5 rounded-[11px] border border-danger-200 bg-danger-50 px-[18px] text-[13px] font-semibold text-danger-700 disabled:opacity-50">
                 <X className="h-[17px] w-[17px]" /> Reject
               </button>
               <button onClick={onVerify} disabled={busy}
-                className="flex h-[42px] items-center gap-2 rounded-[11px] px-[22px] text-[13px] font-bold text-[#FFF8F2] shadow-[0_10px_22px_rgba(108,22,32,.28)] disabled:opacity-50"
-                style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+                className="flex h-[42px] items-center gap-2 rounded-[11px] px-[22px] text-[13px] font-bold text-ink-25 shadow-[0_10px_22px_rgba(22,69,43,.28)] disabled:opacity-50"
+                style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
                 {busy ? <Loader2 className="h-[17px] w-[17px] animate-spin" /> : <Check className="h-[17px] w-[17px]" strokeWidth={2.5} />} {verifyLabel}
               </button>
             </div>

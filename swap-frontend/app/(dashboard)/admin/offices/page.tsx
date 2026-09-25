@@ -16,19 +16,19 @@ import type { Office } from '@/types/assignment.types'
 
 const OfficeMapPicker = dynamic(() => import('@/components/admin/OfficeMapPicker'), {
   ssr: false,
-  loading: () => <div className="h-[320px] animate-pulse rounded-xl bg-[#EAD9D9]" />,
+  loading: () => <div className="h-[320px] animate-pulse rounded-xl bg-ink-200" />,
 })
 
 // Soft icon backgrounds, mirrored from the mockup (bg / fg pairs).
 const PALETTE: [string, string][] = [
-  ['#EAF1F7', '#1F4E6B'],
-  ['#FBF3E2', '#B8860B'],
-  ['#EAF5EC', '#4E9657'],
-  ['#F1ECF7', '#6B4E9A'],
-  ['#EAF1F7', '#3B7FB5'],
-  ['#FBEAEC', '#7C1B26'],
-  ['#F7EDE8', '#C0562F'],
-  ['#EAF5EC', '#2C7A57'],
+  ['#F3F7FB', '#234A70'],
+  ['#FDF8E4', '#9A7412'],
+  ['#EFF8F4', '#1F8163'],
+  ['#EFE9F7', '#6B4E9A'],
+  ['#F3F7FB', '#4A82B8'],
+  ['#E3EEE5', '#1F5B3A'],
+  ['#FEF3F2', '#E2483B'],
+  ['#EFF8F4', '#196B53'],
 ]
 const palette = (i: number) => PALETTE[((i % PALETTE.length) + PALETTE.length) % PALETTE.length]
 
@@ -56,7 +56,7 @@ function OfficeLogo({ office, bg, fg, size = 44 }: { office: Office; bg: string;
   return (
     <span
       className="flex flex-none items-center justify-center overflow-hidden rounded-full"
-      style={{ width: size, height: size, background: showImage ? '#FFFFFF' : bg, color: fg, border: showImage ? '1px solid #EFE5DA' : 'none' }}
+      style={{ width: size, height: size, background: showImage ? '#FFFFFF' : bg, color: fg, border: showImage ? '1px solid #DCE0CF' : 'none' }}
     >
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -96,19 +96,19 @@ function CopyField({ label, value }: { label: string; value: string }) {
 
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-ink-500">{label}</label>
       <div className="flex items-stretch gap-2">
         <input
           readOnly
           value={value}
           onFocus={(e) => e.currentTarget.select()}
-          className="min-w-0 flex-1 rounded-lg border border-[#DCC5C5] bg-[#FAF7F7] px-2.5 py-1.5 text-xs font-mono text-[#1E293B] focus:border-[#7D1A1A] focus:outline-none"
+          className="min-w-0 flex-1 rounded-lg border border-ink-300 bg-ink-50 px-2.5 py-1.5 text-xs font-mono text-ink-900 focus:border-brand-700 focus:outline-none"
         />
         <button
           onClick={copy}
-          className="flex flex-shrink-0 items-center gap-1 rounded-lg border border-[#EAD9D9] px-2.5 py-1.5 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors"
+          className="flex flex-shrink-0 items-center gap-1 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 transition-colors"
         >
-          {copied ? <Check className="h-3.5 w-3.5 text-[#27AE60]" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? <Check className="h-3.5 w-3.5 text-success-600" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
@@ -117,8 +117,8 @@ function CopyField({ label, value }: { label: string; value: string }) {
 }
 
 const inputCls =
-  'w-full rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3.5 py-2.5 text-sm text-[#2B1E1B] placeholder:text-[#B7A99F] focus:border-[#7C1B26] focus:outline-none focus:ring-2 focus:ring-[#7C1B26]/10'
-const labelCls = 'mb-1.5 block text-[12.5px] font-semibold text-[#5A4A45]'
+  'w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2.5 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10'
+const labelCls = 'mb-1.5 block text-[12.5px] font-semibold text-ink-600'
 
 const LOGO_MAX_BYTES = 2 * 1024 * 1024
 const LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -169,7 +169,7 @@ function LogoPicker({ name, currentUrl, file, remove, onPick, onRemove, onUndoRe
     <div>
       <div className="flex items-center gap-4">
         <span
-          className="flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-full border border-[#EFE5DA] bg-[#FBF7F2] text-[#7C1B26]"
+          className="flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-full border border-ink-200 bg-ink-50 text-brand-700"
         >
           {shown ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -188,27 +188,27 @@ function LogoPicker({ name, currentUrl, file, remove, onPick, onRemove, onUndoRe
             onChange={(e) => { choose(e.target.files?.[0]); e.target.value = '' }}
           />
           <button type="button" onClick={() => inputRef.current?.click()}
-            className="rounded-lg border border-[#EADFD4] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#7C1B26] hover:bg-[#FBF7F2] transition-colors">
+            className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[12.5px] font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
             {shown ? 'Replace logo' : 'Upload logo'}
           </button>
           {shown && (
             <button type="button" onClick={onRemove}
-              className="rounded-lg border border-[#EADFD4] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#8A7A73] hover:bg-[#FBF7F2] transition-colors">
+              className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[12.5px] font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
               Remove
             </button>
           )}
           {remove && !previewUrl && currentUrl && (
             <button type="button" onClick={onUndoRemove}
-              className="rounded-lg border border-[#EADFD4] bg-white px-3 py-1.5 text-[12.5px] font-semibold text-[#8A7A73] hover:bg-[#FBF7F2] transition-colors">
+              className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[12.5px] font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
               Undo
             </button>
           )}
         </div>
       </div>
 
-      <p className="mt-1.5 text-[11px] text-[#A38A82]">JPG, PNG or WEBP, up to 2 MB. Offices without a logo show their initials.</p>
-      {remove && !previewUrl && <p className="mt-1 text-[11px] font-medium text-[#B45309]">The logo will be removed when you save.</p>}
-      {error && <p className="mt-1 text-[11px] font-medium text-[#C0392B]">{error}</p>}
+      <p className="mt-1.5 text-[11px] text-ink-400">JPG, PNG or WEBP, up to 2 MB. Offices without a logo show their initials.</p>
+      {remove && !previewUrl && <p className="mt-1 text-[11px] font-medium text-warning-700">The logo will be removed when you save.</p>}
+      {error && <p className="mt-1 text-[11px] font-medium text-danger-700">{error}</p>}
     </div>
   )
 }
@@ -234,23 +234,23 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
   const editing = !!initial?.id
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#280C10]/45 p-4 sm:p-6" onClick={onCancel}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-950/45 p-4 sm:p-6" onClick={onCancel}>
       <div
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_30px_70px_rgba(40,8,12,.4)]"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_30px_70px_rgba(11,39,22,.4)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#EFE5DA] px-6 py-5">
+        <div className="flex items-center justify-between border-b border-ink-200 px-6 py-5">
           <div className="flex items-center gap-3">
-            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-[#FBEAEC] text-[#7C1B26]">
+            <span className="flex h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-brand-100 text-brand-700">
               <Building2 className="h-[21px] w-[21px]" />
             </span>
             <div>
-              <p className="text-[17px] font-bold text-[#241715]">{editing ? 'Edit Office' : 'Add Office'}</p>
-              <p className="text-[12.5px] text-[#8A7A73]">{editing ? 'Update host office details' : 'Register a new host office'}</p>
+              <p className="text-[17px] font-bold text-ink-950">{editing ? 'Edit Office' : 'Add Office'}</p>
+              <p className="text-[12.5px] text-ink-500">{editing ? 'Update host office details' : 'Register a new host office'}</p>
             </div>
           </div>
-          <button onClick={onCancel} className="text-[#B79B7E] hover:text-[#7C1B26] transition-colors">
+          <button onClick={onCancel} className="text-ink-400 hover:text-brand-700 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -264,7 +264,7 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
                 placeholder="e.g. University Registrar" className={inputCls} />
             </div>
             <div className="sm:col-span-2">
-              <label className={labelCls}>Office Logo <span className="font-normal text-[#A38A82]">(optional)</span></label>
+              <label className={labelCls}>Office Logo <span className="font-normal text-ink-400">(optional)</span></label>
               <LogoPicker
                 name={String(form.name ?? '')}
                 currentUrl={form.logo_url ?? null}
@@ -292,23 +292,23 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
             </div>
           </div>
 
-          <label className="flex items-center gap-2.5 rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3.5 py-3 text-sm font-medium text-[#2B1E1B]">
+          <label className="flex items-center gap-2.5 rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-3 text-sm font-medium text-ink-900">
             <input type="checkbox" checked={!!form.is_active}
               onChange={(e) => setForm((f) => ({ ...f, is_active: e.target.checked }))}
-              className="h-4 w-4 accent-[#7C1B26]" />
+              className="h-4 w-4 accent-brand-700" />
             Office is active and accepting recipients
           </label>
 
           {/* Geofence */}
-          <div className="space-y-3 rounded-xl border border-[#EADFD4] bg-[#FBF7F2] p-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-[#2B1E1B]">
+          <div className="space-y-3 rounded-xl border border-ink-200 bg-ink-50 p-4">
+            <label className="flex items-center gap-2 text-sm font-medium text-ink-900">
               <input type="checkbox" checked={!!form.geofence_enabled}
                 onChange={(e) => setForm((f) => ({ ...f, geofence_enabled: e.target.checked }))}
-                className="h-4 w-4 accent-[#7C1B26]" />
-              <MapPin className="h-4 w-4 text-[#7C1B26]" />
+                className="h-4 w-4 accent-brand-700" />
+              <MapPin className="h-4 w-4 text-brand-700" />
               Enable location geofencing for this office
             </label>
-            <p className="text-xs text-[#8A7A73]">
+            <p className="text-xs text-ink-500">
               When enabled, recipients can only clock in within the radius below and are auto clocked-out if they leave.
             </p>
 
@@ -316,18 +316,18 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
               <>
                 <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-[#8A7A73]">Latitude (-90 to 90)</label>
+                    <label className="mb-1 block text-xs font-medium text-ink-500">Latitude (-90 to 90)</label>
                     <input type="number" step={0.000001} min={-90} max={90} value={lat ?? ''}
                       onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value ? parseFloat(e.target.value) : null }))}
                       placeholder="7.9986"
-                      className="w-full rounded-lg border border-[#EADFD4] bg-white px-2.5 py-1.5 text-xs focus:border-[#7C1B26] focus:outline-none" />
+                      className="w-full rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs focus:border-brand-700 focus:outline-none" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-[#8A7A73]">Longitude (-180 to 180)</label>
+                    <label className="mb-1 block text-xs font-medium text-ink-500">Longitude (-180 to 180)</label>
                     <input type="number" step={0.000001} min={-180} max={180} value={lng ?? ''}
                       onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value ? parseFloat(e.target.value) : null }))}
                       placeholder="124.2928"
-                      className="w-full rounded-lg border border-[#EADFD4] bg-white px-2.5 py-1.5 text-xs focus:border-[#7C1B26] focus:outline-none" />
+                      className="w-full rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs focus:border-brand-700 focus:outline-none" />
                   </div>
                 </div>
 
@@ -343,19 +343,19 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
           </div>
 
           {geoInvalid && (
-            <p className="text-xs text-[#C0392B]">Drop a pin on the map to set the office location before saving.</p>
+            <p className="text-xs text-danger-700">Drop a pin on the map to set the office location before saving.</p>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 border-t border-[#EFE5DA] bg-[#FCF8F3] px-6 py-4">
+        <div className="flex justify-end gap-3 border-t border-ink-200 bg-ink-50 px-6 py-4">
           <button onClick={onCancel}
-            className="h-11 rounded-xl border border-[#E7D9C9] bg-white px-5 text-sm font-semibold text-[#7A6A63] hover:bg-[#FBF7F2] transition-colors">
+            className="h-11 rounded-xl border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
             Cancel
           </button>
           <button onClick={() => onSave(form, { file: logoFile, remove: removeLogo })} disabled={loading || geoInvalid}
-            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity disabled:opacity-50"
-            style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity disabled:opacity-50"
+            style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
             <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
             {loading ? 'Saving…' : editing ? 'Save Changes' : 'Create Office'}
           </button>
@@ -412,10 +412,10 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
       <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="font-serif text-xl font-semibold text-[#241715]">{office.name}</h2>
-            <p className="text-sm text-[#8A7A73]">Assigned supervisors &amp; recipients</p>
+            <h2 className="font-serif text-xl font-semibold text-ink-950">{office.name}</h2>
+            <p className="text-sm text-ink-500">Assigned supervisors &amp; recipients</p>
           </div>
-          <button onClick={onClose} className="text-[#B79B7E] hover:text-[#7C1B26] transition-colors">
+          <button onClick={onClose} className="text-ink-400 hover:text-brand-700 transition-colors">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -423,27 +423,27 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
         {/* Supervisors */}
         <div className="mb-5">
           <div className="mb-2 flex items-center gap-2">
-            <UserCog className="h-4 w-4 text-[#6B4E9A]" />
-            <h3 className="text-sm font-semibold text-[#241715]">Supervisors</h3>
-            <span className="rounded-full bg-[#F1ECF7] px-2 py-0.5 text-xs font-medium text-[#6B4E9A]">{supervisors.length}</span>
+            <UserCog className="h-4 w-4 text-violet-600" />
+            <h3 className="text-sm font-semibold text-ink-950">Supervisors</h3>
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-600">{supervisors.length}</span>
           </div>
 
           {supervisors.length === 0 ? (
-            <p className="mb-2 rounded-lg border border-[#F6E0BE] bg-[#FFF7ED] px-3 py-2 text-xs font-medium text-[#92400E]">
+            <p className="mb-2 rounded-lg border border-warning-200 bg-warning-50 px-3 py-2 text-xs font-medium text-warning-800">
               This office has no supervisor yet. Each office should have at least one.
             </p>
           ) : (
             <div className="mb-2 space-y-2">
               {supervisors.map((s) => (
-                <div key={s.id} className="flex items-center justify-between rounded-lg border border-[#EADFD4] bg-[#FBF7F2] px-3 py-2">
+                <div key={s.id} className="flex items-center justify-between rounded-lg border border-ink-200 bg-ink-50 px-3 py-2">
                   <div>
-                    <p className="text-sm font-medium text-[#241715]">{s.name}</p>
-                    <p className="text-xs text-[#8A7A73]">{s.email}</p>
+                    <p className="text-sm font-medium text-ink-950">{s.name}</p>
+                    <p className="text-xs text-ink-500">{s.email}</p>
                   </div>
                   <button
                     onClick={() => remove.mutate(s.id)}
                     disabled={remove.isPending}
-                    className="rounded-lg border border-[#EADFD4] px-2.5 py-1 text-xs font-medium text-[#C0392B] hover:bg-[#FEF0F0] disabled:opacity-50 transition-colors"
+                    className="rounded-lg border border-ink-200 px-2.5 py-1 text-xs font-medium text-danger-700 hover:bg-danger-50 disabled:opacity-50 transition-colors"
                   >
                     Remove
                   </button>
@@ -456,7 +456,7 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
             <select
               value={pickSupervisor}
               onChange={(e) => setPickSupervisor(e.target.value)}
-              className="flex-1 rounded-lg border border-[#EADFD4] bg-[#FBF7F2] px-3 py-2 text-sm focus:border-[#7C1B26] focus:outline-none"
+              className="flex-1 rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none"
             >
               <option value="">{available.length ? 'Select an unassigned supervisor…' : 'No unassigned supervisors available'}</option>
               {available.map((s) => (
@@ -466,7 +466,7 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
             <button
               onClick={() => pickSupervisor && assign.mutate(Number(pickSupervisor))}
               disabled={!pickSupervisor || assign.isPending}
-              className="flex items-center gap-1.5 rounded-lg bg-[#7C1B26] px-3 py-2 text-xs font-semibold text-white hover:bg-[#86202E] disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-lg bg-brand-700 px-3 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors"
             >
               <UserCog className="h-3.5 w-3.5" />
               Assign
@@ -475,36 +475,36 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
         </div>
 
         <div className="mb-2 flex items-center gap-2">
-          <Users className="h-4 w-4 text-[#7C1B26]" />
-          <h3 className="text-sm font-semibold text-[#241715]">Recipients</h3>
+          <Users className="h-4 w-4 text-brand-700" />
+          <h3 className="text-sm font-semibold text-ink-950">Recipients</h3>
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">{[1, 2, 3].map((n) => <div key={n} className="h-16 animate-pulse rounded-xl bg-[#EAD9D9]" />)}</div>
+          <div className="space-y-3">{[1, 2, 3].map((n) => <div key={n} className="h-16 animate-pulse rounded-xl bg-ink-200" />)}</div>
         ) : assignments.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <Users className="h-9 w-9 text-[#DCC5C5]" />
-            <p className="text-sm font-medium text-[#B09A9A]">No recipients assigned to this office yet.</p>
+            <Users className="h-9 w-9 text-ink-300" />
+            <p className="text-sm font-medium text-ink-400">No recipients assigned to this office yet.</p>
           </div>
         ) : (
           <div className="max-h-[60vh] space-y-3 overflow-y-auto">
             {assignments.map((a) => (
-              <div key={a.id} className="rounded-xl border border-[#EADFD4] bg-[#FBF7F2] p-4">
+              <div key={a.id} className="rounded-xl border border-ink-200 bg-ink-50 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4 flex-shrink-0 text-[#7C1B26]" />
-                      <p className="font-semibold text-[#241715]">{a.user?.name ?? '—'}</p>
+                      <Users className="h-4 w-4 flex-shrink-0 text-brand-700" />
+                      <p className="font-semibold text-ink-950">{a.user?.name ?? '—'}</p>
                     </div>
-                    <p className="ml-6 text-xs text-[#8A7A73]">{a.user?.email ?? '—'}</p>
-                    <p className="ml-6 mt-1.5 flex items-center gap-1.5 text-xs text-[#8A7A73]">
-                      <UserCog className="h-3.5 w-3.5 flex-shrink-0 text-[#6B4E9A]" />
-                      Supervisor: <span className="font-medium text-[#241715]">{a.supervisor?.name ?? 'Unassigned'}</span>
+                    <p className="ml-6 text-xs text-ink-500">{a.user?.email ?? '—'}</p>
+                    <p className="ml-6 mt-1.5 flex items-center gap-1.5 text-xs text-ink-500">
+                      <UserCog className="h-3.5 w-3.5 flex-shrink-0 text-violet-600" />
+                      Supervisor: <span className="font-medium text-ink-950">{a.supervisor?.name ?? 'Unassigned'}</span>
                     </p>
                   </div>
                   <StatusBadge status={a.status} />
                 </div>
-                <div className="mt-2 ml-6 text-xs text-[#8A7A73]">
+                <div className="mt-2 ml-6 text-xs text-ink-500">
                   {formatHours(a.verified_hours)} verified / {a.required_hours}h required · {a.academic_year} — {a.semester}
                 </div>
               </div>
@@ -590,15 +590,15 @@ export default function AdminOfficesPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#A9823C]">Host Offices</p>
-          <h1 className="font-serif text-3xl font-medium text-[#241715]">Offices</h1>
-          <p className="mt-1.5 text-[13.5px] text-[#8A7A73]">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Host Offices</p>
+          <h1 className="font-serif text-3xl font-medium text-ink-950">Offices</h1>
+          <p className="mt-1.5 text-[13.5px] text-ink-500">
             {offices.length} host office{offices.length === 1 ? '' : 's'} · {totalCap} total recipient capacity
           </p>
         </div>
         <button onClick={() => setShowNew(true)}
-          className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] transition-opacity hover:opacity-95 sm:self-auto"
-          style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+          className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity hover:opacity-95 sm:self-auto"
+          style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
           <Plus className="h-[19px] w-[19px]" />
           Add Office
         </button>
@@ -607,16 +607,16 @@ export default function AdminOfficesPage() {
       {/* Toolbar */}
       <div className="flex flex-wrap gap-3">
         <div className="relative min-w-[240px] flex-1">
-          <Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#B79B7E]" />
+          <Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search offices by name or head…"
-            className="h-11 w-full rounded-xl border border-[#EADFD4] bg-white pl-11 pr-4 text-sm text-[#2B1E1B] placeholder:text-[#B7A99F] focus:border-[#7C1B26] focus:outline-none focus:ring-2 focus:ring-[#7C1B26]/10"
+            className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-11 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10"
           />
         </div>
 
-        <div className="inline-flex gap-1 rounded-xl bg-[#F1E7DC] p-1">
+        <div className="inline-flex gap-1 rounded-xl bg-ink-100 p-1">
           {FILTERS.map((f) => {
             const on = filter === f
             return (
@@ -626,9 +626,9 @@ export default function AdminOfficesPage() {
                 className="rounded-lg px-4 py-2 text-[12.5px] transition-colors"
                 style={{
                   background: on ? '#FFFFFF' : 'transparent',
-                  color: on ? '#7C1B26' : '#8A7A73',
+                  color: on ? '#1F5B3A' : '#6F7B74',
                   fontWeight: on ? 600 : 500,
-                  boxShadow: on ? '0 1px 3px rgba(60,30,25,.08)' : 'none',
+                  boxShadow: on ? '0 1px 3px rgba(19,36,26,.08)' : 'none',
                 }}
               >
                 {f}
@@ -640,26 +640,26 @@ export default function AdminOfficesPage() {
         <div className="relative">
           <button
             onClick={() => setSortOpen((s) => !s)}
-            className="flex h-11 items-center gap-2 rounded-xl border border-[#EADFD4] bg-white px-4 text-[13px] font-semibold text-[#2B1E1B]"
+            className="flex h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-[13px] font-semibold text-ink-900"
           >
             Sort: {sort}
-            <ChevronDown className="h-4 w-4 text-[#B79B7E]" />
+            <ChevronDown className="h-4 w-4 text-ink-400" />
           </button>
           {sortOpen && (
             <>
               <div className="fixed inset-0 z-20" onClick={() => setSortOpen(false)} />
-              <div className="absolute right-0 top-[52px] z-30 w-48 rounded-xl border border-[#EADFD4] bg-white p-1.5 shadow-[0_18px_40px_rgba(58,24,20,.18)]">
+              <div className="absolute right-0 top-[52px] z-30 w-48 rounded-xl border border-ink-200 bg-white p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
                 {SORTS.map((s) => {
                   const on = sort === s
                   return (
                     <button
                       key={s}
                       onClick={() => { setSort(s); setSortOpen(false) }}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-[#2B1E1B]"
-                      style={{ background: on ? '#FBF3E7' : 'transparent', fontWeight: on ? 700 : 500 }}
+                      className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-ink-900"
+                      style={{ background: on ? '#FDF8E4' : 'transparent', fontWeight: on ? 700 : 500 }}
                     >
                       {s}
-                      {on && <Check className="h-[17px] w-[17px] text-[#7C1B26]" />}
+                      {on && <Check className="h-[17px] w-[17px] text-brand-700" />}
                     </button>
                   )
                 })}
@@ -672,15 +672,15 @@ export default function AdminOfficesPage() {
       {/* Grid */}
       {isLoading ? (
         <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((n) => <div key={n} className="h-64 animate-pulse rounded-[15px] bg-[#EAD9D9]/50" />)}
+          {[1, 2, 3, 4, 5, 6].map((n) => <div key={n} className="h-64 animate-pulse rounded-[15px] bg-ink-200/50" />)}
         </div>
       ) : offices.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-[15px] border border-dashed border-[#E0D2C4] bg-white py-16 text-center">
-          <Building2 className="h-10 w-10 text-[#DCC5C5]" />
-          <p className="text-sm font-medium text-[#B09A9A]">No offices yet — add your first host office.</p>
+        <div className="flex flex-col items-center gap-3 rounded-[15px] border border-dashed border-ink-300 bg-white py-16 text-center">
+          <Building2 className="h-10 w-10 text-ink-300" />
+          <p className="text-sm font-medium text-ink-400">No offices yet — add your first host office.</p>
         </div>
       ) : list.length === 0 ? (
-        <div className="rounded-[15px] border border-dashed border-[#E0D2C4] bg-white py-12 text-center text-sm text-[#A38A82]">
+        <div className="rounded-[15px] border border-dashed border-ink-300 bg-white py-12 text-center text-sm text-ink-400">
           No offices match your search or filter.
         </div>
       ) : (
@@ -691,38 +691,38 @@ export default function AdminOfficesPage() {
             const max = office.max_recipients || 0
             const ratio = max ? filled / max : 0
             const full = max > 0 && filled >= max
-            const barColor = full ? '#C0562F' : ratio >= 0.75 ? '#D8A12B' : '#4E9657'
+            const barColor = full ? '#E2483B' : ratio >= 0.75 ? '#F59E0B' : '#1F8163'
             const pct = Math.min(100, Math.round(ratio * 100))
 
             return (
-              <div key={office.id} className="rounded-[15px] border border-[#EFE5DA] bg-white p-5 shadow-[0_2px_8px_rgba(60,30,25,.04)]">
+              <div key={office.id} className="rounded-[15px] border border-ink-200 bg-white p-5 shadow-[0_2px_8px_rgba(19,36,26,.04)]">
                 {/* Header: logo + name + edit */}
                 <div className="mb-3.5 flex items-start gap-3">
                   <OfficeLogo office={office} bg={bg} fg={fg} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-bold leading-tight text-[#241715]">{office.name}</p>
-                    <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#A38A82]">{office.location || 'Host office'}</p>
+                    <p className="text-[15px] font-bold leading-tight text-ink-950">{office.name}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400">{office.location || 'Host office'}</p>
                   </div>
                   <button
                     onClick={() => setEditing(office)}
                     title="Edit office"
-                    className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-lg border border-[#EADFD4] bg-[#FBF7F2] text-[#7A6A63] hover:bg-[#F4ECE1] transition-colors"
+                    className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-lg border border-ink-200 bg-ink-50 text-ink-500 hover:bg-ink-100 transition-colors"
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                 </div>
 
                 {/* Head + location */}
-                <div className="mb-3.5 space-y-1 text-[12.5px] leading-[1.7] text-[#7A6A63]">
+                <div className="mb-3.5 space-y-1 text-[12.5px] leading-[1.7] text-ink-500">
                   {office.head_name && (
                     <div className="flex items-center gap-1.5">
-                      <UserCog className="h-4 w-4 flex-none text-[#B79B7E]" />
+                      <UserCog className="h-4 w-4 flex-none text-ink-400" />
                       <span className="truncate">{office.head_name}</span>
                     </div>
                   )}
                   {office.location && (
                     <div className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 flex-none text-[#B79B7E]" />
+                      <MapPin className="h-4 w-4 flex-none text-ink-400" />
                       <span className="truncate">{office.location}</span>
                     </div>
                   )}
@@ -731,10 +731,10 @@ export default function AdminOfficesPage() {
                 {/* Capacity */}
                 <div className="mb-3.5">
                   <div className="mb-1.5 flex justify-between text-[11.5px] font-semibold">
-                    <span className="text-[#5A4A45]">Capacity</span>
+                    <span className="text-ink-600">Capacity</span>
                     <span style={{ color: barColor }}>{filled} / {max} · {full ? 'Full' : `${Math.max(0, max - filled)} open`}</span>
                   </div>
-                  <div className="h-[7px] overflow-hidden rounded-[5px] bg-[#F1E7DC]">
+                  <div className="h-[7px] overflow-hidden rounded-[5px] bg-ink-100">
                     <div className="h-full rounded-[5px]" style={{ width: `${pct}%`, background: barColor }} />
                   </div>
                 </div>
@@ -744,25 +744,25 @@ export default function AdminOfficesPage() {
                   <span
                     className="inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-[11px] font-bold"
                     style={office.is_active
-                      ? { color: '#2C5A33', background: '#EAF5EC' }
-                      : { color: '#8A7A73', background: '#F1E7DC' }}
+                      ? { color: '#145643', background: '#EFF8F4' }
+                      : { color: '#6F7B74', background: '#ECEFE2' }}
                   >
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: office.is_active ? '#4E9657' : '#B7A99F' }} />
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: office.is_active ? '#1F8163' : '#ADB5A8' }} />
                     {office.is_active ? 'Active' : 'Inactive'}
                   </span>
                   {office.geofence_enabled && (
-                    <span className="inline-flex items-center gap-1.5 rounded-[7px] bg-[#F4ECE1] px-2.5 py-1 text-[11px] font-semibold text-[#5A4A45]">
-                      <MapPin className="h-3.5 w-3.5 text-[#A9823C]" />
+                    <span className="inline-flex items-center gap-1.5 rounded-[7px] bg-ink-100 px-2.5 py-1 text-[11px] font-semibold text-ink-600">
+                      <MapPin className="h-3.5 w-3.5 text-gold-600" />
                       {office.radius_meters ?? 100}m geofence
                     </span>
                   )}
                   <span
                     className="inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-[11px] font-semibold"
                     style={office.supervisors_count
-                      ? { color: '#5A4A45', background: '#F4ECE1' }
-                      : { color: '#92400E', background: '#FFF7ED' }}
+                      ? { color: '#56625A', background: '#ECEFE2' }
+                      : { color: '#92400E', background: '#FFFBEB' }}
                   >
-                    <UserCog className="h-3.5 w-3.5 text-[#6B4E9A]" />
+                    <UserCog className="h-3.5 w-3.5 text-violet-600" />
                     {office.supervisors_count
                       ? `${office.supervisors_count} sup${office.supervisors_count > 1 ? 's' : ''}`
                       : 'No supervisor'}
@@ -773,17 +773,17 @@ export default function AdminOfficesPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setViewOffice(office)}
-                    className="flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-[#EADFD4] bg-[#FBF7F2] text-[12.5px] font-semibold text-[#3F2F2A] hover:bg-[#F4ECE1] transition-colors"
+                    className="flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-ink-200 bg-ink-50 text-[12.5px] font-semibold text-ink-700 hover:bg-ink-100 transition-colors"
                   >
-                    <Users className="h-4 w-4 text-[#7C1B26]" />
+                    <Users className="h-4 w-4 text-brand-700" />
                     Recipients
                   </button>
                   <button
                     onClick={() => officeQr.mutate(office)}
                     disabled={officeQr.isPending}
-                    className="flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-[#EADFD4] bg-[#FBF7F2] text-[12.5px] font-semibold text-[#3F2F2A] hover:bg-[#F4ECE1] disabled:opacity-50 transition-colors"
+                    className="flex h-[38px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-ink-200 bg-ink-50 text-[12.5px] font-semibold text-ink-700 hover:bg-ink-100 disabled:opacity-50 transition-colors"
                   >
-                    <QrCode className="h-4 w-4 text-[#A9823C]" />
+                    <QrCode className="h-4 w-4 text-gold-600" />
                     Office QR
                   </button>
                 </div>
@@ -806,8 +806,8 @@ export default function AdminOfficesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setQrView(null)}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between">
-              <h2 className="font-semibold text-[#1E293B]">Office QR — {qrView.name}</h2>
-              <button onClick={() => setQrView(null)} className="text-[#94A3B8] hover:text-[#E74C3C] transition-colors">
+              <h2 className="font-semibold text-ink-900">Office QR — {qrView.name}</h2>
+              <button onClick={() => setQrView(null)} className="text-ink-350 hover:text-danger-600 transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -818,13 +818,13 @@ export default function AdminOfficesPage() {
                 caption={qrView.name}
               />
             </div>
-            <p className="mt-4 text-center text-xs text-[#8A6A6A]">
+            <p className="mt-4 text-center text-xs text-ink-500">
               Print and post this at the office entrance. Recipients scan it with their
               phone camera to clock in automatically — no need to open the portal first.
             </p>
 
-            <div className="mt-4 space-y-3 border-t border-[#EAD9D9] pt-4">
-              <p className="text-xs font-medium text-[#8A6A6A]">
+            <div className="mt-4 space-y-3 border-t border-ink-200 pt-4">
+              <p className="text-xs font-medium text-ink-500">
                 Manual fallback (if the camera won&apos;t scan):
               </p>
               <CopyField label="Scan link — open in a phone browser" value={`${window.location.origin}/scan?t=${encodeURIComponent(qrView.token)}`} />

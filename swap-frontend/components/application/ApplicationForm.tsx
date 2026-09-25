@@ -121,22 +121,22 @@ export function ApplicationForm() {
             <div
               className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors ${
                 s === step
-                  ? 'bg-[#7D1A1A] text-white'
+                  ? 'bg-brand-700 text-white'
                   : s < step
-                  ? 'bg-[#27AE60] text-white'
-                  : 'bg-[#EAD9D9] text-[#8A6A6A]'
+                  ? 'bg-success-600 text-white'
+                  : 'bg-ink-200 text-ink-500'
               }`}
             >
               {s}
             </div>
             {s < 2 && (
               <div
-                className={`h-0.5 w-16 rounded ${s < step ? 'bg-[#27AE60]' : 'bg-[#EAD9D9]'}`}
+                className={`h-0.5 w-16 rounded ${s < step ? 'bg-success-600' : 'bg-ink-200'}`}
               />
             )}
           </div>
         ))}
-        <div className="ml-2 text-sm font-medium text-[#8A6A6A]">
+        <div className="ml-2 text-sm font-medium text-ink-500">
           {step === 1 ? 'Application Info' : 'Supporting Documents'}
         </div>
       </div>
@@ -144,12 +144,12 @@ export function ApplicationForm() {
       {step === 1 && (
         <form onSubmit={handleSubmit(onStep1)} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
+            <label className="block text-sm font-medium text-ink-900 mb-1.5">
               Academic Year
             </label>
             <select
               {...register('academic_year')}
-              className="w-full rounded-lg border border-[#DCC5C5] bg-white px-3 py-2.5 text-sm text-[#1E293B] focus:border-[#7D1A1A] focus:outline-none focus:ring-2 focus:ring-[#7D1A1A]/15"
+              className="w-full rounded-lg border border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/15"
             >
               <option value="">Select academic year</option>
               {ACADEMIC_YEARS.map((y) => (
@@ -157,17 +157,17 @@ export function ApplicationForm() {
               ))}
             </select>
             {errors.academic_year && (
-              <p className="mt-1 text-xs text-[#E74C3C]">{errors.academic_year.message}</p>
+              <p className="mt-1 text-xs text-danger-600">{errors.academic_year.message}</p>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#1E293B] mb-1.5">
+            <label className="block text-sm font-medium text-ink-900 mb-1.5">
               Semester
             </label>
             <select
               {...register('semester')}
-              className="w-full rounded-lg border border-[#DCC5C5] bg-white px-3 py-2.5 text-sm text-[#1E293B] focus:border-[#7D1A1A] focus:outline-none focus:ring-2 focus:ring-[#7D1A1A]/15"
+              className="w-full rounded-lg border border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/15"
             >
               <option value="">Select semester</option>
               {SEMESTERS.map((s) => (
@@ -175,13 +175,13 @@ export function ApplicationForm() {
               ))}
             </select>
             {errors.semester && (
-              <p className="mt-1 text-xs text-[#E74C3C]">{errors.semester.message}</p>
+              <p className="mt-1 text-xs text-danger-600">{errors.semester.message}</p>
             )}
           </div>
 
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7D1A1A] px-6 py-3 text-sm font-semibold text-white hover:bg-[#A52020] transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
           >
             Next
             <ChevronRight className="h-4 w-4" />
@@ -219,7 +219,7 @@ export function ApplicationForm() {
           />
 
           {serverError && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-[#E74C3C]">
+            <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-600">
               {serverError}
             </div>
           )}
@@ -228,7 +228,7 @@ export function ApplicationForm() {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="flex items-center gap-1.5 rounded-xl border border-[#DCC5C5] bg-white px-5 py-3 text-sm font-semibold text-[#1E293B] hover:bg-[#FAF7F7] transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-ink-300 bg-white px-5 py-3 text-sm font-semibold text-ink-900 hover:bg-ink-50 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
               Back
@@ -237,7 +237,7 @@ export function ApplicationForm() {
               type="button"
               onClick={onSubmit}
               disabled={mutation.isPending}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#7D1A1A] px-6 py-3 text-sm font-semibold text-white hover:bg-[#A52020] disabled:opacity-60 transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60 transition-colors"
             >
               <Send className="h-4 w-4" />
               {mutation.isPending ? 'Submitting…' : 'Submit Application'}

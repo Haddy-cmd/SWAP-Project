@@ -16,8 +16,8 @@ const WD_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const WD_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 const AVATARS: [string, string][] = [
-  ['#FBEAEC', '#7C1B26'], ['#EAF1F7', '#3B7FB5'], ['#EAF5EC', '#4E9657'],
-  ['#FBF3E2', '#B8860B'], ['#F1ECF7', '#6B4E9A'], ['#F7EDE8', '#C0562F'], ['#EAF1F7', '#1F4E6B'],
+  ['#E3EEE5', '#1F5B3A'], ['#F3F7FB', '#4A82B8'], ['#EFF8F4', '#1F8163'],
+  ['#FDF8E4', '#9A7412'], ['#EFE9F7', '#6B4E9A'], ['#FEF3F2', '#E2483B'], ['#F3F7FB', '#234A70'],
 ]
 const avatar = (id: number) => AVATARS[id % AVATARS.length]
 
@@ -32,8 +32,8 @@ function manilaYMD(iso: string | Date): { y: number; m0: number; d: number } {
 
 const modeStyle = (mode: Interview['mode']) =>
   mode === 'online'
-    ? { label: 'Online', color: '#6B4E9A', bg: '#F1ECF7', dot: '#6B4E9A', Icon: Video }
-    : { label: 'In Person', color: '#1F5C86', bg: '#EAF1F7', dot: '#1F5C86', Icon: Users }
+    ? { label: 'Online', color: '#6B4E9A', bg: '#EFE9F7', dot: '#6B4E9A', Icon: Video }
+    : { label: 'In Person', color: '#2F5D8A', bg: '#F3F7FB', dot: '#2F5D8A', Icon: Users }
 
 type IvItem = { app: Application; iv: Interview; y: number; m0: number; d: number; ts: number }
 
@@ -126,29 +126,29 @@ export default function AdminInterviewsPage() {
       {/* header */}
       <div className="flex flex-wrap items-end justify-between gap-3.5">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#A9823C]">Scheduled Interviews</p>
-          <h1 className="mt-1 font-serif text-3xl font-medium text-[#241715]">Interviews</h1>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Scheduled Interviews</p>
+          <h1 className="mt-1 font-serif text-3xl font-medium text-ink-950">Interviews</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-[12.5px] text-[#8A7A73]"><strong className="text-[14px] text-[#7C1B26]">{monthCount}</strong> this month</span>
+          <span className="text-[12.5px] text-ink-500"><strong className="text-[14px] text-brand-700">{monthCount}</strong> this month</span>
           <div className="flex items-center gap-1.5">
-            <button onClick={prevMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-[#EADFD4] bg-white text-[#7A6A63] hover:bg-[#FBF7F2]">
+            <button onClick={prevMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-ink-200 bg-white text-ink-500 hover:bg-ink-50">
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <div className="min-w-[150px] text-center text-[15px] font-bold text-[#2B1E1B]">{monthLabel}</div>
-            <button onClick={nextMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-[#EADFD4] bg-white text-[#7A6A63] hover:bg-[#FBF7F2]">
+            <div className="min-w-[150px] text-center text-[15px] font-bold text-ink-900">{monthLabel}</div>
+            <button onClick={nextMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-ink-200 bg-white text-ink-500 hover:bg-ink-50">
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <button onClick={goToday} className="flex h-[42px] items-center rounded-[10px] border border-[#EADFD4] bg-white px-4 text-[13px] font-semibold text-[#2B1E1B] hover:bg-[#FBF7F2]">Today</button>
-          <div className="inline-flex gap-[3px] rounded-[10px] bg-[#F1E7DC] p-1">
+          <button onClick={goToday} className="flex h-[42px] items-center rounded-[10px] border border-ink-200 bg-white px-4 text-[13px] font-semibold text-ink-900 hover:bg-ink-50">Today</button>
+          <div className="inline-flex gap-[3px] rounded-[10px] bg-ink-100 p-1">
             {(['month', 'list'] as const).map((v) => {
               const on = view === v
               return (
                 <button
                   key={v}
                   onClick={() => setView(v)}
-                  className={`rounded-[7px] px-4 py-2 text-[12.5px] capitalize transition-colors ${on ? 'bg-white font-semibold text-[#7C1B26] shadow-[0_1px_3px_rgba(60,30,25,.08)]' : 'font-medium text-[#8A7A73]'}`}
+                  className={`rounded-[7px] px-4 py-2 text-[12.5px] capitalize transition-colors ${on ? 'bg-white font-semibold text-brand-700 shadow-[0_1px_3px_rgba(19,36,26,.08)]' : 'font-medium text-ink-500'}`}
                 >
                   {v}
                 </button>
@@ -159,13 +159,13 @@ export default function AdminInterviewsPage() {
       </div>
 
       {isLoading ? (
-        <div className="h-[560px] animate-pulse rounded-2xl bg-[#EFE5DA]/50" />
+        <div className="h-[560px] animate-pulse rounded-2xl bg-ink-200/50" />
       ) : view === 'month' ? (
         /* ── MONTH VIEW ─────────────────────────────────────────────── */
-        <div className="rounded-2xl border border-[#EFE5DA] bg-white p-5 shadow-[0_2px_8px_rgba(60,30,25,.04)]">
+        <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-[0_2px_8px_rgba(19,36,26,.04)]">
           <div className="mb-2 grid grid-cols-7 gap-2">
             {WD_SHORT.map((w) => (
-              <div key={w} className="text-center text-[11px] font-bold uppercase tracking-[0.06em] text-[#A38A82]">{w}</div>
+              <div key={w} className="text-center text-[11px] font-bold uppercase tracking-[0.06em] text-ink-400">{w}</div>
             ))}
           </div>
           <div className="flex flex-col gap-2">
@@ -180,9 +180,9 @@ export default function AdminInterviewsPage() {
                       disabled={!has}
                       className="min-h-[108px] rounded-[11px] border p-2.5 text-left align-top"
                       style={{
-                        background: !c.inMonth ? '#FAF6F0' : c.items.length ? '#FFFDFB' : '#FFFFFF',
-                        borderColor: c.items.length ? '#EADBC8' : '#EFE5DA',
-                        boxShadow: c.isToday ? 'inset 0 0 0 2px #7C1B26' : 'none',
+                        background: !c.inMonth ? '#F7F6EE' : c.items.length ? '#FAF8EC' : '#FFFFFF',
+                        borderColor: c.items.length ? '#DCE0CF' : '#DCE0CF',
+                        boxShadow: c.isToday ? 'inset 0 0 0 2px #1F5B3A' : 'none',
                         cursor: has ? 'pointer' : 'default',
                       }}
                     >
@@ -191,22 +191,22 @@ export default function AdminInterviewsPage() {
                           className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full text-[13px]"
                           style={{
                             fontWeight: c.items.length ? 700 : 500,
-                            color: !c.inMonth ? '#C9B7AC' : c.isToday ? '#FFF8EE' : '#3F2F2A',
-                            background: c.isToday ? '#7C1B26' : 'transparent',
+                            color: !c.inMonth ? '#ADB5A8' : c.isToday ? '#FAF8EC' : '#34433A',
+                            background: c.isToday ? '#1F5B3A' : 'transparent',
                           }}
                         >
                           {c.num}
                         </span>
-                        {has && <span className="rounded-full bg-[#7C1B26] px-1.5 py-px text-[10px] font-bold text-[#FFF1E2]">{c.items.length}</span>}
+                        {has && <span className="rounded-full bg-brand-700 px-1.5 py-px text-[10px] font-bold text-ink-25">{c.items.length}</span>}
                       </div>
                       <div className="flex flex-col gap-1">
                         {c.items.slice(0, 2).map((it) => (
-                          <div key={it.app.id} className="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-md border border-[#EFE5DA] bg-[#FBF7F2] px-1.5 py-0.5 text-[10.5px] text-[#5A4A45]">
+                          <div key={it.app.id} className="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-md border border-ink-200 bg-ink-50 px-1.5 py-0.5 text-[10.5px] text-ink-600">
                             <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: modeStyle(it.iv.mode).dot }} />
                             {(it.app.user?.name ?? '—').split(' ')[0]}
                           </div>
                         ))}
-                        {c.items.length > 2 && <span className="pl-0.5 text-[10px] font-semibold text-[#7C1B26]">+{c.items.length - 2} more</span>}
+                        {c.items.length > 2 && <span className="pl-0.5 text-[10px] font-semibold text-brand-700">+{c.items.length - 2} more</span>}
                       </div>
                     </button>
                   )
@@ -215,10 +215,10 @@ export default function AdminInterviewsPage() {
             ))}
           </div>
           {/* legend */}
-          <div className="mt-4 flex flex-wrap gap-4 border-t border-[#F4ECE1] pt-3.5">
-            <span className="flex items-center gap-1.5 text-[12px] text-[#5A4A45]"><span className="h-1.5 w-1.5 rounded-full bg-[#1F5C86]" />In Person</span>
-            <span className="flex items-center gap-1.5 text-[12px] text-[#5A4A45]"><span className="h-1.5 w-1.5 rounded-full bg-[#6B4E9A]" />Online</span>
-            <span className="flex items-center gap-1.5 text-[12px] text-[#5A4A45]"><span className="rounded-full bg-[#7C1B26] px-1.5 py-px text-[10px] font-bold text-[#FFF1E2]">N</span>Interviews that day · click to view</span>
+          <div className="mt-4 flex flex-wrap gap-4 border-t border-ink-100 pt-3.5">
+            <span className="flex items-center gap-1.5 text-[12px] text-ink-600"><span className="h-1.5 w-1.5 rounded-full bg-info-700" />In Person</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-ink-600"><span className="h-1.5 w-1.5 rounded-full bg-violet-600" />Online</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-ink-600"><span className="rounded-full bg-brand-700 px-1.5 py-px text-[10px] font-bold text-ink-25">N</span>Interviews that day · click to view</span>
           </div>
         </div>
       ) : (
@@ -230,30 +230,30 @@ export default function AdminInterviewsPage() {
             {listGroups.map((g) => (
               <div key={g.key}>
                 <div className="mb-2.5 flex items-center gap-2.5">
-                  <span className="text-[12.5px] font-bold text-[#3F2F2A]">{g.label}</span>
-                  <span className="rounded-full bg-[#FBEAEC] px-2 py-px text-[11px] font-bold text-[#7C1B26]">{g.items.length}</span>
-                  <span className="h-px flex-1 bg-[#ECE1D6]" />
+                  <span className="text-[12.5px] font-bold text-ink-700">{g.label}</span>
+                  <span className="rounded-full bg-brand-100 px-2 py-px text-[11px] font-bold text-brand-700">{g.items.length}</span>
+                  <span className="h-px flex-1 bg-ink-200" />
                 </div>
-                <div className="overflow-hidden rounded-[13px] border border-[#EFE5DA] bg-white">
+                <div className="overflow-hidden rounded-[13px] border border-ink-200 bg-white">
                   {g.items.map((it, i) => {
                     const ms = modeStyle(it.iv.mode)
                     const [avBg, avFg] = avatar(it.app.id)
                     return (
-                      <div key={it.app.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 sm:px-[18px] ${i < g.items.length - 1 ? 'border-b border-[#F4ECE1]' : ''}`}>
-                        <div className="w-[66px] flex-none text-[12.5px] font-bold text-[#7C1B26]">{formatTime(it.iv.scheduled_at)}</div>
+                      <div key={it.app.id} className={`flex flex-wrap items-center gap-3 px-4 py-3 sm:px-[18px] ${i < g.items.length - 1 ? 'border-b border-ink-100' : ''}`}>
+                        <div className="w-[66px] flex-none text-[12.5px] font-bold text-brand-700">{formatTime(it.iv.scheduled_at)}</div>
                         {it.iv.status === 'no_show' && (
-                          <span className="flex-none rounded-full bg-[#FFF9EC] px-2 py-0.5 text-[10.5px] font-bold text-[#B45309] ring-1 ring-[#F0DFAE]">No-show</span>
+                          <span className="flex-none rounded-full bg-gold-50 px-2 py-0.5 text-[10.5px] font-bold text-warning-700 ring-1 ring-gold-200">No-show</span>
                         )}
                         <UserAvatar name={it.app.user?.name} avatarUrl={it.app.user?.avatar_url} className="h-9 w-9 rounded-full text-[12px] font-bold" style={{ background: avBg, color: avFg }} />
                         <div className="min-w-0 flex-1 leading-tight">
-                          <div className="truncate text-[13.5px] font-semibold text-[#241715]">{it.app.user?.name ?? '—'}</div>
-                          <div className="truncate text-[11.5px] text-[#A38A82]">{it.app.user?.email ?? '—'}</div>
+                          <div className="truncate text-[13.5px] font-semibold text-ink-950">{it.app.user?.name ?? '—'}</div>
+                          <div className="truncate text-[11.5px] text-ink-400">{it.app.user?.email ?? '—'}</div>
                         </div>
                         <span className="flex flex-none items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-[11px] font-semibold" style={{ color: ms.color, background: ms.bg }}>
                           <ms.Icon className="h-3.5 w-3.5" />{ms.label}
                         </span>
-                        <span className="hidden flex-none text-[11.5px] text-[#5A4A45] sm:block">{it.iv.location || (it.iv.mode === 'online' ? 'Online meeting link' : 'DSA Office')}</span>
-                        <Link href={`/admin/applications/${it.app.id}`} className="flex-none text-[12px] font-semibold text-[#7C1B26] hover:underline">View →</Link>
+                        <span className="hidden flex-none text-[11.5px] text-ink-600 sm:block">{it.iv.location || (it.iv.mode === 'online' ? 'Online meeting link' : 'DSA Office')}</span>
+                        <Link href={`/admin/applications/${it.app.id}`} className="flex-none text-[12px] font-semibold text-brand-700 hover:underline">View →</Link>
                       </div>
                     )
                   })}
@@ -270,19 +270,19 @@ export default function AdminInterviewsPage() {
       )}
 
       {/* ── DAY DRAWER ───────────────────────────────────────────────── */}
-      {selectedKey && <div onClick={() => setSelectedKey(null)} className="fixed inset-0 z-40 bg-[rgba(40,12,16,.42)]" />}
+      {selectedKey && <div onClick={() => setSelectedKey(null)} className="fixed inset-0 z-40 bg-[rgba(11,39,22,.42)]" />}
       <div
-        className="fixed bottom-0 right-0 top-0 z-50 flex w-[420px] max-w-[90vw] flex-col bg-[#FAF6F0] shadow-[-12px_0_44px_rgba(40,8,12,.28)] transition-transform duration-300"
+        className="fixed bottom-0 right-0 top-0 z-50 flex w-[420px] max-w-[90vw] flex-col bg-ink-50 shadow-[-12px_0_44px_rgba(11,39,22,.28)] transition-transform duration-300"
         style={{ transform: selectedKey ? 'translateX(0)' : 'translateX(100%)' }}
       >
-        <div className="bg-gradient-to-br from-[#7C1B26] to-[#530F17] px-6 py-5 text-[#FBEFE0]">
+        <div className="bg-gradient-to-br from-brand-700 to-brand-950 px-6 py-5 text-ink-25">
           <div className="mb-3.5 flex items-center justify-between">
-            <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-[#F3D9A0]/80">Interview Schedule</span>
-            <button onClick={() => setSelectedKey(null)} className="text-[#FBEFE0]/75 hover:text-[#FBEFE0]"><X className="h-5 w-5" /></button>
+            <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-gold-300/80">Interview Schedule</span>
+            <button onClick={() => setSelectedKey(null)} className="text-ink-25/75 hover:text-ink-25"><X className="h-5 w-5" /></button>
           </div>
           <div className="flex items-end justify-between">
-            <div className="font-serif text-2xl font-semibold text-[#FFF8EE]">{drawerDate}</div>
-            <span className="rounded-full bg-[#F3D9A0]/20 px-3 py-1 text-[12px] font-bold text-[#F3D9A0]">
+            <div className="font-serif text-2xl font-semibold text-ink-25">{drawerDate}</div>
+            <span className="rounded-full bg-gold-300/20 px-3 py-1 text-[12px] font-bold text-gold-300">
               {drawerItems.length} {drawerItems.length === 1 ? 'interview' : 'interviews'}
             </span>
           </div>
@@ -292,32 +292,32 @@ export default function AdminInterviewsPage() {
             const ms = modeStyle(it.iv.mode)
             const [avBg, avFg] = avatar(it.app.id)
             return (
-              <div key={it.app.id} className="rounded-[13px] border border-[#EFE5DA] bg-white p-4 shadow-[0_1px_3px_rgba(60,30,25,.05)]">
+              <div key={it.app.id} className="rounded-[13px] border border-ink-200 bg-white p-4 shadow-[0_1px_3px_rgba(19,36,26,.05)]">
                 <div className="mb-3 flex items-center gap-3">
                   <UserAvatar name={it.app.user?.name} avatarUrl={it.app.user?.avatar_url} className="h-[42px] w-[42px] rounded-full text-[14px] font-bold" style={{ background: avBg, color: avFg }} />
                   <div className="min-w-0 flex-1 leading-tight">
-                    <div className="truncate text-[14.5px] font-semibold text-[#241715]">{it.app.user?.name ?? '—'}</div>
-                    <div className="truncate text-[12px] text-[#A38A82]">{it.app.user?.email ?? '—'}</div>
+                    <div className="truncate text-[14.5px] font-semibold text-ink-950">{it.app.user?.name ?? '—'}</div>
+                    <div className="truncate text-[12px] text-ink-400">{it.app.user?.email ?? '—'}</div>
                   </div>
                   <span className="flex flex-none items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-[11px] font-semibold" style={{ color: ms.color, background: ms.bg }}>
                     <ms.Icon className="h-3.5 w-3.5" />{ms.label}
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5 border-t border-[#F4ECE1] pt-3">
-                  <div className="flex items-center gap-2.5 text-[12.5px] text-[#5A4A45]">
-                    <Clock className="h-4 w-4 text-[#B79B7E]" />{formatTime(it.iv.scheduled_at)}
+                <div className="flex flex-col gap-1.5 border-t border-ink-100 pt-3">
+                  <div className="flex items-center gap-2.5 text-[12.5px] text-ink-600">
+                    <Clock className="h-4 w-4 text-ink-400" />{formatTime(it.iv.scheduled_at)}
                     {it.iv.status === 'no_show' && (
-                      <span className="rounded-full bg-[#FFF9EC] px-2 py-0.5 text-[10.5px] font-bold text-[#B45309] ring-1 ring-[#F0DFAE]">No-show</span>
+                      <span className="rounded-full bg-gold-50 px-2 py-0.5 text-[10.5px] font-bold text-warning-700 ring-1 ring-gold-200">No-show</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2.5 text-[12.5px] text-[#5A4A45]">
-                    {it.iv.mode === 'online' ? <Video className="h-4 w-4 text-[#B79B7E]" /> : <MapPin className="h-4 w-4 text-[#B79B7E]" />}
+                  <div className="flex items-center gap-2.5 text-[12.5px] text-ink-600">
+                    {it.iv.mode === 'online' ? <Video className="h-4 w-4 text-ink-400" /> : <MapPin className="h-4 w-4 text-ink-400" />}
                     {it.iv.location || (it.iv.mode === 'online' ? 'Online meeting link' : 'DSA Office')}
                   </div>
                 </div>
                 <Link
                   href={`/admin/applications/${it.app.id}`}
-                  className="mt-3 flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-[#EADFD4] bg-[#FBF7F2] text-[12.5px] font-semibold text-[#7C1B26] hover:bg-[#F4EBE1]"
+                  className="mt-3 flex h-10 items-center justify-center gap-1.5 rounded-[10px] border border-ink-200 bg-ink-50 text-[12.5px] font-semibold text-brand-700 hover:bg-ink-100"
                 >
                   <FileText className="h-4 w-4" /> View Application
                 </Link>
@@ -332,12 +332,12 @@ export default function AdminInterviewsPage() {
 
 function EmptyState({ monthLabel }: { monthLabel: string }) {
   return (
-    <div className="rounded-[15px] border border-dashed border-[#E0D2C4] bg-white px-5 py-[60px] text-center">
-      <CalendarOff className="mx-auto h-10 w-10 text-[#C9B7AC]" />
-      <p className="mt-3 text-[15px] font-semibold text-[#3F2F2A]">No interviews in {monthLabel}</p>
-      <p className="mt-1 text-[13px] text-[#A38A82]">
+    <div className="rounded-[15px] border border-dashed border-ink-300 bg-white px-5 py-[60px] text-center">
+      <CalendarOff className="mx-auto h-10 w-10 text-ink-350" />
+      <p className="mt-3 text-[15px] font-semibold text-ink-700">No interviews in {monthLabel}</p>
+      <p className="mt-1 text-[13px] text-ink-400">
         Try another month, or schedule interviews from{' '}
-        <Link href="/admin/applications" className="font-semibold text-[#7C1B26] hover:underline">Applications</Link>.
+        <Link href="/admin/applications" className="font-semibold text-brand-700 hover:underline">Applications</Link>.
       </p>
     </div>
   )

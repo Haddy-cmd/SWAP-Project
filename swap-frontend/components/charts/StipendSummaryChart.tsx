@@ -32,18 +32,18 @@ export function StipendSummaryChart({ data }: StipendSummaryChartProps) {
       <AreaChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
         <defs>
           <linearGradient id="releasedGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#1B4F72" stopOpacity={0.2} />
-            <stop offset="95%" stopColor="#1B4F72" stopOpacity={0} />
+            <stop offset="5%" stopColor="#1F5B3A" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#1F5B3A" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="pendingGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#F39C12" stopOpacity={0.2} />
-            <stop offset="95%" stopColor="#F39C12" stopOpacity={0} />
+            <stop offset="5%" stopColor="#D97706" stopOpacity={0.2} />
+            <stop offset="95%" stopColor="#D97706" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-        <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#DCE0CF" />
+        <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6F7B74' }} axisLine={false} tickLine={false} />
         <YAxis
-          tick={{ fontSize: 12, fill: '#64748B' }}
+          tick={{ fontSize: 12, fill: '#6F7B74' }}
           axisLine={false}
           tickLine={false}
           tickFormatter={(v: number) => `₱${(v / 1000).toFixed(0)}k`}
@@ -52,7 +52,7 @@ export function StipendSummaryChart({ data }: StipendSummaryChartProps) {
           formatter={(value: number) => [PHP.format(value)]}
           contentStyle={{
             borderRadius: '0.5rem',
-            border: '1px solid #E2E8F0',
+            border: '1px solid #DCE0CF',
             fontSize: '0.75rem',
           }}
         />
@@ -60,7 +60,7 @@ export function StipendSummaryChart({ data }: StipendSummaryChartProps) {
           type="monotone"
           dataKey="released"
           name="Released"
-          stroke="#1B4F72"
+          stroke="#1F5B3A"
           strokeWidth={2}
           fill="url(#releasedGrad)"
         />
@@ -68,7 +68,7 @@ export function StipendSummaryChart({ data }: StipendSummaryChartProps) {
           type="monotone"
           dataKey="pending"
           name="Pending"
-          stroke="#F39C12"
+          stroke="#D97706"
           strokeWidth={2}
           fill="url(#pendingGrad)"
           strokeDasharray="5 5"

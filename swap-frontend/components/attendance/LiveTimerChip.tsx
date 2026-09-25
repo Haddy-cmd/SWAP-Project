@@ -24,12 +24,12 @@ export function LiveTimerChip({ timeIn, state = 'live' }: { timeIn: string; stat
     <div
       title={`Clocked in at ${formatDateTime(timeIn)}`}
       className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 ${
-        away ? 'border-amber-200 bg-amber-50' : 'border-green-100 bg-green-50'
+        away ? 'border-warning-200 bg-warning-50' : 'border-success-100 bg-success-50'
       }`}
     >
-      <Timer className={`h-4 w-4 ${away ? 'text-[#D97706]' : 'text-[#27AE60]'}`} />
-      <span className={`font-mono text-sm font-bold tabular-nums ${away ? 'text-[#92400E]' : 'text-[#166534]'}`}>{label}</span>
-      <span className={`text-[10px] font-semibold uppercase tracking-wide ${away ? 'text-[#D97706]' : 'text-[#27AE60]'}`}>
+      <Timer className={`h-4 w-4 ${away ? 'text-warning-600' : 'text-success-600'}`} />
+      <span className={`font-mono text-sm font-bold tabular-nums ${away ? 'text-warning-800' : 'text-success-800'}`}>{label}</span>
+      <span className={`text-[10px] font-semibold uppercase tracking-wide ${away ? 'text-warning-600' : 'text-success-600'}`}>
         {away ? 'away' : 'live'}
       </span>
     </div>

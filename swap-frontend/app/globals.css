@@ -4,14 +4,116 @@
 @theme {
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
-}
 
-:root {
-  --color-primary: #7D1A1A;
-  --color-secondary: #A52020;
-  --color-success: #27AE60;
-  --color-warning: #F39C12;
-  --color-danger: #E74C3C;
+  /* ── Palette drawn from the Division of Student Affairs seal ──────────────
+     brand  = the seal's green ring (primary: chrome, buttons, links, focus)
+     maroon = the seal's shield (secondary emphasis; keep it to accents)
+     gold   = the seal's lettering (highlights; 400 on dark only, 600+ as text on light)
+     ink    = green-tinted neutrals for text, borders and surfaces
+     success/warning/danger/info/violet = status colours, kept distinct from the brand */
+  --color-brand-50: #F1F6F1;
+  --color-brand-100: #E3EEE5;
+  --color-brand-200: #C9DCCD;
+  --color-brand-300: #9FC0A8;
+  --color-brand-400: #6E9F7E;
+  --color-brand-500: #3D8A5C;
+  --color-brand-600: #2A7148;
+  --color-brand-700: #1F5B3A;
+  --color-brand-800: #16452B;
+  --color-brand-900: #10331F;
+  --color-brand-950: #0B2716;
+
+  --color-maroon-50: #FBF1F0;
+  --color-maroon-100: #F6E3E2;
+  --color-maroon-200: #E9C3C1;
+  --color-maroon-300: #E3B7B2;
+  --color-maroon-400: #C46A66;
+  --color-maroon-500: #B23A37;
+  --color-maroon-600: #A31A1E;
+  --color-maroon-700: #8E1B1E;
+  --color-maroon-800: #7A181C;
+  --color-maroon-900: #5C1215;
+  --color-maroon-950: #3A0B0D;
+
+  --color-gold-50: #FDF8E4;
+  --color-gold-100: #FBF1C9;
+  --color-gold-200: #F7E39A;
+  --color-gold-300: #F4D76E;
+  --color-gold-400: #F2CC4B;
+  --color-gold-500: #D4AE22;
+  --color-gold-600: #9A7412;
+  --color-gold-700: #7A5C0C;
+  --color-gold-800: #5C450A;
+  --color-gold-900: #3E2F07;
+
+  --color-ink-25: #FAF8EC;
+  --color-ink-50: #F7F6EE;
+  --color-ink-100: #ECEFE2;
+  --color-ink-200: #DCE0CF;
+  --color-ink-300: #CAD2BC;
+  --color-ink-350: #ADB5A8;
+  --color-ink-400: #8C968F;
+  --color-ink-500: #6F7B74;
+  --color-ink-600: #56625A;
+  --color-ink-700: #34433A;
+  --color-ink-800: #25332A;
+  --color-ink-900: #1A2A20;
+  --color-ink-950: #13241A;
+
+  --color-success-50: #EFF8F4;
+  --color-success-100: #DCF1E8;
+  --color-success-200: #B4E1CF;
+  --color-success-300: #82CBB0;
+  --color-success-400: #4FB08E;
+  --color-success-500: #2C9675;
+  --color-success-600: #1F8163;
+  --color-success-700: #196B53;
+  --color-success-800: #145643;
+  --color-success-900: #0F4133;
+
+  --color-warning-50: #FFFBEB;
+  --color-warning-100: #FEF3C7;
+  --color-warning-200: #FDE68A;
+  --color-warning-300: #FCD34D;
+  --color-warning-400: #FBBF24;
+  --color-warning-500: #F59E0B;
+  --color-warning-600: #D97706;
+  --color-warning-700: #B45309;
+  --color-warning-800: #92400E;
+  --color-warning-900: #78350F;
+
+  --color-danger-50: #FEF3F2;
+  --color-danger-100: #FDE8E6;
+  --color-danger-200: #FBCBC6;
+  --color-danger-300: #F6A098;
+  --color-danger-400: #EE6B5F;
+  --color-danger-500: #E2483B;
+  --color-danger-600: #D92D20;
+  --color-danger-700: #B42318;
+  --color-danger-800: #912018;
+  --color-danger-900: #7A1A14;
+
+  --color-info-50: #F3F7FB;
+  --color-info-100: #E6EEF6;
+  --color-info-200: #C7D9EC;
+  --color-info-300: #9BBCDC;
+  --color-info-400: #6A9BC8;
+  --color-info-500: #4A82B8;
+  --color-info-600: #3B72A8;
+  --color-info-700: #2F5D8A;
+  --color-info-800: #234A70;
+  --color-info-900: #1A3855;
+
+  --color-violet-50: #F6F2FB;
+  --color-violet-100: #EFE9F7;
+  --color-violet-200: #E0D5EF;
+  --color-violet-300: #C4B3DF;
+  --color-violet-400: #9E86C4;
+  --color-violet-500: #8468B3;
+  --color-violet-600: #6B4E9A;
+  --color-violet-700: #5A3E86;
+  --color-violet-800: #48316C;
+  --color-violet-900: #36244F;
 }
 
 * {
@@ -23,8 +125,8 @@ html {
 }
 
 body {
-  background-color: #FAF7F7;
-  color: #1E293B;
+  background-color: var(--color-ink-50);
+  color: var(--color-ink-900);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   animation: pageEnter 0.5s ease-out forwards;
@@ -62,6 +164,10 @@ body {
 }
 .hero-kenburns { animation: heroKenburns 16s ease-in-out infinite alternate; }
 
+/* Landing hero: per-slide drift and the progress-bar fill (duration set inline). */
+@keyframes swapDrift { from { transform: scale(1.02); } to { transform: scale(1.1); } }
+@keyframes swapFill  { from { width: 0; } to { width: 100%; } }
+
 /* Entrance animations that play on load (above-the-fold hero). */
 .animate-fade-up { opacity: 0; animation: swapFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-fade-in { opacity: 0; animation: swapFadeIn 0.9s ease both; }
@@ -80,12 +186,13 @@ body {
   .animate-fade-up, .animate-fade-in, .animate-float { animation: none; opacity: 1; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .hero-kenburns { animation: none; }
+  .hero-drift { animation: none !important; }
 }
 
-/* Themed scrollbar for the dark maroon sidebar — slim, gold-tinted, transparent track */
+/* Themed scrollbar for the dark green sidebar — slim, gold-tinted, transparent track */
 .sidebar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(245, 200, 66, 0.4) transparent; /* Firefox: thumb, track */
+  scrollbar-color: rgba(242, 204, 75, 0.4) transparent; /* Firefox: thumb, track */
 }
 .sidebar-scroll::-webkit-scrollbar {
   width: 6px;
@@ -94,9 +201,9 @@ body {
   background: transparent;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background-color: rgba(245, 200, 66, 0.35);
+  background-color: rgba(242, 204, 75, 0.35);
   border-radius: 9999px;
 }
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(245, 200, 66, 0.6);
+  background-color: rgba(242, 204, 75, 0.6);
 }

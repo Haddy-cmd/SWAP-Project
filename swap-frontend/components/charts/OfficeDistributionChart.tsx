@@ -19,15 +19,16 @@ interface OfficeDistributionChartProps {
   data: OfficeDataPoint[]
 }
 
+// Seal-derived series order: green, gold, maroon, blue, teal, violet, grey, amber.
 const COLORS = [
-  '#1B4F72',
-  '#2980B9',
-  '#27AE60',
-  '#F39C12',
-  '#E74C3C',
-  '#8E44AD',
-  '#16A085',
-  '#D35400',
+  '#1F5B3A',
+  '#D4AE22',
+  '#A31A1E',
+  '#2F5D8A',
+  '#1F8163',
+  '#6B4E9A',
+  '#8C968F',
+  '#D97706',
 ]
 
 export function OfficeDistributionChart({ data }: OfficeDistributionChartProps) {
@@ -55,7 +56,7 @@ export function OfficeDistributionChart({ data }: OfficeDistributionChartProps) 
           formatter={(value: number) => [value, 'Recipients']}
           contentStyle={{
             borderRadius: '0.5rem',
-            border: '1px solid #E2E8F0',
+            border: '1px solid #DCE0CF',
             fontSize: '0.75rem',
           }}
         />

@@ -152,17 +152,17 @@ export function DutySlipControls({
   return (
     <div className="no-print flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">{title}</h1>
-        <p className="mt-1 text-sm text-[#64748B]">{subtitle}</p>
+        <h1 className="text-2xl font-bold text-ink-900">{title}</h1>
+        <p className="mt-1 text-sm text-ink-500">{subtitle}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-lg bg-[#F1E7DC] p-1">
+        <div className="inline-flex rounded-lg bg-ink-100 p-1">
           {(['week', 'semester'] as DutySlipMode[]).map((m) => (
             <button
               key={m}
               onClick={() => setMode(m)}
               className="rounded-md px-3 py-1.5 text-[13px] font-semibold capitalize transition-colors"
-              style={mode === m ? { background: '#fff', color: '#7C1B26' } : { color: '#8A7A73' }}
+              style={mode === m ? { background: '#fff', color: '#1F5B3A' } : { color: '#6F7B74' }}
             >
               {m === 'week' ? 'This week' : 'Whole semester'}
             </button>
@@ -171,28 +171,28 @@ export function DutySlipControls({
 
         {mode === 'week' ? (
           <>
-            <button onClick={() => shiftWeek(-1)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Previous week">
+            <button onClick={() => shiftWeek(-1)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-700 hover:bg-ink-50" aria-label="Previous week">
               <ChevronLeft className="h-5 w-5" />
             </button>
             <input
               type="date"
               value={weekStart}
               onChange={(e) => e.target.value && setWeekStart(iso(mondayOf(new Date(e.target.value + 'T00:00:00'))))}
-              className="h-10 rounded-lg border border-[#E2E8F0] bg-white px-3 text-sm text-[#1E293B] focus:border-[#7C1B26] focus:outline-none"
+              className="h-10 rounded-lg border border-ink-200 bg-white px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
             />
-            <button onClick={() => shiftWeek(1)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Next week">
+            <button onClick={() => shiftWeek(1)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-700 hover:bg-ink-50" aria-label="Next week">
               <ChevronRight className="h-5 w-5" />
             </button>
           </>
         ) : (
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setTerm(stepTerm(term, -1))} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Previous semester">
+            <button onClick={() => setTerm(stepTerm(term, -1))} className="flex h-10 w-10 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-700 hover:bg-ink-50" aria-label="Previous semester">
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <span className="flex h-10 min-w-[150px] items-center justify-center rounded-lg border border-[#E2E8F0] bg-white px-3 text-sm font-semibold text-[#1E293B]">
+            <span className="flex h-10 min-w-[150px] items-center justify-center rounded-lg border border-ink-200 bg-white px-3 text-sm font-semibold text-ink-900">
               {shortTerm(term)}
             </span>
-            <button onClick={() => setTerm(stepTerm(term, 1))} className="flex h-10 w-10 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#475569] hover:bg-[#F8FAFC]" aria-label="Next semester">
+            <button onClick={() => setTerm(stepTerm(term, 1))} className="flex h-10 w-10 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-700 hover:bg-ink-50" aria-label="Next semester">
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
@@ -200,7 +200,7 @@ export function DutySlipControls({
 
         <button
           onClick={() => window.print()}
-          className="ml-1 flex h-10 items-center gap-2 rounded-lg bg-[#7C1B26] px-5 text-sm font-semibold text-white hover:bg-[#86202E] transition-colors"
+          className="ml-1 flex h-10 items-center gap-2 rounded-lg bg-brand-700 px-5 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
         >
           <Printer className="h-4 w-4" /> Print / Download
         </button>
@@ -280,7 +280,7 @@ export function DutySlipDocument({
   })
 
   return (
-    <div className="duty-slip mx-auto w-full max-w-[1000px] rounded-lg border border-[#E2E8F0] bg-white p-6 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
+    <div className="duty-slip mx-auto w-full max-w-[1000px] rounded-lg border border-ink-200 bg-white p-6 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
       <div className="min-w-[640px]">
         {/* Header table */}
         <table className="w-full border-collapse text-[11px]">
@@ -348,7 +348,7 @@ export function DutySlipDocument({
           <tbody>
             {noData ? (
               <tr>
-                <td colSpan={8} className="border border-black px-2 py-8 text-center text-[#64748B]">
+                <td colSpan={8} className="border border-black px-2 py-8 text-center text-ink-500">
                   No SWAP assignment for {periodLabel} — no duty records for this semester.
                 </td>
               </tr>

@@ -58,7 +58,7 @@ export function DocumentUpload({
 
   return (
     <div className="space-y-1.5">
-      <label className="block text-sm font-medium text-[#1E293B]">{label}</label>
+      <label className="block text-sm font-medium text-ink-900">{label}</label>
 
       {!value ? (
         <div
@@ -68,20 +68,20 @@ export function DocumentUpload({
           onDragLeave={handleDragLeave}
           className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 transition-colors ${
             dragging
-              ? 'border-[#7D1A1A] bg-[#FEF0F0]'
+              ? 'border-brand-700 bg-brand-50'
               : error
-              ? 'border-[#E74C3C] bg-red-50'
-              : 'border-[#DCC5C5] bg-[#FAF7F7] hover:border-[#7D1A1A] hover:bg-[#FEF0F0]'
+              ? 'border-danger-600 bg-danger-50'
+              : 'border-ink-300 bg-ink-50 hover:border-brand-700 hover:bg-brand-50'
           }`}
         >
           <Upload
-            className={`h-7 w-7 ${error ? 'text-[#E74C3C]' : 'text-[#B09A9A]'}`}
+            className={`h-7 w-7 ${error ? 'text-danger-600' : 'text-ink-400'}`}
           />
           <div className="text-center">
-            <p className="text-sm font-medium text-[#1E293B]">
+            <p className="text-sm font-medium text-ink-900">
               Click to upload or drag & drop
             </p>
-            <p className="text-xs text-[#8A6A6A]">
+            <p className="text-xs text-ink-500">
               {accept.replaceAll(',', ', ')} · max {maxSizeMb}MB
             </p>
           </div>
@@ -94,26 +94,26 @@ export function DocumentUpload({
           />
         </div>
       ) : (
-        <div className="flex items-center justify-between rounded-xl border border-[#27AE60] bg-green-50 px-4 py-3">
+        <div className="flex items-center justify-between rounded-xl border border-success-600 bg-success-50 px-4 py-3">
           <div className="flex items-center gap-2 min-w-0">
-            <CheckCircle className="h-5 w-5 flex-shrink-0 text-[#27AE60]" />
-            <FileText className="h-4 w-4 flex-shrink-0 text-[#8A6A6A]" />
-            <span className="truncate text-sm font-medium text-[#1E293B]">{value.name}</span>
-            <span className="text-xs text-[#8A6A6A]">
+            <CheckCircle className="h-5 w-5 flex-shrink-0 text-success-600" />
+            <FileText className="h-4 w-4 flex-shrink-0 text-ink-500" />
+            <span className="truncate text-sm font-medium text-ink-900">{value.name}</span>
+            <span className="text-xs text-ink-500">
               ({(value.size / 1024).toFixed(0)} KB)
             </span>
           </div>
           <button
             type="button"
             onClick={handleRemove}
-            className="ml-2 flex-shrink-0 rounded-full p-1 text-[#8A6A6A] hover:bg-red-100 hover:text-[#E74C3C] transition-colors"
+            className="ml-2 flex-shrink-0 rounded-full p-1 text-ink-500 hover:bg-danger-100 hover:text-danger-600 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {error && <p className="text-xs text-[#E74C3C]">{error}</p>}
+      {error && <p className="text-xs text-danger-600">{error}</p>}
     </div>
   )
 }

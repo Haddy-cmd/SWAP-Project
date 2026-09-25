@@ -97,17 +97,17 @@ export function ChatbotWidget() {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         style={{ left: pos.x, top: pos.y, width: FAB, height: FAB }}
-        className="fixed z-[60] flex touch-none select-none items-center justify-center rounded-full text-white shadow-lg ring-4 ring-[#7D1A1A]/15 transition-transform hover:scale-105 active:scale-95"
+        className="fixed z-[60] flex touch-none select-none items-center justify-center rounded-full text-white shadow-lg ring-4 ring-brand-700/15 transition-transform hover:scale-105 active:scale-95"
         aria-label={chatOpen ? 'Close SWAP Assistant' : 'Open SWAP Assistant'}
         title="SWAP Assistant — ask me about the system"
       >
         <span
           className="flex h-full w-full items-center justify-center rounded-full"
-          style={{ background: 'linear-gradient(135deg, #8E1B1B 0%, #531010 100%)' }}
+          style={{ background: 'linear-gradient(135deg, #16452B 0%, #0B2716 100%)' }}
         >
           <Bot className="h-7 w-7" />
           {!chatOpen && (
-            <span className="absolute right-0 top-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#27AE60]" />
+            <span className="absolute right-0 top-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-success-600" />
           )}
         </span>
       </button>

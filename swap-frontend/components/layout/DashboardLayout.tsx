@@ -6,6 +6,53 @@ import { Topbar } from './Topbar'
 import { useUIStore } from '@/lib/store/uiStore'
 import { cn } from '@/lib/utils/cn'
 
+// Soft seal-green glow top-left, gold glow bottom-right, a lift of white in the middle.
+const AMBIENT_BG =
+  'radial-gradient(circle at 12% 8%, rgba(31,91,58,.14), transparent 34%), ' +
+  'radial-gradient(circle at 90% 88%, rgba(212,174,34,.12), transparent 32%), ' +
+  'radial-gradient(circle at 60% 40%, rgba(255,255,255,.7), transparent 45%)'
+
+/** Decorative, non-interactive backdrop: blurred light sweeps and a faint seal watermark. */
+function Backdrop() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+      <div className="absolute right-10 top-[70px] h-[420px] w-[420px] rounded-full bg-brand-500/5 blur-[80px]" />
+      <div
+        className="absolute -top-[18%] left-[30%] h-[520px] w-[1100px] -rotate-[14deg] rounded-full blur-[30px]"
+        style={{ background: 'linear-gradient(100deg, rgba(42,113,72,.10), rgba(42,113,72,0) 70%)' }}
+      />
+      <div
+        className="absolute -bottom-[24%] left-[8%] h-[560px] w-[1300px] rotate-[8deg] rounded-full blur-[36px]"
+        style={{ background: 'linear-gradient(80deg, rgba(42,113,72,.09), rgba(212,174,34,.07) 60%, rgba(212,174,34,0))' }}
+      />
+      {/* Oversized engraved seal tucked into the bottom-right corner. The watermark file
+          is cropped tight to the seal, so shifting it 27% right and down keeps 73% of its
+          width and height on screen, which is 60% of the seal's oval area. */}
+      <div className="absolute bottom-0 right-0 aspect-[5405/6250] h-[min(104vh,1020px)] translate-x-[27%] translate-y-[27%]">
+        {/* Detail layer: monochrome relief of the seal. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/dsa-seal-watermark.webp"
+          alt=""
+          className="absolute inset-0 h-full w-full opacity-[0.10] [filter:grayscale(1)_contrast(1.2)]"
+        />
+        {/* Tint layer: washes the seal's shape in seal green. */}
+        <div
+          className="absolute inset-0 bg-brand-700 opacity-[0.06]"
+          style={{
+            maskImage: 'url(/dsa-seal-watermark.webp)',
+            WebkitMaskImage: 'url(/dsa-seal-watermark.webp)',
+            maskSize: '100% 100%',
+            WebkitMaskSize: '100% 100%',
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const {
     desktopSidebarOpen, mobileSidebarOpen, setMobileSidebarOpen,
@@ -21,7 +68,9 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-[#FAF7F7]">
+    <div className="relative h-screen overflow-hidden bg-ink-50" style={{ backgroundImage: AMBIENT_BG }}>
+      <Backdrop />
+
       {/* Mobile backdrop */}
       {mobileSidebarOpen && (
         <div
@@ -53,7 +102,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       {/* Main content — shifts over whenever the sidebar is showing (pinned or hover-revealed) */}
       <div
         className={cn(
-          'flex h-full flex-col overflow-hidden transition-[margin] duration-200 ease-in-out',
+          'relative z-[1] flex h-full flex-col overflow-hidden transition-[margin] duration-200 ease-in-out',
           revealed ? 'md:ml-24' : 'md:ml-0',
         )}
       >

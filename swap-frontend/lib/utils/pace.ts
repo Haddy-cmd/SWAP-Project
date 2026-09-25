@@ -14,10 +14,10 @@ export interface Pace {
 }
 
 export const PACE_META: Record<PaceStatus, { label: string; color: string; bg: string }> = {
-  complete: { label: 'Complete', color: '#2C5A33', bg: '#EAF5EC' },
-  on_track: { label: 'On track', color: '#2C5A33', bg: '#EAF5EC' },
-  behind: { label: 'Behind pace', color: '#9A6B12', bg: '#FBF3E2' },
-  not_started: { label: 'Not started', color: '#8A7A73', bg: '#F1E7DC' },
+  complete: { label: 'Complete', color: '#145643', bg: '#EFF8F4' },
+  on_track: { label: 'On track', color: '#145643', bg: '#EFF8F4' },
+  behind: { label: 'Behind pace', color: '#B45309', bg: '#FDF8E4' },
+  not_started: { label: 'Not started', color: '#6F7B74', bg: '#ECEFE2' },
 }
 
 /** Defensive default for rows served before `pace` existed, or by an older API. */

@@ -69,8 +69,8 @@ export default function ScanAttendancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">Scan QR Code</h1>
-        <p className="mt-1 text-sm text-[#64748B]">
+        <h1 className="text-2xl font-bold text-ink-900">Scan QR Code</h1>
+        <p className="mt-1 text-sm text-ink-500">
           Point the camera at your assigned office QR code to clock in.
         </p>
       </div>
@@ -78,7 +78,7 @@ export default function ScanAttendancePage() {
       {result && (
         <div
           className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
-            result.type === 'success' ? 'bg-green-50 text-[#27AE60]' : 'bg-red-50 text-[#E74C3C]'
+            result.type === 'success' ? 'bg-success-50 text-success-600' : 'bg-danger-50 text-danger-600'
           }`}
         >
           {result.type === 'success' ? (
@@ -91,7 +91,7 @@ export default function ScanAttendancePage() {
       )}
 
       {pendingToken ? (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
           <SelfieCapture
             onCapture={(blob) => timeIn.mutate({ token: pendingToken, photo: blob })}
             onSkip={() => timeIn.mutate({ token: pendingToken })}
@@ -100,14 +100,14 @@ export default function ScanAttendancePage() {
           />
         </div>
       ) : !scanned ? (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
           <QrScanner onScan={handleScan} onError={(e) => setResult({ type: 'error', text: e })} />
         </div>
       ) : (
         <div className="text-center">
           <button
             onClick={() => { setScanned(false); setResult(null) }}
-            className="rounded-xl bg-[#1B4F72] px-6 py-3 text-sm font-semibold text-white hover:bg-[#2980B9] transition-colors"
+            className="rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
           >
             Scan Again
           </button>

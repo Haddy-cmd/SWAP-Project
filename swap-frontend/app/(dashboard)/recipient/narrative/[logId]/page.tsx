@@ -19,7 +19,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 const TEXTAREA =
-  'w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-4 py-2.5 text-sm text-[#1E293B] placeholder-[#94A3B8] focus:border-[#1B4F72] focus:outline-none focus:ring-2 focus:ring-[#1B4F72]/20 resize-none'
+  'w-full rounded-xl border border-ink-300 bg-ink-50 px-4 py-2.5 text-sm text-ink-900 placeholder-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20 resize-none'
 
 export default function NarrativePage() {
   const { logId } = useParams<{ logId: string }>()
@@ -62,29 +62,29 @@ export default function NarrativePage() {
   if (existing) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-[#1E293B]">Narrative Report</h1>
-        <div className="rounded-2xl border border-[#27AE60] bg-green-50 p-6">
-          <p className="mb-4 font-semibold text-[#27AE60]">Report already submitted</p>
+        <h1 className="text-2xl font-bold text-ink-900">Narrative Report</h1>
+        <div className="rounded-2xl border border-success-600 bg-success-50 p-6">
+          <p className="mb-4 font-semibold text-success-600">Report already submitted</p>
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="font-medium text-[#1E293B]">Summary</dt>
-              <dd className="mt-1 text-[#64748B]">{existing.content}</dd>
+              <dt className="font-medium text-ink-900">Summary</dt>
+              <dd className="mt-1 text-ink-500">{existing.content}</dd>
             </div>
             <div>
-              <dt className="font-medium text-[#1E293B]">Activities Done</dt>
-              <dd className="mt-1 text-[#64748B]">{existing.activities_done}</dd>
+              <dt className="font-medium text-ink-900">Activities Done</dt>
+              <dd className="mt-1 text-ink-500">{existing.activities_done}</dd>
             </div>
             {existing.challenges && (
               <div>
-                <dt className="font-medium text-[#1E293B]">Challenges</dt>
-                <dd className="mt-1 text-[#64748B]">{existing.challenges}</dd>
+                <dt className="font-medium text-ink-900">Challenges</dt>
+                <dd className="mt-1 text-ink-500">{existing.challenges}</dd>
               </div>
             )}
           </dl>
         </div>
         <Link
           href="/recipient/hours"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-[#1B4F72] hover:text-[#2980B9] transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-600 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Hours
@@ -98,21 +98,21 @@ export default function NarrativePage() {
       <div className="flex items-center gap-4">
         <Link
           href="/recipient/hours"
-          className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#1B4F72] transition-colors"
+          className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-[#1E293B]">Submit Narrative Report</h1>
-          <p className="text-sm text-[#64748B]">Required before clocking out</p>
+          <h1 className="text-2xl font-bold text-ink-900">Submit Narrative Report</h1>
+          <p className="text-sm text-ink-500">Required before clocking out</p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
         <form onSubmit={handleSubmit((d) => submit.mutate(d))} className="space-y-5">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1E293B]">
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">
               Summary of work done today
             </label>
             <textarea
@@ -122,12 +122,12 @@ export default function NarrativePage() {
               className={TEXTAREA}
             />
             {errors.content && (
-              <p className="mt-1 text-xs text-[#E74C3C]">{errors.content.message}</p>
+              <p className="mt-1 text-xs text-danger-600">{errors.content.message}</p>
             )}
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1E293B]">
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">
               Specific activities done
             </label>
             <textarea
@@ -137,13 +137,13 @@ export default function NarrativePage() {
               className={TEXTAREA}
             />
             {errors.activities_done && (
-              <p className="mt-1 text-xs text-[#E74C3C]">{errors.activities_done.message}</p>
+              <p className="mt-1 text-xs text-danger-600">{errors.activities_done.message}</p>
             )}
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-[#1E293B]">
-              Challenges encountered <span className="font-normal text-[#94A3B8]">(optional)</span>
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">
+              Challenges encountered <span className="font-normal text-ink-350">(optional)</span>
             </label>
             <textarea
               {...register('challenges')}
@@ -156,7 +156,7 @@ export default function NarrativePage() {
           <button
             type="submit"
             disabled={submit.isPending}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1B4F72] px-6 py-3 text-sm font-semibold text-white hover:bg-[#2980B9] disabled:opacity-60 transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60 transition-colors"
           >
             <Send className="h-4 w-4" />
             {submit.isPending ? 'Submitting…' : 'Submit Narrative'}

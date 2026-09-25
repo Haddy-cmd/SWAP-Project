@@ -27,13 +27,13 @@ export function WeeklyHoursTrendChart({ data }: WeeklyHoursTrendChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-        <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 12, fill: '#64748B' }} axisLine={false} tickLine={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#DCE0CF" />
+        <XAxis dataKey="week" tick={{ fontSize: 12, fill: '#6F7B74' }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 12, fill: '#6F7B74' }} axisLine={false} tickLine={false} />
         <Tooltip
           contentStyle={{
             borderRadius: '0.5rem',
-            border: '1px solid #E2E8F0',
+            border: '1px solid #DCE0CF',
             fontSize: '0.75rem',
           }}
         />
@@ -42,7 +42,7 @@ export function WeeklyHoursTrendChart({ data }: WeeklyHoursTrendChartProps) {
           type="monotone"
           dataKey="verified"
           name="Verified Hours"
-          stroke="#27AE60"
+          stroke="#1F8163"
           strokeWidth={2}
           dot={{ r: 3 }}
           activeDot={{ r: 5 }}
@@ -51,7 +51,7 @@ export function WeeklyHoursTrendChart({ data }: WeeklyHoursTrendChartProps) {
           type="monotone"
           dataKey="pending"
           name="Pending Hours"
-          stroke="#F39C12"
+          stroke="#D97706"
           strokeWidth={2}
           dot={{ r: 3 }}
           activeDot={{ r: 5 }}

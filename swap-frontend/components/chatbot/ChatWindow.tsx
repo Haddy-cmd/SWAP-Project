@@ -63,22 +63,22 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#EAD9D9] bg-white shadow-sm">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-[#EAD9D9] px-5 py-4">
+      <div className="flex items-center justify-between border-b border-ink-200 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#7D1A1A]">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-700">
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-[#1E293B]">SWAP Assistant</p>
-            <p className="text-xs text-[#27AE60]">● Online</p>
+            <p className="text-sm font-semibold text-ink-900">SWAP Assistant</p>
+            <p className="text-xs text-success-600">● Online</p>
           </div>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={handleReset}
-            className="rounded-lg p-2 text-[#8A6A6A] hover:bg-[#FAF7F7] hover:text-[#7D1A1A] transition-colors"
+            className="rounded-lg p-2 text-ink-500 hover:bg-ink-50 hover:text-brand-700 transition-colors"
             title="Reset conversation"
           >
             <RefreshCw className="h-4 w-4" />
@@ -86,7 +86,7 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
           {onClose && (
             <button
               onClick={onClose}
-              className="rounded-lg p-2 text-[#8A6A6A] hover:bg-[#FAF7F7] hover:text-[#7D1A1A] transition-colors"
+              className="rounded-lg p-2 text-ink-500 hover:bg-ink-50 hover:text-brand-700 transition-colors"
               title="Close"
               aria-label="Close chat"
             >
@@ -103,13 +103,13 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
         ))}
         {ask.isPending && (
           <div className="flex gap-3">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#FEF0F0]">
-              <Bot className="h-4 w-4 text-[#7D1A1A]" />
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-brand-50">
+              <Bot className="h-4 w-4 text-brand-700" />
             </div>
-            <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-[#F5EDEC] px-4 py-3">
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[#B09A9A]" style={{ animationDelay: '0ms' }} />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[#B09A9A]" style={{ animationDelay: '150ms' }} />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[#B09A9A]" style={{ animationDelay: '300ms' }} />
+            <div className="flex items-center gap-1 rounded-2xl rounded-tl-sm bg-ink-100 px-4 py-3">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-ink-400" style={{ animationDelay: '0ms' }} />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-ink-400" style={{ animationDelay: '150ms' }} />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-ink-400" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}

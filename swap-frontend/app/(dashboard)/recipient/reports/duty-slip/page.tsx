@@ -53,7 +53,7 @@ export default function DutySlipPage() {
         mode={mode} setMode={setMode} weekStart={weekStart} setWeekStart={setWeekStart}
         term={activeTerm} setTerm={setTerm}
       />
-      {isLoading && <div className="no-print h-40 animate-pulse rounded-2xl bg-[#E2E8F0]" />}
+      {isLoading && <div className="no-print h-40 animate-pulse rounded-2xl bg-ink-200" />}
       <DutySlipDocument mode={mode} weekStart={weekStart} logs={logs} identity={identity} term={activeTerm} />
     </div>
   )

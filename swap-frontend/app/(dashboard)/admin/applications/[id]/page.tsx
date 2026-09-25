@@ -111,8 +111,8 @@ export default function AdminApplicationDetailPage() {
   if (isLoading || !application) {
     return (
       <div className="space-y-4">
-        <div className="h-8 w-1/3 animate-pulse rounded-lg bg-[#E2E8F0]" />
-        <div className="h-48 animate-pulse rounded-2xl bg-[#E2E8F0]" />
+        <div className="h-8 w-1/3 animate-pulse rounded-lg bg-ink-200" />
+        <div className="h-48 animate-pulse rounded-2xl bg-ink-200" />
       </div>
     )
   }
@@ -120,47 +120,47 @@ export default function AdminApplicationDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin/applications" className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#1B4F72] transition-colors">
+        <Link href="/admin/applications" className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           Back
         </Link>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-[#1E293B]">Application #{application.id}</h1>
-          <p className="text-sm text-[#64748B]">{application.user?.name}</p>
+          <h1 className="text-xl font-bold text-ink-900">Application #{application.id}</h1>
+          <p className="text-sm text-ink-500">{application.user?.name}</p>
         </div>
         <StatusBadge status={application.status} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-            <h2 className="mb-5 font-semibold text-[#1E293B]">Timeline</h2>
+          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-5 font-semibold text-ink-900">Timeline</h2>
             <ApplicationTimeline application={application} />
           </div>
         </div>
 
         <div className="space-y-5 lg:col-span-2">
           {/* Info */}
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-            <h2 className="mb-4 font-semibold text-[#1E293B]">Applicant Details</h2>
+          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 font-semibold text-ink-900">Applicant Details</h2>
             <dl className="grid grid-cols-2 gap-3 text-sm">
-              <div><dt className="text-[#64748B]">Name</dt><dd className="font-medium text-[#1E293B]">{application.user?.name ?? '—'}</dd></div>
-              <div><dt className="text-[#64748B]">Email</dt><dd className="font-medium text-[#1E293B]">{application.user?.email ?? '—'}</dd></div>
-              <div><dt className="text-[#64748B]">Academic Year</dt><dd className="font-medium text-[#1E293B]">{application.academic_year}</dd></div>
-              <div><dt className="text-[#64748B]">Semester</dt><dd className="font-medium text-[#1E293B]">{application.semester}</dd></div>
-              <div><dt className="text-[#64748B]">Submitted</dt><dd className="font-medium text-[#1E293B]">{formatDateTime(application.created_at)}</dd></div>
+              <div><dt className="text-ink-500">Name</dt><dd className="font-medium text-ink-900">{application.user?.name ?? '—'}</dd></div>
+              <div><dt className="text-ink-500">Email</dt><dd className="font-medium text-ink-900">{application.user?.email ?? '—'}</dd></div>
+              <div><dt className="text-ink-500">Academic Year</dt><dd className="font-medium text-ink-900">{application.academic_year}</dd></div>
+              <div><dt className="text-ink-500">Semester</dt><dd className="font-medium text-ink-900">{application.semester}</dd></div>
+              <div><dt className="text-ink-500">Submitted</dt><dd className="font-medium text-ink-900">{formatDateTime(application.created_at)}</dd></div>
             </dl>
           </div>
 
           {/* Documents */}
           {application.documents && application.documents.length > 0 && (
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <h2 className="mb-4 font-semibold text-[#1E293B]">Documents</h2>
+            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 font-semibold text-ink-900">Documents</h2>
               <ul className="space-y-2">
                 {application.documents.map((doc) => (
-                  <li key={doc.id} className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-4 py-3">
-                    <p className="text-sm capitalize text-[#1E293B]">{doc.document_type.replace(/_/g, ' ')}</p>
-                    <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-medium text-[#1B4F72] hover:text-[#2980B9] transition-colors">
+                  <li key={doc.id} className="flex items-center justify-between rounded-lg border border-ink-200 px-4 py-3">
+                    <p className="text-sm capitalize text-ink-900">{doc.document_type.replace(/_/g, ' ')}</p>
+                    <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-600 transition-colors">
                       <Eye className="h-3.5 w-3.5" />
                       View
                     </button>
@@ -172,12 +172,12 @@ export default function AdminApplicationDetailPage() {
 
           {/* Actions */}
           {application.status === 'submitted' && (
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <h2 className="mb-4 font-semibold text-[#1E293B]">Action</h2>
+            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 font-semibold text-ink-900">Action</h2>
               <button
                 onClick={() => markReview.mutate()}
                 disabled={markReview.isPending}
-                className="rounded-xl bg-[#2980B9] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#1B4F72] disabled:opacity-50 transition-colors"
+                className="rounded-xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
               >
                 Mark as Under Review
               </button>
@@ -185,17 +185,17 @@ export default function AdminApplicationDetailPage() {
           )}
 
           {application.status === 'under_review' && (
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm space-y-4">
-              <h2 className="font-semibold text-[#1E293B]">Schedule Interview</h2>
+            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm space-y-4">
+              <h2 className="font-semibold text-ink-900">Schedule Interview</h2>
 
               <div>
-                <label className="mb-1 block text-xs font-medium text-[#64748B]">Interview Mode</label>
+                <label className="mb-1 block text-xs font-medium text-ink-500">Interview Mode</label>
                 <select value={mode} onChange={(e) => changeMode(e.target.value as InterviewMode)}
-                  className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
+                  className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none">
                   <option value="in_person">Face-to-Face</option>
                   <option value="online">Online</option>
                 </select>
-                <p className="mt-1 text-xs text-[#64748B]">
+                <p className="mt-1 text-xs text-ink-500">
                   {mode === 'in_person'
                     ? 'Monday to Friday, between 7:00 AM and 5:00 PM (Asia/Manila).'
                     : 'Any day, between 8:00 AM and 11:00 PM (Asia/Manila).'}
@@ -203,27 +203,27 @@ export default function AdminApplicationDetailPage() {
               </div>
 
               {modeNotice && (
-                <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-[#92400E]">{modeNotice}</p>
+                <p className="rounded-xl bg-warning-50 px-3 py-2 text-xs text-warning-800">{modeNotice}</p>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Date</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-500">Date</label>
                   <input
                     type="date"
                     value={interviewDay}
                     min={manilaToday()}
                     onChange={(e) => { setInterviewDay(e.target.value); setModeNotice(null); setScheduleError(null) }}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none"
+                    className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Start time</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-500">Start time</label>
                   <select
                     value={slotMinute ?? ''}
                     disabled={!interviewDay}
                     onChange={(e) => { setSlotMinute(e.target.value === '' ? null : Number(e.target.value)); setModeNotice(null); setScheduleError(null) }}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none disabled:opacity-60"
+                    className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none disabled:opacity-60"
                   >
                     <option value="">{interviewDay ? 'Select a time' : 'Pick a date first'}</option>
                     {slotsFor(mode, duration).map((m) => {
@@ -241,43 +241,43 @@ export default function AdminApplicationDetailPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Duration</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-500">Duration</label>
                   <select value={duration} onChange={(e) => { setDuration(Number(e.target.value)); setSlotMinute(null) }}
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
+                    className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none">
                     {[15, 30, 45, 60, 90].map((m) => <option key={m} value={m}>{m} minutes</option>)}
                   </select>
-                  <p className="mt-1 text-xs text-[#64748B]">Must finish by {minutesToLabel(windowFor(mode).endMinute)}.</p>
+                  <p className="mt-1 text-xs text-ink-500">Must finish by {minutesToLabel(windowFor(mode).endMinute)}.</p>
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Venue</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-500">Venue</label>
                   {mode === 'online' ? (
                     <select value={location} onChange={(e) => setLocation(e.target.value)}
-                      className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none">
+                      className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none">
                       {ONLINE_VENUES.map((v) => <option key={v} value={v}>{v}</option>)}
                     </select>
                   ) : (
                     <input value={location} onChange={(e) => setLocation(e.target.value)}
                       placeholder={DSA_OFFICE}
-                      className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+                      className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
                   )}
                 </div>
               </div>
 
               {mode === 'online' && (
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-[#64748B]">Meeting Link</label>
+                  <label className="mb-1 block text-xs font-medium text-ink-500">Meeting Link</label>
                   <input value={meetingLink} onChange={(e) => { setMeetingLink(e.target.value); setScheduleError(null) }}
                     placeholder="https://meet.example.com/…"
-                    className="w-full rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
-                  {!meetingLink.trim() && <p className="mt-1 text-xs text-[#64748B]">An online interview needs a meeting link.</p>}
+                    className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
+                  {!meetingLink.trim() && <p className="mt-1 text-xs text-ink-500">An online interview needs a meeting link.</p>}
                 </div>
               )}
 
-              {slotIssue && <p className="text-xs font-medium text-[#E74C3C]">{slotIssue}</p>}
-              {scheduleError && <p className="text-xs font-medium text-[#E74C3C]">{scheduleError}</p>}
+              {slotIssue && <p className="text-xs font-medium text-danger-600">{slotIssue}</p>}
+              {scheduleError && <p className="text-xs font-medium text-danger-600">{scheduleError}</p>}
 
               <button onClick={() => scheduleInterview.mutate()} disabled={scheduleInterview.isPending || !canSchedule}
-                className="flex items-center gap-2 rounded-xl bg-[#1B4F72] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#2980B9] disabled:opacity-50 transition-colors">
+                className="flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
                 <Calendar className="h-4 w-4" />
                 Schedule Interview
               </button>
@@ -285,20 +285,20 @@ export default function AdminApplicationDetailPage() {
           )}
 
           {(application.status === 'under_review' || application.status === 'interview_scheduled') && (
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm space-y-4">
-              <h2 className="font-semibold text-[#1E293B]">Decision</h2>
+            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm space-y-4">
+              <h2 className="font-semibold text-ink-900">Decision</h2>
               <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)}
                 placeholder="Remarks (required for rejection)"
                 rows={3}
-                className="w-full resize-none rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] px-3 py-2 text-sm focus:border-[#1B4F72] focus:outline-none" />
+                className="w-full resize-none rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
               <div className="flex gap-3">
                 <button onClick={() => decide.mutate('approved')} disabled={decide.isPending}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#27AE60] px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 transition-colors">
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-success-700 disabled:opacity-50 transition-colors">
                   <CheckCircle className="h-4 w-4" />
                   Approve
                 </button>
                 <button onClick={() => decide.mutate('rejected')} disabled={decide.isPending || !remarks.trim()}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#E74C3C] px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 transition-colors">
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-danger-700 disabled:opacity-50 transition-colors">
                   <XCircle className="h-4 w-4" />
                   Reject
                 </button>

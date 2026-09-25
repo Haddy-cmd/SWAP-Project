@@ -55,16 +55,16 @@ export function ApplicationTimeline({ application }: ApplicationTimelineProps) {
   ]
 
   return (
-    <ol className="relative border-l-2 border-[#EAD9D9] pl-6 space-y-6">
+    <ol className="relative border-l-2 border-ink-200 pl-6 space-y-6">
       {events.map((event, idx) => (
         <li key={idx} className="relative">
           <div
             className={`absolute -left-[1.65rem] flex h-8 w-8 items-center justify-center rounded-full border-2 ${
               event.active
                 ? event.danger
-                  ? 'border-[#E74C3C] bg-red-50 text-[#E74C3C]'
-                  : 'border-[#7D1A1A] bg-[#FEF0F0] text-[#7D1A1A]'
-                : 'border-[#DCC5C5] bg-white text-[#B09A9A]'
+                  ? 'border-danger-600 bg-danger-50 text-danger-600'
+                  : 'border-brand-700 bg-brand-50 text-brand-700'
+                : 'border-ink-300 bg-white text-ink-400'
             }`}
           >
             {event.icon}
@@ -74,15 +74,15 @@ export function ApplicationTimeline({ application }: ApplicationTimelineProps) {
               className={`text-sm font-semibold ${
                 event.active
                   ? event.danger
-                    ? 'text-[#E74C3C]'
-                    : 'text-[#7D1A1A]'
-                  : 'text-[#B09A9A]'
+                    ? 'text-danger-600'
+                    : 'text-brand-700'
+                  : 'text-ink-400'
               }`}
             >
               {event.label}
             </p>
             {event.date && (
-              <p className="mt-0.5 text-xs text-[#8A6A6A]">{formatDateTime(event.date)}</p>
+              <p className="mt-0.5 text-xs text-ink-500">{formatDateTime(event.date)}</p>
             )}
           </div>
         </li>

@@ -16,7 +16,7 @@ export function MissingSignatureBanner() {
   if (!user || user.role !== 'recipient' || user.signature_url) return null
 
   return (
-    <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-[#F6E0BE] bg-[#FFF7ED] px-4 py-3 text-sm text-[#92400E]">
+    <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
       <PenLine className="h-4 w-4 flex-shrink-0" />
       <p>
         Clock-in and receipts need your digital signature.{' '}

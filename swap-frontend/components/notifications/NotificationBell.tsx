@@ -26,12 +26,12 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-[#EAD9D9] text-[#8A6A6A] hover:bg-[#FAF7F7] hover:text-[#7D1A1A] transition-colors"
+        className="relative flex h-[38px] w-[38px] items-center justify-center rounded-[10px] border border-ink-900/15 bg-white text-ink-700 hover:bg-ink-50 hover:text-brand-700 transition-colors"
         aria-label="Notifications"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className="h-[21px] w-[21px]" />
         {unread > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#E74C3C] text-[10px] font-bold text-white">
+          <span className="absolute -right-[7px] -top-[7px] min-w-[18px] rounded-[10px] border-2 border-white bg-danger-600 px-[5px] py-[2px] text-center text-[9px] font-bold leading-none text-white">
             {unread > 9 ? '9+' : unread}
           </span>
         )}

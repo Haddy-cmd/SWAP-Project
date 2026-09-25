@@ -68,7 +68,7 @@
            lines are redundant — ink + name + title + timestamp is the block. */
         .sigfree { padding-top: 2px; font-size: 10px; }
         .role { font-size: 8px; color: #555; text-transform: uppercase; letter-spacing: .04em; }
-        .copytag { float: right; font-size: 8px; font-weight: bold; color: #7C1B26; border: 1px solid #7C1B26; padding: 1px 5px; }
+        .copytag { float: right; font-size: 8px; font-weight: bold; color: #8E1B1E; border: 1px solid #8E1B1E; padding: 1px 5px; }
         .void { color: #B0562F; font-weight: bold; }
     </style>
 </head>

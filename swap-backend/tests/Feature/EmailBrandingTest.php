@@ -18,7 +18,8 @@ class EmailBrandingTest extends TestCase
         $html = (string) app(Markdown::class)->render('notifications::email', $mail->data());
 
         $this->assertStringContainsString('SWAP Portal', $html);
-        $this->assertStringContainsString('#7C1B26', $html);                         // maroon button/link
+        $this->assertStringContainsString('#1F5B3A', $html);                         // seal-green button/link
+        $this->assertStringContainsString('#16452B', $html);                         // seal-green header band
         $this->assertStringContainsString('dsa-logo.png', $html);                    // DSA seal
         $this->assertStringContainsString('Division of Student Affairs', $html);     // footer signature
         $this->assertStringNotContainsString('laravel.com/img', $html);              // no Laravel logo

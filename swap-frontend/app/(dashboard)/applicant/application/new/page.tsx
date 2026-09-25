@@ -30,27 +30,27 @@ export default function NewApplicationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">New Application</h1>
-        <p className="mt-1 text-sm text-[#64748B]">
+        <h1 className="text-2xl font-bold text-ink-900">New Application</h1>
+        <p className="mt-1 text-sm text-ink-500">
           Complete all fields and upload the required documents.
         </p>
       </div>
 
       {isLoading || statusLoading ? (
-        <div className="h-48 animate-pulse rounded-2xl bg-[#E2E8F0]" />
+        <div className="h-48 animate-pulse rounded-2xl bg-ink-200" />
       ) : appStatus && !appStatus.open ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-[#E2D2D2] bg-[#FBF4F4] p-6 shadow-sm">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#F3E3E3]">
-            <Lock className="h-5 w-5 text-[#7D1A1A]" />
+        <div className="flex items-start gap-3 rounded-2xl border border-ink-200 bg-ink-25 p-6 shadow-sm">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-100">
+            <Lock className="h-5 w-5 text-brand-700" />
           </div>
           <div>
-            <p className="font-semibold text-[#7D1A1A]">Applications Not Yet Open</p>
-            <p className="mt-1 text-sm text-[#9A6A6A]">
+            <p className="font-semibold text-brand-700">Applications Not Yet Open</p>
+            <p className="mt-1 text-sm text-ink-500">
               {appStatus.message ?? 'The application period has not started yet. Please check back later.'}
             </p>
             <Link
               href="/applicant/dashboard"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#7D1A1A] px-4 py-2 text-xs font-semibold text-white hover:bg-[#A52020] transition-colors"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to Dashboard
@@ -58,20 +58,20 @@ export default function NewApplicationPage() {
           </div>
         </div>
       ) : hasApproved ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-[#BBF7D0] bg-[#F0FDF4] p-6 shadow-sm">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#DCFCE7]">
-            <CheckCircle className="h-5 w-5 text-[#16A34A]" />
+        <div className="flex items-start gap-3 rounded-2xl border border-success-200 bg-success-50 p-6 shadow-sm">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-success-100">
+            <CheckCircle className="h-5 w-5 text-brand-700" />
           </div>
           <div>
-            <p className="font-semibold text-[#166534]">Application Approved — Awaiting Office Assignment</p>
-            <p className="mt-1 text-sm text-[#15803D]">
+            <p className="font-semibold text-success-800">Application Approved — Awaiting Office Assignment</p>
+            <p className="mt-1 text-sm text-success-700">
               Your application has already been approved. Please wait for further announcement regarding
               your office assignment. You&apos;ll be notified once an office and supervisor have been assigned
               to you, so you cannot submit a new application at this time.
             </p>
             <Link
               href="/applicant/dashboard"
-              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#16A34A] px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+              className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-success-700 transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Back to Dashboard
@@ -79,15 +79,15 @@ export default function NewApplicationPage() {
           </div>
         </div>
       ) : inProgress ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-[#FDE68A] bg-[#FFFBEB] p-6 shadow-sm">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#FEF3C7]">
-            <Clock className="h-5 w-5 text-[#D97706]" />
+        <div className="flex items-start gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-6 shadow-sm">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-warning-100">
+            <Clock className="h-5 w-5 text-warning-600" />
           </div>
           <div>
-            <p className="font-semibold text-[#92400E]">
+            <p className="font-semibold text-warning-800">
               Application In Progress — {IN_PROGRESS_LABEL[inProgress.status] ?? inProgress.status}
             </p>
-            <p className="mt-1 text-sm text-[#B45309]">
+            <p className="mt-1 text-sm text-warning-700">
               You already have an application for {inProgress.academic_year} — {inProgress.semester} that is still
               being processed. Please wait for it to be reviewed before submitting a new one. You&apos;ll be
               notified of any updates.
@@ -95,13 +95,13 @@ export default function NewApplicationPage() {
             <div className="mt-4 flex gap-2">
               <Link
                 href={`/applicant/application/${inProgress.id}`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#D97706] px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-warning-600 px-4 py-2 text-xs font-semibold text-white hover:bg-warning-700 transition-colors"
               >
                 View Application Status
               </Link>
               <Link
                 href="/applicant/dashboard"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[#FDE68A] px-4 py-2 text-xs font-semibold text-[#92400E] hover:bg-[#FEF3C7] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-warning-200 px-4 py-2 text-xs font-semibold text-warning-800 hover:bg-warning-100 transition-colors"
               >
                 <ArrowLeft className="h-3.5 w-3.5" />
                 Back to Dashboard
@@ -110,7 +110,7 @@ export default function NewApplicationPage() {
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
           <ApplicationForm />
         </div>
       )}

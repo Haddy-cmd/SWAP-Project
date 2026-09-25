@@ -35,10 +35,10 @@ const localToday = () => {
 }
 
 const SESSION_STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  verified: { label: 'Verified', color: '#2C5A33', bg: '#EAF5EC' },
-  pending_verification: { label: 'Pending', color: '#9A6B12', bg: '#FBF3E2' },
-  rejected: { label: 'Rejected', color: '#B0562F', bg: '#FDF0E9' },
-  open: { label: 'In progress', color: '#1F5C86', bg: '#EAF1F7' },
+  verified: { label: 'Verified', color: '#145643', bg: '#EFF8F4' },
+  pending_verification: { label: 'Pending', color: '#B45309', bg: '#FDF8E4' },
+  rejected: { label: 'Rejected', color: '#B42318', bg: '#FEF3F2' },
+  open: { label: 'In progress', color: '#2F5D8A', bg: '#F3F7FB' },
 }
 
 export default function AttendancePage() {
@@ -243,16 +243,16 @@ export default function AttendancePage() {
   const geo = geoWarning
     ? { bg: '#FFFBEB', border: '#FDE68A', color: '#92400E', Icon: AlertTriangle, title: 'You appear to have left the premises', sub: geoWarning }
     : mode === 'clocked-in' && office
-      ? { bg: '#EAF5EC', border: '#CDE7D2', color: '#2C5A33', Icon: MapPin, title: `Location verified — ${office.name}`, sub: monitoring ? "You're on premises · location is monitored" : "You're on premises" }
-      : { bg: '#FBF7F2', border: '#EFE5DA', color: '#7A6A63', Icon: MapPinOff, title: 'Location required', sub: 'Enable location access — you must be on the office premises to clock in.' }
+      ? { bg: '#EFF8F4', border: '#B4E1CF', color: '#145643', Icon: MapPin, title: `Location verified — ${office.name}`, sub: monitoring ? "You're on premises · location is monitored" : "You're on premises" }
+      : { bg: '#F7F6EE', border: '#DCE0CF', color: '#6F7B74', Icon: MapPinOff, title: 'Location required', sub: 'Enable location access — you must be on the office premises to clock in.' }
 
   return (
     <div className="mx-auto max-w-[940px] space-y-4">
       {/* header */}
       <div className="mb-1">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#A9823C]">Time &amp; Attendance</p>
-        <h1 className="mt-1.5 font-serif text-[32px] font-medium leading-none text-[#241715]">Attendance</h1>
-        <p className="mt-2 max-w-[60ch] text-[14.5px] leading-relaxed text-[#7A6A63]">
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Time &amp; Attendance</p>
+        <h1 className="mt-1.5 font-serif text-[32px] font-medium leading-none text-ink-950">Attendance</h1>
+        <p className="mt-2 max-w-[60ch] text-[14.5px] leading-relaxed text-ink-500">
           Scan or paste your office QR code to clock in or out. Location must be enabled — you have to be on the office premises for it to count.
         </p>
       </div>
@@ -260,19 +260,19 @@ export default function AttendancePage() {
       {/* main grid */}
       <div className="grid items-start gap-4 lg:grid-cols-[1.25fr_0.9fr]">
         {/* ── CLOCK CARD ─────────────────────────────────────────────── */}
-        <div className="overflow-hidden rounded-2xl border border-[#EFE5DA] bg-white shadow-[0_2px_8px_rgba(60,30,25,.05)]">
-          <div className="flex items-center justify-between gap-3 border-b border-[#F4ECE1] bg-[#FBF7F2] px-5 py-4">
+        <div className="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-[0_2px_8px_rgba(19,36,26,.05)]">
+          <div className="flex items-center justify-between gap-3 border-b border-ink-100 bg-ink-50 px-5 py-4">
             <span className="inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-[12.5px] font-bold"
-              style={mode === 'clocked-in' ? { color: '#2C5A33', background: '#EAF5EC' } : { color: '#8A7A73', background: '#F1E7DC' }}>
+              style={mode === 'clocked-in' ? { color: '#145643', background: '#EFF8F4' } : { color: '#6F7B74', background: '#ECEFE2' }}>
               <span className={`h-2 w-2 rounded-full ${mode === 'clocked-in' ? 'animate-pulse' : ''}`}
-                style={{ background: mode === 'clocked-in' ? '#4E9657' : '#B7A99F' }} />
+                style={{ background: mode === 'clocked-in' ? '#1F8163' : '#ADB5A8' }} />
               {mode === 'clocked-in' ? 'Clocked In' : 'Not Clocked In'}
             </span>
             <div className="text-right leading-tight">
-              <div className="text-[12px] text-[#A38A82]">
+              <div className="text-[12px] text-ink-400">
                 {new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </div>
-              <div className="font-serif text-[16px] font-semibold tabular-nums text-[#3F2F2A]">
+              <div className="font-serif text-[16px] font-semibold tabular-nums text-ink-700">
                 {new Date(now).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}
               </div>
             </div>
@@ -281,30 +281,30 @@ export default function AttendancePage() {
           <div className="px-5 py-5">
             {mode === 'clocked-in' && (
               <div className="mb-5 pt-1.5 text-center">
-                <div className="mb-2 text-[11.5px] font-semibold text-[#8A7A73]">Elapsed this session</div>
-                <div className="font-serif text-[56px] font-semibold leading-none tabular-nums text-[#241715]">{elapsed}</div>
-                <div className="mt-2.5 text-[13px] text-[#8A7A73]">
-                  Clocked in at <strong className="font-bold text-[#3F2F2A]">{fmtClock(currentLog?.time_in)}</strong>
+                <div className="mb-2 text-[11.5px] font-semibold text-ink-500">Elapsed this session</div>
+                <div className="font-serif text-[56px] font-semibold leading-none tabular-nums text-ink-950">{elapsed}</div>
+                <div className="mt-2.5 text-[13px] text-ink-500">
+                  Clocked in at <strong className="font-bold text-ink-700">{fmtClock(currentLog?.time_in)}</strong>
                 </div>
               </div>
             )}
 
             {/* The office QR token is required to clock out as well as in. */}
-            <label className="mb-2 block text-[11.5px] font-bold uppercase tracking-wide text-[#8A7A73]">
+            <label className="mb-2 block text-[11.5px] font-bold uppercase tracking-wide text-ink-500">
               Office QR Token
             </label>
             <div className="mb-3.5 flex gap-2.5">
               <div className="relative flex-1">
-                <QrCode className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-[#B79B7E]" />
+                <QrCode className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-400" />
                 <input
                   value={qrToken}
                   onChange={(e) => setQrToken(e.target.value)}
                   placeholder={mode === 'clocked-in' ? 'Paste your office QR token to clock out' : 'Paste your office QR token'}
-                  className="h-12 w-full rounded-xl border border-[#EADFD4] bg-[#FBF7F2] pl-11 pr-3.5 text-sm text-[#241715] placeholder-[#B7A99F] focus:border-[#7C1B26] focus:outline-none"
+                  className="h-12 w-full rounded-xl border border-ink-200 bg-ink-50 pl-11 pr-3.5 text-sm text-ink-950 placeholder-ink-350 focus:border-brand-700 focus:outline-none"
                 />
               </div>
               <Link href="/recipient/attendance/scan"
-                className="flex h-12 flex-none items-center gap-1.5 rounded-xl border border-[#EADFD4] bg-white px-4 text-[13px] font-bold text-[#7C1B26] hover:bg-[#FBF7F2] transition-colors">
+                className="flex h-12 flex-none items-center gap-1.5 rounded-xl border border-ink-200 bg-white px-4 text-[13px] font-bold text-brand-700 hover:bg-ink-50 transition-colors">
                 <ScanLine className="h-[19px] w-[19px]" /> Scan
               </Link>
             </div>
@@ -315,12 +315,12 @@ export default function AttendancePage() {
               <geo.Icon className="h-[19px] w-[19px] flex-none" style={{ color: geo.color }} />
               <div className="min-w-0 flex-1 leading-snug">
                 <div className="text-[12.5px] font-bold" style={{ color: geo.color }}>{geo.title}</div>
-                <div className="text-[11.5px] text-[#8A7A73]">{geo.sub}</div>
+                <div className="text-[11.5px] text-ink-500">{geo.sub}</div>
               </div>
             </div>
 
             {mode === 'clocked-in' && (
-              <p className="mb-3.5 flex items-center gap-2 text-xs text-[#8A7A73]">
+              <p className="mb-3.5 flex items-center gap-2 text-xs text-ink-500">
                 <FileText className="h-3.5 w-3.5 flex-none" />
                 {currentLog?.has_narrative
                   ? 'Narrative report submitted — ready to clock out.'
@@ -329,7 +329,7 @@ export default function AttendancePage() {
             )}
 
             {mode === 'idle' && completed && (
-              <div className="mb-3.5 flex items-center gap-2 rounded-xl border border-[#CDE7D2] bg-[#EAF5EC] px-4 py-3 text-sm font-medium text-[#2C5A33]">
+              <div className="mb-3.5 flex items-center gap-2 rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm font-medium text-success-800">
                 <CheckCircle2 className="h-4 w-4 flex-none" />
                 You have completed all your required service hours. No further clock-ins are needed.
               </div>
@@ -338,16 +338,16 @@ export default function AttendancePage() {
             {/* action button */}
             {mode === 'clocked-in' ? (
               <button onClick={handleClockOut} disabled={timeOut.isPending || !qrToken.trim()}
-                className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[13px] text-[15px] font-bold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,.26)] disabled:opacity-50 transition-opacity"
-                style={{ background: 'linear-gradient(180deg,#86202E,#6C1620)' }}>
+                className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[13px] text-[15px] font-bold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)] disabled:opacity-50 transition-opacity"
+                style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
                 <LogOut className="h-5 w-5" /> {timeOut.isPending ? 'Recording…' : 'Clock Out'}
               </button>
             ) : (
               <button onClick={() => (selfieRequired ? setSelfieOpen(true) : timeIn.mutate(undefined))} disabled={timeIn.isPending || !canClock}
-                className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[13px] text-[15px] font-bold text-[#FFF8F2] transition-opacity disabled:cursor-not-allowed"
+                className="flex h-[52px] w-full items-center justify-center gap-2.5 rounded-[13px] text-[15px] font-bold text-ink-25 transition-opacity disabled:cursor-not-allowed"
                 style={canClock
-                  ? { background: 'linear-gradient(180deg,#86202E,#6C1620)', boxShadow: '0 12px 24px rgba(108,22,32,.26)' }
-                  : { background: '#C9B0A6' }}>
+                  ? { background: 'linear-gradient(180deg,#2A7148,#16452B)', boxShadow: '0 12px 24px rgba(22,69,43,.26)' }
+                  : { background: '#CAD2BC' }}>
                 <LogIn className="h-5 w-5" />
                 {timeIn.isPending ? 'Verifying location…' : completed ? 'Requirement complete' : canClock ? 'Clock In' : 'Enter QR token to clock in'}
               </button>
@@ -356,70 +356,70 @@ export default function AttendancePage() {
         </div>
 
         {/* ── PROGRESS CARD ──────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-[#EFE5DA] bg-white px-[22px] pb-5 pt-[22px] shadow-[0_2px_8px_rgba(60,30,25,.05)]">
-          <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-[#A38A82]">Service Hours</div>
+        <div className="rounded-2xl border border-ink-200 bg-white px-[22px] pb-5 pt-[22px] shadow-[0_2px_8px_rgba(19,36,26,.05)]">
+          <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">Service Hours</div>
 
           <div className="mb-1.5 flex justify-center">
             <div className="relative h-[158px] w-[158px] rounded-full"
-              style={{ background: `conic-gradient(#7C1B26 0 ${pct}%, #F1E7DC ${pct}% 100%)` }}>
+              style={{ background: `conic-gradient(#1F5B3A 0 ${pct}%, #ECEFE2 ${pct}% 100%)` }}>
               <div className="absolute inset-[15px] flex flex-col items-center justify-center rounded-full bg-white">
-                <span className="font-serif text-[34px] font-semibold leading-none tabular-nums text-[#241715]">{fmtHrs(verified)}h</span>
-                <span className="mt-1 text-[11.5px] text-[#8A7A73]">of {required}h</span>
+                <span className="font-serif text-[34px] font-semibold leading-none tabular-nums text-ink-950">{fmtHrs(verified)}h</span>
+                <span className="mt-1 text-[11.5px] text-ink-500">of {required}h</span>
               </div>
             </div>
           </div>
-          <div className="mb-[18px] text-center text-[13px] font-bold text-[#7C1B26]">{Math.round(pct)}% complete</div>
+          <div className="mb-[18px] text-center text-[13px] font-bold text-brand-700">{Math.round(pct)}% complete</div>
 
-          <div className="flex flex-col gap-2.5 border-t border-[#F4ECE1] pt-4">
+          <div className="flex flex-col gap-2.5 border-t border-ink-100 pt-4">
             {([
-              ['Verified', verified, '#4E9657', '#2C5A33'],
-              ['Pending verification', pending, '#D8A12B', '#9A6B12'],
-              ['Remaining', remaining, '#CBBBA9', '#5A4A45'],
+              ['Verified', verified, '#1F8163', '#145643'],
+              ['Pending verification', pending, '#F59E0B', '#B45309'],
+              ['Remaining', remaining, '#CAD2BC', '#56625A'],
             ] as const).map(([label, val, dot, color]) => (
               <div key={label} className="flex items-center gap-2.5">
                 <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ background: dot }} />
-                <span className="flex-1 text-[13px] text-[#5A4A45]">{label}</span>
+                <span className="flex-1 text-[13px] text-ink-600">{label}</span>
                 <span className="text-[13.5px] font-bold tabular-nums" style={{ color }}>{fmtHrs(val)}h</span>
               </div>
             ))}
           </div>
-          <p className="mt-4 text-[11px] leading-relaxed text-[#A89A8F]">
+          <p className="mt-4 text-[11px] leading-relaxed text-ink-400">
             Pending hours count toward your total once your supervisor verifies them.
           </p>
         </div>
       </div>
 
       {/* ── TODAY'S SESSIONS ─────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-2xl border border-[#EFE5DA] bg-white shadow-[0_2px_8px_rgba(60,30,25,.05)]">
-        <div className="flex items-center justify-between border-b border-[#F4ECE1] px-5 py-4">
-          <span className="font-serif text-[17px] font-semibold text-[#241715]">Today&apos;s sessions</span>
-          <span className="rounded-full bg-[#FBEAEC] px-3 py-1 text-[12px] font-bold tabular-nums text-[#7C1B26]">
+      <div className="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-[0_2px_8px_rgba(19,36,26,.05)]">
+        <div className="flex items-center justify-between border-b border-ink-100 px-5 py-4">
+          <span className="font-serif text-[17px] font-semibold text-ink-950">Today&apos;s sessions</span>
+          <span className="rounded-full bg-brand-100 px-3 py-1 text-[12px] font-bold tabular-nums text-brand-700">
             {fmtDur(todayHours)} today
           </span>
         </div>
 
         {todaySessions.length === 0 ? (
           <div className="px-5 py-11 text-center">
-            <Moon className="mx-auto h-9 w-9 text-[#C9B7AC]" />
-            <div className="mt-2.5 text-[14.5px] font-semibold text-[#3F2F2A]">No sessions logged today</div>
-            <div className="mt-1 text-[13px] text-[#A38A82]">Clock in with your office QR token to start recording hours.</div>
+            <Moon className="mx-auto h-9 w-9 text-ink-350" />
+            <div className="mt-2.5 text-[14.5px] font-semibold text-ink-700">No sessions logged today</div>
+            <div className="mt-1 text-[13px] text-ink-400">Clock in with your office QR token to start recording hours.</div>
           </div>
         ) : (
           todaySessions.map((s) => {
             const meta = SESSION_STATUS[s.status] ?? SESSION_STATUS.pending_verification
             return (
-              <div key={s.id} className="flex flex-wrap items-center gap-3.5 border-b border-[#F4ECE1] px-5 py-3.5 last:border-0">
-                <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full bg-[#FBF3E2] text-[#9A6B12]">
+              <div key={s.id} className="flex flex-wrap items-center gap-3.5 border-b border-ink-100 px-5 py-3.5 last:border-0">
+                <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full bg-gold-50 text-warning-700">
                   <Clock className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-semibold tabular-nums text-[#241715]">
+                  <div className="text-sm font-semibold tabular-nums text-ink-950">
                     {fmtClock(s.time_in)}{s.time_out ? ` – ${fmtClock(s.time_out)}` : ' – in progress'}
                   </div>
-                  <div className="mt-0.5 text-[12px] text-[#A38A82]">Logged this session</div>
+                  <div className="mt-0.5 text-[12px] text-ink-400">Logged this session</div>
                 </div>
-                <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-[#EFE5DA] bg-[#FBF7F2] px-2.5 py-1 text-[12px] font-bold tabular-nums text-[#7C1B26]">
-                  <Timer className="h-[15px] w-[15px] text-[#B79B7E]" /> {fmtDur(Number(s.duration_hours) || 0)}
+                <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[12px] font-bold tabular-nums text-brand-700">
+                  <Timer className="h-[15px] w-[15px] text-ink-400" /> {fmtDur(Number(s.duration_hours) || 0)}
                 </span>
                 <span className="inline-flex flex-none items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11.5px] font-bold"
                   style={{ color: meta.color, background: meta.bg }}>
@@ -435,8 +435,8 @@ export default function AttendancePage() {
       {message && (
         <div className="fixed right-7 top-[78px] z-[70] flex max-w-sm items-start gap-2.5 rounded-xl px-4 py-3 text-[13px] font-semibold shadow-[0_16px_36px_rgba(20,50,25,.25)]"
           style={message.type === 'success'
-            ? { background: '#2C5A33', color: '#F0FAF0' }
-            : { background: '#8A2230', color: '#FDECEC' }}>
+            ? { background: '#145643', color: '#EFF8F4' }
+            : { background: '#2A7148', color: '#F1F6F1' }}>
           {message.type === 'success'
             ? <CheckCircle2 className="mt-px h-[18px] w-[18px] flex-none" />
             : <AlertTriangle className="mt-px h-[18px] w-[18px] flex-none" />}

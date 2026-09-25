@@ -170,17 +170,17 @@ export default function ScanPage() {
   const office = kind === 'out'
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#7A1717] to-[#531010] p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-800 to-brand-950 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-xl">
         {phase === 'working' && (
           <>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#FEF0F0]">
-              <Loader2 className="h-8 w-8 animate-spin text-[#7D1A1A]" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+              <Loader2 className="h-8 w-8 animate-spin text-brand-700" />
             </div>
-            <h1 className="mt-5 text-lg font-bold text-[#1E293B]">
+            <h1 className="mt-5 text-lg font-bold text-ink-900">
               {office ? 'Clocking you out…' : 'Clocking you in…'}
             </h1>
-            <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-[#8A6A6A]">
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-ink-500">
               <MapPin className="h-4 w-4" /> {message}
             </p>
           </>
@@ -196,16 +196,16 @@ export default function ScanPage() {
 
         {phase === 'narrative' && (
           <>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#FEF0F0]">
-              <FileText className="h-8 w-8 text-[#7D1A1A]" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+              <FileText className="h-8 w-8 text-brand-700" />
             </div>
-            <h1 className="mt-5 text-lg font-bold text-[#1E293B]">Submit your narrative</h1>
-            <p className="mt-2 text-sm text-[#8A6A6A]">
+            <h1 className="mt-5 text-lg font-bold text-ink-900">Submit your narrative</h1>
+            <p className="mt-2 text-sm text-ink-500">
               You&apos;re clocked in. Submit a short narrative report to clock out.
             </p>
             <button
               onClick={() => setNarrativeOpen(true)}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#E74C3C] px-6 py-3 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-danger-600 px-6 py-3 text-sm font-semibold text-white hover:bg-danger-700 transition-colors"
             >
               <LogOut className="h-4 w-4" />
               Open narrative form
@@ -215,31 +215,31 @@ export default function ScanPage() {
 
         {phase === 'success' && (
           <>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
-              <CheckCircle className="h-8 w-8 text-[#27AE60]" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success-50">
+              <CheckCircle className="h-8 w-8 text-success-600" />
             </div>
-            <h1 className="mt-5 text-lg font-bold text-[#1E293B]">
+            <h1 className="mt-5 text-lg font-bold text-ink-900">
               {office ? "You're clocked out!" : "You're clocked in!"}
             </h1>
-            <p className="mt-2 text-sm text-[#8A6A6A]">{message}</p>
+            <p className="mt-2 text-sm text-ink-500">{message}</p>
 
             {premises && kind === 'in' && (
               <div
                 className="mx-auto mt-4 flex max-w-xs items-start gap-2 rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-medium"
                 style={premises.ok
-                  ? { borderColor: '#BBE5C6', background: '#EEF7EF', color: '#2C5A33' }
-                  : { borderColor: '#F3D9A0', background: '#FFF7ED', color: '#92400E' }}
+                  ? { borderColor: '#B4E1CF', background: '#EFF8F4', color: '#145643' }
+                  : { borderColor: '#F4D76E', background: '#FFFBEB', color: '#92400E' }}
               >
                 {premises.ok
-                  ? <MapPin className="mt-0.5 h-4 w-4 flex-none text-[#4E9657]" />
-                  : <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-[#B8860B]" />}
+                  ? <MapPin className="mt-0.5 h-4 w-4 flex-none text-success-600" />
+                  : <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-gold-600" />}
                 <span>{premises.text}</span>
               </div>
             )}
 
             <Link
               href="/recipient/dashboard"
-              className="mt-6 inline-block rounded-xl bg-[#7D1A1A] px-6 py-3 text-sm font-semibold text-white hover:bg-[#A52020] transition-colors"
+              className="mt-6 inline-block rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
             >
               Go to Dashboard
             </Link>
@@ -248,14 +248,14 @@ export default function ScanPage() {
 
         {phase === 'error' && (
           <>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
-              <AlertTriangle className="h-8 w-8 text-[#E74C3C]" />
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-danger-50">
+              <AlertTriangle className="h-8 w-8 text-danger-600" />
             </div>
-            <h1 className="mt-5 text-lg font-bold text-[#1E293B]">Something went wrong</h1>
-            <p className="mt-2 text-sm text-[#E74C3C]">{message}</p>
+            <h1 className="mt-5 text-lg font-bold text-ink-900">Something went wrong</h1>
+            <p className="mt-2 text-sm text-danger-600">{message}</p>
             <Link
               href="/recipient/attendance"
-              className="mt-6 inline-block rounded-xl border border-[#DCC5C5] px-6 py-3 text-sm font-semibold text-[#7D1A1A] hover:bg-[#FAF7F7] transition-colors"
+              className="mt-6 inline-block rounded-xl border border-ink-300 px-6 py-3 text-sm font-semibold text-brand-700 hover:bg-ink-50 transition-colors"
             >
               Open Attendance
             </Link>

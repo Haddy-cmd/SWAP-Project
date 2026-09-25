@@ -41,10 +41,10 @@ export function HeroCarousel({ images, interval = 2500 }: { images: string[]; in
         />
       ))}
 
-      {/* Maroon gradient veil */}
+      {/* Green gradient veil */}
       <div
         className="absolute inset-0"
-        style={{ background: 'linear-gradient(160deg, rgba(108,21,29,0.42) 0%, rgba(86,16,22,0.30) 45%, rgba(64,12,18,0.62) 100%)' }}
+        style={{ background: 'linear-gradient(160deg, rgba(22,69,43,0.42) 0%, rgba(16,51,31,0.30) 45%, rgba(11,39,22,0.62) 100%)' }}
       />
 
       {/* Slide dots */}
@@ -57,7 +57,7 @@ export function HeroCarousel({ images, interval = 2500 }: { images: string[]; in
               onClick={() => setIndex(i)}
               aria-label={`Show slide ${i + 1}`}
               className={`h-2 rounded-full transition-all duration-300 ${
-                i === index ? 'w-6 bg-[#F3D9A0]' : 'w-2 bg-white/50 hover:bg-white/80'
+                i === index ? 'w-6 bg-gold-300' : 'w-2 bg-white/50 hover:bg-white/80'
               }`}
             />
           ))}

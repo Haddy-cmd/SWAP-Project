@@ -63,12 +63,14 @@ function RailItem({ item, active, onNavigate }: { item: NavLink; active: boolean
       onClick={onNavigate}
       title={item.label}
       className={cn(
-        'group flex flex-col items-center gap-1 rounded-xl px-1 py-2.5 text-center transition-colors',
-        active ? 'bg-white/[0.14] text-white' : 'text-white/55 hover:bg-white/[0.07] hover:text-white',
+        'group relative flex flex-col items-center gap-[5px] rounded-xl px-1 pb-2.5 pt-[11px] text-center transition-colors',
+        active ? 'bg-white/10 text-white' : 'text-white/65 hover:bg-white/[0.08] hover:text-white',
       )}
     >
-      <Icon className={cn('h-[22px] w-[22px] flex-shrink-0', active && 'text-[#D8B65A]')} />
-      <span className="line-clamp-2 text-[10px] font-medium leading-[1.15]">{item.label}</span>
+      {/* Gold marker for the current page, echoing the seal's lettering. */}
+      {active && <span aria-hidden className="absolute inset-y-2.5 -left-2 w-[3px] rounded-r-full bg-gold-400" />}
+      <Icon className={cn('h-[23px] w-[23px] flex-shrink-0', active && 'text-gold-400')} />
+      <span className={cn('line-clamp-2 text-[10.5px] leading-[1.15]', active ? 'font-bold' : 'font-medium')}>{item.label}</span>
     </Link>
   )
 }
@@ -88,7 +90,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <aside
       className="relative flex h-full w-24 flex-col border-r border-black/20"
-      style={{ background: 'linear-gradient(180deg, #8E1B1B 0%, #6B1212 55%, #520D0D 100%)' }}
+      style={{ background: 'linear-gradient(180deg, #16452B 0%, #10331F 55%, #0B2716 100%)' }}
     >
       {/* Close (mobile drawer only) */}
       <button
@@ -100,9 +102,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </button>
 
       {/* Brand */}
-      <Link href={roleNav[0]?.href ?? '/'} onClick={onNavigate} className="flex flex-col items-center gap-1 pt-5 pb-3">
-        <Image src="/dsa-logo.png" alt="DSA Logo" width={44} height={44} priority />
-        <span className="text-[10px] font-bold tracking-[0.15em] text-[#D8B65A]">SWAP</span>
+      <Link href={roleNav[0]?.href ?? '/'} onClick={onNavigate} className="flex flex-col items-center gap-2.5 pb-[18px] pt-[22px]">
+        <Image src="/dsa-logo.png" alt="DSA Logo" width={36} height={36} priority />
+        <span className="text-[10.5px] font-extrabold tracking-[0.14em] text-gold-400">SWAP</span>
       </Link>
 
       {/* Nav rail */}
@@ -121,12 +123,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           aria-label="Notifications"
           className={cn(
             'relative flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
-            isActive('/notifications') ? 'bg-white/[0.14] text-[#D8B65A]' : 'text-white/60 hover:bg-white/10 hover:text-white',
+            isActive('/notifications') ? 'bg-white/[0.14] text-gold-400' : 'text-white/60 hover:bg-white/10 hover:text-white',
           )}
         >
           <Bell className="h-5 w-5" />
           {unread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E74C3C] px-1 text-[9px] font-bold text-white">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[9px] font-bold text-white">
               {unread > 9 ? '9+' : unread}
             </span>
           )}
@@ -137,7 +139,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           onClick={onNavigate}
           title={user?.name ?? 'Profile'}
           aria-label="Profile"
-          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#D8B65A] to-[#B8901F] text-sm font-bold text-[#531010] ring-2 ring-white/10 transition hover:brightness-105"
+          className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-sm font-bold text-brand-950 ring-2 ring-white/10 transition hover:brightness-105"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={avatarSrc(user?.avatar_url, token) ?? '/default-avatar.svg'} alt={user?.name ?? ''} className="h-full w-full object-cover" />

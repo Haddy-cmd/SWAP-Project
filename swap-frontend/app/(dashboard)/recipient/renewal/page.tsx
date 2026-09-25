@@ -55,45 +55,45 @@ export default function RenewalPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">Semester Renewal</h1>
-        <p className="mt-1 text-sm text-[#64748B]">
+        <h1 className="text-2xl font-bold text-ink-900">Semester Renewal</h1>
+        <p className="mt-1 text-sm text-ink-500">
           Continue your assistantship for the next term by submitting your updated Certificate of Registration (COR).
         </p>
       </div>
 
       {loading ? (
-        <div className="h-56 animate-pulse rounded-2xl bg-[#EAD9D9]/50" />
+        <div className="h-56 animate-pulse rounded-2xl bg-ink-200/50" />
       ) : !target ? (
         /* window closed */
-        <div className="flex items-start gap-3 rounded-2xl border border-[#E2D2D2] bg-[#FBF4F4] p-6 shadow-sm">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#F3E3E3]">
-            <Lock className="h-5 w-5 text-[#7D1A1A]" />
+        <div className="flex items-start gap-3 rounded-2xl border border-ink-200 bg-ink-25 p-6 shadow-sm">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-100">
+            <Lock className="h-5 w-5 text-brand-700" />
           </div>
           <div>
-            <p className="font-semibold text-[#7D1A1A]">Renewal Not Yet Open</p>
-            <p className="mt-1 text-sm text-[#9A6A6A]">
+            <p className="font-semibold text-brand-700">Renewal Not Yet Open</p>
+            <p className="mt-1 text-sm text-ink-500">
               The DSA office hasn&apos;t opened the renewal window yet. You&apos;ll be able to submit your updated COR here once it opens.
             </p>
           </div>
         </div>
       ) : existing ? (
         /* already submitted for the target term */
-        <div className="rounded-2xl border border-[#EAD9D9] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-              existing.status === 'approved' ? 'bg-green-50' : existing.status === 'rejected' ? 'bg-red-50' : 'bg-[#FFF7ED]'
+              existing.status === 'approved' ? 'bg-success-50' : existing.status === 'rejected' ? 'bg-danger-50' : 'bg-warning-50'
             }`}>
-              {existing.status === 'approved' ? <CheckCircle className="h-5 w-5 text-[#27AE60]" />
-                : existing.status === 'rejected' ? <XCircle className="h-5 w-5 text-[#E74C3C]" />
-                : <Clock className="h-5 w-5 text-[#D97706]" />}
+              {existing.status === 'approved' ? <CheckCircle className="h-5 w-5 text-success-600" />
+                : existing.status === 'rejected' ? <XCircle className="h-5 w-5 text-danger-600" />
+                : <Clock className="h-5 w-5 text-warning-600" />}
             </div>
             <div>
-              <p className="font-semibold text-[#1E293B]">
+              <p className="font-semibold text-ink-900">
                 {existing.status === 'approved' && 'Renewal Approved — Welcome Back!'}
                 {existing.status === 'rejected' && 'Renewal Not Approved'}
                 {existing.status !== 'approved' && existing.status !== 'rejected' && 'Renewal Submitted — Under Review'}
               </p>
-              <p className="mt-1 text-sm text-[#8A6A6A]">
+              <p className="mt-1 text-sm text-ink-500">
                 {existing.status === 'approved'
                   ? `Your assignment for ${target.year} — ${target.semester} is active. Check your dashboard for your office and supervisor.`
                   : existing.status === 'rejected'
@@ -106,28 +106,28 @@ export default function RenewalPage() {
       ) : (
         /* renewal form */
         <div className="space-y-5">
-          <div className="flex items-start gap-3 rounded-2xl border border-[#D6EBD8] bg-[#EEF7EF] p-5">
-            <RefreshCw className="mt-0.5 h-5 w-5 flex-none text-[#4E9657]" />
-            <p className="text-sm text-[#2C5A33]">
+          <div className="flex items-start gap-3 rounded-2xl border border-success-200 bg-success-50 p-5">
+            <RefreshCw className="mt-0.5 h-5 w-5 flex-none text-success-600" />
+            <p className="text-sm text-success-800">
               Renewal is open for <span className="font-bold">{target.year} — {target.semester}</span>.
               Upload your updated COR to keep your slot — no interview needed for returning recipients.
             </p>
           </div>
 
           {assignment && (
-            <div className="rounded-2xl border border-[#EAD9D9] bg-white p-5 shadow-sm">
-              <p className="mb-3 text-xs font-bold uppercase tracking-wide text-[#A38A82]">Your current placement</p>
-              <div className="space-y-2 text-sm text-[#5A4A45]">
-                <p className="flex items-center gap-2"><Building2 className="h-4 w-4 text-[#B79B7E]" /> {assignment.office?.name ?? '—'}</p>
-                <p className="flex items-center gap-2"><UserCog className="h-4 w-4 text-[#B79B7E]" /> {assignment.supervisor?.name ?? 'Unassigned'}</p>
+            <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-400">Your current placement</p>
+              <div className="space-y-2 text-sm text-ink-600">
+                <p className="flex items-center gap-2"><Building2 className="h-4 w-4 text-ink-400" /> {assignment.office?.name ?? '—'}</p>
+                <p className="flex items-center gap-2"><UserCog className="h-4 w-4 text-ink-400" /> {assignment.supervisor?.name ?? 'Unassigned'}</p>
               </div>
-              <p className="mt-3 text-xs text-[#A38A82]">
+              <p className="mt-3 text-xs text-ink-400">
                 If approved, you&apos;ll continue at the same office with the same supervisor.
               </p>
             </div>
           )}
 
-          <div className="rounded-2xl border border-[#EAD9D9] bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
             <DocumentUpload
               label={`Updated COR for ${target.year} — ${target.semester}`}
               value={cor}
@@ -135,12 +135,12 @@ export default function RenewalPage() {
               error={undefined}
             />
 
-            {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-[#E74C3C]">{error}</p>}
+            {error && <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-600">{error}</p>}
 
             <button
               onClick={() => { setError(null); submit.mutate() }}
               disabled={!cor || submit.isPending}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(108,22,32,.26)] hover:opacity-95 disabled:opacity-50 transition-opacity"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(22,69,43,.26)] hover:opacity-95 disabled:opacity-50 transition-opacity"
             >
               <Send className="h-4 w-4" />
               {submit.isPending ? 'Submitting…' : 'Submit Renewal'}

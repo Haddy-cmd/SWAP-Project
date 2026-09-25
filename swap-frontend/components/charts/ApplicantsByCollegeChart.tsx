@@ -21,12 +21,13 @@ interface ApplicantsByCollegeChartProps {
   data: CollegeDataPoint[]
   /** Series name shown in the tooltip (e.g. "Applicants" or "Recipients"). */
   label?: string
-  /** Bar palette; defaults to the maroon-led set. */
+  /** Bar palette; defaults to the green-led seal set. */
   colors?: string[]
   emptyMessage?: string
 }
 
-const DEFAULT_COLORS = ['#7D1A1A', '#2980B9', '#27AE60', '#E6A817', '#C0563B', '#8E44AD', '#16A085']
+// Seal-derived series order: green, gold, maroon, blue, teal, violet, grey.
+const DEFAULT_COLORS = ['#1F5B3A', '#D4AE22', '#A31A1E', '#2F5D8A', '#1F8163', '#6B4E9A', '#8C968F']
 
 /** Horizontal bars so long college names sit on the Y axis without overflowing.
  *  Reused for both "Applicants by College" and "Active Recipients by College". */
@@ -43,11 +44,11 @@ export function ApplicantsByCollegeChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} layout="vertical" margin={{ top: 5, right: 28, left: 8, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#EFE3E3" horizontal={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#ECEFE2" horizontal={false} />
         <XAxis
           type="number"
           allowDecimals={false}
-          tick={{ fontSize: 12, fill: '#64748B' }}
+          tick={{ fontSize: 12, fill: '#6F7B74' }}
           axisLine={false}
           tickLine={false}
         />
@@ -55,13 +56,13 @@ export function ApplicantsByCollegeChart({
           type="category"
           dataKey="college"
           width={172}
-          tick={{ fontSize: 11.5, fill: '#475569' }}
+          tick={{ fontSize: 11.5, fill: '#34433A' }}
           axisLine={false}
           tickLine={false}
         />
         <Tooltip
-          cursor={{ fill: '#FAF7F7' }}
-          contentStyle={{ borderRadius: '0.5rem', border: '1px solid #E2E8F0', fontSize: '0.75rem' }}
+          cursor={{ fill: '#F7F6EE' }}
+          contentStyle={{ borderRadius: '0.5rem', border: '1px solid #DCE0CF', fontSize: '0.75rem' }}
         />
         <Bar dataKey="value" name={label} radius={[0, 4, 4, 0]} barSize={20}>
           {data.map((_, i) => (

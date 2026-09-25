@@ -61,32 +61,32 @@ export default function HoursPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-[#1E293B]">My Service Hours</h1>
+      <h1 className="text-2xl font-bold text-ink-900">My Service Hours</h1>
 
       {summary && (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-          <h2 className="mb-5 font-semibold text-[#1E293B]">Hours Overview</h2>
+        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-5 font-semibold text-ink-900">Hours Overview</h2>
           <HoursProgress summary={summary} />
         </div>
       )}
 
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="mb-1 font-semibold text-[#1E293B]">Weekly Hours</h2>
-        <p className="mb-4 text-sm text-[#64748B]">Your verified and pending service hours, grouped by week.</p>
+      <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 font-semibold text-ink-900">Weekly Hours</h2>
+        <p className="mb-4 text-sm text-ink-500">Your verified and pending service hours, grouped by week.</p>
         <WeeklyHoursTrendChart data={weekly} />
       </div>
 
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-        <h2 className="mb-4 font-semibold text-[#1E293B]">Attendance Logs</h2>
+      <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 font-semibold text-ink-900">Attendance Logs</h2>
 
         {logsLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="h-20 animate-pulse rounded-xl bg-[#E2E8F0]" />
+              <div key={n} className="h-20 animate-pulse rounded-xl bg-ink-200" />
             ))}
           </div>
         ) : logs.length === 0 ? (
-          <p className="text-sm text-[#94A3B8]">
+          <p className="text-sm text-ink-350">
             Your time logs appear here. Use the scan page to clock in/out each service day.
           </p>
         ) : (

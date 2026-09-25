@@ -52,7 +52,7 @@ export default function SupervisorDutySlipPage() {
   return (
     <div className="space-y-5">
       <Link href={`/supervisor/students/${studentId}`}
-        className="no-print flex w-fit items-center gap-1.5 text-[13px] font-semibold text-[#8A7A73] hover:text-[#7C1B26] transition-colors">
+        className="no-print flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-500 hover:text-brand-700 transition-colors">
         <ArrowLeft className="h-[19px] w-[19px]" /> Back to {s?.name ?? 'student'}
       </Link>
       <DutySlipControls
@@ -61,7 +61,7 @@ export default function SupervisorDutySlipPage() {
         mode={mode} setMode={setMode} weekStart={weekStart} setWeekStart={setWeekStart}
         term={activeTerm} setTerm={setTerm}
       />
-      {isLoading && <div className="no-print h-40 animate-pulse rounded-2xl bg-[#E2E8F0]" />}
+      {isLoading && <div className="no-print h-40 animate-pulse rounded-2xl bg-ink-200" />}
       <DutySlipDocument mode={mode} weekStart={weekStart} logs={logs} identity={identity} term={activeTerm} />
     </div>
   )

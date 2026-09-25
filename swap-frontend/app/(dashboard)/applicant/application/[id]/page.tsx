@@ -24,8 +24,8 @@ export default function ApplicationDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="h-8 w-1/3 animate-pulse rounded-lg bg-[#E2E8F0]" />
-        <div className="h-48 animate-pulse rounded-2xl bg-[#E2E8F0]" />
+        <div className="h-8 w-1/3 animate-pulse rounded-lg bg-ink-200" />
+        <div className="h-48 animate-pulse rounded-2xl bg-ink-200" />
       </div>
     )
   }
@@ -33,7 +33,7 @@ export default function ApplicationDetailPage() {
   if (!application) {
     return (
       <div className="text-center py-16">
-        <p className="text-[#64748B]">Application not found.</p>
+        <p className="text-ink-500">Application not found.</p>
       </div>
     )
   }
@@ -43,16 +43,16 @@ export default function ApplicationDetailPage() {
       <div className="flex items-center gap-4">
         <Link
           href="/applicant/dashboard"
-          className="flex items-center gap-1.5 text-sm text-[#64748B] hover:text-[#1B4F72] transition-colors"
+          className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Link>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-[#1E293B]">
+          <h1 className="text-xl font-bold text-ink-900">
             Application #{application.id}
           </h1>
-          <p className="text-sm text-[#64748B]">
+          <p className="text-sm text-ink-500">
             {application.academic_year} — {application.semester}
           </p>
         </div>
@@ -62,39 +62,39 @@ export default function ApplicationDetailPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Timeline */}
         <div className="lg:col-span-1">
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-            <h2 className="mb-5 font-semibold text-[#1E293B]">Status Timeline</h2>
+          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-5 font-semibold text-ink-900">Status Timeline</h2>
             <ApplicationTimeline application={application} />
           </div>
         </div>
 
         {/* Details */}
         <div className="space-y-5 lg:col-span-2">
-          <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-            <h2 className="mb-4 font-semibold text-[#1E293B]">Application Details</h2>
+          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 font-semibold text-ink-900">Application Details</h2>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
-                <dt className="text-[#64748B]">Academic Year</dt>
-                <dd className="font-medium text-[#1E293B]">{application.academic_year}</dd>
+                <dt className="text-ink-500">Academic Year</dt>
+                <dd className="font-medium text-ink-900">{application.academic_year}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-[#64748B]">Semester</dt>
-                <dd className="font-medium text-[#1E293B]">{application.semester}</dd>
+                <dt className="text-ink-500">Semester</dt>
+                <dd className="font-medium text-ink-900">{application.semester}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-[#64748B]">Submitted</dt>
-                <dd className="font-medium text-[#1E293B]">{formatDateTime(application.created_at)}</dd>
+                <dt className="text-ink-500">Submitted</dt>
+                <dd className="font-medium text-ink-900">{formatDateTime(application.created_at)}</dd>
               </div>
               {application.reviewed_at && (
                 <div className="flex justify-between">
-                  <dt className="text-[#64748B]">Reviewed</dt>
-                  <dd className="font-medium text-[#1E293B]">{formatDateTime(application.reviewed_at)}</dd>
+                  <dt className="text-ink-500">Reviewed</dt>
+                  <dd className="font-medium text-ink-900">{formatDateTime(application.reviewed_at)}</dd>
                 </div>
               )}
               {application.remarks && (
                 <div>
-                  <dt className="mb-1 text-[#64748B]">Remarks</dt>
-                  <dd className="rounded-lg bg-[#F8FAFC] px-3 py-2 text-[#1E293B]">{application.remarks}</dd>
+                  <dt className="mb-1 text-ink-500">Remarks</dt>
+                  <dd className="rounded-lg bg-ink-50 px-3 py-2 text-ink-900">{application.remarks}</dd>
                 </div>
               )}
             </dl>
@@ -102,31 +102,31 @@ export default function ApplicationDetailPage() {
 
           {/* Interview schedule */}
           {application.interview && (
-            <div className="rounded-2xl border border-[#BFDBFE] bg-[#EFF6FF] p-6 shadow-sm">
+            <div className="rounded-2xl border border-info-200 bg-info-50 p-6 shadow-sm">
               <div className="mb-4 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-[#1B4F72]" />
-                <h2 className="font-semibold text-[#1B4F72]">Interview Scheduled</h2>
+                <Calendar className="h-5 w-5 text-brand-700" />
+                <h2 className="font-semibold text-brand-700">Interview Scheduled</h2>
               </div>
               {application.interview.status === 'no_show' && (
-                <div className="mb-4 rounded-lg border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2.5 text-sm text-[#92400E]">
+                <div className="mb-4 rounded-lg border border-warning-200 bg-warning-50 px-3 py-2.5 text-sm text-warning-800">
                   Our records show you missed this interview. Please contact the DSA office — a new schedule may be arranged.
                 </div>
               )}
               <dl className="space-y-3 text-sm">
                 <div className="flex items-start gap-2">
-                  <Calendar className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1B4F72]" />
+                  <Calendar className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-700" />
                   <div>
-                    <dt className="text-[#64748B]">Date &amp; Time</dt>
-                    <dd className="font-semibold text-[#1E293B]">{formatDateTime(application.interview.scheduled_at)}</dd>
+                    <dt className="text-ink-500">Date &amp; Time</dt>
+                    <dd className="font-semibold text-ink-900">{formatDateTime(application.interview.scheduled_at)}</dd>
                   </div>
                 </div>
 
                 {application.interview.mode === 'online' ? (
                   <div className="flex items-start gap-2">
-                    <Video className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1B4F72]" />
+                    <Video className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-700" />
                     <div className="min-w-0">
-                      <dt className="text-[#64748B]">Mode — Online</dt>
-                      <dd className="font-semibold text-[#1E293B] break-words">
+                      <dt className="text-ink-500">Mode — Online</dt>
+                      <dd className="font-semibold text-ink-900 break-words">
                         {application.interview.location
                           ? application.interview.location
                           : 'A meeting link will be shared with you.'}
@@ -135,21 +135,21 @@ export default function ApplicationDetailPage() {
                   </div>
                 ) : (
                   <div className="flex items-start gap-2">
-                    <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#1B4F72]" />
+                    <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-700" />
                     <div>
-                      <dt className="text-[#64748B]">Mode — In Person · Venue</dt>
-                      <dd className="font-semibold text-[#1E293B]">
+                      <dt className="text-ink-500">Mode — In Person · Venue</dt>
+                      <dd className="font-semibold text-ink-900">
                         {application.interview.location ?? 'Office of the Dean of Students Affairs (DSA)'}
                       </dd>
-                      <dd className="mt-0.5 text-xs text-[#64748B]">Please arrive at the DSA office on time and bring a valid ID.</dd>
+                      <dd className="mt-0.5 text-xs text-ink-500">Please arrive at the DSA office on time and bring a valid ID.</dd>
                     </div>
                   </div>
                 )}
 
                 {application.interview.notes && (
-                  <div className="rounded-lg border border-[#BFDBFE] bg-white px-3 py-2">
-                    <dt className="mb-0.5 text-xs text-[#64748B]">Notes</dt>
-                    <dd className="text-[#1E293B]">{application.interview.notes}</dd>
+                  <div className="rounded-lg border border-info-200 bg-white px-3 py-2">
+                    <dt className="mb-0.5 text-xs text-ink-500">Notes</dt>
+                    <dd className="text-ink-900">{application.interview.notes}</dd>
                   </div>
                 )}
               </dl>
@@ -158,23 +158,23 @@ export default function ApplicationDetailPage() {
 
           {/* Documents */}
           {application.documents && application.documents.length > 0 && (
-            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
-              <h2 className="mb-4 font-semibold text-[#1E293B]">Uploaded Documents</h2>
+            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 font-semibold text-ink-900">Uploaded Documents</h2>
               <ul className="space-y-2">
                 {application.documents.map((doc) => (
                   <li
                     key={doc.id}
-                    className="flex items-center justify-between rounded-lg border border-[#E2E8F0] px-4 py-3"
+                    className="flex items-center justify-between rounded-lg border border-ink-200 px-4 py-3"
                   >
                     <div>
-                      <p className="text-sm font-medium text-[#1E293B] capitalize">
+                      <p className="text-sm font-medium text-ink-900 capitalize">
                         {doc.document_type.replace(/_/g, ' ')}
                       </p>
-                      <p className="text-xs text-[#64748B]">{doc.file_name}</p>
+                      <p className="text-xs text-ink-500">{doc.file_name}</p>
                     </div>
                     <button
                       onClick={() => setViewDoc(doc)}
-                      className="flex items-center gap-1 text-xs font-medium text-[#1B4F72] hover:text-[#2980B9] transition-colors"
+                      className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-600 transition-colors"
                     >
                       <Eye className="h-3.5 w-3.5" />
                       View

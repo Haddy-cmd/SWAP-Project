@@ -24,21 +24,21 @@ export function ApplicationPeriodToggle() {
   const open = settings?.applications_open ?? false
 
   if (isLoading) {
-    return <div className="h-[88px] animate-pulse rounded-2xl bg-[#EAD9D9]/50" />
+    return <div className="h-[88px] animate-pulse rounded-2xl bg-ink-200/50" />
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[#EAD9D9] bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${open ? 'bg-green-50' : 'bg-[#F3E3E3]'}`}>
-          {open ? <Unlock className="h-5 w-5 text-[#27AE60]" /> : <Lock className="h-5 w-5 text-[#7D1A1A]" />}
+        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${open ? 'bg-success-50' : 'bg-brand-100'}`}>
+          {open ? <Unlock className="h-5 w-5 text-success-600" /> : <Lock className="h-5 w-5 text-brand-700" />}
         </div>
         <div>
-          <p className="font-semibold text-[#1E293B]">
+          <p className="font-semibold text-ink-900">
             Application Period —{' '}
-            <span className={open ? 'text-[#27AE60]' : 'text-[#7D1A1A]'}>{open ? 'Open' : 'Closed'}</span>
+            <span className={open ? 'text-success-600' : 'text-brand-700'}>{open ? 'Open' : 'Closed'}</span>
           </p>
-          <p className="mt-0.5 text-sm text-[#8A6A6A]">
+          <p className="mt-0.5 text-sm text-ink-500">
             {open
               ? 'Students can submit new applications right now.'
               : 'Students see a "not yet open" notice and cannot apply.'}
@@ -54,7 +54,7 @@ export function ApplicationPeriodToggle() {
         disabled={update.isPending}
         onClick={() => update.mutate(!open)}
         className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
-          open ? 'bg-[#27AE60]' : 'bg-[#D1C4C4]'
+          open ? 'bg-success-600' : 'bg-ink-300'
         }`}
       >
         <span

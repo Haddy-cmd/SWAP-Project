@@ -64,18 +64,18 @@ export function DataTable<T extends Record<string, unknown>>({
   })
 
   return (
-    <div className="rounded-xl border border-[#E2E8F0] bg-white shadow-sm">
+    <div className="rounded-xl border border-ink-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[#E2E8F0]">
-          <thead className="bg-[#F8FAFC]">
+        <table className="min-w-full divide-y divide-ink-200">
+          <thead className="bg-ink-50">
             <tr>
               {columns.map((col) => (
                 <th
                   key={String(col.key)}
                   scope="col"
                   className={cn(
-                    'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#64748B]',
-                    col.sortable && 'cursor-pointer select-none hover:text-[#1E293B]'
+                    'px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-ink-500',
+                    col.sortable && 'cursor-pointer select-none hover:text-ink-900'
                   )}
                   onClick={() => col.sortable && handleSort(String(col.key))}
                 >
@@ -93,7 +93,7 @@ export function DataTable<T extends Record<string, unknown>>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#E2E8F0] bg-white">
+          <tbody className="divide-y divide-ink-200 bg-white">
             {isLoading ? (
               <tr>
                 <td colSpan={columns.length} className="py-12 text-center">
@@ -108,9 +108,9 @@ export function DataTable<T extends Record<string, unknown>>({
               </tr>
             ) : (
               sorted.map((row, i) => (
-                <tr key={String(row[keyField] ?? i)} className="hover:bg-[#F8FAFC] transition-colors">
+                <tr key={String(row[keyField] ?? i)} className="hover:bg-ink-50 transition-colors">
                   {columns.map((col) => (
-                    <td key={String(col.key)} className="whitespace-nowrap px-4 py-3 text-sm text-[#1E293B]">
+                    <td key={String(col.key)} className="whitespace-nowrap px-4 py-3 text-sm text-ink-900">
                       {col.render ? col.render(row) : String(row[col.key as keyof T] ?? '')}
                     </td>
                   ))}
@@ -122,22 +122,22 @@ export function DataTable<T extends Record<string, unknown>>({
       </div>
 
       {meta && meta.last_page > 1 && (
-        <div className="flex items-center justify-between border-t border-[#E2E8F0] px-4 py-3">
-          <p className="text-sm text-[#64748B]">
+        <div className="flex items-center justify-between border-t border-ink-200 px-4 py-3">
+          <p className="text-sm text-ink-500">
             Showing page {meta.current_page} of {meta.last_page} ({meta.total} total)
           </p>
           <div className="flex gap-2">
             <button
               onClick={() => onPageChange?.(meta.current_page - 1)}
               disabled={meta.current_page === 1}
-              className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-sm font-medium text-[#1E293B] disabled:opacity-40 hover:bg-[#F8FAFC]"
+              className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm font-medium text-ink-900 disabled:opacity-40 hover:bg-ink-50"
             >
               Previous
             </button>
             <button
               onClick={() => onPageChange?.(meta.current_page + 1)}
               disabled={meta.current_page === meta.last_page}
-              className="rounded-lg border border-[#E2E8F0] px-3 py-1.5 text-sm font-medium text-[#1E293B] disabled:opacity-40 hover:bg-[#F8FAFC]"
+              className="rounded-lg border border-ink-200 px-3 py-1.5 text-sm font-medium text-ink-900 disabled:opacity-40 hover:bg-ink-50"
             >
               Next
             </button>

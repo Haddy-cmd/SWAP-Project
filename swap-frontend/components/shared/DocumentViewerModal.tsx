@@ -168,7 +168,7 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
   }
 
   const toolBtn =
-    'flex h-9 w-9 items-center justify-center rounded-lg border border-[#EADFD4] text-[#7C1B26] hover:bg-[#FBF7F2] disabled:opacity-40 disabled:hover:bg-transparent transition-colors'
+    'flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200 text-brand-700 hover:bg-ink-50 disabled:opacity-40 disabled:hover:bg-transparent transition-colors'
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
@@ -177,10 +177,10 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-3 border-b border-[#EADFD4] px-5 py-3">
+        <div className="flex items-center justify-between gap-3 border-b border-ink-200 px-5 py-3">
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold capitalize text-[#241715]">{title}</p>
-            <p className="truncate text-xs text-[#A38A82]">
+            <p className="truncate text-sm font-semibold capitalize text-ink-950">{title}</p>
+            <p className="truncate text-xs text-ink-400">
               {current.file_name}
               {showsGallery && <span className="ml-2">· {index + 1} of {gallery.length}</span>}
             </p>
@@ -194,7 +194,7 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
                   <ZoomOut className="h-4 w-4" />
                 </button>
 
-                <span className="w-14 text-center text-xs font-semibold tabular-nums text-[#7A6A63]">
+                <span className="w-14 text-center text-xs font-semibold tabular-nums text-ink-500">
                   {Math.round(zoom * 100)}%
                 </span>
 
@@ -214,7 +214,7 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
                   <Maximize className="h-4 w-4" />
                 </button>
 
-                <span className="mx-1 h-6 w-px bg-[#EADFD4]" />
+                <span className="mx-1 h-6 w-px bg-ink-200" />
               </>
             )}
 
@@ -226,7 +226,7 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
               <Download className="h-4 w-4" />
             </a>
             <button onClick={onClose} title="Close" aria-label="Close"
-              className="flex h-9 w-9 items-center justify-center rounded-lg text-[#A38A82] hover:bg-[#FBF7F2] hover:text-[#7C1B26] transition-colors">
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-ink-400 hover:bg-ink-50 hover:text-brand-700 transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>
@@ -235,7 +235,7 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
         {/* Body */}
         <div
           ref={stageRef}
-          className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#F1F5F9]"
+          className="relative flex flex-1 items-center justify-center overflow-hidden bg-ink-100"
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={endDrag}
@@ -277,13 +277,13 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
             <iframe src={current.file_url} title={title} className="h-[80vh] w-full border-0" />
           ) : (
             <div className="flex flex-col items-center gap-3 p-12 text-center">
-              <FileText className="h-12 w-12 text-[#CBB9AC]" />
-              <p className="text-sm text-[#64748B]">This file type can&apos;t be previewed here.</p>
+              <FileText className="h-12 w-12 text-ink-300" />
+              <p className="text-sm text-ink-500">This file type can&apos;t be previewed here.</p>
               <a
                 href={current.file_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#7C1B26] px-4 py-2 text-sm font-semibold text-white hover:bg-[#86202E] transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
               >
                 <ExternalLink className="h-4 w-4" /> Open in new tab
               </a>
@@ -292,7 +292,7 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
         </div>
 
         {image && (
-          <div className="border-t border-[#EADFD4] px-5 py-2 text-center text-[11px] text-[#A38A82]">
+          <div className="border-t border-ink-200 px-5 py-2 text-center text-[11px] text-ink-400">
             Scroll or pinch to zoom · drag to pan when zoomed{showsGallery ? ' · arrow keys to change image' : ''}
           </div>
         )}

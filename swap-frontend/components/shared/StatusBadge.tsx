@@ -16,19 +16,19 @@ type Status =
   | 'released'
 
 const STATUS_STYLES: Record<Status, string> = {
-  submitted: 'bg-blue-100 text-blue-800',
-  under_review: 'bg-yellow-100 text-yellow-800',
-  interview_scheduled: 'bg-purple-100 text-purple-800',
-  approved: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  open: 'bg-blue-100 text-blue-700',
-  pending_verification: 'bg-orange-100 text-orange-800',
-  verified: 'bg-green-100 text-green-800',
-  active: 'bg-green-100 text-green-800',
-  completed: 'bg-gray-100 text-gray-700',
-  suspended: 'bg-red-100 text-red-700',
-  pending: 'bg-yellow-100 text-yellow-800',
-  released: 'bg-green-100 text-green-800',
+  submitted: 'bg-info-100 text-info-800',
+  under_review: 'bg-warning-100 text-warning-800',
+  interview_scheduled: 'bg-violet-100 text-violet-800',
+  approved: 'bg-success-100 text-success-800',
+  rejected: 'bg-danger-100 text-danger-800',
+  open: 'bg-info-100 text-info-700',
+  pending_verification: 'bg-warning-100 text-warning-800',
+  verified: 'bg-success-100 text-success-800',
+  active: 'bg-success-100 text-success-800',
+  completed: 'bg-ink-100 text-ink-700',
+  suspended: 'bg-danger-100 text-danger-700',
+  pending: 'bg-warning-100 text-warning-800',
+  released: 'bg-success-100 text-success-800',
 }
 
 const STATUS_LABELS: Record<Status, string> = {
@@ -53,7 +53,7 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const style = STATUS_STYLES[status as Status] ?? 'bg-gray-100 text-gray-700'
+  const style = STATUS_STYLES[status as Status] ?? 'bg-ink-100 text-ink-700'
   const label = STATUS_LABELS[status as Status] ?? status.replace(/_/g, ' ')
 
   return (

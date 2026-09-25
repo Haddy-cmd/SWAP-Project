@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Plus_Jakarta_Sans, Newsreader } from 'next/font/google'
 import { QueryProvider } from '@/lib/providers/QueryProvider'
 import { EchoProvider } from '@/lib/providers/EchoProvider'
@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   title: 'SWAP Portal — MSU Marawi',
   description:
     'Digital Monitoring and Application System for the Student Welfare Assistantship Program at Mindanao State University — Marawi',
+}
+
+// Browser UI tint (mobile address bar) in the seal's deep green.
+export const viewport: Viewport = {
+  themeColor: '#10331F',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

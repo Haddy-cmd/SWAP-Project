@@ -51,12 +51,12 @@ function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="rounded-2xl border border-[#EAD9D9] bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50">
-          <CheckCircle className="h-7 w-7 text-[#27AE60]" />
+      <div className="rounded-2xl border border-ink-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success-50">
+          <CheckCircle className="h-7 w-7 text-success-600" />
         </div>
-        <h2 className="font-serif text-xl font-bold text-[#241715]">Password updated</h2>
-        <p className="mt-2 text-sm text-[#8A7A73]">Redirecting you to sign in…</p>
+        <h2 className="font-serif text-xl font-bold text-ink-950">Password updated</h2>
+        <p className="mt-2 text-sm text-ink-500">Redirecting you to sign in…</p>
       </div>
     )
   }
@@ -65,28 +65,28 @@ function ResetPasswordForm() {
   const invalidLink = !token || !email
 
   return (
-    <div className="rounded-2xl border border-[#EAD9D9] bg-white p-8 shadow-sm">
-      <Link href="/login" className="mb-6 flex items-center gap-1.5 text-sm text-[#8A7A73] hover:text-[#7C1B26] transition-colors">
+    <div className="rounded-2xl border border-ink-200 bg-white p-8 shadow-sm">
+      <Link href="/login" className="mb-6 flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors">
         <ArrowLeft className="h-4 w-4" />
         Back to sign in
       </Link>
 
       <div className="mb-6">
-        <h2 className="font-serif text-2xl font-bold text-[#241715]">Set a new password</h2>
-        <p className="mt-1 text-sm text-[#8A7A73]">
-          {email ? <>For <span className="font-medium text-[#5A4A45]">{email}</span></> : 'Choose a new password for your account.'}
+        <h2 className="font-serif text-2xl font-bold text-ink-950">Set a new password</h2>
+        <p className="mt-1 text-sm text-ink-500">
+          {email ? <>For <span className="font-medium text-ink-600">{email}</span></> : 'Choose a new password for your account.'}
         </p>
       </div>
 
       {invalidLink && (
-        <div className="mb-5 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-[#B45309]">
+        <div className="mb-5 flex items-start gap-2 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
           This reset link is invalid or incomplete. Please request a new one.
         </div>
       )}
 
       {serverError && (
-        <div className="mb-5 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-[#C0392B]">
+        <div className="mb-5 flex items-start gap-2 rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
           <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
           {serverError}
         </div>
@@ -94,42 +94,42 @@ function ResetPasswordForm() {
 
       <form onSubmit={handleSubmit((d) => reset.mutate(d))} className="space-y-4">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[#5A4A45]">New Password</label>
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3.5 py-2.5 focus-within:border-[#7C1B26]">
-            <Lock className="h-4 w-4 flex-shrink-0 text-[#B79B7E]" />
+          <label className="mb-1.5 block text-sm font-medium text-ink-600">New Password</label>
+          <div className="flex items-center gap-2.5 rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2.5 focus-within:border-brand-700">
+            <Lock className="h-4 w-4 flex-shrink-0 text-ink-400" />
             <input
               {...register('password')}
               type={showPw ? 'text' : 'password'}
               placeholder="••••••••"
               autoComplete="new-password"
-              className="flex-1 border-none bg-transparent text-sm text-[#2B1E1B] placeholder-[#B7A99F] focus:outline-none"
+              className="flex-1 border-none bg-transparent text-sm text-ink-900 placeholder-ink-350 focus:outline-none"
             />
-            <button type="button" onClick={() => setShowPw((v) => !v)} className="text-[#A38A82] hover:text-[#7C1B26]" aria-label={showPw ? 'Hide password' : 'Show password'}>
+            <button type="button" onClick={() => setShowPw((v) => !v)} className="text-ink-400 hover:text-brand-700" aria-label={showPw ? 'Hide password' : 'Show password'}>
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-xs text-[#C0392B]">{errors.password.message}</p>}
+          {errors.password && <p className="mt-1 text-xs text-danger-700">{errors.password.message}</p>}
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[#5A4A45]">Confirm Password</label>
-          <div className="flex items-center gap-2.5 rounded-xl border border-[#EADFD4] bg-[#FBF7F2] px-3.5 py-2.5 focus-within:border-[#7C1B26]">
-            <Lock className="h-4 w-4 flex-shrink-0 text-[#B79B7E]" />
+          <label className="mb-1.5 block text-sm font-medium text-ink-600">Confirm Password</label>
+          <div className="flex items-center gap-2.5 rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2.5 focus-within:border-brand-700">
+            <Lock className="h-4 w-4 flex-shrink-0 text-ink-400" />
             <input
               {...register('password_confirmation')}
               type={showPw ? 'text' : 'password'}
               placeholder="••••••••"
               autoComplete="new-password"
-              className="flex-1 border-none bg-transparent text-sm text-[#2B1E1B] placeholder-[#B7A99F] focus:outline-none"
+              className="flex-1 border-none bg-transparent text-sm text-ink-900 placeholder-ink-350 focus:outline-none"
             />
           </div>
-          {errors.password_confirmation && <p className="mt-1 text-xs text-[#C0392B]">{errors.password_confirmation.message}</p>}
+          {errors.password_confirmation && <p className="mt-1 text-xs text-danger-700">{errors.password_confirmation.message}</p>}
         </div>
 
         <button
           type="submit"
           disabled={reset.isPending || invalidLink}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#86202E] to-[#6C1620] px-6 py-3 text-sm font-semibold text-[#FFF8F2] shadow-[0_12px_24px_rgba(108,22,32,0.26)] transition hover:brightness-110 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-60"
         >
           {reset.isPending ? 'Updating…' : 'Reset Password'}
         </button>

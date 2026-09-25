@@ -15,7 +15,7 @@ const SIZE_CLASSES = {
 export function LoadingSpinner({ size = 'md', className }: LoadingSpinnerProps) {
   return (
     <div className={cn('flex items-center justify-center', className)}>
-      <Loader2 className={cn('animate-spin text-[#1B4F72]', SIZE_CLASSES[size])} />
+      <Loader2 className={cn('animate-spin text-brand-700', SIZE_CLASSES[size])} />
     </div>
   )
 }

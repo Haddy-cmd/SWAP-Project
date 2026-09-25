@@ -14,9 +14,9 @@ export default function NotificationsPage() {
     <div className="mx-auto max-w-[720px] px-4 py-6">
       {isLoading ? (
         <div className="space-y-4">
-          <div className="h-9 w-56 animate-pulse rounded-lg bg-[#EAE1D5]" />
+          <div className="h-9 w-56 animate-pulse rounded-lg bg-ink-100" />
           <div className="space-y-3 pt-4">
-            {[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-14 animate-pulse rounded-xl bg-[#EAE1D5]" />)}
+            {[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-14 animate-pulse rounded-xl bg-ink-100" />)}
           </div>
         </div>
       ) : (

@@ -12,11 +12,11 @@ interface TimeLogCardProps {
 
 export function TimeLogCard({ log, showNarrativeLink = true }: TimeLogCardProps) {
   return (
-    <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-ink-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between">
         <div>
-          <p className="font-semibold text-[#1E293B]">{log.date}</p>
-          <div className="mt-1 flex items-center gap-2 text-sm text-[#64748B]">
+          <p className="font-semibold text-ink-900">{log.date}</p>
+          <div className="mt-1 flex items-center gap-2 text-sm text-ink-500">
             <Clock className="h-3.5 w-3.5" />
             <span>{formatDateTime(log.time_in)}</span>
             {log.time_out && (
@@ -27,7 +27,7 @@ export function TimeLogCard({ log, showNarrativeLink = true }: TimeLogCardProps)
             )}
           </div>
           {log.duration_hours != null && (
-            <p className="mt-1 text-sm font-medium text-[#1B4F72]">
+            <p className="mt-1 text-sm font-medium text-brand-700">
               Duration: {formatHours(log.duration_hours)}
             </p>
           )}
@@ -36,7 +36,7 @@ export function TimeLogCard({ log, showNarrativeLink = true }: TimeLogCardProps)
       </div>
 
       {log.rejection_reason && (
-        <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+        <div className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">
           Rejection reason: {log.rejection_reason}
         </div>
       )}
@@ -45,14 +45,14 @@ export function TimeLogCard({ log, showNarrativeLink = true }: TimeLogCardProps)
         {!log.has_narrative && log.status === 'open' && showNarrativeLink && (
           <Link
             href={`/recipient/narrative/${log.id}`}
-            className="flex items-center gap-1.5 rounded-lg bg-[#1B4F72] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2980B9] transition-colors"
+            className="flex items-center gap-1.5 rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 transition-colors"
           >
             <FileText className="h-3.5 w-3.5" />
             Submit Narrative
           </Link>
         )}
         {log.has_narrative && (
-          <span className="flex items-center gap-1 text-xs text-[#27AE60] font-medium">
+          <span className="flex items-center gap-1 text-xs text-success-600 font-medium">
             <FileText className="h-3.5 w-3.5" />
             Narrative submitted
           </span>

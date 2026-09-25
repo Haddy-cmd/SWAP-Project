@@ -28,41 +28,40 @@ export function Topbar() {
   const onButtonLeave = () => { if (!desktopSidebarOpen) scheduleHideSidebar() }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#EAD9D9] bg-white px-4 shadow-sm md:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-5 border-b border-ink-900/10 bg-white/70 px-4 backdrop-blur-md md:pl-8 md:pr-6">
+      <div className="flex min-w-0 flex-1 items-center gap-[18px]">
         <button
           onClick={toggleSidebar}
           onMouseEnter={onButtonEnter}
           onMouseLeave={onButtonLeave}
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[#7D1A1A] hover:bg-[#FEF0F0] active:scale-95 transition-all"
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-ink-700 hover:bg-brand-50 hover:text-brand-700 active:scale-95 transition-all"
           aria-label="Toggle menu"
           title="Toggle menu"
         >
-          <Menu className="h-[22px] w-[22px]" />
+          <Menu className="h-6 w-6" />
         </button>
-        <div className="h-5 w-[3px] flex-shrink-0 rounded-full bg-[#7D1A1A]" />
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-[#1E293B] capitalize">
+        <div className="min-w-0 border-l-2 border-brand-600 pl-3.5 leading-[1.3]">
+          <p className="truncate text-[14.5px] font-bold text-ink-900 capitalize">
             {user?.role} Portal
           </p>
-          <p className="hidden truncate text-xs text-[#8A6A6A] sm:block">
+          <p className="hidden truncate text-xs text-ink-500 sm:block">
             {process.env.NEXT_PUBLIC_APP_NAME ?? 'SWAP Portal'} — MSU Marawi
           </p>
         </div>
       </div>
 
-      <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
+      <div className="flex flex-shrink-0 items-center gap-2.5">
         <NotificationBell />
 
         <Link
           href="/profile"
-          className="flex items-center gap-2 rounded-lg border border-[#EAD9D9] px-3 py-1.5 text-sm font-medium text-[#1E293B] hover:bg-[#FAF7F7] transition-colors"
+          className="flex h-[38px] items-center gap-[9px] rounded-[10px] border border-ink-900/15 bg-white pl-[5px] pr-[5px] text-[13.5px] font-semibold text-ink-900 transition-colors hover:bg-ink-50 sm:pr-3.5"
         >
-          <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#7D1A1A] text-xs font-bold text-white">
+          <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[11px] font-bold text-brand-900">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={avatarSrc(user?.avatar_url, token) ?? '/default-avatar.svg'} alt={user?.name ?? ''} className="h-full w-full object-cover" />
           </div>
-          <span className="hidden sm:inline">{user?.name}</span>
+          <span className="hidden whitespace-nowrap sm:inline">{user?.name}</span>
         </Link>
       </div>
     </header>

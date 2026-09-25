@@ -110,15 +110,15 @@ export function QrScanner({ onScan, onError }: QrScannerProps) {
 
   if (cameraError) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-[#EAD9D9] bg-[#FAF7F7] p-8 text-center">
-        <CameraOff className="h-10 w-10 text-[#E74C3C]" />
-        <p className="text-sm font-medium text-[#1E293B]">Camera unavailable</p>
-        <p className="text-xs text-[#8A6A6A]">{cameraError}</p>
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-ink-200 bg-ink-50 p-8 text-center">
+        <CameraOff className="h-10 w-10 text-danger-600" />
+        <p className="text-sm font-medium text-ink-900">Camera unavailable</p>
+        <p className="text-xs text-ink-500">{cameraError}</p>
         {hasMultipleCameras && (
           <button
             type="button"
             onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))}
-            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-[#EAD9D9] bg-white px-3 py-1.5 text-xs font-semibold text-[#7D1A1A] hover:bg-[#FBF7F2] transition-colors"
+            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50 transition-colors"
           >
             <SwitchCamera className="h-4 w-4" /> Try the other camera
           </button>
@@ -130,7 +130,7 @@ export function QrScanner({ onScan, onError }: QrScannerProps) {
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative w-full max-w-sm">
-        <div id="qr-reader" className="w-full overflow-hidden rounded-xl border-2 border-[#7D1A1A]" />
+        <div id="qr-reader" className="w-full overflow-hidden rounded-xl border-2 border-brand-700" />
         {hasMultipleCameras && started && (
           <button
             type="button"
@@ -143,7 +143,7 @@ export function QrScanner({ onScan, onError }: QrScannerProps) {
           </button>
         )}
       </div>
-      {started && <p className="text-xs text-[#8A6A6A]">Point the camera at the QR code</p>}
+      {started && <p className="text-xs text-ink-500">Point the camera at the QR code</p>}
     </div>
   )
 }

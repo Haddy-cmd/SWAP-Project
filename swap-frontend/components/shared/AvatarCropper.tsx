@@ -79,10 +79,10 @@ export function AvatarCropper({ file, onCancel, onCropped, busy }: {
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4" onClick={onCancel}>
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <h3 className="mb-4 font-serif text-lg font-semibold text-[#241715]">Adjust your photo</h3>
+        <h3 className="mb-4 font-serif text-lg font-semibold text-ink-950">Adjust your photo</h3>
 
         <div
-          className="relative mx-auto overflow-hidden rounded-full bg-[#F1ECE4]"
+          className="relative mx-auto overflow-hidden rounded-full bg-ink-100"
           style={{ width: BOX, height: BOX, touchAction: 'none' }}
           onPointerDown={onDown}
           onPointerMove={onMove}
@@ -105,16 +105,16 @@ export function AvatarCropper({ file, onCancel, onCropped, busy }: {
         </div>
 
         <div className="mt-5 flex items-center gap-3">
-          <span className="text-xs font-medium text-[#8A7A73]">Zoom</span>
-          <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="flex-1 accent-[#7C1B26]" />
+          <span className="text-xs font-medium text-ink-500">Zoom</span>
+          <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} className="flex-1 accent-brand-700" />
         </div>
-        <p className="mt-1.5 text-center text-xs text-[#A38A82]">Drag to reposition · slide to zoom</p>
+        <p className="mt-1.5 text-center text-xs text-ink-400">Drag to reposition · slide to zoom</p>
 
         <div className="mt-5 flex justify-end gap-3">
-          <button onClick={onCancel} className="rounded-xl border border-[#EADFD4] px-5 py-2.5 text-sm font-semibold text-[#7A6A63] hover:bg-[#FBF7F2] transition-colors">
+          <button onClick={onCancel} className="rounded-xl border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
             Cancel
           </button>
-          <button onClick={save} disabled={busy} className="flex items-center gap-2 rounded-xl bg-[#7C1B26] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#86202E] disabled:opacity-60 transition-colors">
+          <button onClick={save} disabled={busy} className="flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60 transition-colors">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {busy ? 'Saving…' : 'Save photo'}
           </button>

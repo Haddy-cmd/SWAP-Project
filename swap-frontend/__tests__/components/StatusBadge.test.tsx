@@ -33,13 +33,13 @@ describe('StatusBadge', () => {
     expect(screen.getByText('Open')).toBeInTheDocument()
   })
 
-  it('applies green style for approved', () => {
+  it('applies the success style for approved', () => {
     const { container } = render(<StatusBadge status="approved" />)
-    expect(container.firstChild).toHaveClass('bg-green-100')
+    expect(container.firstChild).toHaveClass('bg-success-100')
   })
 
-  it('applies red style for rejected', () => {
+  it('applies the danger style for rejected', () => {
     const { container } = render(<StatusBadge status="rejected" />)
-    expect(container.firstChild).toHaveClass('bg-red-100')
+    expect(container.firstChild).toHaveClass('bg-danger-100')
   })
 })

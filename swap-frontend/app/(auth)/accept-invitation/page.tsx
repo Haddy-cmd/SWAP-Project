@@ -67,15 +67,15 @@ function AcceptInvitationForm() {
 
   if (!token || isError) {
     return (
-      <div className="rounded-2xl border border-[#EAD9D9] bg-white p-8 text-center shadow-sm">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
-          <AlertCircle className="h-7 w-7 text-[#E74C3C]" />
+      <div className="rounded-2xl border border-ink-200 bg-white p-8 text-center shadow-sm">
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-50">
+          <AlertCircle className="h-7 w-7 text-danger-600" />
         </div>
-        <h2 className="font-serif text-xl font-bold text-[#241715]">Invitation not valid</h2>
-        <p className="mt-2 text-sm text-[#8A7A73]">
+        <h2 className="font-serif text-xl font-bold text-ink-950">Invitation not valid</h2>
+        <p className="mt-2 text-sm text-ink-500">
           This invitation link is invalid or has expired. Please ask the DSA admin to send a new one.
         </p>
-        <Link href="/login" className="mt-5 inline-block text-sm font-semibold text-[#7D1A1A] hover:text-[#A52020]">
+        <Link href="/login" className="mt-5 inline-block text-sm font-semibold text-brand-700 hover:text-brand-600">
           Go to sign in
         </Link>
       </div>
@@ -83,19 +83,19 @@ function AcceptInvitationForm() {
   }
 
   if (isLoading || !invite) {
-    return <div className="h-72 animate-pulse rounded-2xl bg-[#EAD9D9]/60" />
+    return <div className="h-72 animate-pulse rounded-2xl bg-ink-200/60" />
   }
 
   return (
-    <div className="rounded-2xl border border-[#EAD9D9] bg-white p-8 shadow-sm">
+    <div className="rounded-2xl border border-ink-200 bg-white p-8 shadow-sm">
       <div className="mb-6 text-center">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-[#FBEAEC]">
-          <ShieldCheck className="h-6 w-6 text-[#7C1B26]" />
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100">
+          <ShieldCheck className="h-6 w-6 text-brand-700" />
         </div>
-        <h1 className="font-serif text-2xl font-semibold text-[#241715]">Create your account</h1>
-        <p className="mt-1.5 text-sm text-[#8A7A73]">
+        <h1 className="font-serif text-2xl font-semibold text-ink-950">Create your account</h1>
+        <p className="mt-1.5 text-sm text-ink-500">
           You&apos;ve been invited to the SWAP Portal as{' '}
-          <span className="font-bold capitalize text-[#7C1B26]">{invite.role}</span>
+          <span className="font-bold capitalize text-brand-700">{invite.role}</span>
           {invite.office && (
             <>
               {' '}for <span className="font-semibold">{invite.office}</span>
@@ -105,62 +105,62 @@ function AcceptInvitationForm() {
         </p>
       </div>
 
-      <div className="mb-4 flex flex-col gap-1.5 rounded-xl bg-[#FBF7F2] px-4 py-3 text-[13px] text-[#5A4A45]">
-        <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-[#B79B7E]" /> {invite.email}</span>
+      <div className="mb-4 flex flex-col gap-1.5 rounded-xl bg-ink-50 px-4 py-3 text-[13px] text-ink-600">
+        <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-ink-400" /> {invite.email}</span>
         {invite.office && (
-          <span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-[#B79B7E]" /> {invite.office}</span>
+          <span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-ink-400" /> {invite.office}</span>
         )}
       </div>
 
       <form onSubmit={handleSubmit((d) => { setServerError(null); accept.mutate(d) })} className="space-y-4">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[#241715]">Full Name</label>
+          <label className="mb-1.5 block text-sm font-medium text-ink-950">Full Name</label>
           <input
             {...register('name')}
             placeholder="Prof. Juan Dela Cruz"
-            className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3.5 py-2.5 text-sm focus:border-[#7D1A1A] focus:outline-none"
+            className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 text-sm focus:border-brand-700 focus:outline-none"
           />
-          {errors.name && <p className="mt-1 text-xs text-[#E74C3C]">{errors.name.message}</p>}
+          {errors.name && <p className="mt-1 text-xs text-danger-600">{errors.name.message}</p>}
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[#241715]">Password</label>
+          <label className="mb-1.5 block text-sm font-medium text-ink-950">Password</label>
           <div className="relative">
             <input
               {...register('password')}
               type={showPw ? 'text' : 'password'}
               placeholder="At least 8 characters, mixed case + number"
-              className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3.5 py-2.5 pr-11 text-sm focus:border-[#7D1A1A] focus:outline-none"
+              className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 pr-11 text-sm focus:border-brand-700 focus:outline-none"
             />
             <button type="button" onClick={() => setShowPw((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#B09A9A] hover:text-[#7D1A1A]">
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-brand-700">
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          {errors.password && <p className="mt-1 text-xs text-[#E74C3C]">{errors.password.message}</p>}
+          {errors.password && <p className="mt-1 text-xs text-danger-600">{errors.password.message}</p>}
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-[#241715]">Confirm Password</label>
+          <label className="mb-1.5 block text-sm font-medium text-ink-950">Confirm Password</label>
           <input
             {...register('password_confirmation')}
             type={showPw ? 'text' : 'password'}
             placeholder="Repeat your password"
-            className="w-full rounded-xl border border-[#DCC5C5] bg-[#FAF7F7] px-3.5 py-2.5 text-sm focus:border-[#7D1A1A] focus:outline-none"
+            className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 text-sm focus:border-brand-700 focus:outline-none"
           />
           {errors.password_confirmation && (
-            <p className="mt-1 text-xs text-[#E74C3C]">{errors.password_confirmation.message}</p>
+            <p className="mt-1 text-xs text-danger-600">{errors.password_confirmation.message}</p>
           )}
         </div>
 
         {serverError && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-[#E74C3C]">{serverError}</p>
+          <p className="rounded-lg bg-danger-50 px-3 py-2 text-xs font-medium text-danger-600">{serverError}</p>
         )}
 
         <button
           type="submit"
           disabled={accept.isPending}
-          className="w-full rounded-xl bg-gradient-to-b from-[#86202E] to-[#6C1620] px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(108,22,32,.26)] hover:opacity-95 disabled:opacity-60 transition-opacity"
+          className="w-full rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(22,69,43,.26)] hover:opacity-95 disabled:opacity-60 transition-opacity"
         >
           {accept.isPending ? 'Creating your account…' : 'Create Account & Sign In'}
         </button>
@@ -171,7 +171,7 @@ function AcceptInvitationForm() {
 
 export default function AcceptInvitationPage() {
   return (
-    <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-[#EAD9D9]/60" />}>
+    <Suspense fallback={<div className="h-72 animate-pulse rounded-2xl bg-ink-200/60" />}>
       <AcceptInvitationForm />
     </Suspense>
   )

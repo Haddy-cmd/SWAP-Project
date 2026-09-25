@@ -15,11 +15,11 @@ function CopyField({ label, value }: { label: string; value: string }) {
   }
   return (
     <div>
-      <label className="mb-1 block text-xs font-medium text-[#8A6A6A]">{label}</label>
+      <label className="mb-1 block text-xs font-medium text-ink-500">{label}</label>
       <div className="flex items-center gap-2">
-        <input readOnly value={value} className="min-w-0 flex-1 truncate rounded-lg border border-[#DCC5C5] bg-[#FAF7F7] px-3 py-2 text-xs text-[#475569]" />
-        <button onClick={copy} className="flex flex-shrink-0 items-center gap-1 rounded-lg border border-[#DCC5C5] px-3 py-2 text-xs font-medium text-[#7D1A1A] hover:bg-[#FEF0F0] transition-colors">
-          {copied ? <Check className="h-3.5 w-3.5 text-[#27AE60]" /> : <Copy className="h-3.5 w-3.5" />}
+        <input readOnly value={value} className="min-w-0 flex-1 truncate rounded-lg border border-ink-300 bg-ink-50 px-3 py-2 text-xs text-ink-700" />
+        <button onClick={copy} className="flex flex-shrink-0 items-center gap-1 rounded-lg border border-ink-300 px-3 py-2 text-xs font-medium text-brand-700 hover:bg-brand-50 transition-colors">
+          {copied ? <Check className="h-3.5 w-3.5 text-success-600" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
@@ -53,14 +53,14 @@ function SelfieSettingCard() {
   const enabled = data?.require_clock_in_selfie ?? true
 
   return (
-    <div className="rounded-2xl border border-[#EAD9D9] bg-white p-6 shadow-sm print:hidden">
+    <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm print:hidden">
       <div className="flex items-start gap-3">
-        <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-[#FEF0F0] text-[#7D1A1A]">
+        <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-50 text-brand-700">
           <Camera className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-[#1E293B]">Require selfie on clock-in</p>
-          <p className="mt-1 text-sm text-[#8A6A6A]">
+          <p className="font-semibold text-ink-900">Require selfie on clock-in</p>
+          <p className="mt-1 text-sm text-ink-500">
             When on, your students must take a photo before they can clock in. When off, they clock in
             straight after scanning. Past attendance and its photos are not affected.
           </p>
@@ -72,7 +72,7 @@ function SelfieSettingCard() {
             disabled={isLoading || save.isPending}
             onClick={() => { setNotice(null); save.mutate(!enabled) }}
             className={`mt-3 inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors disabled:opacity-50 ${
-              enabled ? 'bg-[#7D1A1A]' : 'bg-[#D8C7C7]'
+              enabled ? 'bg-brand-700' : 'bg-ink-300'
             }`}
           >
             <span
@@ -81,11 +81,11 @@ function SelfieSettingCard() {
               }`}
             />
           </button>
-          <span className="ml-2 align-middle text-sm font-medium text-[#475569]">
+          <span className="ml-2 align-middle text-sm font-medium text-ink-700">
             {isLoading ? 'Loading\u2026' : enabled ? 'On' : 'Off'}
           </span>
 
-          {notice && <p className="mt-2 text-xs font-medium text-[#27AE60]">{notice}</p>}
+          {notice && <p className="mt-2 text-xs font-medium text-success-600">{notice}</p>}
         </div>
       </div>
     </div>
@@ -110,8 +110,8 @@ export default function SupervisorQrPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">Office QR Code</h1>
-        <p className="mt-1 text-sm text-[#8A6A6A]">
+        <h1 className="text-2xl font-bold text-ink-900">Office QR Code</h1>
+        <p className="mt-1 text-sm text-ink-500">
           Display or print this code at your office. Recipients scan it to clock in and out.
         </p>
       </div>
@@ -119,13 +119,13 @@ export default function SupervisorQrPage() {
       <SelfieSettingCard />
 
       {isLoading ? (
-        <div className="h-80 animate-pulse rounded-2xl bg-[#EAD9D9]/50" />
+        <div className="h-80 animate-pulse rounded-2xl bg-ink-200/50" />
       ) : noOffice || (error && !data) ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-[#F6E0BE] bg-[#FFF7ED] p-6">
-          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#D97706]" />
+        <div className="flex items-start gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-6">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-600" />
           <div>
-            <p className="font-semibold text-[#92400E]">No office assigned</p>
-            <p className="mt-1 text-sm text-[#B45309]">
+            <p className="font-semibold text-warning-800">No office assigned</p>
+            <p className="mt-1 text-sm text-warning-700">
               You aren&apos;t assigned to an office yet, so there&apos;s no QR code to show. Please contact the DSA office.
             </p>
           </div>
@@ -133,14 +133,14 @@ export default function SupervisorQrPage() {
       ) : data ? (
         <>
           {/* Printable QR card */}
-          <div className="rounded-2xl border border-[#EAD9D9] bg-white p-8 shadow-sm print:border-0 print:shadow-none">
+          <div className="rounded-2xl border border-ink-200 bg-white p-8 shadow-sm print:border-0 print:shadow-none">
             <div className="flex flex-col items-center text-center">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#FEF0F0] text-[#7D1A1A]">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                 <QrCode className="h-6 w-6" />
               </span>
-              <h2 className="mt-3 text-xl font-bold text-[#1E293B]">{data.office.name}</h2>
+              <h2 className="mt-3 text-xl font-bold text-ink-900">{data.office.name}</h2>
               {data.office.location && (
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-[#8A6A6A]">
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
                   <MapPin className="h-3.5 w-3.5" /> {data.office.location}
                 </p>
               )}
@@ -149,7 +149,7 @@ export default function SupervisorQrPage() {
                 <QrDisplay value={scanUrl} size={240} caption={`SWAP Attendance · ${data.office.name}`} />
               </div>
 
-              <p className="max-w-sm text-sm text-[#64748B]">
+              <p className="max-w-sm text-sm text-ink-500">
                 Recipients open their phone camera, scan this code, and confirm their location to record attendance.
               </p>
             </div>
@@ -159,13 +159,13 @@ export default function SupervisorQrPage() {
           <div className="space-y-3 print:hidden">
             <button
               onClick={() => window.print()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#7D1A1A] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#A52020] transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
             >
               <Printer className="h-4 w-4" /> Print QR Code
             </button>
 
-            <div className="space-y-3 rounded-2xl border border-[#EAD9D9] bg-white p-5 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-wide text-[#94A3B8]">Manual fallback</p>
+            <div className="space-y-3 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-wide text-ink-350">Manual fallback</p>
               <CopyField label="Scan link — open in a phone browser" value={scanUrl} />
               <CopyField label="QR token — paste in Attendance → QR Token" value={data.qr_code} />
             </div>

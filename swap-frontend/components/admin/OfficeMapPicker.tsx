@@ -38,7 +38,7 @@ export default function OfficeMapPicker({ latitude, longitude, radius, onChange,
 
   return (
     <div className="space-y-3">
-      <div className="overflow-hidden rounded-xl border border-[#DCC5C5]">
+      <div className="overflow-hidden rounded-xl border border-ink-300">
         <MapContainer center={center} zoom={hasPos ? 17 : 15} style={{ height: 320, width: '100%' }} scrollWheelZoom>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -51,21 +51,21 @@ export default function OfficeMapPicker({ latitude, longitude, radius, onChange,
               <Circle
                 center={[latitude as number, longitude as number]}
                 radius={radius}
-                pathOptions={{ color: '#7D1A1A', fillColor: '#7D1A1A', fillOpacity: 0.12 }}
+                pathOptions={{ color: '#1F5B3A', fillColor: '#1F5B3A', fillOpacity: 0.12 }}
               />
             </>
           )}
         </MapContainer>
       </div>
 
-      <p className="text-xs text-[#8A6A6A]">
+      <p className="text-xs text-ink-500">
         {hasPos
           ? 'Click the map to move the office center. Drag the slider to set the geofence radius.'
           : 'Click anywhere on the map to drop the office location pin.'}
       </p>
 
       <div className="flex items-center gap-3">
-        <label className="text-xs font-medium text-[#8A6A6A] whitespace-nowrap">Radius: {radius} m</label>
+        <label className="text-xs font-medium text-ink-500 whitespace-nowrap">Radius: {radius} m</label>
         <input
           type="range"
           min={10}
@@ -73,12 +73,12 @@ export default function OfficeMapPicker({ latitude, longitude, radius, onChange,
           step={10}
           value={radius}
           onChange={(e) => onRadiusChange(Number(e.target.value))}
-          className="flex-1 accent-[#7D1A1A]"
+          className="flex-1 accent-brand-700"
         />
       </div>
 
       {hasPos && (
-        <p className="text-xs text-[#8A6A6A]">
+        <p className="text-xs text-ink-500">
           Lat: {(latitude as number).toFixed(6)} · Lng: {(longitude as number).toFixed(6)}
         </p>
       )}
