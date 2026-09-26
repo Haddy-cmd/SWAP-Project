@@ -299,8 +299,8 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="flex flex-wrap justify-between gap-5 text-xs text-ink-25/50">
-            <span>© {new Date().getFullYear()} Mindanao State University — Marawi</span>
-            <span>Built by the College of Information and Computing Sciences</span>
+            <span>© {new Date().getFullYear()} Mindanao State University - Main Campus</span>
+            <span>Built by the MSU - College of Information and Computing Sciences</span>
           </div>
         </div>
       </footer>

@@ -12,7 +12,7 @@ const GREETING: Message = {
   id: 'greeting',
   role: 'assistant',
   content:
-    "Hi! I'm the SWAP Assistant. I can answer questions about the Student Welfare Assistantship Program — eligibility, application steps, service hours, stipends, and more. How can I help you?",
+    "Hi! I'm the SWAP Assistant. I can answer questions about the Student Welfare Assistantship Program — eligibility, applying, interviews, clocking in and out, service hours, duty slips, claim stubs, promissory notes, and more. How can I help you?",
   timestamp: new Date(),
 }
 

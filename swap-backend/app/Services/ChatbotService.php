@@ -4,49 +4,90 @@ namespace App\Services;
 
 use App\Models\FaqKnowledgeBase;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 class ChatbotService
 {
-    private const FALLBACK_RESPONSE = 'Thank you for your question. For assistance, please contact the DSA Office at Mindanao State University – Marawi. You may visit the office during working hours (Monday–Friday, 8:00 AM – 5:00 PM) or call the DSA at +63-63-352-xxxx.';
+    private const FALLBACK_RESPONSE = 'Thank you for your question. For assistance, please contact the DSA Office at Mindanao State University – Marawi. You may visit the office during working hours (Monday–Friday, 8:00 AM – 5:00 PM) or email dsa@msumain.edu.ph.';
+
+    /** How many best-matching FAQ entries the AI receives as context. */
+    private const AI_CONTEXT_SIZE = 15;
+
+    /** Always sent to the AI so it can explain the overall flow. */
+    private const OVERVIEW_QUESTION = 'How does the SWAP Portal system work?';
+
+    /** Identical questions reuse the AI's answer for this long. */
+    private const AI_CACHE_SECONDS = 6 * 3600;
 
     public function processQuery(string $message): array
     {
-        $normalized = $this->normalize($message);
-        $inputWords = $this->extractKeywords($normalized);
+        $inputWords = $this->extractKeywords($this->normalize($message));
 
         if (empty($inputWords)) {
             return $this->buildFallback();
         }
 
-        $faqs = FaqKnowledgeBase::active()->get();
-        $bestMatch = null;
-        $bestScore = 0;
+        $best = $this->rankFaqs($inputWords)->first();
 
-        foreach ($faqs as $faq) {
-            $keywords = array_merge(
-                $faq->keywords ?? [],
-                $this->extractKeywords($this->normalize($faq->question))
-            );
-
-            $overlap = count(array_intersect($inputWords, $keywords));
-
-            if ($overlap > $bestScore) {
-                $bestScore = $overlap;
-                $bestMatch = $faq;
-            }
-        }
-
-        if ($bestMatch && $bestScore >= 1) {
+        if ($best) {
             return [
-                'answer' => $bestMatch->answer,
-                'faq_id' => $bestMatch->id,
-                'confidence' => min(round($bestScore / max(count($inputWords), 1), 2), 1.0),
-                'category' => $bestMatch->category,
+                'answer' => $best['faq']->answer,
+                'faq_id' => $best['faq']->id,
+                'confidence' => min(round($best['score'] / max(count($inputWords), 1), 2), 1.0),
+                'category' => $best['faq']->category,
             ];
         }
 
         return $this->buildFallback();
+    }
+
+    /**
+     * Active FAQs that share at least one keyword with the question, best first.
+     * The sort is stable, so on a tie the earlier entry still wins (the old rule).
+     *
+     * @return Collection<int, array{faq: FaqKnowledgeBase, score: int}>
+     */
+    private function rankFaqs(array $inputWords): Collection
+    {
+        return FaqKnowledgeBase::active()->get()
+            ->map(fn (FaqKnowledgeBase $faq) => [
+                'faq' => $faq,
+                'score' => count(array_intersect($inputWords, array_merge(
+                    $faq->keywords ?? [],
+                    $this->extractKeywords($this->normalize($faq->question))
+                ))),
+            ])
+            ->filter(fn (array $row) => $row['score'] > 0)
+            ->sortByDesc('score')
+            ->values();
+    }
+
+    /**
+     * The entries the AI answers from: the best keyword matches plus the portal
+     * overview. Sending all ~100 entries on every question made each reply slow;
+     * a question with no keyword match at all still gets the full set.
+     */
+    private function aiContextFaqs(string $message): Collection
+    {
+        $inputWords = $this->extractKeywords($this->normalize($message));
+        $ranked = $inputWords ? $this->rankFaqs($inputWords) : collect();
+
+        if ($ranked->isEmpty()) {
+            return FaqKnowledgeBase::active()->orderBy('sort_order')->get();
+        }
+
+        $faqs = $ranked->take(self::AI_CONTEXT_SIZE)->pluck('faq');
+
+        if (!$faqs->contains('question', self::OVERVIEW_QUESTION)) {
+            $overview = FaqKnowledgeBase::active()->where('question', self::OVERVIEW_QUESTION)->first();
+            if ($overview) {
+                $faqs->push($overview);
+            }
+        }
+
+        return $faqs;
     }
 
     public function processQueryWithAI(string $message): array
@@ -58,9 +99,21 @@ class ChatbotService
             return $this->processQuery($message);
         }
 
-        $context = FaqKnowledgeBase::active()
-            ->orderBy('sort_order')
-            ->get()
+        $model = config('swap.gemini_model', 'gemini-2.0-flash');
+
+        // Many students ask the same things. Reuse an answer for an identical
+        // question; the newest FAQ edit is part of the key, so re-seeding the
+        // knowledge base on deploy retires stale answers automatically.
+        $cacheKey = 'chatbot:ai:' . md5(implode('|', [
+            $model,
+            (string) FaqKnowledgeBase::max('updated_at'),
+            trim(preg_replace('/\s+/', ' ', $this->normalize($message))),
+        ]));
+        if ($cached = Cache::get($cacheKey)) {
+            return $cached;
+        }
+
+        $context = $this->aiContextFaqs($message)
             ->map(fn ($f) => "Q: {$f->question}\nA: {$f->answer}")
             ->join("\n\n");
 
@@ -68,8 +121,6 @@ class ChatbotService
             . "Mindanao State University – Marawi. Answer using only the FAQ knowledge base below. If the question "
             . "is not covered, advise the student to contact the DSA Office. Keep answers concise, friendly, and in "
             . "plain language.\n\n{$context}";
-
-        $model = config('swap.gemini_model', 'gemini-2.0-flash');
 
         // Google Gemini (AI Studio) generateContent endpoint. The key goes in the
         // x-goog-api-key header so it never lands in URL/proxy logs. Tight timeouts:
@@ -89,6 +140,10 @@ class ChatbotService
                 'generationConfig' => [
                     'maxOutputTokens' => 512,
                     'temperature' => 0.3,
+                    // Gemini 2.5 Flash "thinks" before answering unless told not to.
+                    // For FAQ look-ups that only adds seconds, and the thinking also
+                    // eats into maxOutputTokens (sometimes leaving an empty reply).
+                    'thinkingConfig' => ['thinkingBudget' => 0],
                 ],
             ]);
         } catch (ConnectionException) {
@@ -108,12 +163,16 @@ class ChatbotService
             return $this->processQuery($message);
         }
 
-        return [
+        $result = [
             'answer' => $text,
             'faq_id' => null,
             'confidence' => 0.9,
             'category' => 'ai',
         ];
+
+        Cache::put($cacheKey, $result, self::AI_CACHE_SECONDS);
+
+        return $result;
     }
 
     private function normalize(string $text): string
