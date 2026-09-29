@@ -1,6 +1,6 @@
 import apiClient from './axios'
 import type { User } from '@/types/auth.types'
-import type { StipendRecord, EligibleStipend } from '@/types/analytics.types'
+import type { StipendRecord, EligibleStipend, BankingOfficePinStatus } from '@/types/analytics.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
 export interface ReportPreview {
@@ -75,6 +75,14 @@ export const adminApi = {
 
   voidStipend: (id: number, reason: string, auth: { password?: string; unlock_token?: string }) =>
     apiClient.post<ApiResponse<StipendRecord>>(`/admin/stipend/${id}/void`, { reason, ...auth }).then((r) => r.data.data),
+
+  // Banking Office PIN: only whether it is set comes back, never the PIN.
+  getBankingOfficePin: () =>
+    apiClient.get<{ data: BankingOfficePinStatus }>('/admin/stipend/banking-office-pin').then((r) => r.data.data),
+
+  // The releasing officer's name + PIN; omit the PIN to keep the current one.
+  setBankingOfficePin: (data: { officer_name: string; pin?: string; pin_confirmation?: string; unlock_token: string }) =>
+    apiClient.put<ApiResponse<BankingOfficePinStatus>>('/admin/stipend/banking-office-pin', data).then((r) => r.data),
 
   previewReport: (params: { type: string; academic_year: string; semester: string }) =>
     apiClient.get<{ data: ReportPreview }>('/admin/reports/preview', { params }).then((r) => r.data.data),

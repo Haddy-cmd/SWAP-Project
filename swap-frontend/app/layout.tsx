@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Plus_Jakarta_Sans, Newsreader } from 'next/font/google'
 import { QueryProvider } from '@/lib/providers/QueryProvider'
-import { EchoProvider } from '@/lib/providers/EchoProvider'
 import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget'
 import '@/app/globals.css'
 
@@ -24,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${jakarta.variable} ${newsreader.variable} font-sans`} suppressHydrationWarning>
         <QueryProvider>
-          <EchoProvider>{children}</EchoProvider>
+          {children}
           <ChatbotWidget />
         </QueryProvider>
       </body>

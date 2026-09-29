@@ -317,7 +317,7 @@ export default function StudentLogsPage() {
 
                   {showNoNarrative && (
                     <div className="flex items-center gap-2 border-t border-ink-100 bg-gold-50 px-[18px] py-2.5 text-[12.5px] text-gold-700">
-                      <Info className="h-[17px] w-[17px]" /> No narrative report submitted for this log.
+                      <Info className="h-[17px] w-[17px]" /> No session note for this log (notes are optional).
                     </div>
                   )}
 

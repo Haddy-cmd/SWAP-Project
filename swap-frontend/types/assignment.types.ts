@@ -38,6 +38,7 @@ export interface Office {
   longitude: number | string | null
   radius_meters: number | null
   geofence_enabled: boolean
+  auto_clock_out?: boolean
   qr_code?: string | null
   active_recipients?: number
   supervisors_count?: number
@@ -52,4 +53,6 @@ export interface CreateAssignmentData {
   required_hours: number
   start_date: string
   end_date?: string
+  // Place a new applicant who has not attended an orientation (audited).
+  skip_orientation?: boolean
 }

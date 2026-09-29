@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Models\Assignment;
+use App\Models\User;
 use App\Services\AssignmentService;
+use App\Services\OrientationService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
@@ -25,10 +27,15 @@ class StoreAssignmentRequest extends FormRequest
             'required_hours' => ['required', 'integer', 'min:1', 'max:500'],
             'start_date' => ['required', 'date'],
             'end_date' => ['nullable', 'date', 'after:start_date'],
+            // Admin override: place a new applicant who has not attended an orientation (audited).
+            'skip_orientation' => ['sometimes', 'boolean'],
         ];
     }
 
-    /** One active placement per recipient per term (a partial unique index backs this up). */
+    /**
+     * One active placement per recipient per term (a partial unique index backs this
+     * up), and a new applicant must have attended an orientation unless overridden.
+     */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
@@ -44,6 +51,13 @@ class StoreAssignmentRequest extends FormRequest
 
             if ($taken) {
                 $validator->errors()->add('user_id', AssignmentService::MSG_ALREADY_ASSIGNED);
+
+                return;
+            }
+
+            $user = User::find($this->input('user_id'));
+            if ($user && !$this->boolean('skip_orientation') && OrientationService::needsOrientation($user)) {
+                $validator->errors()->add('user_id', OrientationService::MSG_NOT_ORIENTED);
             }
         });
     }

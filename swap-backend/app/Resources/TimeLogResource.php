@@ -54,6 +54,7 @@ class TimeLogResource extends JsonResource
                 'longitude' => $this->assignment->office->longitude,
                 'radius_meters' => $this->assignment->office->radius_meters,
                 'geofence_enabled' => $this->assignment->office->geofence_enabled,
+                'auto_clock_out' => $this->assignment->office->auto_clock_out,
             ] : null),
             // The term this log belongs to, from its assignment — lets the duty slip
             // group and navigate a student's duty by semester.

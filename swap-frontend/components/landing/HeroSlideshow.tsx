@@ -20,11 +20,21 @@ export function HeroSlideshow({
   children: ReactNode
 }) {
   const [index, setIndex] = useState(0)
+  // The slide being faded out, so it stays mounted through the crossfade.
+  const [prevIndex, setPrevIndex] = useState<number | null>(null)
   const [playing, setPlaying] = useState(true)
   const count = photos.length
   const duration = intervalSec * 1000
 
-  const go = useCallback((n: number) => setIndex(((n % count) + count) % count), [count])
+  const go = useCallback((n: number) => {
+    setPrevIndex(index)
+    setIndex(((n % count) + count) % count)
+  }, [count, index])
+
+  // Only the current, outgoing and next photos are mounted: the browser fetches
+  // 2–3 images instead of every slide up front, and the next one is preloaded.
+  const nextIndex = (index + 1) % count
+  const mounted = (k: number) => k === index || k === prevIndex || k === nextIndex
 
   // Re-armed on every slide change, so a manual jump restarts the full interval.
   useEffect(() => {
@@ -45,15 +55,17 @@ export function HeroSlideshow({
             className="absolute inset-0 transition-opacity duration-[1400ms] ease-in-out"
             style={{ opacity: k === index ? 1 : 0, zIndex: k === index ? 1 : 0 }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              // Remount on activation so the drift restarts from the beginning.
-              key={k === index ? `on-${index}` : 'off'}
-              src={p.src}
-              alt=""
-              className="hero-drift h-full w-full object-cover"
-              style={{ animation: k === index ? `swapDrift ${duration + 1500}ms linear forwards` : 'none' }}
-            />
+            {mounted(k) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                // Remount on activation so the drift restarts from the beginning.
+                key={k === index ? `on-${index}` : 'off'}
+                src={p.src}
+                alt=""
+                className="hero-drift h-full w-full object-cover"
+                style={{ animation: k === index ? `swapDrift ${duration + 1500}ms linear forwards` : 'none' }}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -79,7 +91,8 @@ export function HeroSlideshow({
 
       {/* Progress bars · caption · controls */}
       <div className="absolute inset-x-5 bottom-7 z-[3] flex items-end justify-between gap-5 sm:inset-x-14 sm:bottom-9 sm:gap-7">
-        <div className="flex max-w-[360px] flex-1 gap-2">
+        {/* Many slides share this row: tighten the gap so each bar stays visible on a phone. */}
+        <div className={`flex max-w-[360px] flex-1 ${count > 8 ? 'gap-[3px]' : 'gap-2'}`}>
           {photos.map((p, k) => (
             <button
               key={p.src}

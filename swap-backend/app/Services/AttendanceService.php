@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Events\AttendanceCompleted;
-use App\Events\AttendanceStarted;
 use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
 use App\Models\AuditLog;
@@ -31,6 +29,8 @@ class AttendanceService
      * masquerade as a live session.
      */
     public const MAX_SESSION_HOURS = 12;
+
+    public const MSG_AUTO_CLOCK_OUT_OFF = 'Automatic clock-out is turned off for this office.';
 
     /** Clock-in is only allowed Monday–Saturday, 6:00 AM to 5:30 PM (Asia/Manila). */
     private const CLOCK_IN_TIMEZONE = 'Asia/Manila';
@@ -62,14 +62,8 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('You have no active assignment.');
         }
 
-        // A digital signature specimen is required before any duty is rendered:
-        // it signs the claim stub at release and the receipt at payout. Checked
-        // here, not just in the UI, so a hand-crafted request cannot skip it.
-        if (empty($user->signature_image_path)) {
-            throw new UnprocessableEntityHttpException(
-                'A digital signature is required before clocking in. Draw or upload one on your Profile page.'
-            );
-        }
+        // No signature check here: the specimen is only needed to sign the claim
+        // stub, so StipendClaimService refuses the release without it instead.
 
         if ($assignment->office_id !== $office->id) {
             throw new UnprocessableEntityHttpException('This QR code belongs to a different office than your assignment.');
@@ -164,20 +158,16 @@ class AttendanceService
             );
         }
 
-        if (!$log->hasNarrative()) {
-            throw new UnprocessableEntityHttpException(
-                'Please submit your narrative report before clocking out.'
-            );
-        }
-
+        // A per-session note is optional; the end-of-term report (TermReport) is
+        // what payout requires.
         return $this->finalizeClockOut($log, $user, 'manual', $latitude, $longitude, null, $accuracy);
     }
 
     /**
      * System-triggered clock-out when a recipient leaves the office geofence.
-     * Does not require a narrative (they have physically left the premises) — which
-     * is exactly why the server re-checks the fence: otherwise calling this endpoint
-     * directly would skip the manual path's QR + narrative rules.
+     * Skips the QR scan (they have physically left the premises) — which is exactly
+     * why the server re-checks the fence: otherwise calling this endpoint directly
+     * would skip the manual path's QR rule. Offices can switch it off.
      */
     public function autoClockOut(User $user, int $logId, float $latitude, float $longitude, ?float $accuracy = null): TimeLog
     {
@@ -193,6 +183,10 @@ class AttendanceService
             throw new UnprocessableEntityHttpException(
                 'Automatic clock-out only applies to geofenced offices. Scan your office QR to clock out.'
             );
+        }
+
+        if (!$office->auto_clock_out) {
+            throw new UnprocessableEntityHttpException(self::MSG_AUTO_CLOCK_OUT_OFF);
         }
 
         // Same tolerance the page uses to decide the recipient has left.
@@ -424,12 +418,6 @@ class AttendanceService
             }
         }
 
-        broadcast(new AttendanceStarted(
-            supervisorId: $assignment->supervisor_id,
-            studentName: $user->name,
-            timeIn: $log->time_in->toISOString(),
-        ))->toOthers();
-
         return $log->load(['assignment.office']);
     }
 
@@ -486,13 +474,6 @@ class AttendanceService
                 'duration_hours' => $updated->duration_hours,
             ])->onQueue('notifications');
         }
-
-        broadcast(new AttendanceCompleted(
-            supervisorId: $assignment->supervisor_id,
-            studentName: $user->name,
-            durationHours: (float) $updated->duration_hours,
-            logId: $updated->id,
-        ))->toOthers();
 
         return $updated;
     }

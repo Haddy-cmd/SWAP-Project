@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, Send, CheckCircle, Ban, Lock } from 'lucide-react'
+import { DollarSign, Send, CheckCircle, Ban, Lock, KeyRound } from 'lucide-react'
 import Link from 'next/link'
 import { adminApi } from '@/lib/api/admin.api'
-import { formatDate } from '@/lib/utils/formatDate'
+import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { StipendRecord, EligibleStipend, StipendStatus } from '@/types/analytics.types'
 
@@ -89,6 +89,12 @@ export default function AdminStipendPage() {
   }
 
   const keyOf = (e: EligibleStipend) => `${e.user_id}|${e.academic_year}|${e.semester}`
+  // Hours met but the stub can't be issued yet: same order and wording as the backend refusal.
+  const blockedReason = (e: EligibleStipend) =>
+    !e.has_signature ? 'This recipient has not saved a digital signature yet.'
+      : !e.narrative_submitted ? 'This recipient has not submitted their end-of-term narrative report yet.'
+      : null
+  const ready = eligible.filter((e) => !blockedReason(e))
 
   const unlock = useMutation({
     mutationFn: () => adminApi.unlockStipend(unlockPw),
@@ -166,13 +172,15 @@ export default function AdminStipendPage() {
         </div>
       )}
 
+      <BankingOfficePinCard unlockToken={unlockToken} onGateExpired={gateExpired} />
+
       {/* Always render this section: hiding it when nobody qualifies left the page
           looking exactly like the pre-checklist layout, with no hint why. */}
       {eligible.length > 0 ? (
         <div className="rounded-2xl border border-success-200 bg-success-50 p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
-            <input type="checkbox" checked={selected.length === eligible.length}
-              onChange={(e) => { setBulkResult(null); setSelected(e.target.checked ? eligible.map(keyOf) : []) }}
+            <input type="checkbox" checked={ready.length > 0 && selected.length === ready.length} disabled={!ready.length}
+              onChange={(e) => { setBulkResult(null); setSelected(e.target.checked ? ready.map(keyOf) : []) }}
               className="h-4 w-4 accent-brand-700" aria-label="Select all eligible" />
             <CheckCircle className="h-4 w-4 text-brand-700" />
             <h2 className="font-semibold text-success-800">Eligible for Release</h2>
@@ -181,24 +189,33 @@ export default function AdminStipendPage() {
               <span className="rounded-full bg-brand-700 px-2 py-0.5 text-xs font-medium text-white">{selected.length} selected</span>
             )}
           </div>
-          <p className="mb-3 text-xs text-success-700">Recipients who completed their required verified hours and have not been paid for the period. Tick one or many, then release.</p>
+          <p className="mb-3 text-xs text-success-700">Recipients who completed their required verified hours and have not been paid for the period. Tick one or many, then release. A recipient without a saved signature or an end-of-term report can&apos;t be released yet.</p>
           <div className="space-y-2">
             {eligible.map((e) => {
               const key = keyOf(e)
               const checked = selected.includes(key)
+              const blocked = blockedReason(e)
               return (
-                <div key={key} className="flex items-center gap-3 rounded-xl border border-success-200 bg-white px-4 py-3">
-                  <input type="checkbox" checked={checked}
+                <div key={key} className={`flex items-center gap-3 rounded-xl border border-success-200 bg-white px-4 py-3 ${blocked ? 'opacity-70' : ''}`}>
+                  <input type="checkbox" checked={checked} disabled={!!blocked} title={blocked ?? undefined}
                     onChange={() => { setBulkResult(null); setSelected((s) => checked ? s.filter((k) => k !== key) : [...s, key]) }}
-                    className="h-4 w-4 flex-shrink-0 accent-brand-700" aria-label={`Select ${e.name}`} />
+                    className="h-4 w-4 flex-shrink-0 accent-brand-700 disabled:cursor-not-allowed" aria-label={`Select ${e.name}`} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-ink-900">{e.name}</p>
                     <p className="text-xs text-ink-500">{e.academic_year} — {e.semester} · {e.verified_hours}/{e.required_hours} hrs verified</p>
-                    {e.via_promissory && (
-                      <p className="mt-1">
-                        <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
-                          Promissory · lacking {e.lacking_hours} hrs{e.makeup_deadline ? ` · due ${e.makeup_deadline}` : ''}
-                        </span>
+                    {(e.via_promissory || !e.has_signature || !e.narrative_submitted) && (
+                      <p className="mt-1 flex flex-wrap gap-1.5">
+                        {e.via_promissory && (
+                          <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
+                            Promissory · lacking {e.lacking_hours} hrs{e.makeup_deadline ? ` · due ${e.makeup_deadline}` : ''}
+                          </span>
+                        )}
+                        {!e.has_signature && (
+                          <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-700">No signature</span>
+                        )}
+                        {!e.narrative_submitted && (
+                          <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-700">No end-of-term report</span>
+                        )}
                       </p>
                     )}
                   </div>
@@ -298,3 +315,112 @@ export default function AdminStipendPage() {
 }
 
 const INPUT = 'w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none'
+
+/**
+ * The Banking Office's releasing officer: the DSA sets their name together with
+ * the PIN they enter after scanning a claim stub's QR. The name is what prints on
+ * every stub they release; the PIN itself is never read back.
+ */
+function BankingOfficePinCard({ unlockToken, onGateExpired }: { unlockToken: string; onGateExpired: (message: string) => void }) {
+  const queryClient = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [officerName, setOfficerName] = useState('')
+  const [pin, setPin] = useState('')
+  const [pinConfirmation, setPinConfirmation] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState<string | null>(null)
+
+  const { data: status } = useQuery({
+    queryKey: ['admin-banking-office-pin'],
+    queryFn: () => adminApi.getBankingOfficePin(),
+  })
+
+  const reset = () => { setEditing(false); setOfficerName(''); setPin(''); setPinConfirmation(''); setError(null) }
+
+  const save = useMutation({
+    mutationFn: () => adminApi.setBankingOfficePin({
+      officer_name: officerName.trim(),
+      ...(pin ? { pin, pin_confirmation: pinConfirmation } : {}),
+      unlock_token: unlockToken,
+    }),
+    onSuccess: (res) => {
+      queryClient.setQueryData(['admin-banking-office-pin'], res.data)
+      reset()
+      setSaved(res.message ?? 'Releasing officer saved.')
+    },
+    onError: (e: ApiError) => {
+      const errors = e.response?.data?.errors
+      if (errors?.unlock_token?.[0]) { onGateExpired(errors.unlock_token[0]); return }
+      setError(errors?.officer_name?.[0] ?? errors?.pin?.[0] ?? e.response?.data?.message ?? 'Could not save.')
+    },
+  })
+
+  const digitsOnly = (v: string) => v.replace(/\D/g, '').slice(0, 8)
+  // A PIN is required the first time; afterwards blank keeps the current one.
+  const pinRequired = !status?.has_pin
+  const canSave = !!officerName.trim() && (pinRequired ? !!pin && !!pinConfirmation : !pin || !!pinConfirmation)
+
+  return (
+    <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-brand-700" />
+            <h2 className="font-semibold text-ink-900">Banking Office Releasing Officer</h2>
+            {status && (
+              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.is_set ? 'bg-success-50 text-success-600' : 'bg-warning-50 text-warning-600'}`}>
+                {status.is_set ? 'Set' : 'Not set'}
+              </span>
+            )}
+          </div>
+          {status?.officer_name && (
+            <p className="mt-1 text-sm text-ink-900">
+              <span className="font-semibold">{status.officer_name}</span>
+              {status.updated_at && <span className="text-xs text-ink-500"> · PIN last changed {formatDateTime(status.updated_at)}</span>}
+            </p>
+          )}
+          <p className="mt-1 text-xs text-ink-500">
+            The releasing officer scans the QR on a claim stub and enters this PIN to record the payout.
+            The name you set here is printed on the stub as the releasing officer. Give the PIN only to that officer.
+          </p>
+          {status && !status.is_set && (
+            <p className="mt-1 text-xs font-medium text-warning-700">Until the officer and PIN are set, the Banking Office cannot record payouts.</p>
+          )}
+        </div>
+        {/* Wait for the status so the label never says "Set" over an existing setup. */}
+        {!editing && status && (
+          <button onClick={() => { setSaved(null); setError(null); setOfficerName(status.officer_name ?? ''); setEditing(true) }}
+            className="flex-shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50">
+            {status.is_set ? 'Change officer or PIN' : 'Set up'}
+          </button>
+        )}
+      </div>
+
+      {editing && (
+        <div className="mt-3 space-y-2">
+          <input value={officerName} onChange={(e) => setOfficerName(e.target.value)} maxLength={150}
+            autoComplete="off" placeholder="Releasing officer's full name"
+            className="w-full max-w-sm rounded-lg border border-ink-300 bg-ink-50 px-3 py-2 text-xs focus:border-brand-700 focus:outline-none" />
+          <div className="flex flex-wrap items-center gap-2">
+            <input type="password" inputMode="numeric" autoComplete="new-password" value={pin}
+              onChange={(e) => setPin(digitsOnly(e.target.value))}
+              placeholder={pinRequired ? 'PIN (6–8 digits)' : 'New PIN (blank = keep current)'}
+              className="w-52 rounded-lg border border-ink-300 bg-ink-50 px-3 py-2 text-xs focus:border-brand-700 focus:outline-none" />
+            <input type="password" inputMode="numeric" autoComplete="new-password" value={pinConfirmation}
+              onChange={(e) => setPinConfirmation(digitsOnly(e.target.value))} placeholder="Repeat the PIN"
+              onKeyDown={(e) => { if (e.key === 'Enter' && canSave && !save.isPending) save.mutate() }}
+              className="w-44 rounded-lg border border-ink-300 bg-ink-50 px-3 py-2 text-xs focus:border-brand-700 focus:outline-none" />
+            <button onClick={() => { setError(null); save.mutate() }} disabled={save.isPending || !canSave}
+              className="rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
+              {save.isPending ? 'Saving…' : 'Save'}
+            </button>
+            <button onClick={reset}
+              className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
+          </div>
+        </div>
+      )}
+      {error && <p className="mt-2 text-xs font-medium text-danger-700">{error}</p>}
+      {saved && <p className="mt-2 text-xs font-medium text-success-700">{saved}</p>}
+    </div>
+  )
+}

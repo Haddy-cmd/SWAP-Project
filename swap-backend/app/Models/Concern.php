@@ -10,6 +10,12 @@ class Concern extends Model
 {
     use HasFactory;
 
+    public const STATUS_OPEN = 'open';
+    public const STATUS_IN_PROGRESS = 'in_progress';
+    public const STATUS_RESOLVED = 'resolved';
+
+    public const STATUSES = [self::STATUS_OPEN, self::STATUS_IN_PROGRESS, self::STATUS_RESOLVED];
+
     protected $fillable = [
         'user_id',
         'subject',

@@ -189,22 +189,22 @@ class AttendanceTest extends TestCase
     /**
      * P0 SACRED RULE: time-out must be blocked when no narrative exists.
      */
-    public function test_time_out_without_narrative_is_blocked(): void
+    public function test_time_out_without_a_narrative_succeeds(): void
     {
+        // The per-session note is optional; the end-of-term report gates payout instead.
+        Queue::fake();
         $recipient = $this->makeUser('recipient');
         $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
         $token = $this->qrFor($assignment);
-        $log = $this->makeOpenLog($assignment, $recipient);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
 
         Sanctum::actingAs($recipient);
-        $res = $this->postJson('/api/recipient/attendance/time-out', [
+        $this->postJson('/api/recipient/attendance/time-out', [
             'log_id' => $log->id, 'qr_token' => $token,
-        ]);
+        ])->assertStatus(200)->assertJsonPath('data.status', 'pending_verification');
 
-        $res->assertStatus(422);
-        $this->assertStringContainsStringIgnoringCase('narrative', $res->json('message') ?? '');
-        $this->assertDatabaseHas('time_logs', ['id' => $log->id, 'status' => 'open']);
-        $this->assertNull($log->fresh()->time_out);
+        $this->assertNotNull($log->fresh()->time_out);
+        $this->assertNull($log->fresh()->narrativeReport);
     }
 
     public function test_time_out_with_narrative_succeeds_and_computes_duration(): void
@@ -418,8 +418,9 @@ class AttendanceTest extends TestCase
         $this->getJson('/api/recipient/assignment')->assertJsonPath('data.selfie_required', false);
     }
 
-    public function test_clock_in_is_blocked_without_a_signature_specimen(): void
+    public function test_clock_in_works_without_a_signature_specimen(): void
     {
+        // The specimen is only needed at payout (release refuses without it).
         $this->travelToValidClockIn();
         $recipient = $this->makeUser('recipient', ['signature_image_path' => null]);
         $office = $this->makeGeofencedOffice();
@@ -429,12 +430,9 @@ class AttendanceTest extends TestCase
         Sanctum::actingAs($recipient);
         $this->postJson('/api/recipient/attendance/time-in-geofence', [
             'qr_token' => $token, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
-        ])->assertStatus(422)->assertJsonPath(
-            'message',
-            'A digital signature is required before clocking in. Draw or upload one on your Profile page.'
-        );
+        ])->assertStatus(201);
 
-        $this->assertDatabaseMissing('time_logs', ['user_id' => $recipient->id]);
+        $this->assertDatabaseHas('time_logs', ['user_id' => $recipient->id, 'status' => 'open']);
     }
 
     public function test_duty_slip_can_load_several_semesters_of_logs_in_one_page(): void
@@ -505,6 +503,34 @@ class AttendanceTest extends TestCase
             ->assertStatus(422)->assertJsonValidationErrors(['latitude', 'longitude']);
 
         $this->assertEquals('open', $log->fresh()->status);
+    }
+
+    public function test_auto_clock_out_is_refused_when_the_office_turned_it_off(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice(['auto_clock_out' => false]);
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
+
+        Sanctum::actingAs($recipient);
+        // Well outside the fence, but the office keeps students clocked in on errands.
+        $this->postJson('/api/recipient/attendance/auto-clock-out', [
+            'log_id' => $log->id, 'latitude' => 8.01, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertStatus(422)->assertJsonPath('message', 'Automatic clock-out is turned off for this office.');
+
+        $this->assertEquals('open', $log->fresh()->status);
+    }
+
+    public function test_admin_toggles_auto_clock_out_per_office(): void
+    {
+        $office = $this->makeGeofencedOffice();
+        $this->assertTrue($office->fresh()->auto_clock_out, 'on by default');
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->putJson("/api/admin/offices/{$office->id}", ['auto_clock_out' => false])
+            ->assertOk()->assertJsonPath('data.auto_clock_out', false);
+        $this->assertFalse($office->fresh()->auto_clock_out);
     }
 
     public function test_auto_clock_out_does_not_apply_to_offices_without_a_geofence(): void

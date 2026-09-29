@@ -18,24 +18,30 @@ Marawi's student assistantship programme, run by the **Division / Office of Stud
 
 1. A student **applies** and uploads requirements (COR, grades, letter of intent, 2×2 photo).
 2. DSA staff **review** the application, **schedule an interview**, and **approve or reject**.
-3. An approved student becomes a **recipient**, is **assigned** to a host office with a
-   **supervisor** and a required number of service hours.
+3. An approved applicant is invited to an **orientation** session; once marked as attended
+   (or placed anyway by an admin, audited) they are **assigned** to a host office with a
+   **supervisor** and a required number of service hours, and become a **recipient**.
 4. The recipient **clocks in and out** by scanning their office's QR code, with **GPS geofence
    verification** and an optional **proof-of-presence selfie**.
-5. Before clocking out they submit a **narrative report** of what they worked on.
+5. At clock-out they may add an optional **session note**; once per term they submit an
+   **end-of-term narrative report** (required for payout).
 6. The supervisor **verifies** the logged hours.
 7. Verified hours drive **stipend release** and progress reporting (duty slips, weekly/monthly/
    semester reports).
-8. An admin **releases (certifies) a digital claim stub** for an eligible recipient — control
-   number + single-use QR token + server-rendered PDF, co-signed by the supervisor (SWAP Mentor)
-   and the director. The recipient **confirms receipt** with the releasing officer, closing the
-   claim. See `docs/STIPEND_CLAIM_DESIGN.md` and §6.
+8. An admin **releases (certifies) a digital claim stub** for an eligible recipient (hours met,
+   signature saved, end-of-term report submitted) — control number + single-use QR token +
+   server-rendered PDF, co-signed by the supervisor (SWAP Mentor) and the director. The stub
+   prints a **Banking Office QR**; the releasing officer scans it and enters the Banking Office
+   PIN, which records the payout under the officer's name the admin set with that PIN and closes
+   the claim. See
+   `docs/STIPEND_CLAIM_DESIGN.md` and §6.
 9. A recipient short on hours after semester end may file a **promissory note** (with supporting
    document); a governing supervisor approves (with a makeup deadline) or rejects, which can
    restore stipend eligibility.
 
-Roles: `applicant`, `recipient`, `supervisor`, `admin`. There is no Banking Office role — an
-external officer verifies via the token-gated `GET /stipend/verify/{claimToken}` link.
+Roles: `applicant`, `recipient`, `supervisor`, `admin`. There is no Banking Office role — the
+releasing officer uses the public, token-gated `/claim/{claimToken}` page (the stub's QR) with a
+shared PIN the admin sets on Admin → Stipend.
 
 ---
 
@@ -67,7 +73,7 @@ They are not a monorepo with shared tooling — each has its own dependency tree
 | PHP | **8.2** |
 | Database | **PostgreSQL** (17 locally, Render Postgres in prod). Postgres-specific SQL is used (enums, partial indexes, `UPDATE … FROM`) — do not assume portability to MySQL/SQLite. |
 | Auth | **Laravel Sanctum** (bearer tokens, not session cookies) |
-| Realtime | **Laravel Reverb** (websockets) — `BROADCAST_CONNECTION=log` in dev, so broadcasts are inert locally |
+| Realtime | None. The Reverb/Echo stack was removed (2026-09-28): it never delivered. Notifications are in-app (the bell refreshes every 60 s) + email |
 | Queue | `QUEUE_CONNECTION=sync` in dev *and* in the default Render config — **jobs run inline and their exceptions propagate into the HTTP response** |
 | Mail | Pluggable. `log` by default; **Brevo HTTP API** transport registered in `AppServiceProvider` |
 | PDF | **barryvdh/laravel-dompdf** for stipend claim stubs; requires PHP **GD with JPEG/FreeType/WebP** (see §8). Slip re-render is non-fatal — a render failure surfaces as a readable `503`, not a 500 |
@@ -136,11 +142,11 @@ app/
 components/
 ├── attendance/  admin/  application/  auth/  charts/  chatbot/  landing/  layout/  notifications/  shared/  ui/  recipient/
 │                + attendance/SemesterServiceReport.tsx (semester mode), shared/SignaturePad.tsx (canvas specimen
-│                capture), recipient/MissingSignatureBanner.tsx (clock-in/receipt nudge), landing/HeroSlideshow.tsx,
+│                capture), recipient/MissingSignatureBanner.tsx (stipend-release nudge), landing/HeroSlideshow.tsx,
 │                landing/FaqAccordion.tsx
 lib/
 ├── api/         one file per domain; all call apiClient from axios.ts (+ promissory.api.ts)
-├── hooks/       useCameraStream, useApplications, useReverb, …
+├── hooks/       useCameraStream, useApplications, useNotifications, …
 ├── store/       Zustand
 └── utils/       formatDate (Asia/Manila), geolocation, interviewWindow, pace, formatHours,
 │                + duty-slip helpers (mondayOf/iso/buildRow/makeControlNo/stepTerm) and avatarSrc(url,token)
@@ -182,7 +188,9 @@ four `2026_09_20_*` and five `2026_09_21_*` / `2026_09_23_*` additions).
 | `Interview` | 1:1 with Application. `scheduled_at`, `mode` (`in_person`\|`online`), `location`, `meeting_link`, `duration_minutes`, `status` |
 | `Assignment` | Recipient ↔ Office ↔ Supervisor for an academic year/semester. `required_hours` (default 200), `status` (`active`\|`completed`\|`suspended`) |
 | `TimeLog` | One attendance session. `status`: `open → pending_verification → verified \| rejected`. GPS + accuracy + `location_flagged` + selfie path |
-| `NarrativeReport` | Required before manual clock-out |
+| `NarrativeReport` | Optional per-session note at clock-out |
+| `TermReport` | End-of-term narrative report, one per assignment; required before the stipend is released; editable until then |
+| `OrientationSession`, `OrientationAttendee` | Orientation sessions and invite/attendance rows (`invited` / `attended` / `absent`); an attended row is required before a new applicant's placement |
 | `Verification` | Supervisor's accept/reject of logged hours |
 | `StipendHistory` | Claim stub lifecycle (plain `varchar(20)`, **not** a Postgres enum): `pending → certified → claimed`, with `void` terminal (pre-claim only). New rows are created already `certified` (release == certify, Option C). `released` survives only as a legacy read value for pre-2026-09-21 rows. Columns: `control_number` (`SWAP-STP-YYYYMM-#####`, unique), `claim_token` (64-char, single-use, nulled on receipt/void), `certified_by/at`, `claimed_at`, `receipt_signed_at`, `releasing_officer_name`, `slip_path`, `voided_at`, `void_reason` |
 | `StipendSignature` | One row per signatory on a stub: `supervisor` (SWAP Mentor) + `director` at release, `beneficiary` + `releasing_officer` at receipt. `method`: `drawn` (specimen image) vs `authenticated` (typed/action fallback) |
@@ -232,21 +240,26 @@ All comparisons in **Asia/Manila**.
 - GPS accuracy worse than **100 m** → log is `location_flagged`, not rejected.
 - Travel faster than **130 km/h** between two fixes → flagged as implausible.
 - Max session **12 hours**; `attendance:close-stale` (hourly cron) force-closes longer ones.
-- Auto clock-out has a **10-minute grace period** outside the premises.
-- A **narrative report is required** before a manual clock-out.
+- Auto clock-out has a **10-minute grace period** outside the premises, and can be switched off
+  per office (`offices.auto_clock_out`; the endpoint then refuses with 422 "Automatic clock-out is
+  turned off for this office.").
+- The per-session note is **optional** at clock-out (all entry points offer Skip).
 - **Selfie:** required unless *any* supervisor governing the assignment has
   `require_clock_in_selfie = false`. Enforced server-side in `timeInGeofence()`.
 - One open log per user (DB-enforced, migration `…034_enforce_one_open_log_per_user`).
-- **Signature specimen gate:** clock-in is rejected server-side (`AttendanceService`) when the
-  user has no `signature_image_path` — the specimen signs the stub at release and the receipt at
-  payout. The UI nudges via `MissingSignatureBanner` → Profile; a weekly `remind:missing-signatures`
-  cron sends the mail + in-app ping.
+- **Signature specimen:** no longer a clock-in gate. The release refuses a recipient without a
+  `signature_image_path` (it signs the stub and receipt). The UI nudges via
+  `MissingSignatureBanner` → Profile; a weekly `remind:missing-signatures` cron sends the mail +
+  in-app ping.
 
 ### Stipend claim stub (`StipendClaimService`, Option C — release == certify)
 - Eligibility (`StipendService`): active assignment with `verified_sum >= required_hours`, **or** a
   shortfall covered by an **approved** promissory note for the same user/year/semester; minus any
   live (`pending|certified|claimed|released`) row. `void` frees the period. Default amount
-  `₱5,000` (`DEFAULT_STIPEND_AMOUNT`, admin-overridable per release).
+  `₱5,000` (`DEFAULT_STIPEND_AMOUNT`, admin-overridable per release). Each eligible row also
+  carries `has_signature` and `narrative_submitted`; release (single and bulk) refuses when either
+  is false ("This recipient has not saved a digital signature yet." / "…has not submitted their
+  end-of-term narrative report yet.").
 - Release creates the row already `certified` with `control_number SWAP-STP-YYYYMM-#####`
   (Manila month, `-R2…` suffix on collision) + 64-char `claim_token`; auto co-signs `supervisor`
   (assignment's supervisor, `drawn` if they saved a specimen else `authenticated`) and `director`
@@ -255,13 +268,20 @@ All comparisons in **Asia/Manila**.
   Bulk release takes up to 100 items and reports `{released[], skipped[{user_id, reason}]}`.
 - Step-up: `password` XOR `unlock_token`. The token is opaque (sha256-cached), sliding 900 s,
   from `POST /admin/stipend/unlock` (throttled `6,1`).
-- Receipt (`POST /recipient/stipend/{id}/confirm-receipt`, owner only, `certified` only): sets
-  `claimed/claimed_at/receipt_signed_at`, stores `releasing_officer_name`, adds `beneficiary`
-  (specimen, uploaded image, or typed fallback) + `releasing_officer` rows, re-renders the PDF,
-  audit-logs `claimed`, fires `StipendReleased` (= received). **Consumes the token
-  (`claim_token=null`)** — the verify link is single-use and 404s afterwards.
+- Receipt is recorded by the **Banking Office**, not the student: the certified stub prints a QR
+  of `{FRONTEND_URL}/claim/{claimToken}`; the officer enters only the Banking Office PIN
+  (`POST /stipend/verify/{claimToken}/release`, public, `throttle:6,1`). The admin sets the one
+  releasing officer's name together with the PIN (`PUT /admin/stipend/banking-office-pin` behind
+  the step-up; settings `ubo_release_officer_name` + hashed `ubo_release_pin_hash`; a blank PIN keeps
+  the current one). `releaseAtBankingOffice` sets `claimed/claimed_at/receipt_signed_at`, stores
+  that admin-set name as `releasing_officer_name` (a snapshot: renaming later never rewrites old
+  stubs), adds `beneficiary` (specimen or typed fallback) + `releasing_officer`
+  rows, re-renders the PDF (no QR once claimed), audit-logs `claimed` (`via: banking_office`), fires
+  `StipendReleased` (= received). **Consumes the token (`claim_token=null`)** — the QR is
+  single-use and 404s afterwards. Wrong PIN → 422; PIN not set → 422. The old student
+  `confirm-receipt` route is gone.
 - Verify (`GET /stipend/verify/{claimToken}`, throttled `30,1`) returns only
-  `control_number/recipient_name/amount/year/semester/period/certified_at/status` + `valid:true`;
+  `control_number/recipient_name/amount/year/semester/period/certified_at/status/releasing_officer_name` + `valid:true`;
   unknown/claimed/void → `404 {valid:false}`.
 - Void is pre-claim only; claimed → 422 ("post a reversing entry instead"). Token nulled,
   audit-logged.
@@ -297,15 +317,15 @@ Base path `/api`. Auth via `Authorization: Bearer <sanctum token>`.
 | `auth/*` | public | 6 | register, login, logout, forgot/reset password, resend verification |
 | `invitations/*` | public | 2 | show + accept a staff invitation |
 | `email/verify/{id}/{hash}` | signed | 1 | email verification |
-| `stipend/verify/{claimToken}` | public, token-gated + `throttle:30,1` | 1 | Banking Office claim check (single-use; 404 `{valid:false}` after claim/void) |
+| `stipend/verify/{claimToken}` (+ `/release`) | public, token-gated; `throttle:30,1` / `6,1` | 2 | Banking Office claim check and payout recording with the PIN (single-use; 404 `{valid:false}` after claim/void) |
 | `documents/*/file`, `users/*/avatar`, `users/*/signature`, `attendance/*/photo` | in-controller auth | 4 | file serving that works in new tabs / `<img src>` (signature: self, admin, governing supervisor) |
 | `qr-codes/*` | **none (public)** | 2 | Legacy dead endpoints — see §13 security note |
 | `chatbot/query` | public, **unthrottled** | 1 | gap — see AUDIT R4 |
-| `applicant/*` | `role:applicant` | 6 | submit application, upload documents |
-| `recipient/*` | `role:recipient` | 20 | attendance, hours, narratives, stipend history + claim-slip download + receipt confirmation, promissory index/store/file, renewal, duty slip |
+| `applicant/*` | `role:applicant` | 6 | submit application, upload documents, own orientation invitations |
+| `recipient/*` | `role:recipient` | 18 | attendance, hours, session notes, end-of-term report, stipend history + claim-slip download, promissory index/store/file, renewal, duty slip |
 | `supervisor/*` | `role:supervisor` | 20 | students, verifications, roster reports, office QR, **settings**, promissory index/review/file |
-| `admin/*` | `role:admin` | 46 | applications, interviews, offices, assignments, users, stipend (index/eligible/**unlock/release/release-bulk/void**), promissory index/file, duty-slip verify, analytics, audit logs |
-| `profile/*`, `notifications/*`, `concerns`, `chatbot`, `settings` | authenticated | ~14 | shared + signature specimen upload/delete (`POST/DELETE /profile/signature`) |
+| `admin/*` | `role:admin` | 59 | applications, interviews, **orientation**, offices, assignments, users, stipend (index/eligible/**unlock/release/release-bulk/void/banking-office-pin**), promissory index/file, duty-slip verify, **concerns inbox**, landing photos, analytics, audit logs |
+| `profile/*`, `notifications/*`, `concerns`, `chatbot`, `settings` | authenticated | ~15 | shared + signature specimen upload/delete (`POST/DELETE /profile/signature`); `GET/POST /concerns` back the Help page |
 
 Response shape is consistently `{ "data": …, "message": … }`, with Laravel's standard
 `{ "message": …, "errors": { field: [msg] } }` on 422. Sensitive paths (`claim_token`,

@@ -3,6 +3,7 @@
 import { type ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { SessionSync } from '@/components/auth/SessionSync'
 import { useUIStore } from '@/lib/store/uiStore'
 import { cn } from '@/lib/utils/cn'
 
@@ -76,6 +77,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       style={{ backgroundImage: AMBIENT_BG }}
     >
       <Backdrop />
+      <SessionSync />
 
       {/* Mobile backdrop */}
       {mobileSidebarOpen && (

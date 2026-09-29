@@ -23,7 +23,7 @@ const timeRange = (l: TimeLog) => {
   const a = fmtTime(l.time_in), b = fmtTime(l.time_out)
   return b ? `${a} – ${b}` : a || '—'
 }
-const narrativeOf = (l: TimeLog) => l.narrative_report?.content || l.narrative_report?.activities_done || 'No narrative submitted.'
+const narrativeOf = (l: TimeLog) => l.narrative_report?.content || l.narrative_report?.activities_done || 'No session note (optional).'
 const hoursOf = (l: TimeLog) => (Number(l.duration_hours) || 0).toFixed(2)
 
 const REVIEWED_META: Record<string, { label: string; color: string; bg: string; Icon: typeof CheckCircle2 }> = {

@@ -22,7 +22,7 @@ class SignatureRequiredNotification extends Notification implements ShouldQueue
             ->subject('Action needed: save your digital signature')
             ->greeting("Dear {$notifiable->name},")
             ->line('Your account has no digital signature on file.')
-            ->line('Clocking in is blocked until you save one, and your receipts fall back to a typed name.')
+            ->line('Your stipend cannot be released until you save one: it signs your claim stub and your receipt.')
             ->action('Open My Profile', \App\Support\Frontend::url('/profile'))
             ->line('Draw or upload your signature — it takes less than a minute.');
     }
@@ -31,7 +31,7 @@ class SignatureRequiredNotification extends Notification implements ShouldQueue
     {
         return [
             'title' => 'Digital signature required',
-            'message' => 'Clock-in is blocked until you save your digital signature on your Profile page.',
+            'message' => 'Your stipend cannot be released until you save your digital signature on your Profile page.',
             'type' => 'signature',
         ];
     }

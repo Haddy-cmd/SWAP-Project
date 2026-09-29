@@ -25,15 +25,21 @@ use App\Http\Controllers\Recipient\AttendanceController;
 use App\Http\Controllers\Recipient\HoursController;
 use App\Http\Controllers\Recipient\NarrativeController;
 use App\Http\Controllers\Recipient\RenewalController;
+use App\Http\Controllers\Recipient\TermReportController;
 use App\Http\Controllers\Supervisor\OfficeController as SupervisorOfficeController;
 use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsController;
 use App\Http\Controllers\Supervisor\StudentController;
 use App\Http\Controllers\Supervisor\VerificationController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\AssignmentController;
+use App\Http\Controllers\Admin\ConcernController as AdminConcernController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\DutySlipController;
+use App\Http\Controllers\Admin\LandingPhotoController;
+use App\Http\Controllers\Shared\LandingPhotoController as PublicLandingPhotoController;
 use App\Http\Controllers\Admin\OfficeController;
+use App\Http\Controllers\Admin\OrientationController;
+use App\Http\Controllers\Applicant\OrientationController as ApplicantOrientationController;
 use App\Http\Controllers\Admin\StipendController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -51,12 +57,17 @@ Route::post('/auth/resend-verification', [EmailVerificationController::class, 'r
 // Public and backed by a paid LLM when GEMINI_API_KEY is set — rate-limit it.
 Route::get('/chatbot/query', [ChatbotController::class, 'query'])->middleware('throttle:20,1');
 Route::get('/settings/application-status', [SettingController::class, 'applicationStatus']);
+// Landing page carousel (managed in Admin → Landing Page). Images are cache-forever.
+Route::get('/landing/photos', [PublicLandingPhotoController::class, 'index'])->middleware('throttle:60,1');
+Route::get('/landing/photos/{id}/image', [PublicLandingPhotoController::class, 'image']);
 // Staff invitations — the invitee opens the emailed link to create their account.
 Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middleware('throttle:10,1');
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware('throttle:6,1');
 
 // Banking Office claim verification — token-gated, single-use (consumed on receipt).
 Route::get('/stipend/verify/{claimToken}', [StipendVerifyController::class, 'show'])->middleware('throttle:30,1');
+// The releasing officer records the payout (name + Banking Office PIN) — PIN guessing is throttled.
+Route::post('/stipend/verify/{claimToken}/release', [StipendVerifyController::class, 'release'])->middleware('throttle:6,1');
 
 // Document file serving — auth is handled inside the controller (Bearer header
 // OR ?token= query param) so that links opened in new browser tabs still work.
@@ -82,7 +93,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllRead']);
-    Route::post('/concerns', [ConcernController::class, 'store']);
+    // Help page: send a concern to the DSA and read the replies.
+    Route::get('/concerns', [ConcernController::class, 'index']);
+    Route::post('/concerns', [ConcernController::class, 'store'])->middleware('throttle:10,1');
 
     // ─── APPLICANT ────────────────────────────────────────────────────────────
     Route::middleware('role:applicant')->prefix('applicant')->group(function () {
@@ -91,6 +104,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/applications/{id}', [ApplicantApplicationController::class, 'show']);
         Route::delete('/applications/{id}', [ApplicantApplicationController::class, 'destroy']);
         Route::post('/applications/{id}/documents', [DocumentController::class, 'store']);
+        Route::get('/orientation', [ApplicantOrientationController::class, 'index']);
     });
 
     // ─── RECIPIENT ────────────────────────────────────────────────────────────
@@ -104,9 +118,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/narratives', [NarrativeController::class, 'store'])->withoutMiddleware('role:recipient');
         Route::get('/narratives/{logId}', [NarrativeController::class, 'show']);
         Route::get('/hours/summary', [HoursController::class, 'summary']);
+        Route::get('/term-report', [TermReportController::class, 'show']);
+        Route::put('/term-report', [TermReportController::class, 'update']);
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
         Route::get('/stipend/{id}/slip', [StipendClaimController::class, 'slip']);
-        Route::post('/stipend/{id}/confirm-receipt', [StipendClaimController::class, 'confirmReceipt']);
         Route::get('/promissory', [RecipientPromissoryController::class, 'index']);
         Route::post('/promissory', [RecipientPromissoryController::class, 'store']);
         Route::get('/promissory/{id}/file', [RecipientPromissoryController::class, 'file']);
@@ -148,6 +163,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/applications/{id}/interview/no-show', [AdminApplicationController::class, 'markInterviewNoShow']);
         Route::put('/applications/{id}/decide', [AdminApplicationController::class, 'decide']);
 
+        Route::get('/orientation/sessions', [OrientationController::class, 'index']);
+        Route::post('/orientation/sessions', [OrientationController::class, 'store']);
+        Route::put('/orientation/sessions/{id}', [OrientationController::class, 'update']);
+        Route::delete('/orientation/sessions/{id}', [OrientationController::class, 'destroy']);
+        Route::post('/orientation/sessions/{id}/invite', [OrientationController::class, 'invite']);
+        Route::put('/orientation/sessions/{id}/attendance', [OrientationController::class, 'attendance']);
+        Route::get('/orientation/candidates', [OrientationController::class, 'candidates']);
+
         Route::get('/assignments', [AssignmentController::class, 'index']);
         Route::post('/assignments', [AssignmentController::class, 'store']);
         Route::put('/assignments/{id}', [AssignmentController::class, 'update']);
@@ -181,6 +204,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/stipend/release', [StipendController::class, 'release'])->middleware('throttle:6,1');
         Route::post('/stipend/release-bulk', [StipendController::class, 'releaseBulk'])->middleware('throttle:6,1');
         Route::post('/stipend/{id}/void', [StipendController::class, 'void'])->middleware('throttle:6,1');
+        Route::get('/stipend/banking-office-pin', [StipendController::class, 'bankingOfficePin']);
+        Route::put('/stipend/banking-office-pin', [StipendController::class, 'setBankingOfficePin'])->middleware('throttle:6,1');
         Route::get('/promissory', [AdminPromissoryController::class, 'index']);
         Route::get('/promissory/{id}/file', [AdminPromissoryController::class, 'file']);
 
@@ -194,5 +219,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/settings', [SettingController::class, 'update']);
 
         Route::get('/duty-slip/verify', [DutySlipController::class, 'verify']);
+
+        Route::get('/concerns', [AdminConcernController::class, 'index']);
+        Route::put('/concerns/{id}', [AdminConcernController::class, 'update']);
+
+        Route::get('/landing/photos', [LandingPhotoController::class, 'index']);
+        Route::post('/landing/photos', [LandingPhotoController::class, 'store']);
+        Route::put('/landing/photos/order', [LandingPhotoController::class, 'reorder']);
+        Route::put('/landing/photos/{id}', [LandingPhotoController::class, 'update']);
+        Route::delete('/landing/photos/{id}', [LandingPhotoController::class, 'destroy']);
     });
 });

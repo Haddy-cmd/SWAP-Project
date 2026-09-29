@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Assignment extends Model
 {
@@ -61,6 +62,12 @@ class Assignment extends Model
     public function promissoryNotes(): HasMany
     {
         return $this->hasMany(PromissoryNote::class);
+    }
+
+    /** The end-of-term narrative report (required before the stipend is released). */
+    public function termReport(): HasOne
+    {
+        return $this->hasOne(TermReport::class);
     }
 
     /**

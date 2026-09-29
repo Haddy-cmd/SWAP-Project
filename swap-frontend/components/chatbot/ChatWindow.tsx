@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Bot, RefreshCw, X } from 'lucide-react'
+import Link from 'next/link'
+import { Bot, RefreshCw, X, LifeBuoy } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { ChatMessage, type Message } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { chatbotApi } from '@/lib/api/chatbot.api'
+import { useAuthStore } from '@/lib/store/authStore'
 
 const GREETING: Message = {
   id: 'greeting',
@@ -57,6 +59,10 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
     const el = listRef.current
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [messages])
+
+  // Signed-in non-admins can write to the DSA from the Help page; admins own the inbox.
+  const role = useAuthStore((s) => s.user?.role)
+  const helpHref = role && role !== 'admin' ? '/help' : null
 
   function handleReset() {
     setMessages([{ ...GREETING, id: nanoid(), timestamp: new Date() }])
@@ -112,6 +118,17 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
               <span className="h-2 w-2 animate-bounce rounded-full bg-ink-400" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
+        )}
+      </div>
+
+      {/* Hand-off to a person: the Help page (signed in) or the DSA email. */}
+      <div className="border-t border-ink-100 px-5 py-2 text-center text-xs text-ink-500">
+        {helpHref ? (
+          <Link href={helpHref} onClick={onClose} className="inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline">
+            <LifeBuoy className="h-3.5 w-3.5" /> Ask the DSA directly
+          </Link>
+        ) : (
+          <>Need a person? Email <a href="mailto:dsa@msumain.edu.ph" className="font-semibold text-brand-700 hover:underline">dsa@msumain.edu.ph</a></>
         )}
       </div>
 

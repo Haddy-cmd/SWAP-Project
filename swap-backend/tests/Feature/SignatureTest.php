@@ -40,6 +40,7 @@ class SignatureTest extends TestCase
         $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 3]);
         $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(4));
         $log->update(['time_out' => now(), 'status' => 'verified']);
+        $this->submitTermReport($assignment);
     }
 
     private function releasePayload(int $userId): array
@@ -246,10 +247,7 @@ class SignatureTest extends TestCase
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
 
         // The recipient fixture carries a specimen → drawn beneficiary on receipt.
-        Sanctum::actingAs($recipient);
-        $this->postJson("/api/recipient/stipend/{$stipend->id}/confirm-receipt", [
-            'releasing_officer_name' => 'Cashier Jane Doe',
-        ])->assertStatus(200);
+        $this->bankingOfficeRelease($stipend)->assertStatus(200);
 
         $html = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
 
@@ -286,11 +284,10 @@ class SignatureTest extends TestCase
         $this->assertStringContainsString('(not yet signed)', $html);
     }
 
-    public function test_confirm_without_specimen_falls_back_to_typed_receipt(): void
+    public function test_release_without_specimen_falls_back_to_typed_receipt(): void
     {
         $supervisor = $this->makeUser('supervisor');
-        // Explicit null: the fixture default carries a stub path.
-        $recipient = $this->makeUser('recipient', ['signature_image_path' => null]);
+        $recipient = $this->makeUser('recipient');
         $this->payableAssignment($recipient, $supervisor);
         Sanctum::actingAs($this->makeUser('admin'));
 
@@ -298,10 +295,9 @@ class SignatureTest extends TestCase
             ->assertStatus(201);
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
 
-        Sanctum::actingAs($recipient);
-        $this->postJson("/api/recipient/stipend/{$stipend->id}/confirm-receipt", [
-            'releasing_officer_name' => 'Cashier Jane Doe',
-        ])->assertStatus(200)->assertJsonPath('data.status', 'claimed');
+        // Removed after release (release itself requires a specimen).
+        $recipient->update(['signature_image_path' => null]);
+        $this->bankingOfficeRelease($stipend)->assertStatus(200)->assertJsonPath('data.status', 'claimed');
 
         // Typed fallback: recorded, but no ink on the re-rendered stub.
         $this->assertDatabaseHas('stipend_signatures', [

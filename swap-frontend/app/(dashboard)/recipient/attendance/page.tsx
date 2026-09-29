@@ -168,7 +168,7 @@ export default function AttendancePage() {
     },
   })
 
-  // Clock out: if a narrative is already in, go straight out; otherwise pop the narrative form first.
+  // Clock out: if a note is already in, go straight out; otherwise offer the optional note first.
   const handleClockOut = () => {
     if (currentLog?.has_narrative) {
       timeOut.mutate()
@@ -180,7 +180,9 @@ export default function AttendancePage() {
   const mode: AttendanceMode = openLogId ? 'clocked-in' : 'idle'
   const completed = !!summary && summary.required > 0 && summary.remaining <= 0
   const office = currentLog?.office ?? null
-  const monitoring = mode === 'clocked-in' && !!office?.geofence_enabled && office.latitude != null && office.longitude != null
+  // Offices can switch auto clock-out off (errands off the premises); then nothing is watched.
+  const monitoring = mode === 'clocked-in' && !!office?.geofence_enabled && office.auto_clock_out !== false
+    && office.latitude != null && office.longitude != null
 
   // Background geofence monitoring → auto clock-out after the grace period.
   // Held in a ref and refreshed every render so the polling interval (below) can be set up
@@ -269,10 +271,11 @@ export default function AttendancePage() {
               {mode === 'clocked-in' ? 'Clocked In' : 'Not Clocked In'}
             </span>
             <div className="text-right leading-tight">
-              <div className="text-[12px] text-ink-400">
+              {/* Live clock: the server's render is a second (and a timezone) off by design. */}
+              <div className="text-[12px] text-ink-400" suppressHydrationWarning>
                 {new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
               </div>
-              <div className="font-serif text-[16px] font-semibold tabular-nums text-ink-700">
+              <div className="font-serif text-[16px] font-semibold tabular-nums text-ink-700" suppressHydrationWarning>
                 {new Date(now).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' })}
               </div>
             </div>
@@ -323,8 +326,8 @@ export default function AttendancePage() {
               <p className="mb-3.5 flex items-center gap-2 text-xs text-ink-500">
                 <FileText className="h-3.5 w-3.5 flex-none" />
                 {currentLog?.has_narrative
-                  ? 'Narrative report submitted — ready to clock out.'
-                  : 'You will be asked for a short narrative report when you clock out.'}
+                  ? 'Session note saved — ready to clock out.'
+                  : 'You can add a short note about your session when you clock out (optional).'}
               </p>
             )}
 
@@ -459,12 +462,16 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Narrative pops up at clock-out time, then proceeds to clock out. */}
+      {/* The optional session note pops up at clock-out time, then proceeds to clock out. */}
       {narrativeOpen && openLogId && (
         <NarrativeModal
           logId={openLogId}
           clockingOut={timeOut.isPending}
           onClose={() => setNarrativeOpen(false)}
+          onSkip={() => {
+            setNarrativeOpen(false)
+            timeOut.mutate()
+          }}
           onSubmitted={() => {
             setNarrativeOpen(false)
             queryClient.invalidateQueries({ queryKey: ['attendance-current'] })

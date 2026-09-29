@@ -8,6 +8,8 @@ export function useNotifications(page = 1) {
     queryKey: ['notifications', page],
     queryFn: () => notificationsApi.getNotifications(page),
     staleTime: 10_000,
+    // No websocket push: refresh the bell every minute while the tab is visible.
+    refetchInterval: 60_000,
   })
 }
 

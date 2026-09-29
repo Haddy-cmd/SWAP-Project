@@ -91,6 +91,36 @@ export interface StipendRecord {
   signatures?: StipendSignatureView[]
 }
 
+// Mirrors StipendVerifyController::show — only what the Banking Office needs to pay.
+export interface ClaimVerification {
+  control_number: string
+  recipient_name: string | null
+  amount: number | string
+  academic_year: string
+  semester: string
+  period_label: string | null
+  certified_at: string | null
+  status: StipendStatus
+  // Who the payout will be recorded under (set by the DSA with the PIN); null until set up.
+  releasing_officer_name: string | null
+}
+
+// Mirrors StipendVerifyController::release.
+export interface ClaimReleaseResult {
+  control_number: string
+  status: StipendStatus
+  claimed_at: string | null
+  releasing_officer_name: string
+}
+
+// Mirrors Admin\StipendController::bankingOfficePin — never the PIN itself.
+export interface BankingOfficePinStatus {
+  is_set: boolean
+  has_pin: boolean
+  officer_name: string | null
+  updated_at: string | null
+}
+
 export interface EligibleStipend {
   user_id: number
   name: string
@@ -104,4 +134,8 @@ export interface EligibleStipend {
   promissory_id?: number
   lacking_hours?: number | null
   makeup_deadline?: string | null
+  // Release also needs these (StipendClaimService refuses without them).
+  assignment_id?: number
+  has_signature: boolean
+  narrative_submitted: boolean
 }

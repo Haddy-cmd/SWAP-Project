@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, CheckCircle, Clock, Download, HandCoins, Ban, Loader2, FileText, Upload } from 'lucide-react'
+import { DollarSign, CheckCircle, Clock, Download, HandCoins, Ban, Loader2, FileText, Upload, QrCode } from 'lucide-react'
 import { stipendApi } from '@/lib/api/stipend.api'
 import { promissoryApi } from '@/lib/api/promissory.api'
 import { formatDate } from '@/lib/utils/formatDate'
@@ -27,9 +27,6 @@ const PROMISSORY_STATUS: Record<PromissoryStatus, { label: string; cls: string }
 
 export default function StipendPage() {
   const qc = useQueryClient()
-  const [confirming, setConfirming] = useState<number | null>(null)
-  const [form, setForm] = useState({ releasing_officer_name: '' })
-  const [error, setError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
   const [downloadError, setDownloadError] = useState<{ id: number; message: string } | null>(null)
 
@@ -66,8 +63,8 @@ export default function StipendPage() {
     setDownloadingId(s.id)
     setDownloadError(null)
     try {
-      // Versioned by lifecycle timestamps so a post-confirm download can never
-      // serve the pre-confirm bytes from cache.
+      // Versioned by lifecycle timestamps so a download after the Banking Office
+      // records the payout can never serve the pre-claim bytes from cache.
       const blob = await stipendApi.getSlip(s.id, s.claimed_at ?? s.certified_at ?? s.created_at)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -94,21 +91,11 @@ export default function StipendPage() {
     }
   }
 
-  const confirmReceipt = useMutation({
-    mutationFn: (id: number) => stipendApi.confirmReceipt(id, { ...form }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['stipend-history'] })
-      setConfirming(null); setForm({ releasing_officer_name: '' })
-    },
-    onError: (e: { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }) =>
-      setError(e.response?.data?.message ?? 'Could not confirm receipt.'),
-  })
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">My Stipend</h1>
-        <p className="mt-1 text-sm text-ink-500">Download your claim slip and confirm receipt at the University Banking Office.</p>
+        <p className="mt-1 text-sm text-ink-500">Download your claim stub and present it at the University Banking Office. The releasing officer scans it to record your payout.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -154,12 +141,6 @@ export default function StipendPage() {
                         {downloadingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                         {s.status === 'claimed' ? 'Receiving Slip' : 'Claim Slip'}
                       </button>
-                      {claimable && confirming !== s.id && (
-                        <button onClick={() => { setError(null); setConfirming(s.id) }}
-                          className="flex items-center gap-1.5 rounded-lg bg-success-600 px-3 py-2 text-xs font-semibold text-white hover:bg-success-700">
-                          <CheckCircle className="h-3.5 w-3.5" /> Confirm Receipt
-                        </button>
-                      )}
                     </div>
                   )}
                 </div>
@@ -168,21 +149,13 @@ export default function StipendPage() {
                   <p role="alert" className="mt-3 text-sm text-danger-700">{downloadError.message}</p>
                 )}
 
-                {claimable && confirming === s.id && (
-                  <div className="mt-4 space-y-3 rounded-xl border border-ink-200 bg-ink-50 p-4">
-                    <p className="text-xs text-ink-500">Confirm only after you have received the cash at the Banking Office.</p>
-                    <input value={form.releasing_officer_name} onChange={(e) => setForm((f) => ({ ...f, releasing_officer_name: e.target.value }))}
-                      placeholder="Releasing officer / cashier name" className={INPUT} />
-                    {error && <p className="text-sm text-danger-700">{error}</p>}
-                    <div className="flex gap-2">
-                      <button onClick={() => { setError(null); confirmReceipt.mutate(s.id) }}
-                        disabled={confirmReceipt.isPending || !form.releasing_officer_name}
-                        className="rounded-lg bg-success-600 px-4 py-2 text-xs font-semibold text-white hover:bg-success-700 disabled:opacity-50">
-                        {confirmReceipt.isPending ? 'Confirming…' : 'I received this stipend'}
-                      </button>
-                      <button onClick={() => setConfirming(null)} className="rounded-lg border border-ink-200 px-4 py-2 text-xs font-semibold text-ink-500 hover:bg-white">Cancel</button>
-                    </div>
-                  </div>
+                {/* The Banking Office records the payout by scanning the stub's QR;
+                    the page refreshes to "Received" once it does. */}
+                {claimable && (
+                  <p className="mt-3 flex items-start gap-2 rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-xs text-ink-500">
+                    <QrCode className="mt-0.5 h-3.5 w-3.5 flex-none text-brand-700" />
+                    Present this stub at the Banking Office — the releasing officer confirms it.
+                  </p>
                 )}
               </div>
             )
@@ -252,8 +225,6 @@ export default function StipendPage() {
     </div>
   )
 }
-
-const INPUT = 'w-full rounded-xl border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:outline-none'
 
 function Card({ label, value }: { label: string; value: string }) {
   return (

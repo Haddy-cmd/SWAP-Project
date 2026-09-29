@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { authApi } from '@/lib/api/auth.api'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -58,8 +58,21 @@ export default function LoginPage() {
     onSuccess: () => setResendMsg('Verification email sent — check your inbox (and spam).'),
   })
 
+  // Signed in from another tab while this one shows the form: follow it there
+  // (the session is shared by the whole browser). This tab's own sign-in is
+  // handled by onSuccess below, which honours ?redirect=.
+  const signingInHere = useRef(false)
+  useEffect(() => useAuthStore.subscribe((state, prev) => {
+    if (!signingInHere.current && !prev.token && state.token && state.user) {
+      router.replace(getRoleDashboard(state.user.role))
+    }
+  }), [router])
+
   const login = useMutation({
-    mutationFn: (data: FormData) => authApi.login(data),
+    mutationFn: (data: FormData) => {
+      signingInHere.current = true
+      return authApi.login(data)
+    },
     onSuccess: (res) => {
       setAuth(res.data, res.token)
       // Honor a ?redirect= target (e.g. returning to /scan after a QR deep link).
@@ -67,6 +80,7 @@ export default function LoginPage() {
       router.replace(redirect || getRoleDashboard(res.data.role))
     },
     onError: (err: ApiError, variables) => {
+      signingInHere.current = false
       const msg = err.message ?? err.errors?.email?.[0] ?? 'Invalid credentials. Please try again.'
       setServerError(msg)
       // If the block is "verify your email", offer to resend the link.

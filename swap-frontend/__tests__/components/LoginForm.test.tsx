@@ -14,7 +14,8 @@ vi.mock('@/lib/api/auth.api', () => ({
 }))
 
 vi.mock('@/lib/store/authStore', () => ({
-  useAuthStore: () => ({ setAuth: vi.fn() }),
+  // The page also subscribes to follow a sign-in made in another tab.
+  useAuthStore: Object.assign(() => ({ setAuth: vi.fn() }), { subscribe: () => () => {} }),
 }))
 
 vi.mock('@/lib/utils/roleGuard', () => ({

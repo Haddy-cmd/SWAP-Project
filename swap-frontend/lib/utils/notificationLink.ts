@@ -26,6 +26,10 @@ export function notificationLink(n: Notification, role?: string | null): string 
       return '/supervisor/verifications'
     case 'approval': // admin: a required-hours change request
       return '/admin/assignments'
+    case 'concern': // new concern (admin) / the DSA replied (sender)
+      return role === 'admin' ? '/admin/concerns' : '/help'
+    case 'orientation': // invited to an orientation session → the dashboard card
+      return role === 'admin' ? '/admin/orientation' : '/applicant/dashboard'
     default:
       return null
   }

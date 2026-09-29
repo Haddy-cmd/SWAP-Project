@@ -12,9 +12,9 @@ const apiClient = axios.create({
   withCredentials: false,
 })
 
-// Attach Bearer token on every request. The store is backed by per-tab
-// sessionStorage, so when a page opens in a fresh tab (e.g. a QR deep link from
-// the phone camera) we fall back to the cross-tab `swap_token` cookie.
+// Attach Bearer token on every request. The store (localStorage) and the
+// `swap_token` cookie hold the same browser-wide sign-in; the cookie is the
+// fallback until the store has loaded (e.g. a QR deep link from the phone camera).
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token ?? Cookies.get('swap_token')
   if (token) {
@@ -44,7 +44,8 @@ apiClient.interceptors.response.use(
   (error: AxiosError<ValidationError>) => {
     if (error.response?.status === 401) {
       useAuthStore.getState().logout()
-      if (typeof window !== 'undefined') {
+      // Already on the login page: clearing the session is enough, no reload loop.
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
       return Promise.reject(new Error('Session expired. Please log in again.'))

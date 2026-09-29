@@ -5,14 +5,30 @@ import { AskChatbotButton } from '@/components/chatbot/AskChatbotButton'
 import { Reveal } from '@/components/landing/Reveal'
 import { HeroSlideshow, type HeroPhoto } from '@/components/landing/HeroSlideshow'
 import { FaqAccordion } from '@/components/landing/FaqAccordion'
+import { AuthNavButton } from '@/components/landing/AuthNavButton'
 
-// Hero slideshow — files live in /public; captions describe what each photo shows.
-const HERO_PHOTOS: HeroPhoto[] = [
+// Hero slideshow photos are managed by admins (Admin → Landing Page). This built-in
+// list (files in /public) is the fallback when the API is unreachable — e.g. the
+// free-tier backend is asleep — so the home page never waits on it or breaks.
+const DEFAULT_HERO_PHOTOS: HeroPhoto[] = [
   { src: '/campus.jpg', caption: 'DSA Mental Health Celebration, 2025' },
+  { src: '/campus-9.jpg', caption: 'SWAP registration desk at the Division of Student Affairs' },
+  { src: '/campus-15.jpg', caption: 'Student ushers at Ladiawan, DSA in Action' },
   { src: '/campus-2.jpg', caption: 'Office of Admissions, waiting area' },
+  { src: '/campus-10.jpg', caption: 'Mental Health Celebration 2025, program host on stage' },
+  { src: '/campus-14.jpg', caption: 'Students waiting in the DSA lobby' },
   { src: '/campus-3.jpg', caption: 'Preparing event materials at the DSA office' },
+  { src: '/campus-16.jpg', caption: 'DSA staff with a student usherette' },
+  { src: '/campus-11.jpg', caption: '“Ikanta mo ’yan” open mic, Mental Health Celebration' },
   { src: '/campus-4.jpg', caption: 'Mental Health Celebration, on stage' },
+  { src: '/campus-6.jpg', caption: 'Mental health talk with students' },
+  { src: '/campus-17.jpg', caption: 'Student ushers with DSA staff after the program' },
+  { src: '/campus-12.jpg', caption: 'Certificate awarding, Mental Health Celebration 2025' },
+  { src: '/campus-1.jpg', caption: 'DSA staff at the Mental Health Celebration' },
+  { src: '/campus-13.jpg', caption: 'Students leading an activity on stage' },
   { src: '/campus-5.jpg', caption: 'Mental Health Celebration, awarding' },
+  { src: '/campus-7.jpg', caption: 'Students at “The Mind Unload” session' },
+  { src: '/campus-8.jpg', caption: 'Group photo, Mental Health Celebration 2025' },
 ]
 
 const STATS: [string, string][] = [
@@ -54,12 +70,40 @@ function Eyebrow({ n, children }: { n: string; children: React.ReactNode }) {
   )
 }
 
-export default function LandingPage() {
+/**
+ * The carousel as the admins arranged it. Cached for a minute (so changes show up
+ * within about a minute) and given 3 s at most; anything else → built-in photos.
+ */
+async function heroPhotos(): Promise<HeroPhoto[]> {
+  const api = process.env.NEXT_PUBLIC_API_URL
+  if (!api) return DEFAULT_HERO_PHOTOS
+
+  try {
+    const res = await fetch(`${api}/landing/photos`, {
+      next: { revalidate: 60 },
+      signal: AbortSignal.timeout(3000),
+    })
+    if (!res.ok) return DEFAULT_HERO_PHOTOS
+
+    const body = (await res.json()) as { data?: { url?: string; caption?: string }[] }
+    const photos = (body.data ?? [])
+      .filter((p): p is { url: string; caption: string } => !!p?.url && !!p?.caption)
+      .map((p) => ({ src: p.url, caption: p.caption }))
+
+    return photos.length ? photos : DEFAULT_HERO_PHOTOS
+  } catch {
+    return DEFAULT_HERO_PHOTOS
+  }
+}
+
+export default async function LandingPage() {
+  const photos = await heroPhotos()
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-ink-50 text-ink-900">
       {/* ── Hero ── */}
       <section className="relative h-[100svh] max-h-[980px] min-h-[640px] overflow-hidden bg-brand-950">
-        <HeroSlideshow photos={HERO_PHOTOS} intervalSec={6}>
+        <HeroSlideshow photos={photos} intervalSec={6}>
           {/* Nav */}
           <div className="absolute inset-x-0 top-0 z-[3] flex items-center justify-between gap-6 px-5 py-5 sm:px-14 sm:py-[26px]">
             <a href="#" className="flex min-w-0 items-center gap-3 text-ink-25 [text-shadow:0_1px_8px_rgba(0,0,0,.45)]">
@@ -89,12 +133,7 @@ export default function LandingPage() {
                   </a>
                 ))}
               </div>
-              <Link
-                href="/login"
-                className="whitespace-nowrap rounded-full bg-ink-25 px-[18px] py-[9px] font-semibold text-brand-800 shadow-[0_4px_14px_rgba(0,0,0,.25)] transition-colors hover:bg-white hover:text-brand-800"
-              >
-                Sign in
-              </Link>
+              <AuthNavButton className="whitespace-nowrap rounded-full bg-ink-25 px-[18px] py-[9px] font-semibold text-brand-800 shadow-[0_4px_14px_rgba(0,0,0,.25)] transition-colors hover:bg-white hover:text-brand-800" />
             </nav>
           </div>
 

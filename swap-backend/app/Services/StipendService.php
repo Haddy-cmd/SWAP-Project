@@ -20,7 +20,7 @@ class StipendService
      */
     public function eligibleRecipients(): array
     {
-        $assignments = Assignment::with('user.profile')
+        $assignments = Assignment::with(['user.profile', 'termReport'])
             ->where('status', 'active')
             ->where('required_hours', '>', 0)
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
@@ -45,7 +45,7 @@ class StipendService
                 'verified_hours' => (float) ($a->verified_sum ?? 0),
                 'suggested_amount' => self::DEFAULT_STIPEND_AMOUNT,
                 'via_promissory' => false,
-            ]);
+            ] + self::readiness($a));
 
         return $standard
             ->concat($this->promissoryEligibleRecipients($releasedKeys))
@@ -60,7 +60,7 @@ class StipendService
      */
     private function promissoryEligibleRecipients(\Illuminate\Support\Collection $releasedKeys): \Illuminate\Support\Collection
     {
-        return Assignment::with(['user.profile', 'promissoryNotes'])
+        return Assignment::with(['user.profile', 'promissoryNotes', 'termReport'])
             ->where('status', 'active')
             ->where('required_hours', '>', 0)
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
@@ -92,10 +92,24 @@ class StipendService
                     'promissory_id' => $note->id,
                     'lacking_hours' => (float) $note->lacking_hours,
                     'makeup_deadline' => $note->makeup_deadline?->toDateString(),
-                ];
+                ] + self::readiness($a);
             })
             ->filter()
             ->values();
+    }
+
+    /**
+     * What the release still needs from the recipient besides hours: their saved
+     * signature (it signs the stub) and the end-of-term report. Listed, not
+     * filtered, so the admin sees who is held back and why.
+     */
+    private static function readiness(Assignment $a): array
+    {
+        return [
+            'assignment_id' => $a->id,
+            'has_signature' => !empty($a->user->signature_image_path),
+            'narrative_submitted' => $a->termReport?->submitted_at !== null,
+        ];
     }
 
     public function getHistory(User $user, int $perPage = 15): LengthAwarePaginator

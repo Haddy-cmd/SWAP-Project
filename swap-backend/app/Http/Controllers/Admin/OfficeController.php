@@ -46,6 +46,7 @@ class OfficeController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'radius_meters' => ['nullable', 'integer', 'min:10', 'max:1000'],
             'geofence_enabled' => ['sometimes', 'boolean'],
+            'auto_clock_out' => ['sometimes', 'boolean'],
         ]);
 
         $office = Office::create($validated);
@@ -68,6 +69,7 @@ class OfficeController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'radius_meters' => ['nullable', 'integer', 'min:10', 'max:1000'],
             'geofence_enabled' => ['sometimes', 'boolean'],
+            'auto_clock_out' => ['sometimes', 'boolean'],
         ]);
 
         $office->update($validated);

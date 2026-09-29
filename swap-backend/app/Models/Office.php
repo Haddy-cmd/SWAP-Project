@@ -23,6 +23,7 @@ class Office extends Model
         'longitude',
         'radius_meters',
         'geofence_enabled',
+        'auto_clock_out',
         'qr_code',
         'qr_secret',
     ];
@@ -45,6 +46,7 @@ class Office extends Model
             'longitude' => 'decimal:8',
             'radius_meters' => 'integer',
             'geofence_enabled' => 'boolean',
+            'auto_clock_out' => 'boolean',
         ];
     }
 

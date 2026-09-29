@@ -74,7 +74,7 @@ class StudentController extends Controller
 
     public function summary(Request $request, int $studentId): JsonResponse
     {
-        $assignment = Assignment::with(['user.profile', 'office', 'supervisor'])
+        $assignment = Assignment::with(['user.profile', 'office', 'supervisor', 'termReport'])
             ->where('user_id', $studentId)
             ->visibleToSupervisor($request->user())
             ->where('status', 'active')
@@ -86,6 +86,8 @@ class StudentController extends Controller
 
         return response()->json([
             'data' => $this->timeLogRepository->getHoursSummary($studentId),
+            // The end-of-term narrative report, read-only here (null until submitted).
+            'term_report' => \App\Services\TermReportService::toArray($assignment->termReport),
             'student' => [
                 'id' => $assignment->user->id,
                 'name' => $assignment->user->profile?->full_name ?? $assignment->user->name,

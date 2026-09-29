@@ -223,7 +223,7 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
   const [removeLogo, setRemoveLogo] = useState(false)
   const [form, setForm] = useState<Partial<Office>>({
     name: '', description: '', head_name: '', location: '', max_recipients: 10, is_active: true,
-    geofence_enabled: false, radius_meters: 100,
+    geofence_enabled: false, radius_meters: 100, auto_clock_out: true,
     ...initial,
   })
 
@@ -314,6 +314,17 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
 
             {form.geofence_enabled && (
               <>
+                <label className="flex items-start gap-2 text-sm font-medium text-ink-900">
+                  <input type="checkbox" checked={form.auto_clock_out !== false}
+                    onChange={(e) => setForm((f) => ({ ...f, auto_clock_out: e.target.checked }))}
+                    className="mt-0.5 h-4 w-4 accent-brand-700" />
+                  <span>
+                    Automatic clock-out when a student leaves the premises
+                    <span className="block text-xs font-normal text-ink-500">
+                      Turn off for offices that send students on errands; they then clock out by scanning the office QR.
+                    </span>
+                  </span>
+                </label>
                 <div className="grid grid-cols-1 gap-3 pt-1 sm:grid-cols-2">
                   <div>
                     <label className="mb-1 block text-xs font-medium text-ink-500">Latitude (-90 to 90)</label>
@@ -754,6 +765,11 @@ export default function AdminOfficesPage() {
                     <span className="inline-flex items-center gap-1.5 rounded-[7px] bg-ink-100 px-2.5 py-1 text-[11px] font-semibold text-ink-600">
                       <MapPin className="h-3.5 w-3.5 text-gold-600" />
                       {office.radius_meters ?? 100}m geofence
+                    </span>
+                  )}
+                  {office.geofence_enabled && office.auto_clock_out === false && (
+                    <span className="inline-flex items-center gap-1.5 rounded-[7px] bg-warning-50 px-2.5 py-1 text-[11px] font-semibold text-warning-800">
+                      Auto clock-out off
                     </span>
                   )}
                   <span

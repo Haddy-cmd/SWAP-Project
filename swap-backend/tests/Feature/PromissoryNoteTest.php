@@ -199,6 +199,7 @@ class PromissoryNoteTest extends TestCase
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
         $assignment = $this->pastAssignment($recipient, $supervisor);
+        $this->submitTermReport($assignment);
 
         Sanctum::actingAs($recipient);
         Storage::fake('public');

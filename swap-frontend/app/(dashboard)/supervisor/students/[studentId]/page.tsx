@@ -11,6 +11,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
+import { TermReportBody } from '@/components/attendance/TermReportCard'
 import { PACE_META, UNKNOWN_PACE, paceDetail, type PaceStatus } from '@/lib/utils/pace'
 import type { TimeLog } from '@/types/attendance.types'
 
@@ -202,6 +203,16 @@ export default function StudentDetailPage() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* end-of-term narrative report (read-only) */}
+      <div className="mt-[18px] rounded-[18px] border border-ink-200 bg-white px-7 py-[22px] shadow-[0_2px_10px_rgba(19,36,26,.05)]">
+        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">End-of-Term Report</div>
+        {result?.term_report ? (
+          <TermReportBody report={result.term_report} />
+        ) : (
+          <p className="mt-3 text-sm text-ink-500">Not submitted yet. The student writes it on their Hours page; the stipend cannot be released without it.</p>
+        )}
       </div>
     </div>
   )

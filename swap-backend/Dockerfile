@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git unzip libpq-dev libzip-dev libicu-dev \
         libpng-dev libjpeg62-turbo-dev libfreetype-dev libwebp-dev \
     && docker-php-ext-configure gd --with-jpeg --with-freetype --with-webp \
-    && docker-php-ext-install pdo pdo_pgsql pgsql zip intl bcmath opcache gd \
+    && docker-php-ext-install pdo pdo_pgsql pgsql zip intl bcmath opcache gd exif \
     && rm -rf /var/lib/apt/lists/*
 
 # OPcache tuning (production). enable_cli is essential here because the API is

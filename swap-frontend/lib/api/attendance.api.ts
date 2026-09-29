@@ -1,5 +1,5 @@
 import apiClient from './axios'
-import type { TimeLog, HoursSummary, NarrativeReport, StoreNarrativeData, VerifyLogData } from '@/types/attendance.types'
+import type { TimeLog, HoursSummary, NarrativeReport, StoreNarrativeData, VerifyLogData, TermReport, TermReportMeta } from '@/types/attendance.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 import type { Pace } from '@/lib/utils/pace'
 
@@ -60,7 +60,14 @@ export const attendanceApi = {
     apiClient.get<{ data: TimeLog[] }>('/supervisor/students/clocked-in').then((r) => r.data.data),
 
   getStudentSummary: (studentId: number) =>
-    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; pace?: Pace } }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; pace?: Pace }; term_report?: TermReport | null }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+
+  // The recipient's end-of-term narrative report (required before the stipend is released).
+  getTermReport: () =>
+    apiClient.get<{ data: TermReport | null; meta: TermReportMeta }>('/recipient/term-report').then((r) => r.data),
+
+  saveTermReport: (data: { content: string; accomplishments?: string | null; challenges?: string | null }) =>
+    apiClient.put<ApiResponse<TermReport>>('/recipient/term-report', data).then((r) => r.data),
 
   getStudentLogs: (studentId: number, params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<TimeLog> & { student?: { id: number; name: string; required_hours?: number; pending_required_hours?: number | null } }>(`/supervisor/students/${studentId}/logs`, { params }).then((r) => r.data),

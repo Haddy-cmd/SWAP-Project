@@ -20,7 +20,7 @@ type Phase = 'working' | 'selfie' | 'narrative' | 'success' | 'error'
  * QR with their phone's native camera and lands here directly — no need to open
  * the portal and navigate first. The scan toggles their attendance:
  *   • Not clocked in  → grab location and clock in.
- *   • Already clocked in → require a narrative report, then clock out.
+ *   • Already clocked in → offer an optional session note, then clock out.
  *
  * Auth note: the camera opens this in a fresh browser tab where the in-memory
  * (sessionStorage) auth store is empty. We fall back to the `swap_token` cookie
@@ -137,7 +137,7 @@ export default function ScanPage() {
         if (current.has_narrative) {
           await clockOut(current.id)
         } else {
-          // Narrative required before clocking out.
+          // Offer the optional note before clocking out.
           setKind('out')
           setOpenLogId(current.id)
           setNarrativeOpen(true)
@@ -199,17 +199,25 @@ export default function ScanPage() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
               <FileText className="h-8 w-8 text-brand-700" />
             </div>
-            <h1 className="mt-5 text-lg font-bold text-ink-900">Submit your narrative</h1>
+            <h1 className="mt-5 text-lg font-bold text-ink-900">Clock out</h1>
             <p className="mt-2 text-sm text-ink-500">
-              You&apos;re clocked in. Submit a short narrative report to clock out.
+              You&apos;re clocked in. Add a short note about your session if you like, or clock out now.
             </p>
-            <button
-              onClick={() => setNarrativeOpen(true)}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-danger-600 px-6 py-3 text-sm font-semibold text-white hover:bg-danger-700 transition-colors"
-            >
-              <LogOut className="h-4 w-4" />
-              Open narrative form
-            </button>
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <button
+                onClick={() => openLogId && clockOut(openLogId)}
+                className="inline-flex items-center gap-2 rounded-xl bg-danger-600 px-6 py-3 text-sm font-semibold text-white hover:bg-danger-700 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Clock out now
+              </button>
+              <button
+                onClick={() => setNarrativeOpen(true)}
+                className="text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+              >
+                Add a note first
+              </button>
+            </div>
           </>
         )}
 
@@ -263,12 +271,16 @@ export default function ScanPage() {
         )}
       </div>
 
-      {/* Narrative is required before clocking out an open session. */}
+      {/* Optional session note before clocking out an open session. */}
       {narrativeOpen && openLogId && (
         <NarrativeModal
           logId={openLogId}
           clockingOut={phase === 'working'}
           onClose={() => setNarrativeOpen(false)}
+          onSkip={() => {
+            setNarrativeOpen(false)
+            clockOut(openLogId)
+          }}
           onSubmitted={() => {
             setNarrativeOpen(false)
             clockOut(openLogId)

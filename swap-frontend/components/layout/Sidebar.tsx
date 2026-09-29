@@ -12,7 +12,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
   BarChart2, Building2, Banknote, Bell, BookOpen,
-  ClipboardList, LogOut, Calendar, X, QrCode, ShieldCheck, RefreshCw,
+  ClipboardList, LogOut, Calendar, X, QrCode, ShieldCheck, RefreshCw, Images, Presentation, Inbox, LifeBuoy,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
@@ -44,6 +44,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Applications', href: '/admin/applications', icon: FileText },
     { label: 'Interviews', href: '/admin/interviews', icon: Calendar },
+    { label: 'Orientation', href: '/admin/orientation', icon: Presentation },
     { label: 'Assignments', href: '/admin/assignments', icon: Users },
     { label: 'Offices', href: '/admin/offices', icon: Building2 },
     { label: 'Users', href: '/admin/users', icon: Users },
@@ -51,6 +52,8 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
     { label: 'Reports', href: '/admin/reports', icon: ClipboardList },
     { label: 'Verify Slip', href: '/admin/duty-slip-verify', icon: ShieldCheck },
+    { label: 'Concerns', href: '/admin/concerns', icon: Inbox },
+    { label: 'Landing Page', href: '/admin/landing', icon: Images },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: BookOpen },
   ],
 }
@@ -116,6 +119,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Utility */}
       <div className="flex flex-col items-center gap-2 border-t border-white/10 px-2 py-3">
+        {/* Help: write to the DSA Office (admins answer from their Concerns inbox instead). */}
+        {user?.role !== 'admin' && (
+          <Link
+            href="/help"
+            onClick={onNavigate}
+            title="Help"
+            aria-label="Help"
+            className={cn(
+              'flex h-10 w-10 items-center justify-center rounded-xl transition-colors',
+              isActive('/help') ? 'bg-white/[0.14] text-gold-400' : 'text-white/60 hover:bg-white/10 hover:text-white',
+            )}
+          >
+            <LifeBuoy className="h-5 w-5" />
+          </Link>
+        )}
+
         <Link
           href="/notifications"
           onClick={onNavigate}

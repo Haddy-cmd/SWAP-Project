@@ -40,6 +40,26 @@ export interface TimeLogOffice {
   longitude: number | string | null
   radius_meters: number | null
   geofence_enabled: boolean
+  // Off → no geofence watch; the student clocks out by scanning the QR.
+  auto_clock_out?: boolean
+}
+
+// Mirrors TermReportService::toArray — the end-of-term narrative report.
+export interface TermReport {
+  id: number
+  assignment_id: number
+  content: string
+  accomplishments: string | null
+  challenges: string | null
+  submitted_at: string | null
+  updated_at: string | null
+}
+
+export interface TermReportMeta {
+  has_assignment: boolean
+  editable: boolean
+  academic_year: string | null
+  semester: string | null
 }
 
 export interface HoursSummary {

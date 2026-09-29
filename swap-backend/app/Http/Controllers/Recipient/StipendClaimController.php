@@ -3,10 +3,7 @@
 namespace App\Http\Controllers\Recipient;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Stipend\ConfirmStipendReceiptRequest;
 use App\Models\StipendHistory;
-use App\Resources\StipendResource;
-use App\Services\StipendClaimService;
 use App\Services\StipendSlipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,10 +13,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StipendClaimController extends Controller
 {
-    public function __construct(
-        private readonly StipendClaimService $claimService,
-        private readonly StipendSlipService $slipService,
-    ) {}
+    public function __construct(private readonly StipendSlipService $slipService) {}
 
     /** Stream the beneficiary's claim-stub PDF (their Receiving Slip copy). */
     public function slip(Request $request, int $id): StreamedResponse|JsonResponse
@@ -50,22 +44,6 @@ class StipendClaimController extends Controller
         return Storage::disk($disk)->download($stipend->slip_path, "swap-claim-stub-{$stipend->control_number}.pdf");
     }
 
-    /** The beneficiary confirms receipt at the Banking Office → status claimed. */
-    public function confirmReceipt(ConfirmStipendReceiptRequest $request, int $id): JsonResponse
-    {
-        $stipend = StipendHistory::findOrFail($id);
-
-        $data = $request->safe()->except(['signature_image']);
-        if ($request->hasFile('signature_image')) {
-            $data['signature_image_path'] = $request->file('signature_image')
-                ->store("stipend-signatures/{$id}", config('filesystems.documents_disk', 'public'));
-        }
-
-        $stipend = $this->claimService->confirmReceipt($stipend, $data, $request->user());
-
-        return response()->json([
-            'data' => new StipendResource($stipend),
-            'message' => 'Receipt confirmed. Your Receiving Slip has been recorded.',
-        ]);
-    }
+    // Receipt is no longer confirmed here: the Banking Office's releasing officer
+    // records the payout by scanning the stub's QR (StipendVerifyController::release).
 }

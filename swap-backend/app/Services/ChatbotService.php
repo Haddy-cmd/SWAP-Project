@@ -51,7 +51,9 @@ class ChatbotService
      */
     private function rankFaqs(array $inputWords): Collection
     {
-        return FaqKnowledgeBase::active()->get()
+        // Ordered so ties go to the earlier entry: Postgres returns unordered rows
+        // in storage order, which shifts as the seeder updates them.
+        return FaqKnowledgeBase::active()->orderBy('sort_order')->orderBy('id')->get()
             ->map(fn (FaqKnowledgeBase $faq) => [
                 'faq' => $faq,
                 'score' => count(array_intersect($inputWords, array_merge(

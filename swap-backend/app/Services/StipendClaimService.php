@@ -37,6 +37,8 @@ class StipendClaimService
     public const MSG_NO_POSITION_TITLE = 'Set your position title on your Profile page before releasing stipends.';
     public const MSG_ALREADY_LIVE = 'This recipient already has a live stipend for this period.';
     public const MSG_NOT_ELIGIBLE = 'This recipient is not eligible for a stipend for this period.';
+    public const MSG_NO_SIGNATURE = 'This recipient has not saved a digital signature yet.';
+    public const MSG_NO_TERM_REPORT = 'This recipient has not submitted their end-of-term narrative report yet.';
 
     /**
      * Release a claim stub for an eligible recipient in one step: create the record,
@@ -53,8 +55,12 @@ class StipendClaimService
         if ($this->hasLiveStipend($userId, $data['academic_year'], $data['semester'])) {
             throw new UnprocessableEntityHttpException(self::MSG_ALREADY_LIVE);
         }
-        if (!$this->eligibleKeys()->has($this->periodKey($data))) {
+        $row = $this->eligibleByKey()->get($this->periodKey($data));
+        if (!$row) {
             throw new UnprocessableEntityHttpException(self::MSG_NOT_ELIGIBLE);
+        }
+        if ($missing = $this->missingRequirement($row)) {
+            throw new UnprocessableEntityHttpException($missing);
         }
 
         return $this->issueStub($data, $admin);
@@ -72,12 +78,24 @@ class StipendClaimService
         }
     }
 
-    /** user|year|semester keys of everyone payable right now (StipendService rules). */
-    private function eligibleKeys(): \Illuminate\Support\Collection
+    /** Everyone payable on hours right now (StipendService rules), keyed user|year|semester. */
+    private function eligibleByKey(): \Illuminate\Support\Collection
     {
         return collect($this->stipendService->eligibleRecipients())
-            ->map(fn ($e) => $this->periodKey($e))
-            ->flip();
+            ->keyBy(fn ($e) => $this->periodKey($e));
+    }
+
+    /**
+     * The stub carries the beneficiary's signature and closes the term, so both
+     * the specimen and the end-of-term report must exist before release.
+     */
+    private function missingRequirement(array $row): ?string
+    {
+        return match (true) {
+            !($row['has_signature'] ?? false) => self::MSG_NO_SIGNATURE,
+            !($row['narrative_submitted'] ?? false) => self::MSG_NO_TERM_REPORT,
+            default => null,
+        };
     }
 
     private function periodKey(array $row): string
@@ -201,14 +219,19 @@ class StipendClaimService
         $this->assertCanRelease($admin);
 
         // Computed once for the batch; issueStub() skips the per-call guard.
-        $eligibleKeys = $this->eligibleKeys();
+        $eligible = $this->eligibleByKey();
 
         $released = [];
         $skipped = [];
 
         foreach ($items as $item) {
-            if (!$eligibleKeys->has($this->periodKey($item))) {
+            $row = $eligible->get($this->periodKey($item));
+            if (!$row) {
                 $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Not eligible for this period.'];
+                continue;
+            }
+            if ($missing = $this->missingRequirement($row)) {
+                $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => $missing];
                 continue;
             }
             // Re-check live rows per item so an intra-batch duplicate is skipped.
@@ -241,38 +264,38 @@ class StipendClaimService
             ->exists();
     }
 
+    public const MSG_NOT_CLAIMABLE = 'This stipend is not available to claim.';
+
     /**
-     * The beneficiary confirms receipt at the Banking Office. Records the beneficiary
-     * and releasing-officer signatures, consumes the claim token, marks it claimed.
+     * The Banking Office releases the money: the releasing officer scans the stub's
+     * QR, confirms with their name (and the Banking Office PIN, checked by the
+     * caller), and the stub becomes claimed. Records the beneficiary signature (their
+     * saved specimen, copied into the stub) and the releasing officer by name, and
+     * consumes the single-use token so the stub can't be paid twice.
      */
-    public function confirmReceipt(StipendHistory $stipend, array $data, User $recipient): StipendHistory
+    public function releaseAtBankingOffice(StipendHistory $stipend, string $releasingOfficer): StipendHistory
     {
         if (!$stipend->isCertified()) {
-            throw new UnprocessableEntityHttpException('This stipend is not available to claim.');
+            throw new UnprocessableEntityHttpException(self::MSG_NOT_CLAIMABLE);
         }
 
-        if ($stipend->user_id !== $recipient->id) {
-            throw new UnprocessableEntityHttpException('This stipend does not belong to you.');
-        }
-
+        $recipient = $stipend->recipient()->withTrashed()->firstOrFail();
         $before = $stipend->only(['status', 'claimed_at']);
 
-        $updated = DB::transaction(function () use ($stipend, $data, $recipient, $before) {
+        $updated = DB::transaction(function () use ($stipend, $releasingOfficer, $recipient, $before) {
             $fresh = $this->repository->update($stipend, [
                 'status' => StipendHistory::STATUS_CLAIMED,
                 'claimed_at' => now(),
                 'receipt_signed_at' => now(),
                 'released_at' => $stipend->released_at ?? now(),
-                'releasing_officer_name' => $data['releasing_officer_name'],
+                'releasing_officer_name' => $releasingOfficer,
                 // Single-use: consume the token so the QR can't be replayed.
                 'claim_token' => null,
             ]);
 
-            // The beneficiary signs with their specimen when they saved one
-            // (required for clock-in, so normally present); typed fallback keeps
-            // older or specimen-less receipts working.
-            $beneficiaryImage = $data['signature_image_path']
-                ?? $this->snapshotSpecimen($recipient->signature_image_path, $fresh->id, StipendSignature::ROLE_BENEFICIARY);
+            // The beneficiary signs with their saved specimen (required before the
+            // stub is released); the typed fallback keeps older stubs working.
+            $beneficiaryImage = $this->snapshotSpecimen($recipient->signature_image_path, $fresh->id, StipendSignature::ROLE_BENEFICIARY);
             $this->repository->addSignature($fresh, [
                 'signatory_role' => StipendSignature::ROLE_BENEFICIARY,
                 'user_id' => $recipient->id,
@@ -280,21 +303,24 @@ class StipendClaimService
                 'method' => $beneficiaryImage ? StipendSignature::METHOD_DRAWN : StipendSignature::METHOD_AUTHENTICATED,
                 'signature_image_path' => $beneficiaryImage,
                 'signed_at' => now(),
-                'remarks' => $data['remarks'] ?? null,
             ]);
 
             // The releasing officer is external (no portal account) — recorded by name.
             $this->repository->addSignature($fresh, [
                 'signatory_role' => StipendSignature::ROLE_RELEASING_OFFICER,
                 'user_id' => null,
-                'printed_name' => $data['releasing_officer_name'],
+                'printed_name' => $releasingOfficer,
                 'method' => StipendSignature::METHOD_AUTHENTICATED,
                 'signed_at' => now(),
             ]);
 
             $this->renderSlip($fresh);
 
-            AuditLog::record('claimed', $fresh, $before, $fresh->only(['status', 'claimed_at']), $recipient->id);
+            // No portal user acted: the audit row records who and where instead.
+            AuditLog::record('claimed', $fresh, $before, $fresh->only(['status', 'claimed_at']) + [
+                'via' => 'banking_office',
+                'releasing_officer_name' => $releasingOfficer,
+            ], null);
 
             return $fresh;
         });

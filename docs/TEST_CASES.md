@@ -3,7 +3,7 @@
 **System:** SWAP (Student Welfare Assistantship Program) Portal — MSU Main Campus
 **Architecture:** Laravel 12 (REST API) backend + Next.js 15 frontend, PostgreSQL
 **Document purpose:** Complete catalogue of test cases for capstone documentation and system testing (functional, negative, boundary, security, and non-functional).
-**Last aligned with the code:** 2026-09-26 (commit `58959a07` — systems-audit fixes). The backend is the source of truth: every expected message below is the exact text the API returns.
+**Last aligned with the code:** 2026-09-28 (process-gap changes: Banking Office QR release, orientation step, end-of-term report, optional session notes, per-office auto clock-out, concerns inbox, real-time stack removed). The backend is the source of truth: every expected message below is the exact text the API returns.
 
 ---
 
@@ -19,7 +19,7 @@ Each test case has a stable **ID** (e.g. `TC-AUTH-001`). Columns:
 - **Actual Result** — *(fill in during execution)*.
 - **Status** — *(fill in: ✅ Pass / ❌ Fail / ⛔ Blocked)*.
 
-For your defense, keep the last two columns blank in the master copy and fill a dated execution copy per test round. The summary/traceability matrix is in [Section 26](#26-traceability--coverage-summary).
+For your defense, keep the last two columns blank in the master copy and fill a dated execution copy per test round. The summary/traceability matrix is in [Section 27](#27-traceability--coverage-summary).
 
 ### Priority key
 `P1` critical (money, integrity, security, auth) · `P2` core workflow · `P3` supporting/UX.
@@ -30,7 +30,7 @@ For your defense, keep the last two columns blank in the master copy and fill a 
 ### Markers
 - **OBSOLETE** — the feature was removed; the case is kept (same ID) and now checks that the old endpoint is really gone.
 - **[KNOWN GAP]** — the expected result is the *correct* behaviour, but the current build does something else. Expect ❌ until it is fixed.
-- **[NEEDS-CLARIFICATION]** — the rule is undecided or the behaviour may be intended; see [Section 25](#25-open-questions-needs-clarification).
+- **[NEEDS-CLARIFICATION]** — the rule is undecided or the behaviour may be intended; see [Section 26](#26-open-questions-needs-clarification).
 
 ### Personas (the order modules are tested in)
 Visitor → Applicant → Admin (review & placement) → Recipient → Supervisor → Admin (stipends & reports) → Attacker.
@@ -50,12 +50,16 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | Student ID | exactly 9 digits |
 | Default required service hours | 200 per assignment (admin range 1–500) |
 | Default stipend | ₱5,000 per semester (admin can override per release) |
+| Stipend release needs | Verified hours met (or an approved promissory note) **and** the recipient's saved signature **and** their end-of-term narrative report |
+| Banking Office | No account. The releasing officer scans the stub's QR (`/claim/{token}`) and enters the **Banking Office PIN** (6–8 digits). The admin sets the officer's name together with the PIN on Admin → Stipend; that name is what prints on the stub |
+| Orientation | A new applicant must have **attended** an orientation before placement (admin can "Place anyway", audited); renewing recipients are exempt |
 | Login tokens | Expire after **7 days**; deactivating an account revokes all of its sessions |
 | Interview windows (PHT) | Face-to-face: Mon–Fri, start **and** end within 7:00 AM–5:00 PM · Online: any day, within 8:00 AM–11:00 PM · default length 30 min |
 | Clock-in window | Monday–Saturday, 06:00–17:30 PHT (both edges inclusive) |
 | Max attendance session | 12 hours (stale logs auto-closed hourly, credit capped at 12 h) |
 | Location flags | GPS accuracy worse than 100 m, identical coordinates reused, or travel faster than 130 km/h |
-| Auto clock-out | Page watches the fence; after 10 minutes outside it asks the server, which re-checks the GPS fix |
+| Auto clock-out | Page watches the fence; after 10 minutes outside it asks the server, which re-checks the GPS fix. Can be turned off per office |
+| Session note | Optional at clock-out (Skip available); one end-of-term report per term is required instead |
 | Upload limits | Application documents: PDF/JPG/PNG ≤ 5 MB · profile photo: JPG/PNG/WEBP ≤ 4 MB · signature: JPG/PNG/WEBP ≤ 2 MB · promissory file: PDF/JPG/PNG ≤ 5 MB |
 
 ### Rate limits (requests per minute; the next one returns HTTP 429)
@@ -68,6 +72,8 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | `GET /invitations/{token}` / `POST /invitations/{token}/accept` | 10 / 6 |
 | `GET /chatbot/query` | 20 |
 | `GET /stipend/verify/{claimToken}` | 30 |
+| `POST /stipend/verify/{claimToken}/release` (Banking Office PIN) | 6 |
+| `POST /concerns` | 10 |
 | `PUT /profile/password` | 6 |
 | `POST /admin/stipend/unlock`, `/release`, `/release-bulk`, `/{id}/void` | 6 each |
 
@@ -79,7 +85,8 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | `supervisor.a2@…` (also office A) | Co-supervisor tests |
 | `supervisor.b@…` (office B) | Cross-office authorization tests |
 | `recipient1@…` (has a signature specimen) | Active assignment, attendance and stipend flows |
-| `applicant1@…` | Application pipeline |
+| `applicant1@…` | Application pipeline, orientation |
+| Banking Office officer (no account) | Set up by the admin with a name + PIN; records payouts from `/claim/{token}` with the PIN only |
 
 ---
 
@@ -136,6 +143,12 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-AUTH-010 | P1 | [S] Deactivation by an admin signs the user out everywhere | User logged in on two devices | Admin: PUT `/admin/users/{id}` `is_active=false`; user retries | both tokens | Both tokens deleted → HTTP 401; audit log records `tokens_revoked` |  |  |
 | TC-AUTH-011 | P1 | [B] Login tokens expire after 7 days | Logged in | Call `/profile` after the token's `expires_at` (or set it to the past in the DB) | 8-day-old token | HTTP 401; a fresh login issues a token expiring in 7 days |  |  |
 | TC-AUTH-012 | P3 | [S] Logout closes the stipend step-up window | Admin unlocked Stipend Management | Log out, log in again, reuse the old `unlock_token` | old unlock token | HTTP 422, "The stipend gate has expired. Re-enter your password to unlock it again." |  |  |
+| TC-AUTH-013 | P1 | [H] Back after login keeps the session | Logged out; on the landing page | Sign in, then press the browser Back button | valid account | The landing page shows "Go to dashboard" (not "Sign in"); Forward or the button returns to the dashboard still signed in |  |  |
+| TC-AUTH-014 | P1 | [H] A signed-in user skips the login and register pages | Signed in | Open `/login`, `/register`, and `/login?redirect=/scan?t=…` | — | Redirected to the role's dashboard (or the same-site `redirect` target); an external `redirect` such as `//evil.example` is ignored |  |  |
+| TC-AUTH-015 | P1 | [H] Reload, new tab and phone "desktop site" keep the session | Signed in | Reload; open a dashboard link in a new tab; on a phone switch Chrome to "Desktop site" | — | Still signed in each time, with the name shown in the top bar; never sent to the login page |  |  |
+| TC-AUTH-016 | P2 | [H] One account per browser | Signed in as admin in tabs 1 and 2 | In tab 2 sign out, then sign in as a recipient; watch tab 1 | two accounts | Signing out in tab 2 sends tab 1 to the login page; after the recipient signs in, tab 1 moves to the recipient dashboard by itself. `/login` while signed in redirects to the dashboard, so switching accounts always starts with Sign out |  |  |
+| TC-AUTH-017 | P2 | [H] A role change is picked up without signing in again | Applicant signed in, then placed in an office (now a recipient) | Reload any page | — | Moved to the recipient dashboard; the stored role and `swap_role` cookie now say recipient |  |  |
+| TC-AUTH-018 | P2 | [S] Another role's area sends you to your own dashboard | Signed in as a recipient | Open `/admin/stipend` | — | Redirected to `/recipient/dashboard` (not the login page); an unknown `swap_role` cookie value is treated as signed out |  |  |
 
 ---
 
@@ -241,11 +254,32 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 
 ---
 
-## 11. Module: Admin — Assignments & QR (`TC-ASSIGN`) — Admin
+## 11. Module: Admin — Orientation (`TC-ORI`) — Admin → Applicant
+
+Between approval and placement. Admin → Orientation schedules sessions, invites approved applicants who are not yet placed, and marks attendance. The Assignments page reads the same status (TC-ASSIGN-015..017).
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-ASSIGN-001 | P1 | [H] Create assignment promotes applicant → recipient | Approved applicant, office, supervisor | POST `/admin/assignments` | user, office, supervisor, `required_hours=200`, start_date | HTTP 201, role becomes `recipient`, assignment QR generated, recipient notified of placement, audit logged |  |  |
+| TC-ORI-001 | P2 | [H] Create an in-person session | Admin | POST `/admin/orientation/sessions` | title `SWAP Orientation — Batch 1`, tomorrow 9:00 AM PHT, `mode=in_person`, venue `DSA Conference Room` | HTTP 201, "Orientation session created. Invite applicants to notify them."; audit `orientation_created` |  |  |
+| TC-ORI-002 | P2 | [N] Venue / link rules | Admin | Create with missing venue, then online without a link, then a bad link | `location` empty; `mode=online` no `meeting_link`; `meeting_link=zoom` | HTTP 422: "An in-person orientation needs a venue." / "An online orientation needs a meeting link." / "Enter a valid meeting link, including https://." |  |  |
+| TC-ORI-003 | P3 | [B] Date must be in the future on create | Admin | Create with yesterday's date; then edit an existing past session's title | past date | Create → HTTP 422, "Pick a date and time in the future."; editing a past session is allowed |  |  |
+| TC-ORI-004 | P1 | [H] Invite all eligible | 2 approved, unplaced applicants; 1 applicant still under review | Manage → Invite all eligible (POST `/admin/orientation/sessions/{id}/invite` with no `user_ids`) | — | "Invited 2 applicant(s). They have been notified by email and in the portal."; each gets an "Orientation Scheduled" notification + email with date and venue/link; the under-review applicant is not invited |  |  |
+| TC-ORI-005 | P2 | [N] Re-inviting sends nothing new | Applicant already invited to the session | Invite them again | `user_ids=[id]` | "Everyone selected is already invited to this session."; no second notification |  |  |
+| TC-ORI-006 | P1 | [S] Only approved, unplaced applicants can be invited | An applicant without an approved application, or a recipient | Invite them by id | `user_ids=[id]` | HTTP 422, "Only approved applicants who are not yet placed can be invited." |  |  |
+| TC-ORI-007 | P1 | [H] Mark attended / absent | Invited applicant | PUT `/admin/orientation/sessions/{id}/attendance` | `status=attended` (then `absent`) | "Attendance saved."; audit `orientation_attendance_marked`; the "Approved applicants awaiting placement" list and the Assignments page show Attended / Absent |  |  |
+| TC-ORI-008 | P2 | [N] Attendance only for applicants | A recipient's user id | Mark attendance | `status=attended` | HTTP 422, "Attendance can only be recorded for applicants." |  |  |
+| TC-ORI-009 | P2 | [N] Session with attendance can't be deleted | Session with an attended/absent row | DELETE `/admin/orientation/sessions/{id}` | — | HTTP 422, "Attendance has already been recorded for this session, so it cannot be deleted."; a session with only invitations deletes: "Orientation session deleted." |  |  |
+| TC-ORI-010 | P2 | [H] Applicant sees the invitation | Applicant invited to an upcoming session | Open the applicant Dashboard (GET `/applicant/orientation`) | — | "Upcoming orientation" card with title, date/time (PHT), venue or "Join the meeting" link, and "Attendance is required before you can be placed in an office."; after attendance: "Orientation attended" |  |  |
+| TC-ORI-011 | P2 | [H] Notification opens the right page | Invitation notification | Click it in the bell | — | Applicant → Dashboard; admin → Orientation |  |  |
+| TC-ORI-012 | P1 | [S] Non-admins can't manage orientation | Applicant, recipient, supervisor | GET/POST `/admin/orientation/sessions` | their tokens | HTTP 403 |  |  |
+
+---
+
+## 12. Module: Admin — Assignments & QR (`TC-ASSIGN`) — Admin
+
+| ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
+|---|---|---|---|---|---|---|---|---|
+| TC-ASSIGN-001 | P1 | [H] Create assignment promotes applicant → recipient | Approved applicant who **attended an orientation**, office, supervisor | POST `/admin/assignments` | user, office, supervisor, `required_hours=200`, start_date | HTTP 201, role becomes `recipient`, assignment QR generated, recipient notified of placement, audit logged |  |  |
 | TC-ASSIGN-002 | P2 | [B] Required hours boundaries | Admin | Create with out-of-range hours | `0`, `501` (and `1`, `500` accepted) | HTTP 422 for 0 and 501 (min 1, max 500) |  |  |
 | TC-ASSIGN-003 | P2 | [N] end_date must be after start_date | Admin | Create with bad dates | end before start | HTTP 422 (`after:start_date`) |  |  |
 | TC-ASSIGN-004 | P2 | [N] Non-existent user/office/supervisor | Admin | Create referencing missing ids | invalid ids | HTTP 422 (`exists`) |  |  |
@@ -259,10 +293,13 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 | TC-ASSIGN-012 | P2 | [S] Database backstop for duplicate placement | — | Insert a second `active` assignment for the same user + term directly (or fire two creates at once) | duplicate row | Rejected by the unique index; the API answers with the same 422 message |  |  |
 | TC-ASSIGN-013 | P2 | [S] Admin can't change required hours directly | Assignment exists | PUT `/admin/assignments/{id}` with `required_hours` | `required_hours=10` | Field ignored; required hours only change through supervisor approval (TC-VERIF-016) |  |  |
 | TC-ASSIGN-014 | P2 | [N] Placement still saves if the email fails | Mail server down | Create an assignment | valid payload | HTTP 201; notification failure logged, not a 500 |  |  |
+| TC-ASSIGN-015 | P1 | [N] Placement blocked without an attended orientation | Approved applicant: not invited, invited, or marked absent | POST `/admin/assignments` | valid payload | HTTP 422, `user_id`: "This applicant has not attended an orientation yet. Mark their attendance, or place them anyway."; the Assignments page shows the same sentence, an "Orientation pending" badge, and keeps Confirm disabled until "Place anyway" is ticked |  |  |
+| TC-ASSIGN-016 | P2 | [H] Place anyway (override) | Approved applicant without attendance | Tick "Place anyway" and confirm (`skip_orientation=true`) | valid payload | HTTP 201; audit `created` carries `skip_orientation: true` |  |  |
+| TC-ASSIGN-017 | P2 | [H] Renewing recipients are exempt | Recipient (placed in an earlier term) | Place for the new term without any orientation | valid payload | HTTP 201; no orientation badge shown |  |  |
 
 ---
 
-## 12. Module: Profile & Account (`TC-PROF`) — any signed-in user
+## 13. Module: Profile & Account (`TC-PROF`) — any signed-in user
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -279,7 +316,7 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 
 ---
 
-## 13. Module: Signature Specimen (`TC-SIG`) — all staff and recipients
+## 14. Module: Signature Specimen (`TC-SIG`) — all staff and recipients
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -287,21 +324,21 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 | TC-SIG-002 | P2 | [N] Non-image specimen rejected | Logged in | POST `/profile/signature` | `sig.pdf` | HTTP 422 on `signature` |  |  |
 | TC-SIG-003 | P3 | [B] Specimen size limit | Logged in | POST `/profile/signature` | PNG of 2.1 MB | HTTP 422 (max 2 MB) |  |  |
 | TC-SIG-004 | P2 | [H] Remove the specimen | Specimen saved | DELETE `/profile/signature` | — | HTTP 200, "Digital signature removed. New stubs will show your printed name instead.", `signature_url` null, audit `signature_removed` |  |  |
-| TC-SIG-005 | P1 | [N] Clock-in requires a specimen | Recipient without a specimen | Clock in (any entry point) | valid office QR + GPS | HTTP 422, "A digital signature is required before clocking in. Draw or upload one on your Profile page."; the recipient banner shows the same sentence |  |  |
+| TC-SIG-005 | P1 | [H] Clock-in no longer needs a specimen | Recipient without a specimen | Clock in (any entry point) | valid office QR + GPS | HTTP 201; the recipient banner reads "A digital signature is required before your stipend can be released." (the release refusal is TC-STIP-036) |  |  |
 | TC-SIG-006 | P1 | [S] Who may view a specimen | Supervisor A supervises recipient R | GET `/users/{R}/signature` as R, admin, supervisor A, supervisor B, no token | tokens | R, admin, A → 200 image; B → 403 "You are not authorized to view this signature."; no token → 401 |  |  |
 | TC-SIG-007 | P2 | [S] A recipient may view only their own supervisor's specimen | R supervised by A, not by B | GET `/users/{A}/signature` and `/users/{B}/signature` as R | R's token | A → 200 (needed for the duty slip); B → 403 |  |  |
 | TC-SIG-008 | P2 | [H] Weekly reminder only to recipients without a specimen | Some active recipients lack a specimen | Run `php artisan remind:missing-signatures` twice | — | Each specimen-less recipient gets one email + in-app nudge; the second run sends no duplicate while the first is unread |  |  |
-| TC-SIG-009 | P1 | [S] Replacing a specimen never changes signed stubs | Stub released + receipt confirmed with specimens | Supervisor and recipient save new specimens; delete the archived PDF; download the stub | new drawings | The stub still shows the **original** ink (each signature is copied into the stub at signing) |  |  |
+| TC-SIG-009 | P1 | [S] Replacing a specimen never changes signed stubs | Stub released + payout recorded by the Banking Office, with specimens | Supervisor and recipient save new specimens; delete the archived PDF; download the stub | new drawings | The stub still shows the **original** ink (each signature is copied into the stub at signing) |  |  |
 
 ---
 
-## 14. Module: Recipient — Attendance / Geofenced Clock-In (`TC-ATT`) — Recipient
+## 15. Module: Recipient — Attendance / Geofenced Clock-In (`TC-ATT`) — Recipient
 
 Entry points that must behave identically: **(a)** `/scan` (phone camera deep link), **(b)** `/recipient/attendance/scan`, **(c)** `/recipient/attendance` (manual code paste).
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-ATT-001 | P1 | [H] Successful geofenced clock-in | Recipient with active assignment and specimen; office geofenced; within window & radius | POST `/recipient/attendance/time-in-geofence` | valid office QR, GPS inside radius, accuracy 20 m, selfie | HTTP 201, open log created, audit `clocked_in` |  |  |
+| TC-ATT-001 | P1 | [H] Successful geofenced clock-in | Recipient with active assignment; office geofenced; within window & radius | POST `/recipient/attendance/time-in-geofence` | valid office QR, GPS inside radius, accuracy 20 m, selfie | HTTP 201, open log created, audit `clocked_in` |  |  |
 | TC-ATT-002 | P1 | [N] Clock-in outside geofence rejected | As above but GPS outside radius | Clock-in | GPS 500 m away | HTTP 422, "You must be on the office premises to clock in. Your phone's location reads ~500m from {office} …" (distance, allowed radius and GPS accuracy) |  |  |
 | TC-ATT-003 | P1 | [S] Tampered/invalid office QR rejected | Recipient | Clock-in | QR with altered signature | HTTP 422, "Invalid or tampered office QR code." |  |  |
 | TC-ATT-004 | P1 | [S] QR from a different office than assignment | Recipient assigned to office A | Clock-in with office B QR | office B QR | HTTP 422, "This QR code belongs to a different office than your assignment." |  |  |
@@ -328,28 +365,32 @@ Entry points that must behave identically: **(a)** `/scan` (phone camera deep li
 
 ---
 
-## 15. Module: Recipient — Clock-Out & Auto Clock-Out (`TC-OUT`) — Recipient
+## 16. Module: Recipient — Clock-Out & Auto Clock-Out (`TC-OUT`) — Recipient
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-OUT-001 | P1 | [H] Manual clock-out with narrative | Open log with a submitted narrative | POST `/recipient/attendance/time-out` | own office or assignment QR | Log → `pending_verification`, duration computed, supervisors notified, audit `clocked_out` |  |  |
-| TC-OUT-002 | P1 | [N] Clock-out blocked without narrative | Open log, no narrative | Clock-out | valid QR | HTTP 422, "Please submit your narrative report before clocking out." |  |  |
+| TC-OUT-001 | P1 | [H] Manual clock-out with a session note | Open log with a note added | POST `/recipient/attendance/time-out` | own office or assignment QR | Log → `pending_verification`, duration computed, supervisors notified, audit `clocked_out` |  |  |
+| TC-OUT-002 | P1 | [H] Clock-out without a note | Open log, no note | Clock out: `/scan` → "Clock out now"; Attendance page → "Skip & Clock Out" | valid QR | HTTP 200, log `pending_verification`, no narrative row; the supervisor sees "No session note (optional)." |  |  |
 | TC-OUT-003 | P1 | [S] Clock-out with wrong office QR | Open log | Clock-out with a different office's QR | other office QR | HTTP 422, "This QR code is for a different office. Please scan your assigned office QR to clock out." |  |  |
 | TC-OUT-004 | P2 | [S] Clock-out with tampered QR | Open log | Clock-out | altered QR | HTTP 422, "Invalid or tampered QR code." |  |  |
 | TC-OUT-005 | P1 | [N] Clock-out with no open log | No open log | Clock-out | valid QR + random logId | HTTP 422, "No open attendance log found with this ID." |  |  |
 | TC-OUT-006 | P1 | [S] Cannot clock out another user's log | Log belongs to another recipient | Clock-out that log id | other user's logId | HTTP 422, same message (ownership enforced) |  |  |
-| TC-OUT-007 | P1 | [H] Auto clock-out after leaving the premises | Open log; recipient ≥ 10 min outside the fence | Page calls POST `/recipient/attendance/auto-clock-out` | GPS ~1.1 km away, accuracy 10 m | HTTP 200, "You left the office premises and were automatically clocked out.", reason `auto`, **no narrative required** |  |  |
+| TC-OUT-007 | P1 | [H] Auto clock-out after leaving the premises | Open log; recipient ≥ 10 min outside the fence | Page calls POST `/recipient/attendance/auto-clock-out` | GPS ~1.1 km away, accuracy 10 m | HTTP 200, "You left the office premises and were automatically clocked out.", reason `auto`, no QR scan needed |  |  |
 | TC-OUT-008 | P1 | [B] Stale log auto-closed & capped at 12 h | Open log older than 12 h | Run `attendance:close-stale` (hourly scheduler) | log open 20 h | Closed with reason `auto_stale`, duration capped at 12 h; audit `clocked_out` with no user (system) |  |  |
 | TC-OUT-009 | P2 | [H] Duplicate open logs voided | User somehow has 2 open logs | Run the dedup routine | 2 open logs | Earliest kept; extras set `rejected` / `auto_dedup`, zero duration |  |  |
 | TC-OUT-010 | P2 | [B] Poor time-out GPS accuracy flags log | Clock-out accuracy > 100 m | Clock-out | accuracy 150 m | Existing flag preserved and the poor time-out fix also flags the log |  |  |
-| TC-OUT-011 | P1 | [S] Auto clock-out refused inside the fence | Open log; recipient still at the office | POST `/recipient/attendance/auto-clock-out` directly | office coordinates | HTTP 422, "You are still within the office premises. Scan your office QR to clock out."; log stays open (the narrative rule can't be skipped) |  |  |
+| TC-OUT-011 | P1 | [S] Auto clock-out refused inside the fence | Open log; recipient still at the office | POST `/recipient/attendance/auto-clock-out` directly | office coordinates | HTTP 422, "You are still within the office premises. Scan your office QR to clock out."; log stays open (the QR rule can't be skipped) |  |  |
 | TC-OUT-012 | P1 | [N] Auto clock-out without a location | Open log | POST auto-clock-out with only `log_id` | no lat/lng | HTTP 422 on `latitude` and `longitude` |  |  |
 | TC-OUT-013 | P2 | [N] Auto clock-out at an office without a geofence | Open log at a non-geofenced office | POST auto-clock-out | any coordinates | HTTP 422, "Automatic clock-out only applies to geofenced offices. Scan your office QR to clock out." |  |  |
 | TC-OUT-014 | P2 | [N] Stale sweep survives a deleted recipient | Recipient soft-deleted with an open log > 12 h | Run `attendance:close-stale` | — | Log closed and capped; no crash |  |  |
+| TC-OUT-015 | P1 | [N] Auto clock-out turned off for the office | Office has Automatic clock-out off; open log | Leave the premises; also POST auto-clock-out directly | GPS ~1.1 km away | The Attendance page does not watch the fence; the endpoint answers HTTP 422, "Automatic clock-out is turned off for this office."; the log stays open until the QR clock-out |  |  |
+| TC-OUT-016 | P2 | [H] Admin toggles auto clock-out | Geofenced office | Admin → Offices → edit → untick "Automatic clock-out when a student leaves the premises" | — | Saved (`auto_clock_out=false`); office card shows "Auto clock-out off"; new offices default to on |  |  |
 
 ---
 
-## 16. Module: Recipient — Narrative Reports (`TC-NARR`) — Recipient
+## 17. Module: Recipient — Session Notes & End-of-Term Report (`TC-NARR`) — Recipient
+
+Cases 001–008 cover the **optional** per-session note (validated when one is sent). Cases 009–014 cover the **end-of-term report**, one per assignment, required before the stipend is released.
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -361,10 +402,16 @@ Entry points that must behave identically: **(a)** `/scan` (phone camera deep li
 | TC-NARR-006 | P3 | [H] View narrative for a log | Narrative exists | GET `/recipient/narratives/{logId}` | own logId | HTTP 200 with narrative |  |  |
 | TC-NARR-007 | P2 | [N] Only one narrative per log | Narrative already submitted | Submit again for the same log | same `time_log_id` | HTTP 409, "Narrative report already submitted for this log." |  |  |
 | TC-NARR-008 | P1 | [S] Can't write a narrative on someone else's log | Log belongs to another recipient | Submit with their `time_log_id` | other user's log | HTTP 404, "Time log not found." |  |  |
+| TC-NARR-009 | P1 | [H] Submit the end-of-term report | Recipient with an active assignment | Hours page → End-of-Term Report → Submit (PUT `/recipient/term-report`) | narrative ≥ 100 chars; accomplishments/challenges optional | "End-of-term report saved. You can edit it until your stipend is released."; badge "Submitted"; audit `term_report_submitted` |  |  |
+| TC-NARR-010 | P2 | [B] Report length | Recipient | Submit | 99 chars (100 passes); > 5000 chars | HTTP 422, "Your report must be at least 100 characters." / "Your report must be 5,000 characters or fewer." |  |  |
+| TC-NARR-011 | P2 | [H] Edit before the stipend is released | Report submitted, no stub yet | Edit and save | new challenges text | Saved; audit `term_report_updated`; the original submission time is kept |  |  |
+| TC-NARR-012 | P1 | [N] Locked once the stipend is released | A stub exists for the term (certified/claimed) | Save the report | any text | HTTP 422, "Your end-of-term report can no longer be edited because your stipend has been released."; the card shows it read-only with a lock note |  |  |
+| TC-NARR-013 | P3 | [N] No active assignment | Recipient without an active assignment | PUT `/recipient/term-report` | valid text | HTTP 422, "You have no active assignment." |  |  |
+| TC-NARR-014 | P2 | [H] Supervisor reads the report | Report submitted | Supervisor → Students → the student | — | "End-of-Term Report" section shows the text (read-only); before submission: "Not submitted yet…" |  |  |
 
 ---
 
-## 17. Module: Recipient — Hours (`TC-HRS`) — Recipient
+## 18. Module: Recipient — Hours (`TC-HRS`) — Recipient
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -374,7 +421,7 @@ Entry points that must behave identically: **(a)** `/scan` (phone camera deep li
 
 ---
 
-## 18. Module: Recipient — Promissory Notes (`TC-PROM`) — Recipient → Supervisor
+## 19. Module: Recipient — Promissory Notes (`TC-PROM`) — Recipient → Supervisor
 
 A recipient who ends the semester short on verified hours may file a promissory note; a supervisor who governs the assignment (assigned supervisor or any supervisor of the office) reviews it. Semester end = the assignment's end date, else the `semester_end_date` setting (Manila time).
 
@@ -398,7 +445,7 @@ A recipient who ends the semester short on verified hours may file a promissory 
 
 ---
 
-## 19. Module: Supervisor — Verification & Students (`TC-VERIF`) — Supervisor
+## 20. Module: Supervisor — Verification & Students (`TC-VERIF`) — Supervisor
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -424,13 +471,13 @@ A recipient who ends the semester short on verified hours may file a promissory 
 
 ---
 
-## 20. Module: Admin — Stipend Claim Stubs (`TC-STIP`) — Admin → Recipient → Banking Office
+## 21. Module: Admin — Stipend Claim Stubs (`TC-STIP`) — Admin → Recipient → Banking Office
 
-Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → `claimed` (receipt confirmed) or `void` (before claim). Legacy rows may say `released`. Release, void and unlock need the admin's password (step-up) or the short-lived unlock token; bulk release accepts only the unlock token.
+Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → `claimed` (payout recorded by the Banking Office) or `void` (before claim). Legacy rows may say `released`. Release, void and unlock need the admin's password (step-up) or the short-lived unlock token; bulk release accepts only the unlock token.
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-STIP-001 | P1 | [H] Eligible list surfaces recipients who met hours | Active assignment, verified ≥ required, no live stub for the period | GET `/admin/stipend/eligible` | — | Recipient listed with verified/required hours and suggested ₱5,000 |  |  |
+| TC-STIP-001 | P1 | [H] Eligible list surfaces recipients who met hours | Active assignment, verified ≥ required, no live stub for the period | GET `/admin/stipend/eligible` | — | Recipient listed with verified/required hours, suggested ₱5,000, and `has_signature` / `narrative_submitted` flags (badges "No signature" / "No end-of-term report", checkbox disabled when either is missing) |  |  |
 | TC-STIP-002 | P1 | [N] Recipient below required hours not eligible | Verified < required, no approved promissory note | GET eligible | — | Recipient **not** listed |  |  |
 | TC-STIP-003 | P1 | [N] Period with a live stub excluded | Stub `certified`/`claimed` (or legacy `released`/`pending`) for that AY+semester | GET eligible | — | Recipient excluded (no double payout) |  |  |
 | TC-STIP-004 | P1 | [H] Release (certify) a claim stub | Admin with position title, eligible recipient | POST `/admin/stipend/release` | user, AY, semester, admin password | HTTP 201, "Claim stub released. The recipient has been notified that it is ready to claim."; status `certified`; control number `SWAP-STP-YYYYMM-#####`; supervisor + director signatures; PDF archived; audit `released`; claim token **not** in the response |  |  |
@@ -446,25 +493,33 @@ Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → 
 | TC-STIP-014 | P2 | [N] Bad or expired unlock token | Admin | Release/void with a bogus token | `unlock_token=bogus` | HTTP 422, "The stipend gate has expired. Re-enter your password to unlock it again." |  |  |
 | TC-STIP-015 | P1 | [H] Bulk release from the checklist | Unlocked; 2 eligible + 1 ineligible + 1 duplicate item | POST `/admin/stipend/release-bulk` | items + `unlock_token` | "Released 2 stub(s). 2 skipped."; skipped reasons "Not eligible for this period." / "Already has a live stipend for this period." |  |  |
 | TC-STIP-016 | P2 | [B] Bulk size limits | Unlocked | POST release-bulk | 0 items; 101 items | HTTP 422 (1–100 items) |  |  |
-| TC-STIP-017 | P1 | [H] Recipient downloads the stub | Certified stub | GET `/recipient/stipend/{id}/slip` | — | PDF with control number, amount, period, supervisor and director signatures (ink when specimens exist) |  |  |
+| TC-STIP-017 | P1 | [H] Recipient downloads the stub | Certified stub | GET `/recipient/stipend/{id}/slip` | — | PDF with control number, amount, period, supervisor and director signatures (ink when specimens exist) and a QR labelled "Banking Office: scan to verify and release"; the Stipend page says "Present this stub at the Banking Office — the releasing officer confirms it." |  |  |
 | TC-STIP-018 | P2 | [N] Stub can't be rendered | PDF engine failing (e.g. GD missing) | Download the stub | — | HTTP 503, "Your claim stub could not be generated right now. Please try again in a few minutes or contact the DSA office." |  |  |
-| TC-STIP-019 | P1 | [H] Recipient confirms receipt at the Banking Office | Certified stub, owner | POST `/recipient/stipend/{id}/confirm-receipt` | `releasing_officer_name=Cashier Jane Doe` | "Receipt confirmed. Your Receiving Slip has been recorded."; status `claimed`; beneficiary + releasing-officer signatures added; claim token cleared; PDF re-rendered; "received" notification |  |  |
-| TC-STIP-020 | P1 | [S] Can't confirm someone else's stub | Stub of recipient B | Confirm as recipient A | officer name | HTTP 422, "This stipend does not belong to you."; still `certified` |  |  |
-| TC-STIP-021 | P1 | [N] Can't confirm twice or after void | Stub `claimed` or `void` | Confirm | officer name | HTTP 422, "This stipend is not available to claim." |  |  |
-| TC-STIP-022 | P1 | [H] Banking Office verifies a claim token | Certified stub | GET `/stipend/verify/{claimToken}` (no login) | the stub's token | HTTP 200, `valid:true` with control number, recipient name, amount, period, status only |  |  |
+| TC-STIP-019 | P1 | [H] Banking Office records the payout | Certified stub; Banking Office PIN set | Scan the stub's QR (opens `/claim/{token}`, no login), enter the PIN, "Confirm payout released" (POST `/stipend/verify/{claimToken}/release`) | officer set up as `Juan Dela Cruz`; the PIN | Before confirming, the page lists "Releasing officer: Juan Dela Cruz" and asks only for the PIN; "Payout recorded. The stub is now marked as claimed."; page shows "Released — Recorded at {time} by Juan Dela Cruz"; status `claimed`; beneficiary + releasing-officer signatures added; claim token cleared; PDF re-rendered **without** the QR; "received" notification; audit `claimed` with `via: banking_office` |  |  |
+| TC-STIP-020 | P1 | [S] Wrong or missing Banking Office PIN | Certified stub; officer + PIN set | Submit with a wrong PIN, then with none | `999999`; empty | HTTP 422 on `pin`: "The Banking Office PIN is incorrect." / "Enter the Banking Office PIN."; the PIN box is cleared; stub stays `certified` |  |  |
+| TC-STIP-021 | P1 | [N] Can't record twice or after void | Stub `claimed` or `void` | Re-open the QR page / POST release again | same token | Page: "Do not release" with "This claim slip is invalid, already claimed, or has been voided."; API HTTP 404 `valid:false` |  |  |
+| TC-STIP-022 | P1 | [H] Banking Office verifies a claim token | Certified stub | Open `/claim/{token}` (GET `/stipend/verify/{claimToken}`, no login) | the stub's token | HTTP 200, `valid:true` with control number, recipient name, amount, period, status and the releasing officer's name only; the page shows them with the PIN form |  |  |
 | TC-STIP-023 | P1 | [S] Used, void or unknown token is refused | Stub claimed or voided, or random token | GET verify | token | HTTP 404, `valid:false`, "This claim slip is invalid, already claimed, or has been voided." |  |  |
 | TC-STIP-024 | P2 | [S] Verify endpoint throttled | — | 31 verify calls in a minute | random tokens | 31st → HTTP 429 |  |  |
 | TC-STIP-025 | P1 | [H] Void before claim | Certified stub | POST `/admin/stipend/{id}/void` | reason + step-up | "Stipend voided."; token cleared (verify → 404); audit `voided`; the period becomes releasable again |  |  |
 | TC-STIP-026 | P1 | [N] A claimed stub can't be voided | Claimed stub | POST void | reason + step-up | HTTP 422, "A claimed stipend cannot be voided. Post a reversing entry instead." |  |  |
-| TC-STIP-027 | P1 | [N] Receipt still saves if the notification fails | Mail server down | Confirm receipt | officer name | HTTP 200, status `claimed` (no 500; a retry would otherwise hit TC-STIP-021) |  |  |
+| TC-STIP-027 | P1 | [N] Payout still saves if the notification fails | Mail server down | Record the payout (TC-STIP-019) | the PIN | HTTP 200, status `claimed` (no 500; a retry would otherwise hit TC-STIP-021) |  |  |
 | TC-STIP-028 | P2 | [H] Totals follow the claim lifecycle | One claimed (₱5,000), one legacy released (₱4,000), one certified (₱3,000), one void | Admin analytics overview and Stipend report preview | period | Paid/"Total Claimed" = ₱9,000; "Awaiting Claim" = ₱3,000; void excluded; chart series "Claimed" / "Awaiting claim" |  |  |
 | TC-STIP-029 | P3 | [B] History page size | Recipient | GET history with `per_page` 100 and 101 | — | 100 → HTTP 200; 101 → HTTP 422 |  |  |
 | TC-STIP-030 | P2 | [H] Amount override | Eligible recipient | Release with a custom amount | `amount=4500` | Stub amount ₱4,500 (default ₱5,000 when omitted) |  |  |
-| TC-STIP-031 | P2 | [H] Promissory-approved recipient is releasable | Short on hours, approved promissory note | GET eligible, then release | — | Listed "via promissory"; release succeeds and the stub remarks cite the note |  |  |
+| TC-STIP-031 | P2 | [H] Promissory-approved recipient is releasable | Short on hours, approved promissory note, signature + end-of-term report | GET eligible, then release | — | Listed "via promissory"; release succeeds and the stub remarks cite the note |  |  |
+| TC-STIP-032 | P1 | [S] **OBSOLETE** — the student can't self-confirm | Certified stub, owner | POST `/recipient/stipend/{id}/confirm-receipt` | officer name | HTTP 404; stub stays `certified` |  |  |
+| TC-STIP-033 | P1 | [N] Officer / PIN not set up yet | No releasing officer + PIN saved | Open a claim link; POST release anyway | any PIN | The page shows "The Banking Office PIN has not been set up yet. Please contact the DSA Office." and keeps Confirm disabled; the API answers HTTP 422 with the same message |  |  |
+| TC-STIP-034 | P1 | [S] PIN guessing is throttled | PIN set | 7 release attempts in a minute from the same device | wrong PINs | 7th → HTTP 429 (even with the right PIN) |  |  |
+| TC-STIP-035 | P1 | [H] Admin sets the releasing officer and PIN | Admin, Stipend unlocked | Banking Office Releasing Officer card → Set up (PUT `/admin/stipend/banking-office-pin`); later change only the name with the PIN left blank | `Juan Dela Cruz`, `24681357` twice; then `Maria Santos` | "Releasing officer and PIN saved. Give the PIN only to Juan Dela Cruz."; card shows the name, "Set" and when the PIN last changed; renaming: "Releasing officer updated. The PIN is unchanged." and the old PIN still works; audit `banking_office_pin_changed` with old/new names and `pin_changed`, **never** the PIN; GET returns `is_set` / `has_pin` / `officer_name` / `updated_at` only |  |  |
+| TC-STIP-036 | P1 | [N] Release refused without the recipient's signature | Eligible on hours; recipient has no specimen | Release (single); bulk with that item | valid step-up | Single → HTTP 422, "This recipient has not saved a digital signature yet."; bulk skips it with the same reason |  |  |
+| TC-STIP-037 | P1 | [N] Release refused without the end-of-term report | Eligible on hours; no term report | Release (single); bulk with that item | valid step-up | Single → HTTP 422, "This recipient has not submitted their end-of-term narrative report yet."; bulk skips it with the same reason |  |  |
+| TC-STIP-038 | P2 | [B] Officer + PIN validation | Admin | Save the card | no name; first setup with no PIN; `12ab`; `12345`; `123456789`; two different entries; no step-up | HTTP 422: "Enter the releasing officer's name." / "Enter a PIN for the releasing officer." / "The Banking Office PIN must be 6 to 8 digits." / "The two PIN entries do not match." / step-up error |  |  |
+| TC-STIP-039 | P1 | [S] The stub carries the admin-set name, never a typed one | Officer set up as `Juan Dela Cruz` | Record a payout while also sending `releasing_officer_name=admin@msu-marawi.edu.ph` (e.g. browser autofill); then rename the officer | — | Stub (Return Slip + Receiving Slip) and audit show "Juan Dela Cruz"; the sent name is ignored; the PIN box offers no saved login password; renaming the officer later leaves already-released stubs unchanged |  |  |
 
 ---
 
-## 21. Module: Reports & Duty Slips (`TC-RPT`) — Recipient / Supervisor / Admin
+## 22. Module: Reports & Duty Slips (`TC-RPT`) — Recipient / Supervisor / Admin
 
 Duty slips are built in the browser from the attendance logs and carry a Control No. `SWAP-{SID}-{YY}{YY}{S1/S2/SM}-{SEM or W<yyyymmdd>}-{checksum}` that the admin can verify.
 
@@ -489,9 +544,9 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 
 ---
 
-## 22. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`)
+## 23. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`)
 
-### 22.1 QR codes
+### 23.1 QR codes
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-QR-001 | P2 | [H] Office QR generation & validation | Office exists | Generate QR, then validate token | office | Valid signed token resolves back to the office |  |  |
@@ -501,7 +556,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-QR-005 | P1 | [S] **OBSOLETE** — public QR endpoints removed | Assignment exists | GET `/qr-codes/{assignmentId}` and `/qr-codes/{assignmentId}/view` without a token | ids 1, 2, 3 | HTTP 404 for every id (they used to leak names and clock-out QR tokens) |  |  |
 | TC-QR-006 | P2 | [S] A token only works for its own assignment | Two assignments | Validate assignment A's token as B | A's token | Rejected |  |  |
 
-### 22.2 Chatbot / FAQ
+### 23.2 Chatbot / FAQ
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-BOT-001 | P3 | [H] FAQ query returns a match | FAQ knowledge base seeded | GET `/chatbot/query?message=how long does the application review take` | question | HTTP 200 with `answer`, `faq_id`, `confidence`, `category` |  |  |
@@ -511,15 +566,21 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-BOT-005 | P2 | [S] Chatbot is rate limited | — | 21 queries in a minute | any question | 21st → HTTP 429 (protects the paid AI quota) |  |  |
 | TC-BOT-006 | P3 | [N] AI service slow or down | `GEMINI_API_KEY` set; AI unreachable or > 8 s | Query | FAQ question | FAQ answer returned within ~10 s (no hang, no error) |  |  |
 
-### 22.3 Concerns / Help desk
+### 23.3 Concerns / Help desk
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-CON-001 | P3 | [H] Submit a concern | Logged in | POST `/concerns` | subject + message ≥ 10 chars | HTTP 201, "Your concern has been submitted. The DSA Office will respond shortly." |  |  |
+| TC-CON-001 | P2 | [H] Submit a concern from the Help page | Logged in (non-admin) | Sidebar lifebuoy → Help → Send (POST `/concerns`) | subject + message ≥ 10 chars | HTTP 201, "Your concern has been submitted. The DSA Office will respond shortly."; it appears under "Your concerns" as Open; audit `concern_submitted` |  |  |
 | TC-CON-002 | P3 | [N] Message too short / missing subject | Logged in | POST | message `too` / no subject / message > 2000 chars | HTTP 422 |  |  |
 | TC-CON-003 | P3 | [S] Concerns need a login | Not logged in | POST `/concerns` | valid payload | HTTP 401 |  |  |
-| TC-CON-004 | P3 | [N] Nobody can read submitted concerns [NEEDS-CLARIFICATION] | A concern submitted | Look for it as admin | — | No admin page or endpoint lists concerns yet; record what the DSA expects |  |  |
+| TC-CON-004 | P2 | [H] Admin inbox lists concerns | Concerns in several states | Admin → Concerns (GET `/admin/concerns?status=open`) | tabs Open / In progress / Resolved / All | Sender name, role, email, message; tab counts; open first |  |  |
+| TC-CON-005 | P2 | [H] Reply and resolve | Open concern | Write a reply → "Reply & resolve" (PUT `/admin/concerns/{id}`) | reply text | "Concern resolved. The student has been notified."; the sender gets an in-app notification + email and sees the reply on Help; audit `concern_updated` |  |  |
+| TC-CON-006 | P2 | [N] Can't resolve without any reply | Concern never answered | Resolve with no reply | `status=resolved` | HTTP 422, "Write a reply before marking this concern resolved."; an already-answered concern can be resolved again without a new reply (no new email) |  |  |
+| TC-CON-007 | P1 | [S] Users see only their own concerns | Two users with concerns | GET `/concerns` as each | tokens | Each sees only their own; no sender block in the payload |  |  |
+| TC-CON-008 | P1 | [S] Non-admins can't use the inbox | Applicant, recipient, supervisor | GET `/admin/concerns`, PUT `/admin/concerns/{id}` | their tokens | HTTP 403 |  |  |
+| TC-CON-009 | P3 | [H] Admins are told about new concerns | Active admins | Submit a concern | — | Each active admin gets a "New concern" in-app notification that opens Admin → Concerns |  |  |
+| TC-CON-010 | P3 | [B] Concern spam is throttled | Logged in | 11 submissions in a minute | valid payloads | 11th → HTTP 429 |  |  |
 
-### 22.4 Settings (application/renewal period)
+### 23.4 Settings (application/renewal period)
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-SET-001 | P2 | [H] Public application-status reflects toggle | — | GET `/settings/application-status` | — | Returns `open`, closed message, and renewal window info |  |  |
@@ -528,27 +589,27 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-SET-004 | P3 | [S] Non-admin cannot change settings | Non-admin | PUT `/admin/settings` | any | HTTP 403 |  |  |
 | TC-SET-005 | P3 | [N] Semester end fallback can't be set [NEEDS-CLARIFICATION] | Assignment without an end date | Try to set a semester end date as admin | — | No setting exists for `semester_end_date` in the API/UI; promissory notes then fail with TC-PROM-003 |  |  |
 
-### 22.5 Notifications
+### 23.5 Notifications
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-NOTIF-001 | P2 | [H] List notifications | Logged in with notifications | GET `/notifications` | — | HTTP 200 with the caller's own items only |  |  |
 | TC-NOTIF-002 | P2 | [H] Mark one as read | Unread notification | PUT `/notifications/{id}/read` | id | "Notification marked as read." |  |  |
 | TC-NOTIF-003 | P3 | [H] Mark all as read | Several unread | PUT `/notifications/read-all` | — | "All notifications marked as read." |  |  |
-| TC-NOTIF-004 | P2 | [H] Event-driven notifications fire | Trigger events | Submit app, review, schedule interview, approve/reject, place, verify hours, release stub, confirm receipt, promissory review | — | The right person receives the matching notification (and email where configured) |  |  |
+| TC-NOTIF-004 | P2 | [H] Event-driven notifications fire | Trigger events | Submit app, review, schedule interview, approve/reject, orientation invite, place, verify hours, release stub, Banking Office payout, promissory review, concern reply | — | The right person receives the matching notification (and email where configured) |  |  |
 | TC-NOTIF-005 | P2 | [H] Time-out notifies all eligible verifiers | Office with two supervisors | Clock out | — | Assigned supervisor **and** co-supervisors of the office are notified |  |  |
-| TC-NOTIF-006 | P3 | [N] Notifications don't arrive live [NEEDS-CLARIFICATION] | Page open | Trigger an event from another account | — | Bell updates only on refresh/refetch; real-time push is not functional |  |  |
+| TC-NOTIF-006 | P3 | [H] Bell refreshes without a reload | Page open | Trigger an event from another account; wait ≤ 60 s | — | The bell count updates within about a minute while the tab is visible (the websocket stack was removed; no Echo/Pusher errors in the console) |  |  |
 
-### 22.6 Analytics & Audit logs
+### 23.6 Analytics & Audit logs
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-ANL-001 | P2 | [H] Admin analytics overview | Admin, data present | GET `/admin/analytics/overview?academic_year=…&semester=…` | period | HTTP 200 with aggregates; stipend summary per TC-STIP-028 |  |  |
 | TC-ANL-002 | P3 | [H] Analytics periods | Admin | GET `/admin/analytics/periods` | — | Available AY/semester periods |  |  |
-| TC-ANL-003 | P1 | [H] Audit trail covers every change | Actions performed | GET `/admin/audit-logs` | — | Entries with before/after values and actor for: application steps, interviews, assignments, clock-in/out, narratives, verifications, bonus/required hours, QR regeneration, profile/photo/signature/password changes, deactivation (`tokens_revoked`), stub release/claim/void, promissory review, exports, duty-slip verification |  |  |
+| TC-ANL-003 | P1 | [H] Audit trail covers every change | Actions performed | GET `/admin/audit-logs` | — | Entries with before/after values and actor for: application steps, interviews, assignments, clock-in/out, narratives, verifications, bonus/required hours, QR regeneration, profile/photo/signature/password changes, deactivation (`tokens_revoked`), stub release/claim/void, promissory review, exports, duty-slip verification, orientation sessions/invites/attendance, term reports, concerns, Banking Office PIN change |  |  |
 | TC-ANL-004 | P2 | [H] Admin lists load quickly with many rows | ≥ 50 applications and assignments | Load Admin → Applications and Admin → Assignments | — | Query count stays flat as rows grow (no per-row queries) |  |  |
 
 ---
 
-## 23. Module: RBAC & Cross-Cutting Security (`TC-SEC`) — Attacker
+## 24. Module: RBAC & Cross-Cutting Security (`TC-SEC`) — Attacker
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -565,16 +626,16 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-SEC-011 | P1 | [S] Mass-assignment protection | Logged in | Send extra fields in register, profile and application requests | `role=admin`, `is_active=true`, `status=approved`, `email_verified_at` | Ignored; privileged fields not writable by the user |  |  |
 | TC-SEC-012 | P2 | [S] Throttles hold under burst | — | Burst each endpoint in the Section 2 rate-limit table | rapid requests | HTTP 429 at each documented limit |  |  |
 | TC-SEC-013 | P1 | [S] Deactivated user's file links stop working | User deactivated | Open `/users/{id}/avatar?token=…` with their old token | old token | HTTP 401 |  |  |
-| TC-SEC-014 | P1 | [S] Removed endpoints stay removed | — | Call `/qr-codes/1`, `/qr-codes/1/view`, `POST /admin/users`, `/applicant/applications/1/status`, `/recipient/reports/weekly` | — | HTTP 404 (or 405 for `POST /admin/users`) |  |  |
+| TC-SEC-014 | P1 | [S] Removed endpoints stay removed | — | Call `/qr-codes/1`, `/qr-codes/1/view`, `POST /admin/users`, `/applicant/applications/1/status`, `/recipient/reports/weekly`, `POST /recipient/stipend/1/confirm-receipt` | — | HTTP 404 (or 405 for `POST /admin/users`) |  |  |
 | TC-SEC-015 | P1 | [S] Admin accounts are protected | Two admins | Deactivate an admin; delete an admin; delete yourself | — | HTTP 422: "Admin accounts cannot be deactivated." / "Admin accounts cannot be deleted. Deactivate the account instead." / "You cannot delete your own account." |  |  |
 | TC-SEC-016 | P1 | [S] Admin protection via role change [NEEDS-CLARIFICATION] | Two admins | PUT `/admin/users/{other admin}` with `role=supervisor`, then DELETE | — | Current build allows the demotion and then the delete. Decide whether demoting an admin should be blocked or restricted |  |  |
-| TC-SEC-017 | P1 | [S] Claim token never leaks | Stub released | Inspect release, list, history and slip API responses | — | `claim_token` absent from every response; only the stub PDF owner flow uses it |  |  |
+| TC-SEC-017 | P1 | [S] Claim token never leaks | Stub released | Inspect release, list, history and slip API responses | — | `claim_token` absent from every JSON response; it travels only inside the stub's printed QR |  |  |
 | TC-SEC-018 | P2 | [S] Existence of files is not revealed [NEEDS-CLARIFICATION] | User without a signature/photo | Request `/users/{id}/signature` as an unrelated user | — | Current build answers 404 "No signature on file." before checking permission, which reveals who has no specimen |  |  |
 | TC-SEC-019 | P2 | [S] Tampered step-up / unlock token | Admin | Void with another admin's unlock token | foreign token | HTTP 422 (tokens are bound to the admin who unlocked) |  |  |
 
 ---
 
-## 24. Non-Functional Test Cases (`TC-NFR`)
+## 25. Non-Functional Test Cases (`TC-NFR`)
 
 | ID | Category | Test Scenario | How to Test | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|
@@ -584,7 +645,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-NFR-004 | Usability | Mobile responsiveness | Open recipient attendance/scan on a phone | Layout usable; QR scanner & GPS prompts work |  |  |
 | TC-NFR-005 | Compatibility | Cross-browser | Test on Chrome, Edge, Firefox, mobile Safari | Consistent behaviour |  |  |
 | TC-NFR-006 | Reliability | Scheduler runs exactly once per slot | Run the web container's `schedule:work` and the cron `schedule:run` together; check `schedule:list` | `attendance:close-stale` hourly, signature reminder weekly, token pruning daily — each job fires once per slot (database lock) |  |  |
-| TC-NFR-007 | Reliability | Mail outage doesn't break saves | Point MAIL at a dead server; approve, place, confirm receipt, resend verification | Every action saves and returns success; failures are logged |  |  |
+| TC-NFR-007 | Reliability | Mail outage doesn't break saves | Point MAIL at a dead server; approve, place, record a Banking Office payout, reply to a concern, resend verification | Every action saves and returns success; failures are logged |  |  |
 | TC-NFR-008 | Availability | GPS/permission denied handling | Deny location permission in the browser | Clear, friendly error; no crash |  |  |
 | TC-NFR-009 | Security | HTTPS & token handling | Inspect transport, logs and mail | HTTPS only; reset/verification/invitation links not written to production logs (mailer not `log`) |  |  |
 | TC-NFR-010 | Data integrity | Duration is DB-computed | Create logs and inspect `duration_hours` | Always derived from time_in/time_out (not client-writable) |  |  |
@@ -596,59 +657,59 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 
 ---
 
-## 25. Open Questions (NEEDS-CLARIFICATION)
+## 26. Open Questions (NEEDS-CLARIFICATION)
 
 | # | Topic | What the build does now | Decision needed | Cases |
 |---|---|---|---|---|
 | 1 | Promissory makeup deadline | Approval makes the student payable immediately; the deadline is display-only; several approved notes per assignment are possible; `lacking_hours` isn't checked against the real shortfall | Should payment wait for the makeup hours or the deadline? | TC-PROM-015 |
 | 2 | Promissory with zero hours | Allowed when verified = 0 | Is a note acceptable with no hours at all? | TC-PROM-014 |
-| 3 | Bank verification from the paper stub | The stub prints only the control number; the claim-token verify link/QR is never shown to anyone | Print a QR of the verify link, or retire the token? | TC-STIP-022/023 |
-| 4 | Concerns inbox | Concerns are saved but nobody can read them | Build an admin inbox, or remove the feature? | TC-CON-004 |
-| 5 | Semester end fallback | `semester_end_date` can only be set in the database | Add it to Settings? | TC-SET-005 |
-| 6 | Admin demotion | Any admin can demote another admin, then delete them | Block or restrict demoting admins? | TC-SEC-016 |
-| 7 | File existence leak | Signature/avatar return 404 before the permission check | Check permission first? | TC-SEC-018 |
-| 8 | Real-time notifications | Live push is not functional | Fix or remove the real-time stack? | TC-NOTIF-006 |
-| 9 | Upload durability | Free-tier disk loses uploads on redeploy | Move to object storage (R2)? | TC-NFR-014 |
-| 10 | Pasted QA rule "chatbot unthrottled" | Chatbot is throttled at 20/min | None — the catalogue follows the code | TC-BOT-005 |
+| 3 | Semester end fallback | `semester_end_date` can only be set in the database | Add it to Settings? | TC-SET-005 |
+| 4 | Admin demotion | Any admin can demote another admin, then delete them | Block or restrict demoting admins? | TC-SEC-016 |
+| 5 | File existence leak | Signature/avatar return 404 before the permission check | Check permission first? | TC-SEC-018 |
+| 6 | Upload durability | Free-tier disk loses uploads on redeploy | Move to object storage (R2)? | TC-NFR-014 |
+| 7 | Pasted QA rule "chatbot unthrottled" | Chatbot is throttled at 20/min | None — the catalogue follows the code | TC-BOT-005 |
+
+Resolved on 2026-09-28 and removed from this list: the Banking Office verify QR (TC-STIP-019..022), the concerns inbox (TC-CON-004..010) and the real-time stack (TC-NOTIF-006).
 
 ---
 
-## 26. Traceability & Coverage Summary
+## 27. Traceability & Coverage Summary
 
 | Module | Test Case Range | Count | Priority focus | Automated by (PHPUnit / Vitest) |
 |---|---|---|---|---|
 | Registration | TC-REG-001..015 | 15 | Auth integrity, validation | AuthTest |
 | Email Verification | TC-EV-001..008 | 8 | Account activation | AuthTest |
-| Login / Sessions | TC-AUTH-001..012 | 12 | Auth, session revocation | AuthTest, AccountStatusTest |
+| Login / Sessions | TC-AUTH-001..018 | 18 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
 | Password Reset | TC-PWD-001..007 | 7 | Auth | — (manual) |
 | Staff Invitations | TC-INV-001..008 | 8 | Onboarding | — (manual) |
 | Applications | TC-APP-001..016 | 16 | Core workflow | DocumentTest, ResourceAccessTest, NotificationTest |
 | Renewal | TC-REN-001..008 | 8 | Core workflow | — (manual) |
 | Admin Review & Interviews | TC-ADMR-001..026 | 26 | State machine, interview rules | AdminTest, InterviewLifecycleTest |
-| Assignments & QR | TC-ASSIGN-001..014 | 14 | Placement integrity | AdminTest, QrCodeServiceTest, AuditTrailTest |
+| Orientation | TC-ORI-001..012 | 12 | Placement prerequisite | OrientationTest |
+| Assignments & QR | TC-ASSIGN-001..017 | 17 | Placement integrity, orientation gate | AdminTest, OrientationTest, QrCodeServiceTest, AuditTrailTest |
 | Profile & Account | TC-PROF-001..010 | 10 | Account mgmt | AuditTrailTest, SignatureTest |
-| Signature Specimen | TC-SIG-001..009 | 9 | Clock-in gate, receipts | SignatureTest, StipendClaimTest, AttendanceTest |
+| Signature Specimen | TC-SIG-001..009 | 9 | Payout signature, receipts | SignatureTest, StipendClaimTest, AttendanceTest |
 | Attendance / Clock-In | TC-ATT-001..024 | 24 | Integrity, geofence | AttendanceTest, AuditTrailTest; axiosInterceptors (Vitest) |
-| Clock-Out / Auto | TC-OUT-001..014 | 14 | Integrity | AttendanceTest, AuditTrailTest |
-| Narrative Reports | TC-NARR-001..008 | 8 | Workflow | AttendanceTest |
+| Clock-Out / Auto | TC-OUT-001..016 | 16 | Integrity | AttendanceTest, AuditTrailTest |
+| Session Notes & Term Report | TC-NARR-001..014 | 14 | Workflow, payout prerequisite | AttendanceTest, TermReportTest |
 | Hours | TC-HRS-001..003 | 3 | Hours | AttendanceTest |
 | Promissory Notes | TC-PROM-001..015 | 15 | Money eligibility | PromissoryNoteTest |
 | Verification & Students | TC-VERIF-001..019 | 19 | Integrity, hours | VerificationTest, SupervisorReportTest, AuditTrailTest |
-| Stipend Claim Stubs | TC-STIP-001..031 | 31 | Money integrity | StipendClaimTest, StipendTotalsTest, SignatureTest |
+| Stipend Claim Stubs | TC-STIP-001..039 | 39 | Money integrity, Banking Office release | StipendClaimTest, StipendTotalsTest, SignatureTest |
 | Reports & Duty Slips | TC-RPT-001..016 | 16 | Reporting, tamper-evidence | DutySlipVerifyTest, SupervisorReportTest, StipendTotalsTest; DutySlip (Vitest) |
 | QR codes | TC-QR-001..006 | 6 | Security | QrCodeServiceTest |
 | Chatbot / FAQ | TC-BOT-001..006 | 6 | Support, cost | ChatbotTest |
-| Concerns | TC-CON-001..004 | 4 | Support | — (manual) |
+| Concerns | TC-CON-001..010 | 10 | Support | ConcernTest |
 | Settings | TC-SET-001..005 | 5 | Config | — (manual) |
 | Notifications | TC-NOTIF-001..006 | 6 | Comms | NotificationTest |
 | Analytics & Audit | TC-ANL-001..004 | 4 | Admin, traceability | StipendTotalsTest, AuditTrailTest, ListQueryCountTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..015 | 15 | Quality attributes | CI workflow (TC-NFR-013) |
-| **TOTAL** | — | **328** | — | — |
+| **TOTAL** | — | **371** | — | — |
 
 ---
 
-## 27. P1 Smoke List (run first, in order)
+## 28. P1 Smoke List (run first, in order)
 
 One end-to-end pass through the money-and-integrity path. Every step must pass before the full round.
 
@@ -660,23 +721,24 @@ One end-to-end pass through the money-and-integrity path. Every step must pass b
 | 4 | Applicant | Submit an application and upload the COR | TC-APP-001, TC-APP-007 |
 | 5 | Admin | Move to review, schedule an in-window interview | TC-ADMR-002, TC-ADMR-003 |
 | 6 | Admin | Approve after the interview | TC-ADMR-011 |
-| 7 | Admin | Assign office + supervisor | TC-ASSIGN-001 |
-| 8 | Recipient | Save a signature specimen | TC-SIG-001 |
+| 7 | Admin | Schedule an orientation, invite, mark the applicant Attended | TC-ORI-001, TC-ORI-004, TC-ORI-007 |
+| 8 | Admin | Assign office + supervisor | TC-ASSIGN-001 |
 | 9 | Recipient | Clock in inside the geofence (Mon–Sat, 06:00–17:30) | TC-ATT-001 |
-| 10 | Recipient | Submit the narrative, clock out with the office QR | TC-NARR-001, TC-OUT-001 |
+| 10 | Recipient | Clock out with the office QR (note optional) | TC-OUT-002 |
 | 11 | Supervisor | Verify the log | TC-VERIF-001 |
-| 12 | Admin | Release the claim stub (step-up) once hours are met | TC-STIP-004 |
-| 13 | Recipient | Download the stub PDF | TC-STIP-017 |
-| 14 | Banking Office | Verify the claim token | TC-STIP-022 |
-| 15 | Recipient | Confirm receipt | TC-STIP-019 |
-| 16 | Banking Office | Re-check the same token → 404 | TC-STIP-023 |
-| 17 | Attacker | Deactivated token refused; tampered QR refused; removed endpoints 404 | TC-AUTH-009, TC-ATT-003, TC-SEC-014 |
+| 12 | Recipient | Save a signature specimen and submit the end-of-term report | TC-SIG-001, TC-NARR-009 |
+| 13 | Admin | Set up the releasing officer's name and PIN | TC-STIP-035 |
+| 14 | Admin | Release the claim stub (step-up) once hours are met | TC-STIP-004 |
+| 15 | Recipient | Download the stub PDF (QR printed) | TC-STIP-017 |
+| 16 | Banking Office | Scan the QR, enter the PIN → claimed under the admin-set name | TC-STIP-022, TC-STIP-019 |
+| 17 | Banking Office | Re-scan the same QR → "Do not release" / 404 | TC-STIP-021, TC-STIP-023 |
+| 18 | Attacker | Deactivated token refused; tampered QR refused; removed endpoints 404 | TC-AUTH-009, TC-ATT-003, TC-SEC-014 |
 
 ---
 
-## 28. Suggested test execution rounds
+## 29. Suggested test execution rounds
 
-1. **Smoke round (P1 only):** the list in Section 27.
+1. **Smoke round (P1 only):** the list in Section 28.
 2. **Full functional round (P1+P2):** every module, `[H]` + `[N]` + `[B]`.
 3. **Security round:** every `[S]` case, all `TC-SEC-*`, QR tamper, rate limits, the RBAC matrix.
 4. **Non-functional round:** performance, mobile, scheduler, mail outage, recoverability.

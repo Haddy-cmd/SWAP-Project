@@ -7,6 +7,13 @@
 > **Date:** 2026-09-21. Written for the developer who will implement this and the product
 > owner who will approve scope. References to `docs/SYSTEM_OVERVIEW.md` use its section
 > numbers (§4, §11.3, …).
+>
+> **Update 2026-09-28:** the student no longer confirms receipt. The certified stub prints a
+> Banking Office QR (`/claim/{claimToken}`); the releasing officer enters the Banking Office PIN
+> (the admin sets the officer's name with it), and `POST /stipend/verify/{claimToken}/release` records the payout (same
+> effects as the old step 8). `POST /recipient/stipend/{id}/confirm-receipt` was removed. Release
+> also requires the recipient's saved signature and end-of-term report. See
+> `docs/SYSTEM_OVERVIEW.md` §6.
 
 ## Verified starting point (read from the code)
 

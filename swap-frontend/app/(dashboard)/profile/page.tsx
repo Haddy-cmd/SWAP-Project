@@ -385,7 +385,7 @@ export default function ProfilePage() {
                           ? 'Drawn on every claim stub you certify as Director'
                           : role === 'supervisor'
                             ? 'Drawn on every stub co-signed as SWAP Mentor'
-                            : 'Required before you can clock in — signs your receipts at payout'}
+                            : 'Required before your stipend can be released — signs your claim stub and receipt'}
                       </div>
                     </div>
                   </div>
@@ -413,7 +413,7 @@ export default function ProfilePage() {
                   ) : (
                     <p className={`mb-3 text-[13px] ${role === 'recipient' ? 'font-semibold text-danger-700' : 'text-ink-500'}`}>
                       {role === 'recipient'
-                        ? 'Clock-in is blocked until you save a signature. Draw below or upload an image.'
+                        ? 'Your stipend cannot be released until you save a signature. Draw below or upload an image.'
                         : 'No specimen on file — stubs show your printed name instead. Draw below or upload an image.'}
                     </p>
                   )}

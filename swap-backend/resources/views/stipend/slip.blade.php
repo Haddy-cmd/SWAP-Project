@@ -97,11 +97,24 @@
         </tr>
     </table>
 
-    <div class="body">
-        This is to certify that Mr./Ms. <b>{{ $name }}</b> is a bonafide beneficiary of the
-        Student Welfare Assistantship Program (SWAP) and has completed the duty hours required for
-        <b>{{ $period }}</b>.
-    </div>
+    <table width="100%">
+        <tr>
+            <td style="vertical-align: top;">
+                <div class="body">
+                    This is to certify that Mr./Ms. <b>{{ $name }}</b> is a bonafide beneficiary of the
+                    Student Welfare Assistantship Program (SWAP) and has completed the duty hours required for
+                    <b>{{ $period }}</b>.
+                </div>
+            </td>
+            @if (!empty($claimQr))
+                {{-- The releasing officer scans this to verify the stub and record the payout. --}}
+                <td style="width: 96px; text-align: center; vertical-align: top; padding-left: 10px;">
+                    <img src="{{ $claimQr }}" style="width: 84px; height: 84px;" alt="">
+                    <div style="font-size: 7px; line-height: 1.25; color: #333;">Banking Office:<br>scan to verify and release</div>
+                </td>
+            @endif
+        </tr>
+    </table>
 
     <table class="sigrow">
         <tr>
