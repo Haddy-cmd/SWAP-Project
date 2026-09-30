@@ -25,27 +25,20 @@ class AssignmentService
 
     public function createAssignment(array $data, User $admin): Assignment
     {
-        // Not a column: recorded on the audit row when the admin placed a new
-        // applicant without an attended orientation.
-        $skippedOrientation = (bool) ($data['skip_orientation'] ?? false);
-        unset($data['skip_orientation']);
-
         // Assignment, QR secret and role promotion land together or not at all; the
         // unique active-per-term index turns a double-submit into a clean 422.
         try {
-            $assignment = DB::transaction(function () use ($data, $admin, $skippedOrientation) {
+            $assignment = DB::transaction(function () use ($data, $admin) {
                 $assignment = $this->assignmentRepository->create($data);
 
                 $this->qrCodeService->generateForAssignment($assignment);
 
                 $user = User::find($data['user_id']);
-                $overrode = $skippedOrientation && $user && OrientationService::needsOrientation($user);
                 if ($user && $user->isApplicant()) {
                     $user->update(['role' => 'recipient']);
                 }
 
-                AuditLog::record('created', $assignment->fresh(), null,
-                    $assignment->toArray() + ($overrode ? ['skip_orientation' => true] : []), $admin->id);
+                AuditLog::record('created', $assignment->fresh(), null, $assignment->toArray(), $admin->id);
 
                 return $assignment;
             });

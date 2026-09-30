@@ -2,11 +2,9 @@
 
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, FileText, Clock, CheckCircle, Presentation, MapPin, Video } from 'lucide-react'
+import { Plus, FileText, Clock, CheckCircle } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { applicationsApi } from '@/lib/api/applications.api'
-import { orientationApi } from '@/lib/api/orientation.api'
-import { formatDateTime } from '@/lib/utils/formatDate'
 import { ApplicationCard } from '@/components/application/ApplicationCard'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 
@@ -20,15 +18,6 @@ export default function ApplicantDashboard() {
 
   const latest = applications?.[0]
   const hasApproved = applications?.some((a) => a.status === 'approved') ?? false
-
-  // Orientation comes between approval and office placement.
-  const { data: orientations = [] } = useQuery({
-    queryKey: ['orientation', 'mine'],
-    queryFn: () => orientationApi.getMine(),
-    enabled: hasApproved,
-  })
-  const attended = orientations.find((o) => o.status === 'attended')
-  const upcoming = orientations.find((o) => o.status === 'invited' && new Date(o.scheduled_at).getTime() > Date.now())
 
   return (
     <div className="space-y-6">
@@ -65,46 +54,6 @@ export default function ApplicantDashboard() {
               regarding your office assignment. You&apos;ll be notified once an office and supervisor have
               been assigned to you. New applications are unavailable while your assignment is being processed.
             </p>
-          </div>
-        </div>
-      )}
-
-      {/* Orientation: required before office placement */}
-      {hasApproved && (
-        <div className="flex items-start gap-3 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
-            <Presentation className="h-5 w-5 text-brand-700" />
-          </div>
-          <div className="min-w-0">
-            {attended ? (
-              <>
-                <p className="font-semibold text-ink-900">Orientation attended</p>
-                <p className="mt-1 text-sm text-ink-500">
-                  You attended {attended.title} on {formatDateTime(attended.scheduled_at)}. You&apos;re ready for office placement.
-                </p>
-              </>
-            ) : upcoming ? (
-              <>
-                <p className="font-semibold text-ink-900">Upcoming orientation</p>
-                <p className="mt-1 text-sm font-medium text-ink-700">{upcoming.title}</p>
-                <p className="text-sm text-ink-500">{formatDateTime(upcoming.scheduled_at)}</p>
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-500">
-                  {upcoming.mode === 'online' ? <Video className="h-4 w-4 flex-none" /> : <MapPin className="h-4 w-4 flex-none" />}
-                  {upcoming.mode === 'online' && upcoming.meeting_link
-                    ? <a href={upcoming.meeting_link} target="_blank" rel="noreferrer" className="truncate text-brand-700 underline">Join the meeting</a>
-                    : upcoming.location}
-                </p>
-                {upcoming.notes && <p className="mt-1 text-xs italic text-ink-500">{upcoming.notes}</p>}
-                <p className="mt-2 text-xs text-ink-500">Attendance is required before you can be placed in an office.</p>
-              </>
-            ) : (
-              <>
-                <p className="font-semibold text-ink-900">Orientation</p>
-                <p className="mt-1 text-sm text-ink-500">
-                  The DSA will invite you to an orientation session. Attending it is required before you can be placed in an office.
-                </p>
-              </>
-            )}
           </div>
         </div>
       )}

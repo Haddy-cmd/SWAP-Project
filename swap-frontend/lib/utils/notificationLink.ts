@@ -28,8 +28,8 @@ export function notificationLink(n: Notification, role?: string | null): string 
       return '/admin/assignments'
     case 'concern': // new concern (admin) / the DSA replied (sender)
       return role === 'admin' ? '/admin/concerns' : '/help'
-    case 'orientation': // invited to an orientation session → the dashboard card
-      return role === 'admin' ? '/admin/orientation' : '/applicant/dashboard'
+    case 'announcement': // the full text is on the Notifications page
+      return '/notifications'
     default:
       return null
   }

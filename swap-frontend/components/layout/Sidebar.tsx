@@ -12,7 +12,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
   BarChart2, Building2, Banknote, Bell, BookOpen,
-  ClipboardList, LogOut, Calendar, X, QrCode, ShieldCheck, RefreshCw, Images, Presentation, Inbox, LifeBuoy,
+  ClipboardList, LogOut, Calendar, X, QrCode, ShieldCheck, RefreshCw, Images, Megaphone, Inbox, LifeBuoy,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
@@ -44,7 +44,6 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { label: 'Applications', href: '/admin/applications', icon: FileText },
     { label: 'Interviews', href: '/admin/interviews', icon: Calendar },
-    { label: 'Orientation', href: '/admin/orientation', icon: Presentation },
     { label: 'Assignments', href: '/admin/assignments', icon: Users },
     { label: 'Offices', href: '/admin/offices', icon: Building2 },
     { label: 'Users', href: '/admin/users', icon: Users },
@@ -52,6 +51,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
     { label: 'Reports', href: '/admin/reports', icon: ClipboardList },
     { label: 'Verify Slip', href: '/admin/duty-slip-verify', icon: ShieldCheck },
+    { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },
     { label: 'Concerns', href: '/admin/concerns', icon: Inbox },
     { label: 'Landing Page', href: '/admin/landing', icon: Images },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: BookOpen },

@@ -107,7 +107,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
                   <div className="text-[15px]" style={{ fontWeight: isUnread ? 700 : 500, color: isUnread ? '#13241A' : '#34433A' }}>
                     {n.data.title}
                   </div>
-                  <div className="mt-0.5 text-[13px] leading-[1.45] text-ink-500">{n.data.message}</div>
+                  <div className="mt-0.5 whitespace-pre-line text-[13px] leading-[1.45] text-ink-500">{n.data.message}</div>
                 </div>
                 <span className="mt-px flex-none whitespace-nowrap text-[12px] tabular-nums text-ink-400">
                   {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}

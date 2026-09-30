@@ -53,6 +53,4 @@ export interface CreateAssignmentData {
   required_hours: number
   start_date: string
   end_date?: string
-  // Place a new applicant who has not attended an orientation (audited).
-  skip_orientation?: boolean
 }

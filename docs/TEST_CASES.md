@@ -3,7 +3,7 @@
 **System:** SWAP (Student Welfare Assistantship Program) Portal — MSU Main Campus
 **Architecture:** Laravel 12 (REST API) backend + Next.js 15 frontend, PostgreSQL
 **Document purpose:** Complete catalogue of test cases for capstone documentation and system testing (functional, negative, boundary, security, and non-functional).
-**Last aligned with the code:** 2026-09-28 (process-gap changes: Banking Office QR release, orientation step, end-of-term report, optional session notes, per-office auto clock-out, concerns inbox, real-time stack removed). The backend is the source of truth: every expected message below is the exact text the API returns.
+**Last aligned with the code:** 2026-09-30 (Banking Office QR release with an admin-set releasing officer, end-of-term report, optional session notes, per-office auto clock-out, concerns inbox, announcements, one sign-in per browser; orientation step removed; real-time stack removed).
 
 ---
 
@@ -19,7 +19,7 @@ Each test case has a stable **ID** (e.g. `TC-AUTH-001`). Columns:
 - **Actual Result** — *(fill in during execution)*.
 - **Status** — *(fill in: ✅ Pass / ❌ Fail / ⛔ Blocked)*.
 
-For your defense, keep the last two columns blank in the master copy and fill a dated execution copy per test round. The summary/traceability matrix is in [Section 27](#27-traceability--coverage-summary).
+For your defense, keep the last two columns blank in the master copy and fill a dated execution copy per test round. The summary/traceability matrix is in [Section 26](#26-traceability--coverage-summary).
 
 ### Priority key
 `P1` critical (money, integrity, security, auth) · `P2` core workflow · `P3` supporting/UX.
@@ -30,7 +30,7 @@ For your defense, keep the last two columns blank in the master copy and fill a 
 ### Markers
 - **OBSOLETE** — the feature was removed; the case is kept (same ID) and now checks that the old endpoint is really gone.
 - **[KNOWN GAP]** — the expected result is the *correct* behaviour, but the current build does something else. Expect ❌ until it is fixed.
-- **[NEEDS-CLARIFICATION]** — the rule is undecided or the behaviour may be intended; see [Section 26](#26-open-questions-needs-clarification).
+- **[NEEDS-CLARIFICATION]** — the rule is undecided or the behaviour may be intended; see [Section 25](#25-open-questions-needs-clarification).
 
 ### Personas (the order modules are tested in)
 Visitor → Applicant → Admin (review & placement) → Recipient → Supervisor → Admin (stipends & reports) → Attacker.
@@ -52,7 +52,6 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | Default stipend | ₱5,000 per semester (admin can override per release) |
 | Stipend release needs | Verified hours met (or an approved promissory note) **and** the recipient's saved signature **and** their end-of-term narrative report |
 | Banking Office | No account. The releasing officer scans the stub's QR (`/claim/{token}`) and enters the **Banking Office PIN** (6–8 digits). The admin sets the officer's name together with the PIN on Admin → Stipend; that name is what prints on the stub |
-| Orientation | A new applicant must have **attended** an orientation before placement (admin can "Place anyway", audited); renewing recipients are exempt |
 | Login tokens | Expire after **7 days**; deactivating an account revokes all of its sessions |
 | Interview windows (PHT) | Face-to-face: Mon–Fri, start **and** end within 7:00 AM–5:00 PM · Online: any day, within 8:00 AM–11:00 PM · default length 30 min |
 | Clock-in window | Monday–Saturday, 06:00–17:30 PHT (both edges inclusive) |
@@ -74,6 +73,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | `GET /stipend/verify/{claimToken}` | 30 |
 | `POST /stipend/verify/{claimToken}/release` (Banking Office PIN) | 6 |
 | `POST /concerns` | 10 |
+| `POST /admin/announcements` | 5 |
 | `PUT /profile/password` | 6 |
 | `POST /admin/stipend/unlock`, `/release`, `/release-bulk`, `/{id}/void` | 6 each |
 
@@ -85,7 +85,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | `supervisor.a2@…` (also office A) | Co-supervisor tests |
 | `supervisor.b@…` (office B) | Cross-office authorization tests |
 | `recipient1@…` (has a signature specimen) | Active assignment, attendance and stipend flows |
-| `applicant1@…` | Application pipeline, orientation |
+| `applicant1@…` | Application pipeline |
 | Banking Office officer (no account) | Set up by the admin with a name + PIN; records payouts from `/claim/{token}` with the PIN only |
 
 ---
@@ -254,32 +254,11 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 
 ---
 
-## 11. Module: Admin — Orientation (`TC-ORI`) — Admin → Applicant
-
-Between approval and placement. Admin → Orientation schedules sessions, invites approved applicants who are not yet placed, and marks attendance. The Assignments page reads the same status (TC-ASSIGN-015..017).
+## 11. Module: Admin — Assignments & QR (`TC-ASSIGN`) — Admin
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-ORI-001 | P2 | [H] Create an in-person session | Admin | POST `/admin/orientation/sessions` | title `SWAP Orientation — Batch 1`, tomorrow 9:00 AM PHT, `mode=in_person`, venue `DSA Conference Room` | HTTP 201, "Orientation session created. Invite applicants to notify them."; audit `orientation_created` |  |  |
-| TC-ORI-002 | P2 | [N] Venue / link rules | Admin | Create with missing venue, then online without a link, then a bad link | `location` empty; `mode=online` no `meeting_link`; `meeting_link=zoom` | HTTP 422: "An in-person orientation needs a venue." / "An online orientation needs a meeting link." / "Enter a valid meeting link, including https://." |  |  |
-| TC-ORI-003 | P3 | [B] Date must be in the future on create | Admin | Create with yesterday's date; then edit an existing past session's title | past date | Create → HTTP 422, "Pick a date and time in the future."; editing a past session is allowed |  |  |
-| TC-ORI-004 | P1 | [H] Invite all eligible | 2 approved, unplaced applicants; 1 applicant still under review | Manage → Invite all eligible (POST `/admin/orientation/sessions/{id}/invite` with no `user_ids`) | — | "Invited 2 applicant(s). They have been notified by email and in the portal."; each gets an "Orientation Scheduled" notification + email with date and venue/link; the under-review applicant is not invited |  |  |
-| TC-ORI-005 | P2 | [N] Re-inviting sends nothing new | Applicant already invited to the session | Invite them again | `user_ids=[id]` | "Everyone selected is already invited to this session."; no second notification |  |  |
-| TC-ORI-006 | P1 | [S] Only approved, unplaced applicants can be invited | An applicant without an approved application, or a recipient | Invite them by id | `user_ids=[id]` | HTTP 422, "Only approved applicants who are not yet placed can be invited." |  |  |
-| TC-ORI-007 | P1 | [H] Mark attended / absent | Invited applicant | PUT `/admin/orientation/sessions/{id}/attendance` | `status=attended` (then `absent`) | "Attendance saved."; audit `orientation_attendance_marked`; the "Approved applicants awaiting placement" list and the Assignments page show Attended / Absent |  |  |
-| TC-ORI-008 | P2 | [N] Attendance only for applicants | A recipient's user id | Mark attendance | `status=attended` | HTTP 422, "Attendance can only be recorded for applicants." |  |  |
-| TC-ORI-009 | P2 | [N] Session with attendance can't be deleted | Session with an attended/absent row | DELETE `/admin/orientation/sessions/{id}` | — | HTTP 422, "Attendance has already been recorded for this session, so it cannot be deleted."; a session with only invitations deletes: "Orientation session deleted." |  |  |
-| TC-ORI-010 | P2 | [H] Applicant sees the invitation | Applicant invited to an upcoming session | Open the applicant Dashboard (GET `/applicant/orientation`) | — | "Upcoming orientation" card with title, date/time (PHT), venue or "Join the meeting" link, and "Attendance is required before you can be placed in an office."; after attendance: "Orientation attended" |  |  |
-| TC-ORI-011 | P2 | [H] Notification opens the right page | Invitation notification | Click it in the bell | — | Applicant → Dashboard; admin → Orientation |  |  |
-| TC-ORI-012 | P1 | [S] Non-admins can't manage orientation | Applicant, recipient, supervisor | GET/POST `/admin/orientation/sessions` | their tokens | HTTP 403 |  |  |
-
----
-
-## 12. Module: Admin — Assignments & QR (`TC-ASSIGN`) — Admin
-
-| ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
-|---|---|---|---|---|---|---|---|---|
-| TC-ASSIGN-001 | P1 | [H] Create assignment promotes applicant → recipient | Approved applicant who **attended an orientation**, office, supervisor | POST `/admin/assignments` | user, office, supervisor, `required_hours=200`, start_date | HTTP 201, role becomes `recipient`, assignment QR generated, recipient notified of placement, audit logged |  |  |
+| TC-ASSIGN-001 | P1 | [H] Create assignment promotes applicant → recipient | Approved applicant, office, supervisor | POST `/admin/assignments` | user, office, supervisor, `required_hours=200`, start_date | HTTP 201, role becomes `recipient`, assignment QR generated, recipient notified of placement, audit logged |  |  |
 | TC-ASSIGN-002 | P2 | [B] Required hours boundaries | Admin | Create with out-of-range hours | `0`, `501` (and `1`, `500` accepted) | HTTP 422 for 0 and 501 (min 1, max 500) |  |  |
 | TC-ASSIGN-003 | P2 | [N] end_date must be after start_date | Admin | Create with bad dates | end before start | HTTP 422 (`after:start_date`) |  |  |
 | TC-ASSIGN-004 | P2 | [N] Non-existent user/office/supervisor | Admin | Create referencing missing ids | invalid ids | HTTP 422 (`exists`) |  |  |
@@ -293,13 +272,10 @@ Between approval and placement. Admin → Orientation schedules sessions, invite
 | TC-ASSIGN-012 | P2 | [S] Database backstop for duplicate placement | — | Insert a second `active` assignment for the same user + term directly (or fire two creates at once) | duplicate row | Rejected by the unique index; the API answers with the same 422 message |  |  |
 | TC-ASSIGN-013 | P2 | [S] Admin can't change required hours directly | Assignment exists | PUT `/admin/assignments/{id}` with `required_hours` | `required_hours=10` | Field ignored; required hours only change through supervisor approval (TC-VERIF-016) |  |  |
 | TC-ASSIGN-014 | P2 | [N] Placement still saves if the email fails | Mail server down | Create an assignment | valid payload | HTTP 201; notification failure logged, not a 500 |  |  |
-| TC-ASSIGN-015 | P1 | [N] Placement blocked without an attended orientation | Approved applicant: not invited, invited, or marked absent | POST `/admin/assignments` | valid payload | HTTP 422, `user_id`: "This applicant has not attended an orientation yet. Mark their attendance, or place them anyway."; the Assignments page shows the same sentence, an "Orientation pending" badge, and keeps Confirm disabled until "Place anyway" is ticked |  |  |
-| TC-ASSIGN-016 | P2 | [H] Place anyway (override) | Approved applicant without attendance | Tick "Place anyway" and confirm (`skip_orientation=true`) | valid payload | HTTP 201; audit `created` carries `skip_orientation: true` |  |  |
-| TC-ASSIGN-017 | P2 | [H] Renewing recipients are exempt | Recipient (placed in an earlier term) | Place for the new term without any orientation | valid payload | HTTP 201; no orientation badge shown |  |  |
 
 ---
 
-## 13. Module: Profile & Account (`TC-PROF`) — any signed-in user
+## 12. Module: Profile & Account (`TC-PROF`) — any signed-in user
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -316,7 +292,7 @@ Between approval and placement. Admin → Orientation schedules sessions, invite
 
 ---
 
-## 14. Module: Signature Specimen (`TC-SIG`) — all staff and recipients
+## 13. Module: Signature Specimen (`TC-SIG`) — all staff and recipients
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -332,7 +308,7 @@ Between approval and placement. Admin → Orientation schedules sessions, invite
 
 ---
 
-## 15. Module: Recipient — Attendance / Geofenced Clock-In (`TC-ATT`) — Recipient
+## 14. Module: Recipient — Attendance / Geofenced Clock-In (`TC-ATT`) — Recipient
 
 Entry points that must behave identically: **(a)** `/scan` (phone camera deep link), **(b)** `/recipient/attendance/scan`, **(c)** `/recipient/attendance` (manual code paste).
 
@@ -365,7 +341,7 @@ Entry points that must behave identically: **(a)** `/scan` (phone camera deep li
 
 ---
 
-## 16. Module: Recipient — Clock-Out & Auto Clock-Out (`TC-OUT`) — Recipient
+## 15. Module: Recipient — Clock-Out & Auto Clock-Out (`TC-OUT`) — Recipient
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -388,7 +364,7 @@ Entry points that must behave identically: **(a)** `/scan` (phone camera deep li
 
 ---
 
-## 17. Module: Recipient — Session Notes & End-of-Term Report (`TC-NARR`) — Recipient
+## 16. Module: Recipient — Session Notes & End-of-Term Report (`TC-NARR`) — Recipient
 
 Cases 001–008 cover the **optional** per-session note (validated when one is sent). Cases 009–014 cover the **end-of-term report**, one per assignment, required before the stipend is released.
 
@@ -411,7 +387,7 @@ Cases 001–008 cover the **optional** per-session note (validated when one is s
 
 ---
 
-## 18. Module: Recipient — Hours (`TC-HRS`) — Recipient
+## 17. Module: Recipient — Hours (`TC-HRS`) — Recipient
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -421,7 +397,7 @@ Cases 001–008 cover the **optional** per-session note (validated when one is s
 
 ---
 
-## 19. Module: Recipient — Promissory Notes (`TC-PROM`) — Recipient → Supervisor
+## 18. Module: Recipient — Promissory Notes (`TC-PROM`) — Recipient → Supervisor
 
 A recipient who ends the semester short on verified hours may file a promissory note; a supervisor who governs the assignment (assigned supervisor or any supervisor of the office) reviews it. Semester end = the assignment's end date, else the `semester_end_date` setting (Manila time).
 
@@ -445,7 +421,7 @@ A recipient who ends the semester short on verified hours may file a promissory 
 
 ---
 
-## 20. Module: Supervisor — Verification & Students (`TC-VERIF`) — Supervisor
+## 19. Module: Supervisor — Verification & Students (`TC-VERIF`) — Supervisor
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -471,7 +447,7 @@ A recipient who ends the semester short on verified hours may file a promissory 
 
 ---
 
-## 21. Module: Admin — Stipend Claim Stubs (`TC-STIP`) — Admin → Recipient → Banking Office
+## 20. Module: Admin — Stipend Claim Stubs (`TC-STIP`) — Admin → Recipient → Banking Office
 
 Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → `claimed` (payout recorded by the Banking Office) or `void` (before claim). Legacy rows may say `released`. Release, void and unlock need the admin's password (step-up) or the short-lived unlock token; bulk release accepts only the unlock token.
 
@@ -519,7 +495,7 @@ Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → 
 
 ---
 
-## 22. Module: Reports & Duty Slips (`TC-RPT`) — Recipient / Supervisor / Admin
+## 21. Module: Reports & Duty Slips (`TC-RPT`) — Recipient / Supervisor / Admin
 
 Duty slips are built in the browser from the attendance logs and carry a Control No. `SWAP-{SID}-{YY}{YY}{S1/S2/SM}-{SEM or W<yyyymmdd>}-{checksum}` that the admin can verify.
 
@@ -544,9 +520,9 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 
 ---
 
-## 23. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`)
+## 22. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`, `TC-ANN`)
 
-### 23.1 QR codes
+### 22.1 QR codes
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-QR-001 | P2 | [H] Office QR generation & validation | Office exists | Generate QR, then validate token | office | Valid signed token resolves back to the office |  |  |
@@ -556,7 +532,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-QR-005 | P1 | [S] **OBSOLETE** — public QR endpoints removed | Assignment exists | GET `/qr-codes/{assignmentId}` and `/qr-codes/{assignmentId}/view` without a token | ids 1, 2, 3 | HTTP 404 for every id (they used to leak names and clock-out QR tokens) |  |  |
 | TC-QR-006 | P2 | [S] A token only works for its own assignment | Two assignments | Validate assignment A's token as B | A's token | Rejected |  |  |
 
-### 23.2 Chatbot / FAQ
+### 22.2 Chatbot / FAQ
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-BOT-001 | P3 | [H] FAQ query returns a match | FAQ knowledge base seeded | GET `/chatbot/query?message=how long does the application review take` | question | HTTP 200 with `answer`, `faq_id`, `confidence`, `category` |  |  |
@@ -566,7 +542,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-BOT-005 | P2 | [S] Chatbot is rate limited | — | 21 queries in a minute | any question | 21st → HTTP 429 (protects the paid AI quota) |  |  |
 | TC-BOT-006 | P3 | [N] AI service slow or down | `GEMINI_API_KEY` set; AI unreachable or > 8 s | Query | FAQ question | FAQ answer returned within ~10 s (no hang, no error) |  |  |
 
-### 23.3 Concerns / Help desk
+### 22.3 Concerns / Help desk
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-CON-001 | P2 | [H] Submit a concern from the Help page | Logged in (non-admin) | Sidebar lifebuoy → Help → Send (POST `/concerns`) | subject + message ≥ 10 chars | HTTP 201, "Your concern has been submitted. The DSA Office will respond shortly."; it appears under "Your concerns" as Open; audit `concern_submitted` |  |  |
@@ -580,7 +556,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-CON-009 | P3 | [H] Admins are told about new concerns | Active admins | Submit a concern | — | Each active admin gets a "New concern" in-app notification that opens Admin → Concerns |  |  |
 | TC-CON-010 | P3 | [B] Concern spam is throttled | Logged in | 11 submissions in a minute | valid payloads | 11th → HTTP 429 |  |  |
 
-### 23.4 Settings (application/renewal period)
+### 22.4 Settings (application/renewal period)
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-SET-001 | P2 | [H] Public application-status reflects toggle | — | GET `/settings/application-status` | — | Returns `open`, closed message, and renewal window info |  |  |
@@ -589,27 +565,40 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-SET-004 | P3 | [S] Non-admin cannot change settings | Non-admin | PUT `/admin/settings` | any | HTTP 403 |  |  |
 | TC-SET-005 | P3 | [N] Semester end fallback can't be set [NEEDS-CLARIFICATION] | Assignment without an end date | Try to set a semester end date as admin | — | No setting exists for `semester_end_date` in the API/UI; promissory notes then fail with TC-PROM-003 |  |  |
 
-### 23.5 Notifications
+### 22.5 Notifications
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-NOTIF-001 | P2 | [H] List notifications | Logged in with notifications | GET `/notifications` | — | HTTP 200 with the caller's own items only |  |  |
 | TC-NOTIF-002 | P2 | [H] Mark one as read | Unread notification | PUT `/notifications/{id}/read` | id | "Notification marked as read." |  |  |
 | TC-NOTIF-003 | P3 | [H] Mark all as read | Several unread | PUT `/notifications/read-all` | — | "All notifications marked as read." |  |  |
-| TC-NOTIF-004 | P2 | [H] Event-driven notifications fire | Trigger events | Submit app, review, schedule interview, approve/reject, orientation invite, place, verify hours, release stub, Banking Office payout, promissory review, concern reply | — | The right person receives the matching notification (and email where configured) |  |  |
+| TC-NOTIF-004 | P2 | [H] Event-driven notifications fire | Trigger events | Submit app, review, schedule interview, approve/reject, place, verify hours, release stub, Banking Office payout, promissory review, concern reply, announcement | — | The right person receives the matching notification (and email where configured) |  |  |
 | TC-NOTIF-005 | P2 | [H] Time-out notifies all eligible verifiers | Office with two supervisors | Clock out | — | Assigned supervisor **and** co-supervisors of the office are notified |  |  |
 | TC-NOTIF-006 | P3 | [H] Bell refreshes without a reload | Page open | Trigger an event from another account; wait ≤ 60 s | — | The bell count updates within about a minute while the tab is visible (the websocket stack was removed; no Echo/Pusher errors in the console) |  |  |
 
-### 23.6 Analytics & Audit logs
+### 22.6 Analytics & Audit logs
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-ANL-001 | P2 | [H] Admin analytics overview | Admin, data present | GET `/admin/analytics/overview?academic_year=…&semester=…` | period | HTTP 200 with aggregates; stipend summary per TC-STIP-028 |  |  |
 | TC-ANL-002 | P3 | [H] Analytics periods | Admin | GET `/admin/analytics/periods` | — | Available AY/semester periods |  |  |
-| TC-ANL-003 | P1 | [H] Audit trail covers every change | Actions performed | GET `/admin/audit-logs` | — | Entries with before/after values and actor for: application steps, interviews, assignments, clock-in/out, narratives, verifications, bonus/required hours, QR regeneration, profile/photo/signature/password changes, deactivation (`tokens_revoked`), stub release/claim/void, promissory review, exports, duty-slip verification, orientation sessions/invites/attendance, term reports, concerns, Banking Office PIN change |  |  |
+| TC-ANL-003 | P1 | [H] Audit trail covers every change | Actions performed | GET `/admin/audit-logs` | — | Entries with before/after values and actor for: application steps, interviews, assignments, clock-in/out, narratives, verifications, bonus/required hours, QR regeneration, profile/photo/signature/password changes, deactivation (`tokens_revoked`), stub release/claim/void, promissory review, exports, duty-slip verification, term reports, announcements, concerns, Banking Office PIN change |  |  |
 | TC-ANL-004 | P2 | [H] Admin lists load quickly with many rows | ≥ 50 applications and assignments | Load Admin → Applications and Admin → Assignments | — | Query count stays flat as rows grow (no per-row queries) |  |  |
+
+
+### 22.7 Announcements (`TC-ANN`) — Admin → all active recipients
+| ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
+|---|---|---|---|---|---|---|---|---|
+| TC-ANN-001 | P2 | [H] Send an announcement | Admin; some active recipients | Admin → Announcements: title + message → Send announcement → "Yes, send it" (POST `/admin/announcements`) | `Stipend release schedule`, two paragraphs | The page shows how many active recipients it will reach before sending; "Announcement sent to N active recipient(s) in the portal and by email."; it appears under Sent announcements with the recipient and emailed counts; audit `announcement_sent` |  |  |
+| TC-ANN-002 | P1 | [S] Only active recipients receive it | Active and deactivated recipients, applicants, supervisors, admins | Send one | — | Only active recipients get the notification and the email; nobody else does |  |  |
+| TC-ANN-003 | P2 | [H] Recipient sees it in the portal | Announcement sent | As a recipient open the bell, then Notifications | — | Title "Announcement: {title}"; the Notifications page shows the full message with its line breaks; clicking it in the bell opens the Notifications page |  |  |
+| TC-ANN-004 | P2 | [H] Recipient gets it by email | Mail configured (Brevo) | Check a recipient's inbox (Gmail / student email) | message with line breaks and `<b>tags</b>` | Subject "SWAP Announcement: {title}"; paragraphs and line breaks as written; tags shown as text, not formatting; "Open the SWAP Portal" button; recipients are in Bcc, so no one sees the others' addresses |  |  |
+| TC-ANN-005 | P2 | [N] Validation | Admin | Send with no title; a 9-character message; 5,001 characters | — | HTTP 422: "Give the announcement a title." / "The message must be at least 10 characters." / "The message must be 5,000 characters or fewer."; the Send button stays disabled until title + 10 characters |  |  |
+| TC-ANN-006 | P2 | [N] No one to send to | No active recipients | Open Announcements; POST anyway | — | The page warns there are no active recipients and disables Send; the API answers HTTP 422, "There are no active recipients to send this announcement to."; nothing saved |  |  |
+| TC-ANN-007 | P2 | [N] Mail outage still delivers in the portal | Mail provider down | Send one | — | HTTP 201; every active recipient has it in the portal; message "…The email reached 0 of them; check the mail settings."; history shows the emailed count highlighted |  |  |
+| TC-ANN-008 | P1 | [S] Admins only, and double-sends are throttled | Applicant, recipient, supervisor; admin | Non-admins call GET/POST `/admin/announcements`; admin sends 6 in a minute | — | Non-admins HTTP 403; the admin's 6th send in a minute → HTTP 429 |  |  |
 
 ---
 
-## 24. Module: RBAC & Cross-Cutting Security (`TC-SEC`) — Attacker
+## 23. Module: RBAC & Cross-Cutting Security (`TC-SEC`) — Attacker
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
@@ -635,7 +624,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 
 ---
 
-## 25. Non-Functional Test Cases (`TC-NFR`)
+## 24. Non-Functional Test Cases (`TC-NFR`)
 
 | ID | Category | Test Scenario | How to Test | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|
@@ -657,7 +646,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 
 ---
 
-## 26. Open Questions (NEEDS-CLARIFICATION)
+## 25. Open Questions (NEEDS-CLARIFICATION)
 
 | # | Topic | What the build does now | Decision needed | Cases |
 |---|---|---|---|---|
@@ -673,7 +662,7 @@ Resolved on 2026-09-28 and removed from this list: the Banking Office verify QR 
 
 ---
 
-## 27. Traceability & Coverage Summary
+## 26. Traceability & Coverage Summary
 
 | Module | Test Case Range | Count | Priority focus | Automated by (PHPUnit / Vitest) |
 |---|---|---|---|---|
@@ -685,8 +674,7 @@ Resolved on 2026-09-28 and removed from this list: the Banking Office verify QR 
 | Applications | TC-APP-001..016 | 16 | Core workflow | DocumentTest, ResourceAccessTest, NotificationTest |
 | Renewal | TC-REN-001..008 | 8 | Core workflow | — (manual) |
 | Admin Review & Interviews | TC-ADMR-001..026 | 26 | State machine, interview rules | AdminTest, InterviewLifecycleTest |
-| Orientation | TC-ORI-001..012 | 12 | Placement prerequisite | OrientationTest |
-| Assignments & QR | TC-ASSIGN-001..017 | 17 | Placement integrity, orientation gate | AdminTest, OrientationTest, QrCodeServiceTest, AuditTrailTest |
+| Assignments & QR | TC-ASSIGN-001..014 | 14 | Placement integrity | AdminTest, QrCodeServiceTest, AuditTrailTest |
 | Profile & Account | TC-PROF-001..010 | 10 | Account mgmt | AuditTrailTest, SignatureTest |
 | Signature Specimen | TC-SIG-001..009 | 9 | Payout signature, receipts | SignatureTest, StipendClaimTest, AttendanceTest |
 | Attendance / Clock-In | TC-ATT-001..024 | 24 | Integrity, geofence | AttendanceTest, AuditTrailTest; axiosInterceptors (Vitest) |
@@ -703,13 +691,14 @@ Resolved on 2026-09-28 and removed from this list: the Banking Office verify QR 
 | Settings | TC-SET-001..005 | 5 | Config | — (manual) |
 | Notifications | TC-NOTIF-001..006 | 6 | Comms | NotificationTest |
 | Analytics & Audit | TC-ANL-001..004 | 4 | Admin, traceability | StipendTotalsTest, AuditTrailTest, ListQueryCountTest |
+| Announcements | TC-ANN-001..008 | 8 | Comms | AnnouncementTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..015 | 15 | Quality attributes | CI workflow (TC-NFR-013) |
-| **TOTAL** | — | **371** | — | — |
+| **TOTAL** | — | **364** | — | — |
 
 ---
 
-## 28. P1 Smoke List (run first, in order)
+## 27. P1 Smoke List (run first, in order)
 
 One end-to-end pass through the money-and-integrity path. Every step must pass before the full round.
 
@@ -721,24 +710,23 @@ One end-to-end pass through the money-and-integrity path. Every step must pass b
 | 4 | Applicant | Submit an application and upload the COR | TC-APP-001, TC-APP-007 |
 | 5 | Admin | Move to review, schedule an in-window interview | TC-ADMR-002, TC-ADMR-003 |
 | 6 | Admin | Approve after the interview | TC-ADMR-011 |
-| 7 | Admin | Schedule an orientation, invite, mark the applicant Attended | TC-ORI-001, TC-ORI-004, TC-ORI-007 |
-| 8 | Admin | Assign office + supervisor | TC-ASSIGN-001 |
-| 9 | Recipient | Clock in inside the geofence (Mon–Sat, 06:00–17:30) | TC-ATT-001 |
-| 10 | Recipient | Clock out with the office QR (note optional) | TC-OUT-002 |
-| 11 | Supervisor | Verify the log | TC-VERIF-001 |
-| 12 | Recipient | Save a signature specimen and submit the end-of-term report | TC-SIG-001, TC-NARR-009 |
-| 13 | Admin | Set up the releasing officer's name and PIN | TC-STIP-035 |
-| 14 | Admin | Release the claim stub (step-up) once hours are met | TC-STIP-004 |
-| 15 | Recipient | Download the stub PDF (QR printed) | TC-STIP-017 |
-| 16 | Banking Office | Scan the QR, enter the PIN → claimed under the admin-set name | TC-STIP-022, TC-STIP-019 |
-| 17 | Banking Office | Re-scan the same QR → "Do not release" / 404 | TC-STIP-021, TC-STIP-023 |
-| 18 | Attacker | Deactivated token refused; tampered QR refused; removed endpoints 404 | TC-AUTH-009, TC-ATT-003, TC-SEC-014 |
+| 7 | Admin | Assign office + supervisor | TC-ASSIGN-001 |
+| 8 | Recipient | Clock in inside the geofence (Mon–Sat, 06:00–17:30) | TC-ATT-001 |
+| 9 | Recipient | Clock out with the office QR (note optional) | TC-OUT-002 |
+| 10 | Supervisor | Verify the log | TC-VERIF-001 |
+| 11 | Recipient | Save a signature specimen and submit the end-of-term report | TC-SIG-001, TC-NARR-009 |
+| 12 | Admin | Set up the releasing officer's name and PIN | TC-STIP-035 |
+| 13 | Admin | Release the claim stub (step-up) once hours are met | TC-STIP-004 |
+| 14 | Recipient | Download the stub PDF (QR printed) | TC-STIP-017 |
+| 15 | Banking Office | Scan the QR, enter the PIN → claimed under the admin-set name | TC-STIP-022, TC-STIP-019 |
+| 16 | Banking Office | Re-scan the same QR → "Do not release" / 404 | TC-STIP-021, TC-STIP-023 |
+| 17 | Attacker | Deactivated token refused; tampered QR refused; removed endpoints 404 | TC-AUTH-009, TC-ATT-003, TC-SEC-014 |
 
 ---
 
-## 29. Suggested test execution rounds
+## 28. Suggested test execution rounds
 
-1. **Smoke round (P1 only):** the list in Section 28.
+1. **Smoke round (P1 only):** the list in Section 27.
 2. **Full functional round (P1+P2):** every module, `[H]` + `[N]` + `[B]`.
 3. **Security round:** every `[S]` case, all `TC-SEC-*`, QR tamper, rate limits, the RBAC matrix.
 4. **Non-functional round:** performance, mobile, scheduler, mail outage, recoverability.

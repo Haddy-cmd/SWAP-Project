@@ -32,14 +32,13 @@ use App\Http\Controllers\Supervisor\StudentController;
 use App\Http\Controllers\Supervisor\VerificationController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\AssignmentController;
+use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ConcernController as AdminConcernController;
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\DutySlipController;
 use App\Http\Controllers\Admin\LandingPhotoController;
 use App\Http\Controllers\Shared\LandingPhotoController as PublicLandingPhotoController;
 use App\Http\Controllers\Admin\OfficeController;
-use App\Http\Controllers\Admin\OrientationController;
-use App\Http\Controllers\Applicant\OrientationController as ApplicantOrientationController;
 use App\Http\Controllers\Admin\StipendController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -104,7 +103,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/applications/{id}', [ApplicantApplicationController::class, 'show']);
         Route::delete('/applications/{id}', [ApplicantApplicationController::class, 'destroy']);
         Route::post('/applications/{id}/documents', [DocumentController::class, 'store']);
-        Route::get('/orientation', [ApplicantOrientationController::class, 'index']);
     });
 
     // ─── RECIPIENT ────────────────────────────────────────────────────────────
@@ -163,14 +161,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/applications/{id}/interview/no-show', [AdminApplicationController::class, 'markInterviewNoShow']);
         Route::put('/applications/{id}/decide', [AdminApplicationController::class, 'decide']);
 
-        Route::get('/orientation/sessions', [OrientationController::class, 'index']);
-        Route::post('/orientation/sessions', [OrientationController::class, 'store']);
-        Route::put('/orientation/sessions/{id}', [OrientationController::class, 'update']);
-        Route::delete('/orientation/sessions/{id}', [OrientationController::class, 'destroy']);
-        Route::post('/orientation/sessions/{id}/invite', [OrientationController::class, 'invite']);
-        Route::put('/orientation/sessions/{id}/attendance', [OrientationController::class, 'attendance']);
-        Route::get('/orientation/candidates', [OrientationController::class, 'candidates']);
-
         Route::get('/assignments', [AssignmentController::class, 'index']);
         Route::post('/assignments', [AssignmentController::class, 'store']);
         Route::put('/assignments/{id}', [AssignmentController::class, 'update']);
@@ -219,6 +209,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/settings', [SettingController::class, 'update']);
 
         Route::get('/duty-slip/verify', [DutySlipController::class, 'verify']);
+
+        Route::get('/announcements', [AnnouncementController::class, 'index']);
+        // Every send emails all active recipients: throttled against double-sends.
+        Route::post('/announcements', [AnnouncementController::class, 'store'])->middleware('throttle:5,1');
 
         Route::get('/concerns', [AdminConcernController::class, 'index']);
         Route::put('/concerns/{id}', [AdminConcernController::class, 'update']);

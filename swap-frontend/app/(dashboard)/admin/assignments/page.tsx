@@ -4,18 +4,15 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Search, Building2, X, MapPin, Sparkles, Target,
-  ChevronRight, Check, CheckCircle2, AlertTriangle, Users, Presentation,
+  ChevronRight, Check, CheckCircle2, AlertTriangle, Users,
 } from 'lucide-react'
-import Link from 'next/link'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { adminApi } from '@/lib/api/admin.api'
 import { applicationsApi } from '@/lib/api/applications.api'
-import { orientationApi } from '@/lib/api/orientation.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import type { Application } from '@/types/application.types'
 import type { Assignment } from '@/types/assignment.types'
-import { MSG_NOT_ORIENTED } from '@/types/orientation.types'
 
 // Soft avatar palettes, mirrored from the mockup (bg / fg pairs).
 const AV: [string, string][] = [
@@ -58,8 +55,6 @@ export default function AdminAssignmentsPage() {
   const [requiredHours, setRequiredHours] = useState('200')
   const [startDate, setStartDate] = useState(today)
   const [endDate, setEndDate] = useState('')
-  // Admin override for a new applicant who has not attended an orientation.
-  const [placeAnyway, setPlaceAnyway] = useState(false)
 
   // Edit (change office/supervisor) form fields
   const [editOfficeId, setEditOfficeId] = useState('')
@@ -75,12 +70,6 @@ export default function AdminAssignmentsPage() {
     queryFn: () => applicationsApi.adminListApplications({ status: 'approved' }),
   })
 
-  // Orientation status of approved, unplaced applicants (renewing recipients aren't listed: exempt).
-  const { data: orientation = [] } = useQuery({
-    queryKey: ['admin-orientation-candidates'],
-    queryFn: () => orientationApi.getCandidates(),
-  })
-
   const { data: offices } = useQuery({
     queryKey: ['admin-offices-list'],
     queryFn: () => assignmentsApi.getOffices(),
@@ -90,13 +79,6 @@ export default function AdminAssignmentsPage() {
     queryKey: ['admin-supervisors-list'],
     queryFn: () => adminApi.getUsers({ role: 'supervisor' }),
   })
-
-  const orientationOf = new Map(orientation.map((c) => [c.user_id, c.orientation_status]))
-  // Same rule as StoreAssignmentRequest: only never-placed applicants need an attended orientation.
-  const needsOrientation = (userId: number) => {
-    const st = orientationOf.get(userId)
-    return st !== undefined && st !== 'attended'
-  }
 
   const assignments = assignmentsData?.data ?? []
   const assignedUserIds = new Set(assignments.map((a) => a.user_id))
@@ -137,7 +119,6 @@ export default function AdminAssignmentsPage() {
     setRequiredHours('200')
     setStartDate(today())
     setEndDate('')
-    setPlaceAnyway(false)
     setToast('')
   }
 
@@ -168,16 +149,13 @@ export default function AdminAssignmentsPage() {
         required_hours: Number(requiredHours),
         start_date: startDate,
         ...(endDate && { end_date: endDate }),
-        ...(placeAnyway && needsOrientation(selected!.user_id) && { skip_orientation: true }),
       }),
     onSuccess: () => {
       const name = selected?.user?.name ?? 'Recipient'
       const oName = offices?.data.find((o) => String(o.id) === officeId)?.name ?? 'office'
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] })
       queryClient.invalidateQueries({ queryKey: ['admin-approved-applications'] })
-      queryClient.invalidateQueries({ queryKey: ['admin-orientation-candidates'] })
       setSelectedAppId(null)
-      setPlaceAnyway(false)
       setOfficeId('')
       setSupervisorId('')
       setStartDate(today())
@@ -205,10 +183,8 @@ export default function AdminAssignmentsPage() {
   }
 
   const panelSups = supervisorsFor(officeId)
-  const selectedNeedsOrientation = !!selected && needsOrientation(selected.user_id)
   const canAssign =
     !!selected && !!officeId && !!supervisorId && !!startDate && !!requiredHours && !assign.isPending
-    && (!selectedNeedsOrientation || placeAnyway)
 
   return (
     <div className="space-y-7">
@@ -265,11 +241,6 @@ export default function AdminAssignmentsPage() {
                   </span>
                   <span className="flex flex-col items-end gap-1.5">
                     <span className="whitespace-nowrap text-[11.5px] text-ink-500">{app.academic_year} · {app.semester}</span>
-                    {orientationOf.has(app.user_id) && (
-                      <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${needsOrientation(app.user_id) ? 'bg-warning-50 text-warning-700' : 'bg-success-50 text-success-700'}`}>
-                        {needsOrientation(app.user_id) ? 'Orientation pending' : 'Oriented'}
-                      </span>
-                    )}
                     <ChevronRight className="h-[18px] w-[18px]" style={{ color: active ? '#1F5B3A' : '#CAD2BC' }} />
                   </span>
                 </button>
@@ -403,24 +374,6 @@ export default function AdminAssignmentsPage() {
                   />
                 </div>
               </div>
-
-              {/* Orientation gate — same wording as the backend refusal (OrientationService). */}
-              {selectedNeedsOrientation && (
-                <div className="rounded-[11px] border border-warning-200 bg-warning-50 px-3.5 py-3 text-xs text-warning-800">
-                  <p className="flex items-start gap-2 font-medium">
-                    <Presentation className="mt-0.5 h-4 w-4 flex-none" />
-                    <span>
-                      {MSG_NOT_ORIENTED}{' '}
-                      <Link href="/admin/orientation" className="font-semibold underline">Open Orientation</Link>
-                    </span>
-                  </p>
-                  <label className="mt-2 flex cursor-pointer items-center gap-2 font-semibold">
-                    <input type="checkbox" checked={placeAnyway} onChange={(e) => setPlaceAnyway(e.target.checked)}
-                      className="h-4 w-4 accent-brand-700" />
-                    Place anyway (recorded in the audit log)
-                  </label>
-                </div>
-              )}
 
               {assign.isError && (
                 <p className="text-xs font-medium text-danger-700">
