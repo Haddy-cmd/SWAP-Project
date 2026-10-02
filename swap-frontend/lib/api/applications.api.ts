@@ -14,8 +14,10 @@ export const applicationsApi = {
     apiClient.get<ApiResponse<Application>>(`/applicant/applications/${id}`).then((r) => r.data.data),
 
   // Semester renewal: the recipient's submission for the current renewal term (or null).
+  // The submission for the open renewal term; `placed` = the new term's assignment exists.
   getMyRenewal: () =>
-    apiClient.get<ApiResponse<Application | null>>('/recipient/renewals').then((r) => r.data.data),
+    apiClient.get<{ data: Application | null; meta?: { placed?: boolean } }>('/recipient/renewals')
+      .then((r) => ({ application: r.data.data, placed: !!r.data.meta?.placed })),
 
   // Semester renewal: one updated COR, no interview round.
   submitRenewal: (formData: FormData) =>

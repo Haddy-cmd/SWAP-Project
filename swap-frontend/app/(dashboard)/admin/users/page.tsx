@@ -265,7 +265,7 @@ export default function AdminUsersPage() {
           <input
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-            placeholder="Search by name or email…"
+            placeholder="Search name, email, student or employee ID…"
             className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-11 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10"
           />
         </div>
@@ -337,7 +337,13 @@ export default function AdminUsersPage() {
                         style={{ background: avBg, color: avFg }} />
                       <div className="min-w-0 leading-tight">
                         <p className="truncate text-sm font-semibold text-ink-950">{user.name}</p>
-                        <p className="truncate text-xs text-ink-400">{user.email}</p>
+                        <p className="truncate text-xs text-ink-400">
+                          {user.profile?.student_id_number ? `ID ${user.profile.student_id_number} · ` : ''}
+                          {user.role === 'supervisor' || user.role === 'admin'
+                            ? (user.employee_id ? `EMP ${user.employee_id} · ` : 'No employee ID · ')
+                            : ''}
+                          {user.email}
+                        </p>
                       </div>
                     </div>
 

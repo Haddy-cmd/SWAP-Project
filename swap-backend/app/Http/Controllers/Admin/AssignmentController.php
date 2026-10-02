@@ -23,7 +23,7 @@ class AssignmentController extends Controller
     public function index(Request $request): JsonResponse
     {
         $assignments = $this->assignmentService->paginateAssignments(
-            $request->only(['office_id', 'supervisor_id', 'status', 'academic_year'])
+            $request->only(['office_id', 'supervisor_id', 'status', 'academic_year', 'term'])
         );
 
         return response()->json([

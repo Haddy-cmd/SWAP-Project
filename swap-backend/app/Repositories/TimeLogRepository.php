@@ -94,6 +94,11 @@ class TimeLogRepository implements TimeLogRepositoryInterface
             $query->where('user_id', $filters['user_id']);
         }
 
+        // One term only (the student's current placement) unless the caller asks for all.
+        if (!empty($filters['assignment_id'])) {
+            $query->where('assignment_id', $filters['assignment_id']);
+        }
+
         return $query->paginate($perPage);
     }
 
@@ -106,6 +111,10 @@ class TimeLogRepository implements TimeLogRepositoryInterface
 
         if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['assignment_id'])) {
+            $query->where('assignment_id', $filters['assignment_id']);
         }
 
         return $query->paginate($perPage);

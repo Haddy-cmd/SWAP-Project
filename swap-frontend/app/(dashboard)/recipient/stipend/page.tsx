@@ -132,6 +132,13 @@ export default function StipendPage() {
                     {s.control_number && <p className="mt-0.5 font-mono text-xs text-ink-350">{s.control_number}</p>}
                     {s.status === 'claimed' && s.claimed_at && <p className="mt-0.5 text-xs text-success-600">Received {formatDate(s.claimed_at)}</p>}
                     {s.status === 'void' && s.void_reason && <p className="mt-0.5 text-xs text-danger-700">Void — {s.void_reason}</p>}
+                    {s.via_promissory && (
+                      <p className="mt-1.5">
+                        <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
+                          Promissory · deficient {s.deficient_hours ?? '—'} hrs{s.makeup_deadline ? ` · makeup due ${formatDate(s.makeup_deadline)}` : ''}
+                        </span>
+                      </p>
+                    )}
                   </div>
 
                   {s.has_slip && (

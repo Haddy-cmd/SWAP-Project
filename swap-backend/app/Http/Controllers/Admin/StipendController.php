@@ -29,7 +29,7 @@ class StipendController extends Controller
     public function index(Request $request): JsonResponse
     {
         $records = $this->stipendService->paginateAll(
-            $request->only(['status', 'academic_year'])
+            $request->only(['status', 'academic_year', 'search'])
         );
 
         return response()->json([

@@ -10,8 +10,13 @@ export const attendanceApi = {
   getMyAssignment: () =>
     apiClient.get<{ data: import('@/types/assignment.types').Assignment | null }>('/recipient/assignment').then((r) => r.data.data),
 
+  // The current term's logs by default; pass { scope: 'all' } for every term (duty slip).
   getMyLogs: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<TimeLog>>('/recipient/attendance/logs', { params }).then((r) => r.data),
+
+  // Earlier terms with their hours, verdict and stipend (Hours page → Past terms).
+  getTermHistory: () =>
+    apiClient.get<{ data: import('@/types/assignment.types').TermHistoryItem[] }>('/recipient/assignments/history').then((r) => r.data.data),
 
   timeInGeofence: (qrToken: string, coords?: { latitude: number; longitude: number; accuracy?: number }, photo?: Blob) => {
     // With a proof-of-presence selfie, send multipart; otherwise a plain JSON body.
@@ -60,7 +65,11 @@ export const attendanceApi = {
     apiClient.get<{ data: TimeLog[] }>('/supervisor/students/clocked-in').then((r) => r.data.data),
 
   getStudentSummary: (studentId: number) =>
-    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; pace?: Pace }; term_report?: TermReport | null }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; pace?: Pace }; term_report?: TermReport | null; term?: import('@/types/assignment.types').StudentTerm; assignment_id?: number; evaluation?: import('@/types/application.types').TermEvaluation | null }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+
+  // The supervisor's end-of-term evaluation of a placement (1–5, 3+ passes).
+  saveEvaluation: (assignmentId: number, data: { rating: number; remarks: string }) =>
+    apiClient.put<{ data: import('@/types/application.types').TermEvaluation; message: string }>(`/supervisor/assignments/${assignmentId}/evaluation`, data).then((r) => r.data),
 
   // The recipient's end-of-term narrative report (required before the stipend is released).
   getTermReport: () =>
@@ -74,6 +83,10 @@ export const attendanceApi = {
 
   addManualHours: (studentId: number, data: { hours: number; date: string; reason: string }) =>
     apiClient.post<ApiResponse<TimeLog>>(`/supervisor/students/${studentId}/manual-hours`, data).then((r) => r.data.data),
+
+  // Supervisor marks the student's current term deficient (reason goes to the student).
+  markDeficient: (studentId: number, reason: string) =>
+    apiClient.post<{ message: string; term: import('@/types/assignment.types').StudentTerm }>(`/supervisor/students/${studentId}/mark-deficient`, { reason }).then((r) => r.data),
 
   updateRequiredHours: (studentId: number, required_hours: number) =>
     apiClient.put(`/supervisor/students/${studentId}/required-hours`, { required_hours }).then((r) => r.data),

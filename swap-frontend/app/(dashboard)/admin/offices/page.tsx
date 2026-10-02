@@ -449,7 +449,7 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
                 <div key={s.id} className="flex items-center justify-between rounded-lg border border-ink-200 bg-ink-50 px-3 py-2">
                   <div>
                     <p className="text-sm font-medium text-ink-950">{s.name}</p>
-                    <p className="text-xs text-ink-500">{s.email}</p>
+                    <p className="text-xs text-ink-500">{s.employee_id ? `EMP ${s.employee_id} · ` : ''}{s.email}</p>
                   </div>
                   <button
                     onClick={() => remove.mutate(s.id)}

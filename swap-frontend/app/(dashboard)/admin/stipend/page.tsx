@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, Send, CheckCircle, Ban, Lock, KeyRound } from 'lucide-react'
+import { DollarSign, Send, CheckCircle, Ban, Lock, KeyRound, Search } from 'lucide-react'
 import Link from 'next/link'
 import { adminApi } from '@/lib/api/admin.api'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
@@ -28,6 +28,7 @@ export default function AdminStipendPage() {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const [page, setPage] = useState(1)
+  const [recordSearch, setRecordSearch] = useState('')
   const [voiding, setVoiding] = useState<{ id: number; reason: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   // Page gate: the unlock token lives in memory only — never persisted.
@@ -43,8 +44,8 @@ export default function AdminStipendPage() {
 
   // No data (or page) before the password gate — queries stay disabled until unlock.
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-stipend', page],
-    queryFn: () => adminApi.getStipendRecords({ page: String(page) }),
+    queryKey: ['admin-stipend', page, recordSearch],
+    queryFn: () => adminApi.getStipendRecords({ page: String(page), ...(recordSearch.trim() && { search: recordSearch.trim() }) }),
     enabled: !!unlockToken,
   })
   const { data: eligible = [] } = useQuery({
@@ -201,13 +202,15 @@ export default function AdminStipendPage() {
                     onChange={() => { setBulkResult(null); setSelected((s) => checked ? s.filter((k) => k !== key) : [...s, key]) }}
                     className="h-4 w-4 flex-shrink-0 accent-brand-700 disabled:cursor-not-allowed" aria-label={`Select ${e.name}`} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink-900">{e.name}</p>
+                    <p className="text-sm font-medium text-ink-900">
+                      {e.name}{e.student_id_number && <span className="ml-1.5 font-mono text-[11px] font-normal text-ink-500">ID {e.student_id_number}</span>}
+                    </p>
                     <p className="text-xs text-ink-500">{e.academic_year} — {e.semester} · {e.verified_hours}/{e.required_hours} hrs verified</p>
                     {(e.via_promissory || !e.has_signature || !e.narrative_submitted) && (
                       <p className="mt-1 flex flex-wrap gap-1.5">
                         {e.via_promissory && (
                           <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
-                            Promissory · lacking {e.lacking_hours} hrs{e.makeup_deadline ? ` · due ${e.makeup_deadline}` : ''}
+                            Promissory · deficient {e.deficient_hours ?? e.lacking_hours} hrs{e.makeup_deadline ? ` · makeup due ${e.makeup_deadline}` : ''}
                           </span>
                         )}
                         {!e.has_signature && (
@@ -257,6 +260,13 @@ export default function AdminStipendPage() {
         </div>
       )}
 
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+        <input value={recordSearch} onChange={(e) => { setRecordSearch(e.target.value); setPage(1) }}
+          placeholder="Search name, student ID or control no.…" aria-label="Search stipend records"
+          className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-brand-700 focus:outline-none" />
+      </div>
+
       <div className="rounded-2xl border border-ink-200 bg-white shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-6 space-y-3">{[1, 2, 3].map(n => <div key={n} className="h-12 animate-pulse rounded-lg bg-ink-200" />)}</div>
@@ -276,13 +286,26 @@ export default function AdminStipendPage() {
                 const meta = STATUS_META[r.status] ?? STATUS_META.pending
                 return (
                   <tr key={r.id} className="border-b border-ink-100 last:border-0 align-middle">
-                    <td className="px-4 py-3 font-medium text-ink-900">{r.recipient?.name ?? `User #${r.user_id}`}</td>
+                    <td className="px-4 py-3 font-medium text-ink-900">
+                      {r.recipient?.name ?? `User #${r.user_id}`}
+                      {r.recipient?.profile?.student_id_number && (
+                        <span className="block font-mono text-[11px] font-normal text-ink-500">ID {r.recipient.profile.student_id_number}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 font-mono text-xs text-ink-500">{r.control_number ?? '—'}</td>
                     <td className="px-4 py-3 font-semibold text-brand-700">{PHP.format(r.amount)}</td>
                     <td className="px-4 py-3 text-ink-500">{r.academic_year} — {r.semester}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
                       {r.status === 'void' && r.void_reason && <p className="mt-0.5 text-[11px] text-danger-700">{r.void_reason}</p>}
+                      {r.via_promissory && (
+                        <p className="mt-1">
+                          <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800"
+                            title={r.makeup_deadline ? `Makeup due ${r.makeup_deadline}` : undefined}>
+                            Promissory · deficient {r.deficient_hours ?? '—'} hrs
+                          </span>
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {r.status === 'certified' && (

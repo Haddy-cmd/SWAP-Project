@@ -27,7 +27,7 @@ export default function SupervisorDutySlipPage() {
   const { data: logsData, isLoading } = useQuery({
     queryKey: ['student-logs', studentId, 'duty-slip'],
     // Enough to span several semesters of duty for the semester navigator.
-    queryFn: () => attendanceApi.getStudentLogs(Number(studentId), { per_page: '300' }),
+    queryFn: () => attendanceApi.getStudentLogs(Number(studentId), { per_page: '300', scope: 'all' }),
     enabled: !!studentId,
   })
   const logs: TimeLog[] = logsData?.data ?? []

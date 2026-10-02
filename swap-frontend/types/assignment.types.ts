@@ -23,6 +23,53 @@ export interface Assignment {
   supervisor?: import('./auth.types').User
   /** Whether this recipient's supervisor requires a selfie at clock-in. */
   selfie_required?: boolean
+  /** The term's last day: its own end date, else its semester period's (YYYY-MM-DD). */
+  effective_end_date?: string | null
+  /** Persisted end-of-term verdict; null while the term is in progress. */
+  term_status?: 'qualified' | 'deficient' | null
+  /** Hours short when the term was judged deficient (kept after a makeup). */
+  deficient_hours?: number | null
+  term_status_reason?: string | null
+  term_status_at?: string | null
+  term_badge?: TermBadgeValue
+  /** Supervisor roster only: the end-of-term evaluation and whether it's due soon. */
+  evaluation?: import('./application.types').TermEvaluation | null
+  evaluation_due?: boolean
+}
+
+export type TermBadgeValue = 'qualified' | 'promissory_approved' | 'promissory_pending' | 'deficient' | 'in_progress'
+
+/** One earlier term on the recipient's Hours page (AttendanceService::termHistory). */
+export interface TermHistoryItem {
+  assignment_id: number
+  academic_year: string
+  semester: string
+  office: string | null
+  status: 'completed' | 'suspended'
+  start_date: string | null
+  end_date: string | null
+  required_hours: number
+  verified_hours: number
+  rendered_hours: number
+  term_status: 'qualified' | 'deficient' | null
+  term_badge: TermBadgeValue
+  deficient_hours: number | null
+  stipend_status: string | null
+  stipend_via_promissory: boolean
+}
+
+/** The supervisor student page's term block (StudentController::termPayload). */
+export interface StudentTerm {
+  badge: TermBadgeValue
+  status: 'qualified' | 'deficient' | null
+  deficient_hours: number | null
+  reason: string | null
+  marked_at: string | null
+  /** false = recorded by the end-of-semester check */
+  marked_by_supervisor: boolean
+  effective_end_date: string | null
+  /** Hours still short right now (0 when met). */
+  shortfall: number
 }
 
 export interface Office {

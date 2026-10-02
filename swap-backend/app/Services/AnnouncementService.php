@@ -79,4 +79,26 @@ class AnnouncementService
 
         return $announcement->load('sender:id,name');
     }
+
+    /**
+     * Remove a sent announcement: its history row and every recipient's portal copy.
+     * Emails already delivered can't be recalled. Returns how many portal copies went.
+     */
+    public function delete(Announcement $announcement, User $admin): int
+    {
+        return DB::transaction(function () use ($announcement, $admin) {
+            // The portal copies are stored as JSON text ending in the announcement id.
+            $removed = DB::table('notifications')
+                ->where('type', AnnouncementNotification::class)
+                ->where('data', 'like', '%"announcement_id":' . $announcement->id . '}')
+                ->delete();
+
+            AuditLog::record('announcement_deleted', $announcement,
+                $announcement->only(['title', 'recipient_count', 'emailed_count']) + ['created_at' => $announcement->created_at?->toISOString()],
+                ['notifications_removed' => $removed], $admin->id);
+            $announcement->delete();
+
+            return $removed;
+        });
+    }
 }

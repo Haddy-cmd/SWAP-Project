@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 
+/** The chat's tabs: the assistant, or writing to the DSA (signed-in non-admins). */
+export type ChatTab = 'assistant' | 'dsa'
+
 interface UIStore {
   /** Desktop: whether the sidebar column is expanded (persisted preference). */
   desktopSidebarOpen: boolean
@@ -10,6 +13,10 @@ interface UIStore {
   sidebarRevealed: boolean
   /** Floating chatbot widget open/closed (ephemeral). */
   chatOpen: boolean
+  /** Which chat tab is showing (ephemeral). */
+  chatTab: ChatTab
+  /** Prefill for the Ask the DSA form — a question the assistant couldn't answer. */
+  dsaDraft: { subject: string; message: string } | null
   toggleDesktopSidebar: () => void
   toggleMobileSidebar: () => void
   setMobileSidebarOpen: (open: boolean) => void
@@ -17,6 +24,10 @@ interface UIStore {
   scheduleHideSidebar: () => void
   toggleChat: () => void
   setChatOpen: (open: boolean) => void
+  setChatTab: (tab: ChatTab) => void
+  /** Open the chat on a tab (e.g. old /help links → Ask the DSA). */
+  openChat: (tab?: ChatTab) => void
+  setDsaDraft: (draft: { subject: string; message: string } | null) => void
 }
 
 // Module-level timer for the auto-hide delay (kept out of persisted state).
@@ -29,8 +40,13 @@ export const useUIStore = create<UIStore>()(
       mobileSidebarOpen: false,
       sidebarRevealed: false,
       chatOpen: false,
+      chatTab: 'assistant',
+      dsaDraft: null,
       toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
       setChatOpen: (chatOpen) => set({ chatOpen }),
+      setChatTab: (chatTab) => set({ chatTab }),
+      openChat: (tab = 'assistant') => set({ chatOpen: true, chatTab: tab }),
+      setDsaDraft: (dsaDraft) => set({ dsaDraft }),
       toggleDesktopSidebar: () => set((s) => ({ desktopSidebarOpen: !s.desktopSidebarOpen })),
       toggleMobileSidebar: () => set((s) => ({ mobileSidebarOpen: !s.mobileSidebarOpen })),
       setMobileSidebarOpen: (mobileSidebarOpen) => set({ mobileSidebarOpen }),

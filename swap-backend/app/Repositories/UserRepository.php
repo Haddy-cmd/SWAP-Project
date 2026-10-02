@@ -31,9 +31,12 @@ class UserRepository implements UserRepositoryInterface
         }
 
         if (!empty($filters['search'])) {
+            $term = "%{$filters['search']}%";
             $query->where(fn ($q) =>
-                $q->where('name', 'ilike', "%{$filters['search']}%")
-                    ->orWhere('email', 'ilike', "%{$filters['search']}%")
+                $q->where('name', 'ilike', $term)
+                    ->orWhere('email', 'ilike', $term)
+                    ->orWhere('employee_id', 'ilike', $term)
+                    ->orWhereHas('profile', fn ($p) => $p->where('student_id_number', 'ilike', $term))
             );
         }
 

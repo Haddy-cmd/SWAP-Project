@@ -13,6 +13,8 @@ export interface User {
   avatar_url?: string | null
   signature_url?: string | null
   position_title?: string | null
+  /** Supervisors and admins: their employee ID (digits). */
+  employee_id?: string | null
   profile?: StudentProfile
 }
 

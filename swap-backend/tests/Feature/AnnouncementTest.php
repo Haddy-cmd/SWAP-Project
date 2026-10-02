@@ -143,12 +143,45 @@ class AnnouncementTest extends TestCase
             ->assertJsonPath('meta.active_recipients', 2);
     }
 
+    public function test_deleting_removes_it_from_history_and_recipients_notifications(): void
+    {
+        Mail::fake();
+        $recipient = $this->makeUser('recipient');
+        $other = $this->makeUser('recipient');
+        $admin = $this->makeUser('admin');
+        Sanctum::actingAs($admin);
+
+        $keep = $this->postJson('/api/admin/announcements', $this->payload(['title' => 'Keep me']))->json('data.id');
+        $drop = $this->postJson('/api/admin/announcements', $this->payload(['title' => 'Sent by mistake']))->json('data.id');
+        $this->assertSame(2, $recipient->notifications()->count());
+
+        $this->deleteJson("/api/admin/announcements/{$drop}")
+            ->assertOk()
+            ->assertJsonPath('message', "Announcement deleted and removed from the notifications of 2 recipient(s). Emails already sent can't be recalled.");
+
+        // Only that announcement's portal copies are gone; the other stays everywhere.
+        $this->assertDatabaseMissing('announcements', ['id' => $drop]);
+        foreach ([$recipient, $other] as $user) {
+            $this->assertSame(1, $user->notifications()->count());
+            $this->assertSame($keep, $user->notifications()->first()->data['announcement_id']);
+        }
+        $this->getJson('/api/admin/announcements')->assertJsonCount(1, 'data')->assertJsonPath('data.0.title', 'Keep me');
+
+        // Audited with what was removed.
+        $log = \App\Models\AuditLog::where('action', 'announcement_deleted')->firstOrFail();
+        $this->assertSame('Sent by mistake', $log->old_values['title']);
+        $this->assertSame(2, $log->new_values['notifications_removed']);
+
+        $this->deleteJson("/api/admin/announcements/{$drop}")->assertNotFound();
+    }
+
     public function test_only_admins_can_send_or_list(): void
     {
         foreach (['applicant', 'recipient', 'supervisor'] as $role) {
             Sanctum::actingAs($this->makeUser($role));
             $this->getJson('/api/admin/announcements')->assertStatus(403);
             $this->postJson('/api/admin/announcements', $this->payload())->assertStatus(403);
+            $this->deleteJson('/api/admin/announcements/1')->assertStatus(403);
         }
     }
 }

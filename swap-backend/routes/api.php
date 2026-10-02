@@ -30,6 +30,7 @@ use App\Http\Controllers\Supervisor\OfficeController as SupervisorOfficeControll
 use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsController;
 use App\Http\Controllers\Supervisor\StudentController;
 use App\Http\Controllers\Supervisor\VerificationController;
+use App\Http\Controllers\Supervisor\EvaluationController as SupervisorEvaluationController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\AssignmentController;
 use App\Http\Controllers\Admin\AnnouncementController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\Admin\DutySlipController;
 use App\Http\Controllers\Admin\LandingPhotoController;
 use App\Http\Controllers\Shared\LandingPhotoController as PublicLandingPhotoController;
 use App\Http\Controllers\Admin\OfficeController;
+use App\Http\Controllers\Admin\SemesterPeriodController;
 use App\Http\Controllers\Admin\StipendController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -95,6 +97,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Help page: send a concern to the DSA and read the replies.
     Route::get('/concerns', [ConcernController::class, 'index']);
     Route::post('/concerns', [ConcernController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('/concerns/{id}/messages', [ConcernController::class, 'reply'])->middleware('throttle:20,1');
 
     // ─── APPLICANT ────────────────────────────────────────────────────────────
     Route::middleware('role:applicant')->prefix('applicant')->group(function () {
@@ -116,6 +119,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/narratives', [NarrativeController::class, 'store'])->withoutMiddleware('role:recipient');
         Route::get('/narratives/{logId}', [NarrativeController::class, 'show']);
         Route::get('/hours/summary', [HoursController::class, 'summary']);
+        Route::get('/assignments/history', [AttendanceController::class, 'history']);
         Route::get('/term-report', [TermReportController::class, 'show']);
         Route::put('/term-report', [TermReportController::class, 'update']);
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
@@ -140,6 +144,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/students/{id}/manual-hours', [StudentController::class, 'addManualHours']);
         Route::put('/students/{id}/required-hours', [StudentController::class, 'updateRequiredHours']);
         Route::post('/students/{id}/required-hours/decision', [StudentController::class, 'decideRequiredHours']);
+        Route::post('/students/{id}/mark-deficient', [StudentController::class, 'markDeficient']);
+        Route::get('/assignments/{id}/evaluation', [SupervisorEvaluationController::class, 'show']);
+        Route::put('/assignments/{id}/evaluation', [SupervisorEvaluationController::class, 'update']);
         Route::get('/reports/roster', [ReportController::class, 'supervisorRoster']);
         Route::get('/reports/roster/export', [ReportController::class, 'exportSupervisorRoster']);
         Route::get('/verifications/pending', [VerificationController::class, 'pending']);
@@ -205,6 +212,12 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/reports/preview', [ReportController::class, 'previewAdminReport']);
         Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
 
+        Route::get('/semester-periods', [SemesterPeriodController::class, 'index']);
+        Route::get('/semester-periods/current', [SemesterPeriodController::class, 'current']);
+        Route::post('/semester-periods', [SemesterPeriodController::class, 'store']);
+        Route::put('/semester-periods/{id}', [SemesterPeriodController::class, 'update']);
+        Route::delete('/semester-periods/{id}', [SemesterPeriodController::class, 'destroy']);
+
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings', [SettingController::class, 'update']);
 
@@ -213,6 +226,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/announcements', [AnnouncementController::class, 'index']);
         // Every send emails all active recipients: throttled against double-sends.
         Route::post('/announcements', [AnnouncementController::class, 'store'])->middleware('throttle:5,1');
+        Route::delete('/announcements/{id}', [AnnouncementController::class, 'destroy']);
 
         Route::get('/concerns', [AdminConcernController::class, 'index']);
         Route::put('/concerns/{id}', [AdminConcernController::class, 'update']);

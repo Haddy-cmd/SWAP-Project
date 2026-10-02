@@ -21,5 +21,9 @@ Schedule::command('attendance:close-stale')->hourly()->withoutOverlapping()->onO
 // daily reminder; this is the email + in-app ping). Self-dedupes via unread check.
 Schedule::command('remind:missing-signatures')->weekly()->withoutOverlapping()->onOneServer();
 
+// End of semester: record each placement's Qualified/Deficient verdict once its
+// semester period (Admin → Semesters) has ended. Idempotent; runs after midnight Manila.
+Schedule::command('semester:close')->dailyAt('00:10')->timezone('Asia/Manila')->withoutOverlapping()->onOneServer();
+
 // Login tokens expire after 7 days (User::TOKEN_TTL_DAYS); clear the dead rows.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer();

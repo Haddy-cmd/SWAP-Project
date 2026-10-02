@@ -18,6 +18,8 @@ class UserResource extends JsonResource
             'office_id' => $this->office_id,
             'office_name' => $this->whenLoaded('office', fn () => $this->office?->name),
             'position_title' => $this->position_title,
+            // Staff reference (supervisors/admins), like a student's student ID.
+            'employee_id' => $this->employee_id,
             'email_verified_at' => $this->email_verified_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
             // Streamed profile photo (client appends the auth token). The ?v= hash

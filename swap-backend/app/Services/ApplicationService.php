@@ -9,7 +9,6 @@ use App\Events\InterviewScheduled;
 use App\Models\Application;
 use App\Models\Assignment;
 use App\Models\AuditLog;
-use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Contracts\ApplicationRepositoryInterface;
 use App\Support\AfterCommit;
@@ -27,6 +26,7 @@ class ApplicationService
     public function __construct(
         private readonly ApplicationRepositoryInterface $applicationRepository,
         private readonly AssignmentService $assignmentService,
+        private readonly RenewalReadinessService $renewalReadiness,
     ) {}
 
     public function submitApplication(User $user, array $data): Application
@@ -83,15 +83,13 @@ class ApplicationService
      */
     public function submitRenewal(User $user, UploadedFile $cor): Application
     {
-        if (!Setting::bool('renewal_open', false)) {
+        // Renewal is open for one semester period at a time (Admin → Semesters).
+        $target = SemesterPeriodService::renewalTarget();
+        if (!$target) {
             throw new UnprocessableEntityHttpException('The renewal period is not open yet. Please wait for the DSA announcement.');
         }
-
-        $year = Setting::get('renewal_year');
-        $semester = Setting::get('renewal_semester');
-        if (!$year || !$semester) {
-            throw new UnprocessableEntityHttpException('The renewal period is not fully configured. Please contact the DSA office.');
-        }
+        $year = $target->academic_year;
+        $semester = $target->semester;
 
         $previous = Assignment::where('user_id', $user->id)->orderByDesc('id')->first();
         if (!$previous) {
@@ -295,6 +293,12 @@ class ApplicationService
         // allowed at any open stage; a decided application is final.
         ApplicationTransitions::assertCanDecide($application, $decision);
 
+        // Approving a renewal waits for the renewed term: paid or covered by a note,
+        // report in, evaluated and passed, no overdue makeup (RenewalReadinessService).
+        if ($decision === 'approved' && $application->type === 'renewal') {
+            $this->renewalReadiness->assertReady($application);
+        }
+
         $old = $application->only(['status', 'remarks']);
 
         $updated = $this->applicationRepository->update($application, [
@@ -324,11 +328,7 @@ class ApplicationService
     /** Create the next-term assignment for an approved renewal. */
     private function rolloverRenewal(Application $application, User $admin): void
     {
-        $previous = Assignment::where('user_id', $application->user_id)
-            ->where(fn ($q) => $q->where('academic_year', '!=', $application->academic_year)
-                ->orWhere('semester', '!=', $application->semester))
-            ->orderByDesc('id')
-            ->first();
+        $previous = $this->renewalReadiness->previousAssignment($application);
 
         if (!$previous) {
             return;
@@ -343,7 +343,9 @@ class ApplicationService
             return;
         }
 
-        // Close out the old term so the recipient has exactly one active assignment.
+        // Close out the old term so the recipient has exactly one active assignment,
+        // recording its Qualified/Deficient verdict now if the nightly job hasn't yet.
+        app(TermStatusService::class)->close($previous, notify: false);
         if ($previous->status === 'active') {
             $previous->update(['status' => 'completed']);
         }
@@ -355,7 +357,12 @@ class ApplicationService
             'academic_year' => $application->academic_year,
             'semester' => $application->semester,
             'required_hours' => $previous->required_hours,
-            'start_date' => now()->toDateString(),
+            // The new term's dates come from its semester period: it starts on the
+            // period's first day (today if the DSA hasn't set the period up) and has
+            // no end-date override, so the period's end date applies.
+            'start_date' => app(SemesterPeriodService::class)
+                ->forTerm($application->academic_year, $application->semester)?->start_date?->toDateString()
+                ?? now()->toDateString(),
         ], $admin);
     }
 

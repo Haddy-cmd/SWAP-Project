@@ -15,7 +15,7 @@ const TABS: { key: ConcernStatus | 'all'; label: string }[] = [
   { key: 'all', label: 'All' },
 ]
 
-/** Concerns sent from the Help page. A reply notifies the sender in the portal and by email. */
+/** Concerns sent from the SWAP Assistant. A reply notifies the sender in the portal and by email. */
 export default function AdminConcernsPage() {
   const [tab, setTab] = useState<ConcernStatus | 'all'>('open')
   const [page, setPage] = useState(1)
@@ -32,7 +32,7 @@ export default function AdminConcernsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Concerns</h1>
-        <p className="mt-1 text-sm text-ink-500">Questions and problems users send from the Help page. Your reply reaches them in the portal and by email.</p>
+        <p className="mt-1 text-sm text-ink-500">Questions and problems users send from the SWAP Assistant. Each one is a conversation — your reply reaches them in the portal and by email.</p>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -87,6 +87,13 @@ function ConcernCard({ concern: c }: { concern: Concern }) {
 
   const meta = CONCERN_STATUS_META[c.status]
   const text = reply.trim()
+  // Backfilled/old shapes may lack `messages`; fall back to the opener + single reply.
+  const thread = c.messages?.length
+    ? c.messages
+    : [
+        { id: -1, from_staff: false, author: c.user?.name ?? null, body: c.message, created_at: c.created_at },
+        ...(c.response ? [{ id: -2, from_staff: true, author: c.responded_by ?? null, body: c.response, created_at: c.responded_at }] : []),
+      ]
 
   return (
     <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
@@ -94,26 +101,29 @@ function ConcernCard({ concern: c }: { concern: Concern }) {
         <div className="min-w-0">
           <p className="font-semibold text-ink-900">{c.subject}</p>
           <p className="text-xs text-ink-500">
-            {c.user?.name ?? 'Unknown user'}{c.user?.role ? ` · ${c.user.role}` : ''}{c.user?.email ? ` · ${c.user.email}` : ''}
+            {c.user?.name ?? 'Unknown user'}{c.user?.student_id_number ? ` · ID ${c.user.student_id_number}` : ''}{c.user?.role ? ` · ${c.user.role}` : ''}{c.user?.email ? ` · ${c.user.email}` : ''}
             {c.created_at && <> · {formatDateTime(c.created_at)}</>}
           </p>
         </div>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
       </div>
-      <p className="mt-3 whitespace-pre-line text-sm text-ink-700">{c.message}</p>
-
-      {c.response && (
-        <div className="mt-3 rounded-lg border-l-4 border-brand-700 bg-brand-50 px-3 py-2">
-          <p className="text-xs font-semibold text-brand-700">
-            Reply{c.responded_by ? ` by ${c.responded_by}` : ''}{c.responded_at ? ` · ${formatDateTime(c.responded_at)}` : ''}
-          </p>
-          <p className="mt-1 whitespace-pre-line text-sm text-ink-900">{c.response}</p>
-        </div>
-      )}
+      <div className="mt-3 space-y-2">
+        {thread.map((m) => (
+          <div key={m.id} className={m.from_staff ? 'flex justify-end' : 'flex justify-start'}>
+            <div className={`max-w-[80%] rounded-lg px-3 py-2 ${m.from_staff ? 'border-r-4 border-brand-700 bg-brand-50' : 'bg-ink-100'}`}>
+              <p className={`text-[11px] font-semibold ${m.from_staff ? 'text-brand-700' : 'text-ink-500'}`}>
+                {m.from_staff ? (m.author ? `DSA · ${m.author}` : 'DSA Office') : (c.user?.name ?? 'User')}
+                {m.created_at ? ` · ${formatDateTime(m.created_at)}` : ''}
+              </p>
+              <p className="mt-0.5 whitespace-pre-line text-sm text-ink-900">{m.body}</p>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="mt-4 space-y-2">
         <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} maxLength={2000}
-          placeholder={c.response ? 'Send another reply…' : 'Write a reply to the user…'}
+          placeholder={thread.some((m) => m.from_staff) ? 'Reply in this thread…' : 'Write a reply to the user…'}
           className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
         {error && <p className="text-xs font-medium text-danger-700">{error}</p>}
         {notice && <p className="text-xs font-medium text-success-700">{notice}</p>}

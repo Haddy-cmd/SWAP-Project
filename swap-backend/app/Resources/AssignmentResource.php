@@ -27,6 +27,18 @@ class AssignmentResource extends JsonResource
             'pending_hours' => $this->pending_hours,
             'remaining_hours' => $this->remaining_hours,
             'pace' => $this->paceStatus(),
+            // The term's last day: its own end date, else its semester period's.
+            'effective_end_date' => $this->effectiveEndDate()?->toDateString(),
+            // Persisted verdict (null = in progress) and the badge derived from it.
+            'term_status' => $this->term_status,
+            'deficient_hours' => $this->deficient_hours !== null ? (float) $this->deficient_hours : null,
+            'term_status_reason' => $this->term_status_reason,
+            'term_status_at' => $this->term_status_at?->toISOString(),
+            'term_badge' => $this->termBadge(),
+            // The supervisor's end-of-term evaluation, where the list loads it.
+            // (when(), not whenLoaded(): a loaded-but-missing evaluation must still say "due".)
+            'evaluation' => $this->when($this->resource->relationLoaded('evaluation'), fn () => $this->evaluation?->toPayload()),
+            'evaluation_due' => $this->when($this->resource->relationLoaded('evaluation'), fn () => \App\Services\TermEvaluationService::isDue($this->resource, $this->evaluation !== null)),
             'pending_logs_count' => (int) ($this->pending_logs_count ?? 0),
             'created_at' => $this->created_at->toISOString(),
             'user' => $this->whenLoaded('user', fn () => new UserResource($this->user)),

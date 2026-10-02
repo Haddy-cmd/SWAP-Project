@@ -12,4 +12,8 @@ export const announcementsApi = {
   // Sends to every active recipient: portal notification + email.
   send: (data: { title: string; message: string }) =>
     apiClient.post<ApiResponse<Announcement>>('/admin/announcements', data).then((r) => r.data),
+
+  // Removes it from the history and every recipient's notifications (emails can't be recalled).
+  remove: (id: number) =>
+    apiClient.delete<{ message: string }>(`/admin/announcements/${id}`).then((r) => r.data),
 }

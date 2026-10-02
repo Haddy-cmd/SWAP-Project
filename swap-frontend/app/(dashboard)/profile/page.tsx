@@ -33,6 +33,8 @@ const profileSchema = z.object({
   name: z.string().min(2, 'Name is required'),
   contact_number: z.string().max(20).optional().or(z.literal('')),
   position_title: z.string().max(150, 'Max 150 characters').optional().or(z.literal('')),
+  // Staff only; checked again by the API (digits, unique).
+  employee_id: z.string().regex(/^\d{4,15}$/, 'Enter your employee ID (digits only).').optional().or(z.literal('')),
 })
 type ProfileForm = z.infer<typeof profileSchema>
 
@@ -149,7 +151,7 @@ export default function ProfilePage() {
     formState: { errors: pe },
   } = useForm<ProfileForm>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: user?.name ?? '', contact_number: user?.profile?.contact_number ?? '', position_title: user?.position_title ?? '' },
+    defaultValues: { name: user?.name ?? '', contact_number: user?.profile?.contact_number ?? '', position_title: user?.position_title ?? '', employee_id: user?.employee_id ?? '' },
   })
 
   const {
@@ -167,6 +169,8 @@ export default function ProfilePage() {
         // Supervisor titles are fixed policy ("SWAP Mentor"); only the admin's
         // title is manual, so only it is ever sent.
         ...(role === 'admin' ? { position_title: data.position_title || null } : {}),
+        // Supervisors and admins are identified by their employee ID.
+        ...(!isStudent && data.employee_id ? { employee_id: data.employee_id } : {}),
       }),
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
@@ -349,6 +353,16 @@ export default function ProfilePage() {
                     <label className={LABEL}>{isStudent ? 'College' : 'Office / Department'}</label>
                     <input value={department} disabled className={INPUT} />
                   </div>
+                  {!isStudent && (
+                    <div className="sm:col-span-2">
+                      <label className={LABEL}>Employee ID</label>
+                      <input {...rp('employee_id')} inputMode="numeric" placeholder="Digits only, e.g. 20190123" className={INPUT} />
+                      {pe.employee_id && <p className="mt-1 text-xs text-danger-700">{pe.employee_id.message}</p>}
+                      {!user.employee_id
+                        ? <p className="mt-1 text-[11px] font-semibold text-warning-700">Add your employee ID — the DSA uses it to identify staff.</p>
+                        : <p className="mt-1 text-[11px] text-ink-400">How the DSA identifies you in the portal.</p>}
+                    </div>
+                  )}
                   {!isStudent && role === 'admin' && (
                     <div className="sm:col-span-2">
                       <label className={LABEL}>Position Title</label>

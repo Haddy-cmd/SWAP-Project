@@ -32,12 +32,20 @@ class ApplicationResource extends JsonResource
                 return [
                     'office' => $prev->office?->name,
                     'supervisor' => $prev->supervisor?->name,
+                    'supervisor_employee_id' => $prev->supervisor?->employee_id,
                     'period' => "{$prev->academic_year} — {$prev->semester}",
                     'verified_hours' => $prev->verified_hours,
                     'required_hours' => $prev->required_hours,
                     'status' => $prev->status,
                 ];
             }),
+            // For admins reviewing a renewal: what approval still needs (paid/covered,
+            // report, evaluation, makeup) — the same check the approval enforces. Only on a
+            // single application (show/decide), never per row of a list.
+            'renewal_readiness' => $this->when(
+                ($this->type ?? 'new') === 'renewal' && $request->user()?->role === 'admin' && $request->route('id') !== null,
+                fn () => app(\App\Services\RenewalReadinessService::class)->check($this->resource),
+            ),
             'remarks' => $this->remarks,
             'reviewed_at' => $this->reviewed_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),

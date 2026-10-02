@@ -3,6 +3,7 @@ import apiClient from './axios'
 export interface ApplicationStatus {
   open: boolean
   message: string | null
+  // Derived from the semester period renewal is open for (Admin → Semesters).
   renewal: {
     open: boolean
     academic_year: string | null
@@ -13,9 +14,6 @@ export interface ApplicationStatus {
 export interface AdminSettings {
   applications_open: boolean
   applications_closed_message: string
-  renewal_open: boolean
-  renewal_year: string | null
-  renewal_semester: string | null
 }
 
 export const settingsApi = {
@@ -30,9 +28,6 @@ export const settingsApi = {
   updateSettings: (data: Partial<{
     applications_open: boolean
     applications_closed_message: string
-    renewal_open: boolean
-    renewal_year: string
-    renewal_semester: string
   }>) =>
     apiClient.put<{ data: AdminSettings; message: string }>('/admin/settings', data).then((r) => r.data),
 }

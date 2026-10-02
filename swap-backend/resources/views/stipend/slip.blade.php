@@ -2,10 +2,20 @@
     /** @var \App\Models\StipendHistory $stipend */
     $recipient = $stipend->recipient;
     $name = $recipient?->profile?->full_name ?? $recipient?->name ?? '________________________';
+    $sid = $recipient?->profile?->student_id_number;
     $amount = number_format((float) $stipend->amount, 2);
     $period = trim(($stipend->period_label ? $stipend->period_label . ' of the ' : '') . $stipend->semester . ' ' . $stipend->academic_year);
     $control = $stipend->control_number ?? '—';
     $date = optional($stipend->certified_at)->timezone('Asia/Manila')->format('F j, Y') ?? '';
+
+    // Released through an approved promissory note: the stub states the shortfall
+    // the note covers instead of certifying completed hours.
+    $hrs = fn ($h) => rtrim(rtrim(number_format((float) $h, 2), '0'), '.');
+    $promissory = $stipend->via_promissory && $stipend->deficient_hours !== null;
+    $deficient = $promissory ? $hrs($stipend->deficient_hours) : null;
+    $requiredHrs = $promissory && $stipend->required_hours !== null ? $hrs($stipend->required_hours) : null;
+    $renderedHrs = $requiredHrs !== null ? $hrs(max(0, (float) $stipend->required_hours - (float) $stipend->deficient_hours)) : null;
+    $makeupDue = $stipend->makeup_deadline?->format('F j, Y');
 
     $sig = fn (string $role) => $stipend->signatures->firstWhere('signatory_role', $role);
     // Drawn specimen embedded as ink. Base64 data-URI keeps DomPDF self-contained
@@ -101,9 +111,17 @@
         <tr>
             <td style="vertical-align: top;">
                 <div class="body">
-                    This is to certify that Mr./Ms. <b>{{ $name }}</b> is a bonafide beneficiary of the
-                    Student Welfare Assistantship Program (SWAP) and has completed the duty hours required for
-                    <b>{{ $period }}</b>.
+                    @if ($promissory)
+                        This is to certify that Mr./Ms. <b>{{ $name }}</b>@if ($sid) (Student ID <b>{{ $sid }}</b>)@endif is a bonafide beneficiary of the
+                        Student Welfare Assistantship Program (SWAP) and has rendered
+                        @if ($requiredHrs !== null) <b>{{ $renderedHrs }}</b> of the <b>{{ $requiredHrs }}</b> @else the @endif
+                        duty hours required for <b>{{ $period }}</b>, with a deficiency of <b>{{ $deficient }} hours</b>
+                        covered by approved promissory note #{{ $stipend->promissory_note_id }}@if ($makeupDue) (makeup due {{ $makeupDue }})@endif.
+                    @else
+                        This is to certify that Mr./Ms. <b>{{ $name }}</b>@if ($sid) (Student ID <b>{{ $sid }}</b>)@endif is a bonafide beneficiary of the
+                        Student Welfare Assistantship Program (SWAP) and has completed the duty hours required for
+                        <b>{{ $period }}</b>.
+                    @endif
                 </div>
             </td>
             @if (!empty($claimQr))
@@ -134,9 +152,12 @@
         <tr><td>Control Number: <b>{{ $control }}</b></td><td align="right">Amount: <b>₱{{ $amount }}</b></td></tr>
     </table>
     <div class="body">
-        Mr./Ms. <b>{{ $name }}</b> has received the amount of <b>₱{{ $amount }}</b> as payment for
+        Mr./Ms. <b>{{ $name }}</b>@if ($sid) (Student ID <b>{{ $sid }}</b>)@endif has received the amount of <b>₱{{ $amount }}</b> as payment for
         the SWAP Beneficiary allowance for <b>{{ $period }}</b>.
     </div>
+    @if ($promissory)
+        <div class="body">Deficiency: <b>{{ $deficient }} hrs</b> · promissory note #{{ $stipend->promissory_note_id }}@if ($makeupDue) · makeup due {{ $makeupDue }}@endif</div>
+    @endif
     <table class="sigrow">
         <tr>
             <td><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>
@@ -155,9 +176,12 @@
         <tr><td>Control Number: <b>{{ $control }}</b></td><td align="right">Amount: <b>₱{{ $amount }}</b></td></tr>
     </table>
     <div class="body">
-        Mr./Ms. <b>{{ $name }}</b> has received the amount of <b>₱{{ $amount }}</b> as payment for
+        Mr./Ms. <b>{{ $name }}</b>@if ($sid) (Student ID <b>{{ $sid }}</b>)@endif has received the amount of <b>₱{{ $amount }}</b> as payment for
         the SWAP Beneficiary allowance for <b>{{ $period }}</b>.
     </div>
+    @if ($promissory)
+        <div class="body">Deficiency: <b>{{ $deficient }} hrs</b> · promissory note #{{ $stipend->promissory_note_id }}@if ($makeupDue) · makeup due {{ $makeupDue }}@endif</div>
+    @endif
     <table class="sigrow">
         <tr>
             <td><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>

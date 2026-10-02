@@ -3,7 +3,7 @@
 **System:** SWAP (Student Welfare Assistantship Program) Portal — MSU Main Campus
 **Architecture:** Laravel 12 (REST API) backend + Next.js 15 frontend, PostgreSQL
 **Document purpose:** Complete catalogue of test cases for capstone documentation and system testing (functional, negative, boundary, security, and non-functional).
-**Last aligned with the code:** 2026-09-30 (Banking Office QR release with an admin-set releasing officer, end-of-term report, optional session notes, per-office auto clock-out, concerns inbox, announcements, one sign-in per browser; orientation step removed; real-time stack removed).
+**Last aligned with the code:** 2026-10-01 (semester periods as the term calendar, end-of-semester Qualified/Deficient verdicts, supervisor evaluations, the renewal approval gate, per-term hours with past terms, promissory deficiency on the stub; earlier: Banking Office QR release with an admin-set releasing officer, end-of-term report, optional session notes, per-office auto clock-out, concerns inbox, announcements, one sign-in per browser; orientation step removed; real-time stack removed).
 
 ---
 
@@ -45,12 +45,14 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | Frontend | Next.js 15, runs against the API base URL |
 | Timezone | Stored in UTC; every business rule is applied in Asia/Manila (PHT) |
 | Roles under test | `applicant`, `recipient`, `supervisor`, `admin` |
-| Seed data needed | ≥1 admin **with a position title**, ≥2 supervisors (one sharing an office), ≥2 geofenced offices, ≥1 assignment, sample applicants |
+| Seed data needed | ≥1 admin **with a position title**, ≥2 supervisors (one sharing an office), ≥2 geofenced offices, ≥1 assignment, sample applicants, and the **current semester set up under Admin → Semesters** (term dates and renewal come from it) |
 | Institutional email domain | `@s.msumain.edu.ph` (registration is restricted to this) |
 | Student ID | exactly 9 digits |
 | Default required service hours | 200 per assignment (admin range 1–500) |
 | Default stipend | ₱5,000 per semester (admin can override per release) |
-| Stipend release needs | Verified hours met (or an approved promissory note) **and** the recipient's saved signature **and** their end-of-term narrative report |
+| Stipend release needs | Verified hours met (or an approved promissory note) **and** the recipient's saved signature **and** their end-of-term narrative report. Stipends are releasable as soon as the hours are met; the end of the semester does not have to pass |
+| Semester calendar | Admin → Semesters: one period per school year + semester, dates never overlap. An assignment's own end date overrides its period's. The daily `semester:close` job (00:10 PHT) records each ended term as Qualified or Deficient |
+| Renewal approval needs | The renewed term paid (or covered by an approved promissory note, with its end-of-term report in), a supervisor evaluation of 3+ out of 5, and no overdue makeup. Submitting a renewal early is allowed |
 | Banking Office | No account. The releasing officer scans the stub's QR (`/claim/{token}`) and enters the **Banking Office PIN** (6–8 digits). The admin sets the officer's name together with the PIN on Admin → Stipend; that name is what prints on the stub |
 | Login tokens | Expire after **7 days**; deactivating an account revokes all of its sessions |
 | Interview windows (PHT) | Face-to-face: Mon–Fri, start **and** end within 7:00 AM–5:00 PM · Online: any day, within 8:00 AM–11:00 PM · default length 30 min |
@@ -178,6 +180,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-INV-006 | P3 | [S] Invitation endpoints rate limited | — | Flood `/invitations/{token}` (>10/min) or accept (>6/min) | rapid requests | HTTP 429 after limit |  |  |
 | TC-INV-007 | P2 | [N] Invite for an email that already has an account | Account exists for the invited email | Accept the invitation | existing email | HTTP 422, "An account with this email already exists. Please sign in instead." |  |  |
 | TC-INV-008 | P2 | [S] **OBSOLETE** — direct staff creation removed | — | POST `/admin/users` as admin | name, email, password, role | HTTP 405 (route removed; staff accounts only come through invitations) |  |  |
+| TC-INV-009 | P1 | [N] Accepting needs a valid employee ID | Valid invitation | Accept with no employee ID; `EMP-0123`; an ID another account already has; then `20190123` | — | HTTP 422 "Enter your employee ID (digits only)." / "This employee ID is already used by another account."; with `20190123` the account is created and its profile shows Employee ID 20190123 |  |  |
 
 ---
 
@@ -208,14 +211,16 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-REN-001 | P1 | [H] Successful renewal | Renewal **open** + year/semester configured, recipient has a prior assignment | POST `/recipient/renewals` with updated COR | valid COR file | HTTP 201, `type=renewal`, status `submitted`, COR attached, admins notified |  |  |
-| TC-REN-002 | P2 | [N] Renewal blocked when window closed | Renewal **closed** | POST renewal | any | HTTP 422, "The renewal period is not open yet. Please wait for the DSA announcement." |  |  |
-| TC-REN-003 | P2 | [N] Renewal not configured | `renewal_open` true but year/semester unset | POST renewal | any | HTTP 422, "The renewal period is not fully configured. Please contact the DSA office." |  |  |
+| TC-REN-001 | P1 | [H] Successful renewal | A semester period has renewal **open** (Admin → Semesters), recipient has a prior assignment | POST `/recipient/renewals` with updated COR | valid COR file | HTTP 201, `type=renewal`, status `submitted` for that period's year + semester, COR attached, admins notified |  |  |
+| TC-REN-002 | P2 | [N] Renewal blocked when window closed | No semester period has renewal open | POST renewal | any | HTTP 422, "The renewal period is not open yet. Please wait for the DSA announcement." |  |  |
+| TC-REN-003 | P2 | [S] **OBSOLETE** — renewal settings keys | Admin | PUT `/admin/settings` with `renewal_open=true`, `renewal_year`, `renewal_semester`; then GET `/settings/application-status` | — | The keys are ignored (renewal is opened per semester period, TC-SEM-005); `renewal.open` only changes through Admin → Semesters |  |  |
 | TC-REN-004 | P2 | [N] Renewal requires prior assignment | User with no previous assignment | POST renewal | any | HTTP 422, "Renewal is only available to recipients with an existing assignment." |  |  |
 | TC-REN-005 | P2 | [N] Duplicate renewal for the term | Already submitted for that term | POST renewal again | same term | HTTP 409, "You already have a submission for {year} — {semester}." |  |  |
 | TC-REN-006 | P2 | [N] Broken COR upload rolls back | Renewal open/configured | Simulate storage failure on upload | failing upload | HTTP 422, "Could not upload your COR. Please try again."; no document-less renewal left in the queue |  |  |
-| TC-REN-007 | P1 | [H] Approving renewal rolls over assignment | Renewal app `submitted`, admin | Admin approves renewal (no interview needed) | approve | Old assignment `completed`, new assignment created (same office/supervisor), hours reset |  |  |
+| TC-REN-007 | P1 | [H] Approving renewal rolls over assignment | Renewal app `submitted`; renewed term paid, evaluated 3+/5 (TC-ADMR-027..031) | Admin approves renewal (no interview needed) | approve | Old assignment `completed` with its Qualified/Deficient verdict recorded; new assignment (same office, supervisor, required hours) starts on its semester period's first day with no end date of its own; its verified hours start at 0 and the old logs stay with the old term |  |  |
 | TC-REN-008 | P2 | [N] A decided renewal can't be approved again | Renewal already approved | Admin approves again | approve | HTTP 409, "This application has already been decided."; no second assignment or email |  |  |
+| TC-REN-009 | P2 | [H] Submitting early is allowed | Renewal open; the current term is still running, unpaid and not evaluated | POST renewal | valid COR | HTTP 201; the application waits in `submitted`; only the admin's approval checks the gates (TC-ADMR-027..031) |  |  |
+| TC-REN-010 | P2 | [N] "Approved" only once the new term exists | Renewal application marked `approved` but no assignment for that term | Open Renewal | — | "Renewal Approved — Placement Not Set Up" asking the student to contact the DSA (not "Welcome Back"); after the rollover: "Renewal Approved — Welcome Back!" (`GET /recipient/renewals` → `meta.placed`) |  |  |
 
 ---
 
@@ -251,6 +256,16 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 | TC-ADMR-024 | P2 | [H] Online interview from the Applications list page | Admin on `/admin/applications` (list view) | Choose Online, enter the link in "Meeting Link", schedule | `https://meet.google.com/abc-defg-hij` | Scheduled; any backend refusal is shown in a red toast with the exact message (no silent failure) |  |  |
 | TC-ADMR-025 | P3 | [H] Time without a zone is read as Manila time | App `under_review` | POST interview with `scheduled_at` lacking an offset | `2026-10-06T10:00` | Stored as 10:00 PHT (02:00 UTC) |  |  |
 | TC-ADMR-026 | P2 | [N] Decision still saves if the email fails | Mail server down | Approve an application | approve | HTTP 200 approved (mail failure logged, not a 500) |  |  |
+| TC-ADMR-027 | P1 | [N] Renewal approval waits while the previous term is owed a stipend | Recipient met their hours for 1st Semester 2024-2025, evaluated 4/5, no stub released; renewal for 2nd Semester submitted | Approve the renewal; then release the old stub and approve again | — | First: HTTP 409, "Release this recipient's stipend for 1st Semester 2024-2025 before approving the renewal.", nothing changes. After the release: approved and rolled over (TC-REN-007). Rejecting is never blocked |  |  |
+| TC-ADMR-028 | P1 | [N] A short term without a promissory note blocks approval | Previous term short on hours, no approved note, evaluated | Approve the renewal | — | HTTP 409, "This recipient's 1st Semester 2024-2025 is not paid and has no approved promissory note."; the old assignment stays active |  |  |
+| TC-ADMR-029 | P1 | [N] A promissory-covered term needs its end-of-term report | Previous term short, approved note, not paid, evaluated, no term report | Approve; then submit the report and approve again | — | First: HTTP 409, "This recipient has not submitted their end-of-term narrative report for 1st Semester 2024-2025 yet." Then: approved; the old term (now `completed`, Deficient) is still on the stipend eligible list "via promissory" |  |  |
+| TC-ADMR-030 | P1 | [N] The supervisor evaluation is required and must pass | Previous term paid | Approve with no evaluation; then with a 2/5 evaluation | — | HTTP 409, "The supervisor has not evaluated this recipient for 1st Semester 2024-2025 yet." / "This recipient did not pass the supervisor evaluation for 1st Semester 2024-2025 (rating 2/5)." |  |  |
+| TC-ADMR-031 | P1 | [N] An overdue makeup blocks approval | Approved note whose makeup deadline passed, hours still short; paid; evaluated | Approve | — | HTTP 409, "This recipient's makeup hours for 1st Semester 2024-2025 were due {Mon D, YYYY} and are not complete." |  |  |
+| TC-ADMR-032 | P2 | [H] Renewal readiness on the review pages | Renewal `submitted` | Open it on Admin → Applications (list) and on its detail page | — | "Previous service record" lists the term verdict and deficient hours, paid / promissory state, the report (when covered), the evaluation (rating, label, remarks, evaluator) and the makeup deadline, then "Ready to approve." or "Blocked: {same message as the 409}". Approve is disabled while blocked. The detail page offers the decision for a `submitted` renewal and no "Mark as Under Review" |  |  |
+| TC-ADMR-033 | P1 | [N] A renewal needs its COR and an earlier placement | Renewal with no COR document (e.g. written straight to the database), term paid and evaluated; a renewal from someone with no earlier assignment | Approve each | — | HTTP 409, "This renewal has no updated COR attached. The recipient has to submit the renewal with their COR first." / "This recipient has no earlier assignment to renew."; the readiness list shows "No updated COR attached" first |  |  |
+| TC-ADMR-034 | P2 | [H] Renewals tab | Some new applications and some renewals | Admin → Applications → tabs All / New applications / Renewals (GET `/admin/applications?type=renewal` / `new`) | — | Renewals shows only returning recipients' renewals; the tab badge counts renewals waiting (submitted); the status cards and the list count within the selected tab; New applications hides renewals; switching tabs resets the page and selection |  |  |
+| TC-ADMR-035 | P2 | [H] Admin lists show and search by student ID | Students with profiles | Search Applications, Assignments and Users for `202512345` (and part of it) | — | The student is found by ID; queue rows, cards and the user list show "ID 202512345"; the application detail lists the Student ID; concern cards show the sender's ID |  |  |
+| TC-ADMR-036 | P2 | [H] Admin sees and finds staff by employee ID | Supervisor with employee ID 20190123 | Search Users for `2019012`; open an office's supervisors and a renewal they supervised | — | The supervisor is found; Users rows show "EMP 20190123" ("No employee ID" for staff without one); the office supervisor list and the renewal's Previous service record show EMP 20190123 |  |  |
 
 ---
 
@@ -289,6 +304,7 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 | TC-PROF-008 | P1 | [S] Password change signs out other sessions | Logged in on two devices | Change password on device 1, then use device 2 | two tokens | Device 2 → HTTP 401; device 1 stays signed in |  |  |
 | TC-PROF-009 | P2 | [S] Password change is rate limited | Logged in | >6 password-change attempts in 1 minute | 7 rapid wrong attempts | 7th returns HTTP 429 |  |  |
 | TC-PROF-010 | P2 | [H] Admin position title saved and cleared | Admin | PUT `/profile` with `position_title`, then with empty | `Director, Division of Student Affairs` | Saved and returned; clearing it blocks stipend release (TC-STIP-010) |  |  |
+| TC-PROF-011 | P2 | [H] Staff keep their employee ID on Profile | Supervisor or admin (incl. the existing staff with none yet); a student | Profile → Employee ID → Save; a student sends `employee_id` | `33334444`; another staff's ID | Staff without one see "Add your employee ID"; saving `33334444` works (audit `profile_updated`); another account's ID → "This employee ID is already used by another account."; a student → HTTP 422 "Only supervisors and admins have an employee ID." |  |  |
 
 ---
 
@@ -394,30 +410,33 @@ Cases 001–008 cover the **optional** per-session note (validated when one is s
 | TC-HRS-001 | P2 | [H] Recipient hours summary | Recipient with verified logs | GET `/recipient/hours/summary` | — | Verified/pending totals and progress toward required hours |  |  |
 | TC-HRS-002 | P1 | [H] Only verified hours count toward requirement | Mix of pending/verified/rejected | View summary | mixed logs | Only `verified` duration counts; pending shown separately; rejected excluded |  |  |
 | TC-HRS-003 | P2 | [B] Log history page size for duty slips | Recipient with many logs | GET `/recipient/attendance/logs?per_page=300`, then `500`, then `501` | per_page values | 300 and 500 → HTTP 200 (one page covers a semester); 501 → HTTP 422 |  |  |
+| TC-HRS-004 | P1 | [H] Hours are per term | Renewed recipient: old term with logs, new term with one log | GET `/recipient/attendance/logs`, then `?scope=all`; open Hours | — | Default: only the current placement's logs (list and weekly chart); `scope=all` returns every term (the duty slip uses it); `scope=everything` → HTTP 422; the summary counts the current term only |  |  |
+| TC-HRS-005 | P2 | [H] Past terms on the Hours page | Recipient with a completed earlier term | GET `/recipient/assignments/history`; open Hours | — | "Past terms" lists each earlier term with office, verified of required hours, its badge (Qualified / Deficient / Promissory …) and that term's stipend state; hours never carry over |  |  |
+| TC-HRS-006 | P2 | [H] Term-ended banner | Current placement's term ended | Open the recipient dashboard | short by 6 h; then met | "{term} ended: Deficient by 6h. Submit a promissory note on the Stipend page." (or the note's pending/approved state), linking to Stipend; "{term} ended: Qualified." when met; no banner while the term runs |  |  |
 
 ---
 
 ## 18. Module: Recipient — Promissory Notes (`TC-PROM`) — Recipient → Supervisor
 
-A recipient who ends the semester short on verified hours may file a promissory note; a supervisor who governs the assignment (assigned supervisor or any supervisor of the office) reviews it. Semester end = the assignment's end date, else the `semester_end_date` setting (Manila time).
+A recipient who ends the semester short on verified hours may file a promissory note; a supervisor who governs the assignment (assigned supervisor or any supervisor of the office) reviews it. Semester end = the assignment's own end date, else its semester period's end (Admin → Semesters), in Manila time. A note needs some verified hours.
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-PROM-001 | P1 | [H] Submit after the semester ends | Active assignment, semester ended, verified < required | POST `/recipient/promissory` | `assignment_id`, PDF ≤ 5 MB, reason | HTTP 201, note `pending`, governing supervisors notified, audit logged |  |  |
+| TC-PROM-001 | P1 | [H] Submit after the semester ends | Active assignment, semester ended, 0 < verified < required | POST `/recipient/promissory` | `assignment_id`, PDF ≤ 5 MB, reason | HTTP 201, note `pending` with `deficient_hours` = required − verified, governing supervisors notified, audit logged |  |  |
 | TC-PROM-002 | P1 | [N] Too early | Semester end is today or later (Manila) | Submit | valid file | HTTP 422, "Promissory notes can only be submitted after the semester ends." |  |  |
-| TC-PROM-003 | P2 | [N] Semester end not set | No end date on the assignment and no `semester_end_date` setting | Submit | valid file | HTTP 422, "Semester end date is not set. Ask the admin to set it first." |  |  |
+| TC-PROM-003 | P2 | [N] Semester not set up | No end date on the assignment and no semester period for its term | Submit | valid file | HTTP 422, "The semester period for 1st Semester 2024-2025 isn't set up yet. Ask the DSA to add it under Semesters."; the Stipend page shows the same reason |  |  |
 | TC-PROM-004 | P1 | [N] Hours already complete | verified ≥ required | Submit | valid file | HTTP 422, "No lacking hours — a promissory note is not needed." |  |  |
 | TC-PROM-005 | P2 | [N] One pending note per assignment | A pending note exists | Submit another | valid file | HTTP 422, "There is already a pending promissory note for this assignment." |  |  |
 | TC-PROM-006 | P2 | [B] File type and size | Semester ended, short on hours | Submit | `.docx`; PDF 5.1 MB; missing reason | HTTP 422 on `file` / `reason` |  |  |
 | TC-PROM-007 | P1 | [S] Can't file for someone else's assignment | Assignment of another recipient | Submit with their `assignment_id` | valid file | HTTP 404, "Assignment not found." |  |  |
-| TC-PROM-008 | P1 | [H] Governing supervisor approves | Pending note | POST `/supervisor/promissory/{id}/review` | `action=approve`, `lacking_hours=12` | Note `approved`, makeup deadline = semester end + 7 days, student notified, recipient appears in the stipend eligible list "via promissory" |  |  |
+| TC-PROM-008 | P1 | [H] Governing supervisor approves | Pending note | POST `/supervisor/promissory/{id}/review` | `action=approve`, `lacking_hours=12` | Note `approved`, makeup deadline = semester end + 7 days (the period's end when the assignment has none), student notified, recipient appears in the stipend eligible list "via promissory" |  |  |
 | TC-PROM-009 | P2 | [N] Rejection needs remarks | Pending note | Review | `action=reject`, no remarks | HTTP 422 on `review_remarks` |  |  |
 | TC-PROM-010 | P1 | [S] Non-governing supervisor can't review | Supervisor of another office | Review the note | approve | HTTP 404, "Student not found or not assigned to you." |  |  |
 | TC-PROM-011 | P2 | [N] Can't review twice | Note already approved/rejected | Review again | approve | HTTP 422, "This promissory note has already been reviewed." |  |  |
 | TC-PROM-012 | P2 | [S] Who may open the attached file | Note with file | GET the file as the owner, governing supervisor, admin, and an unrelated recipient | tokens | Owner, supervisor, admin → file; unrelated user → denied |  |  |
 | TC-PROM-013 | P3 | [H] Admin sees all notes | Notes exist | GET `/admin/promissory` | — | HTTP 200, all notes with status [NEEDS-CLARIFICATION: there is no admin page for this list yet] |  |  |
-| TC-PROM-014 | P2 | [B] Zero verified hours | Semester ended, verified = 0 | Submit | valid file | Accepted (code allows 0 < required) [NEEDS-CLARIFICATION: the pasted QA rule says 0 < verified] |  |  |
-| TC-PROM-015 | P2 | [N] Makeup deadline is not enforced [NEEDS-CLARIFICATION] | Approved note, deadline passed, hours still short | Check the stipend eligible list | — | Current rule: still eligible (approval alone makes the student payable). Record the observed result; the rule is a DSA decision |  |  |
+| TC-PROM-014 | P1 | [N] Zero verified hours | Semester ended, verified = 0 | Submit; open the Stipend page | valid file | HTTP 422, "A promissory note needs some verified service hours. You have none for 1st Semester 2024-2025."; the Stipend page shows the same reason and no submit form. With TC-ADMR-028, a term with no service is neither payable nor renewable |  |  |
+| TC-PROM-015 | P1 | [N] Overdue makeup | Approved note, makeup deadline passed, hours still short | Check the stipend eligible list; approve the student's renewal | — | Still payable (the approval covers the stipend), but the renewal is refused (TC-ADMR-031) until the makeup hours are verified; a verified makeup re-qualifies the term (TC-TERM-007) |  |  |
 
 ---
 
@@ -437,13 +456,17 @@ A recipient who ends the semester short on verified hours may file a promissory 
 | TC-VERIF-010 | P2 | [H] Pending & reviewed queues | Logs in various states | GET `/supervisor/verifications/pending` and `/reviewed` | — | Correct partitioning of pending vs. reviewed logs |  |  |
 | TC-VERIF-011 | P2 | [S] List supervised students | Supervisor with students | GET `/supervisor/students` | — | Only students the supervisor governs (assigned or same office) |  |  |
 | TC-VERIF-012 | P2 | [H] Currently clocked-in live view | A student has an open log < 12 h | GET `/supervisor/students/clocked-in` | — | Student appears with live timer; stale (> 12 h) logs excluded |  |  |
-| TC-VERIF-013 | P2 | [H] Student summary & logs | Supervisor + student | GET `/supervisor/students/{id}/summary` and `/logs?per_page=300` | student id | HTTP 200 with hours summary, both signature URLs (for the duty slip) and log history; `per_page` 501 → 422 |  |  |
+| TC-VERIF-013 | P2 | [H] Student summary & logs | Supervisor + student | GET `/supervisor/students/{id}/summary` and `/logs?per_page=300` | student id | HTTP 200 with hours summary, both signature URLs (for the duty slip), the term block (badge, verdict, term end) and the evaluation; logs default to the current term (`scope=all` for every term, as the duty slip asks); `per_page` 501 → 422 |  |  |
 | TC-VERIF-014 | P2 | [H] Supervisor grants bonus hours (auto-verified) | Supervisor + student | POST `/supervisor/students/{id}/manual-hours` | 2 h, today, reason | "Bonus hours added."; log `verified` immediately; audit `manual_hours_added` |  |  |
 | TC-VERIF-015 | P2 | [H] Update required hours | Supervisor + student | PUT `/supervisor/students/{id}/required-hours` | 180 | "Required hours updated."; audit `updated` with old/new values |  |  |
 | TC-VERIF-016 | P2 | [H] Decide admin's required-hours request | Pending required-hours request | POST `/supervisor/students/{id}/required-hours/decision` | `action=approve` / `reject` | "Required-hours change approved." / "…rejected."; audit `required_hours_approved` / `required_hours_rejected` |  |  |
 | TC-VERIF-017 | P3 | [S] View student documents | Supervisor + student | GET `/supervisor/students/{id}/documents` | student id | HTTP 200 with document list; another office's student → 404 "Student not found or not assigned to you." |  |  |
 | TC-VERIF-018 | P2 | [N] No pending required-hours change | No pending request | POST decision | approve | HTTP 422, "There is no pending required-hours change." |  |  |
 | TC-VERIF-019 | P2 | [B] Bonus hours limits | Supervisor + student | POST manual-hours | 0.2 h; 24.5 h; tomorrow's date | HTTP 422 (0.25–24 h, date not in the future) |  |  |
+| TC-VERIF-020 | P2 | [H] Term badges and filter | Students with in-progress, qualified, deficient and promissory terms | Open Students (cards and list) and a student page | — | Badges "Qualified", "Deficient · Xh short", "Promissory pending", "Promissory approved"; chips All / In progress / Qualified / Deficient filter the roster (Deficient includes the promissory states); the student page shows the real badge instead of "Active recipient" |  |  |
+| TC-VERIF-021 | P2 | [H] Mark a term deficient | Governing supervisor; student short on hours | Student page → Mark deficient → reason → confirm (POST `/supervisor/students/{id}/mark-deficient`) | "Stopped reporting to the office after midterms." | "Marked deficient. The student has been notified."; badge Deficient with the hours short; the page says "Marked by a supervisor on …" with the reason; student notified in the portal and by email; audit `term_marked_deficient` |  |  |
+| TC-VERIF-022 | P2 | [N] Mark deficient refused | — | Mark: with a 5-character reason; a student who met the hours; an already-deficient term; another office's student | — | HTTP 422 "The reason must be at least 10 characters." / "This student has already met the required hours for the term." / "This term is already marked deficient."; HTTP 404 "Student not found or not assigned to you."; the button is hidden when the term is deficient or the hours are met |  |  |
+| TC-VERIF-023 | P2 | [H] Lowering the requirement re-qualifies | Deficient term with 8 of 10 h | Set required hours to 8 (or approve the admin's request) | 8 | Term becomes Qualified at once; deficient hours kept as history |  |  |
 
 ---
 
@@ -453,10 +476,10 @@ Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → 
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-STIP-001 | P1 | [H] Eligible list surfaces recipients who met hours | Active assignment, verified ≥ required, no live stub for the period | GET `/admin/stipend/eligible` | — | Recipient listed with verified/required hours, suggested ₱5,000, and `has_signature` / `narrative_submitted` flags (badges "No signature" / "No end-of-term report", checkbox disabled when either is missing) |  |  |
+| TC-STIP-001 | P1 | [H] Eligible list surfaces recipients who met hours | Assignment `active` or `completed` (rolled over by a renewal), verified ≥ required, no live stub for the period | GET `/admin/stipend/eligible` | — | Recipient listed with verified/required hours, suggested ₱5,000, and `has_signature` / `narrative_submitted` flags (badges "No signature" / "No end-of-term report", checkbox disabled when either is missing) |  |  |
 | TC-STIP-002 | P1 | [N] Recipient below required hours not eligible | Verified < required, no approved promissory note | GET eligible | — | Recipient **not** listed |  |  |
 | TC-STIP-003 | P1 | [N] Period with a live stub excluded | Stub `certified`/`claimed` (or legacy `released`/`pending`) for that AY+semester | GET eligible | — | Recipient excluded (no double payout) |  |  |
-| TC-STIP-004 | P1 | [H] Release (certify) a claim stub | Admin with position title, eligible recipient | POST `/admin/stipend/release` | user, AY, semester, admin password | HTTP 201, "Claim stub released. The recipient has been notified that it is ready to claim."; status `certified`; control number `SWAP-STP-YYYYMM-#####`; supervisor + director signatures; PDF archived; audit `released`; claim token **not** in the response |  |  |
+| TC-STIP-004 | P1 | [H] Release (certify) a claim stub | Admin with position title, eligible recipient | POST `/admin/stipend/release` | user, AY, semester, admin password | HTTP 201, "Claim stub released. The recipient has been notified that it is ready to claim."; status `certified`; control number `SWAP-STP-{student ID}-{YYYY}{S1|S2|SM}` (e.g. `SWAP-STP-202512345-2627S2`; `-R2` when re-issued after a void; `U{account id}` if no student ID); supervisor + director signatures; PDF archived; audit `released`; claim token **not** in the response |  |  |
 | TC-STIP-005 | P2 | [H] Recipient views own stipend history | Recipient with stubs | GET `/recipient/stipend/history?per_page=100` | — | All of the recipient's own stubs (not just the first 15) |  |  |
 | TC-STIP-006 | P2 | [H] Admin stipend list & filters | Stubs exist | GET `/admin/stipend?status=certified` (then `claimed`, `void`) | filter | Filtered, paginated list |  |  |
 | TC-STIP-007 | P3 | [S] Non-admin blocked from release | Non-admin | POST release | any | HTTP 403 |  |  |
@@ -483,7 +506,7 @@ Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → 
 | TC-STIP-028 | P2 | [H] Totals follow the claim lifecycle | One claimed (₱5,000), one legacy released (₱4,000), one certified (₱3,000), one void | Admin analytics overview and Stipend report preview | period | Paid/"Total Claimed" = ₱9,000; "Awaiting Claim" = ₱3,000; void excluded; chart series "Claimed" / "Awaiting claim" |  |  |
 | TC-STIP-029 | P3 | [B] History page size | Recipient | GET history with `per_page` 100 and 101 | — | 100 → HTTP 200; 101 → HTTP 422 |  |  |
 | TC-STIP-030 | P2 | [H] Amount override | Eligible recipient | Release with a custom amount | `amount=4500` | Stub amount ₱4,500 (default ₱5,000 when omitted) |  |  |
-| TC-STIP-031 | P2 | [H] Promissory-approved recipient is releasable | Short on hours, approved promissory note, signature + end-of-term report | GET eligible, then release | — | Listed "via promissory"; release succeeds and the stub remarks cite the note |  |  |
+| TC-STIP-031 | P2 | [H] Promissory-approved recipient is releasable | Short on hours, approved promissory note, signature + end-of-term report | GET eligible, then release | — | Listed "Promissory · deficient {d} hrs · makeup due {date}"; release succeeds; the stub row records `via_promissory`, the note, required, deficient and lacking hours and the makeup deadline; remarks cite "via approved promissory #{n}" |  |  |
 | TC-STIP-032 | P1 | [S] **OBSOLETE** — the student can't self-confirm | Certified stub, owner | POST `/recipient/stipend/{id}/confirm-receipt` | officer name | HTTP 404; stub stays `certified` |  |  |
 | TC-STIP-033 | P1 | [N] Officer / PIN not set up yet | No releasing officer + PIN saved | Open a claim link; POST release anyway | any PIN | The page shows "The Banking Office PIN has not been set up yet. Please contact the DSA Office." and keeps Confirm disabled; the API answers HTTP 422 with the same message |  |  |
 | TC-STIP-034 | P1 | [S] PIN guessing is throttled | PIN set | 7 release attempts in a minute from the same device | wrong PINs | 7th → HTTP 429 (even with the right PIN) |  |  |
@@ -492,6 +515,11 @@ Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → 
 | TC-STIP-037 | P1 | [N] Release refused without the end-of-term report | Eligible on hours; no term report | Release (single); bulk with that item | valid step-up | Single → HTTP 422, "This recipient has not submitted their end-of-term narrative report yet."; bulk skips it with the same reason |  |  |
 | TC-STIP-038 | P2 | [B] Officer + PIN validation | Admin | Save the card | no name; first setup with no PIN; `12ab`; `12345`; `123456789`; two different entries; no step-up | HTTP 422: "Enter the releasing officer's name." / "Enter a PIN for the releasing officer." / "The Banking Office PIN must be 6 to 8 digits." / "The two PIN entries do not match." / step-up error |  |  |
 | TC-STIP-039 | P1 | [S] The stub carries the admin-set name, never a typed one | Officer set up as `Juan Dela Cruz` | Record a payout while also sending `releasing_officer_name=admin@msu-marawi.edu.ph` (e.g. browser autofill); then rename the officer | — | Stub (Return Slip + Receiving Slip) and audit show "Juan Dela Cruz"; the sent name is ignored; the PIN box offers no saved login password; renaming the officer later leaves already-released stubs unchanged |  |  |
+| TC-STIP-040 | P1 | [H] The promissory stub prints the deficiency | Stub released through an approved note (200 required, 5 verified) | Download the stub; open Admin → Stipend records and the recipient's Stipend page | — | Part 1: "…has rendered 5 of the 200 duty hours required for {period}, with a deficiency of 195 hours covered by approved promissory note #{n} (makeup due {date})."; Parts 2 and 3: "Deficiency: 195 hrs · promissory note #{n} · makeup due {date}"; records and the recipient's card show "Promissory · deficient 195 hrs" |  |  |
+| TC-STIP-041 | P1 | [N] A student who met the hours after a note is paid normally | Approved note, then the makeup verified before release | Release | — | `via_promissory` false, no deficiency fields, no "via approved promissory" remark; the stub says "has completed the duty hours required for" |  |  |
+| TC-STIP-042 | P2 | [B] Which placements are payable | Approved-note term rolled over to `completed`; a `suspended` placement that met its hours | GET eligible | — | The completed term is listed (and releasable); the suspended one is not |  |  |
+| TC-STIP-043 | P2 | [H] The student ID identifies the stub | Released stub for student ID 202512345 | Open the stub PDF and the Banking Office claim page | — | Each part reads "Mr./Ms. {name} (Student ID 202512345)"; the claim page lists "Student ID 202512345" under Beneficiary so the officer can match the ID card |  |  |
+| TC-STIP-044 | P2 | [H] Find stipend records by student ID or control number | Several stubs | Admin → Stipend → records search | `202512345`; `SWAP-STP-202512345`; a name | Only the matching records are listed; the eligible list shows each student's ID |  |  |
 
 ---
 
@@ -517,10 +545,12 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-RPT-014 | P2 | [B] Semester slip with no academic year | — | Verify a `SEM` control number with AY `0000` | `…-0000S1-SEM-…` | `valid:true`, `recorded_hours` null, range "Whole semester — 1st Semester, AY unknown"; page shows "AY unknown" |  |  |
 | TC-RPT-015 | P2 | [H] Slip times print in Manila time | Device clock set to UTC (or another zone) | Print a weekly slip | logs at 09:30 and 13:00 PHT | Slip shows 9:30 AM in the AM column and 1:00 PM in the PM column |  |  |
 | TC-RPT-016 | P1 | [S] CSV formula injection neutralised | Recipient named `=HYPERLINK("http://evil.example","Click")` | Export the roster / admin report CSV | — | Cell starts with an apostrophe (`'=HYPERLINK(…`) so the spreadsheet shows text, not a formula |  |  |
+| TC-RPT-017 | P2 | [H] Report columns for verdicts and promissory releases | Deficient and qualified terms; a promissory release | Admin → Reports: Recipients & Hours, Stipend Disbursement (preview + CSV) | — | Recipients & Hours adds "Term Status" (In Progress / Qualified / Deficient) and "Deficient Hours"; Stipend Disbursement adds "Via Promissory" (Yes/No) and "Deficient Hours" |  |  |
+| TC-RPT-018 | P2 | [H] Duty slips still span every term | Renewed recipient | Recipient and supervisor duty slips → pick the earlier semester | — | The earlier term's logs load (the slip requests `scope=all`) |  |  |
 
 ---
 
-## 22. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`, `TC-ANN`)
+## 22. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`, `TC-ANN`, `TC-SEM`, `TC-TERM`, `TC-EVAL`)
 
 ### 22.1 QR codes
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
@@ -545,7 +575,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 ### 22.3 Concerns / Help desk
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-CON-001 | P2 | [H] Submit a concern from the Help page | Logged in (non-admin) | Sidebar lifebuoy → Help → Send (POST `/concerns`) | subject + message ≥ 10 chars | HTTP 201, "Your concern has been submitted. The DSA Office will respond shortly."; it appears under "Your concerns" as Open; audit `concern_submitted` |  |  |
+| TC-CON-001 | P2 | [H] Submit a concern from the SWAP Assistant | Logged in (non-admin) | Robot button → Ask the DSA tab → subject + message → Send to the DSA Office (POST `/concerns`) | subject + message ≥ 10 chars | HTTP 201, "Your concern has been submitted. The DSA Office will respond shortly."; it appears under "Your concerns" in the tab as Open; audit `concern_submitted` |  |  |
 | TC-CON-002 | P3 | [N] Message too short / missing subject | Logged in | POST | message `too` / no subject / message > 2000 chars | HTTP 422 |  |  |
 | TC-CON-003 | P3 | [S] Concerns need a login | Not logged in | POST `/concerns` | valid payload | HTTP 401 |  |  |
 | TC-CON-004 | P2 | [H] Admin inbox lists concerns | Concerns in several states | Admin → Concerns (GET `/admin/concerns?status=open`) | tabs Open / In progress / Resolved / All | Sender name, role, email, message; tab counts; open first |  |  |
@@ -555,15 +585,19 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-CON-008 | P1 | [S] Non-admins can't use the inbox | Applicant, recipient, supervisor | GET `/admin/concerns`, PUT `/admin/concerns/{id}` | their tokens | HTTP 403 |  |  |
 | TC-CON-009 | P3 | [H] Admins are told about new concerns | Active admins | Submit a concern | — | Each active admin gets a "New concern" in-app notification that opens Admin → Concerns |  |  |
 | TC-CON-010 | P3 | [B] Concern spam is throttled | Logged in | 11 submissions in a minute | valid payloads | 11th → HTTP 429 |  |  |
+| TC-CON-011 | P2 | [H] Hand-off from any answer | Logged in (non-admin) | Ask the assistant a question → "Not answered? Send this to the DSA" under its reply | any question | The chat switches to Ask the DSA with the subject and message prefilled from the question (editable); visitors see "Need a person? Email dsa@msumain.edu.ph" instead; admins get no Ask the DSA tab and no hand-off link |  |  |
+| TC-CON-012 | P2 | [H] One place to ask; old links still work | Recipient; admin | Check the sidebar; open `/help` (also the reply email's "Open the SWAP Assistant" button and a concern notification) | — | No lifebuoy/Help icon in the sidebar; `/help` lands on the dashboard with the chat open on Ask the DSA showing the DSA's reply; for an admin `/help` goes to Admin → Concerns, which keeps its sidebar item and inbox unchanged |  |  |
+| TC-CON-013 | P2 | [H] A concern is a continuous conversation | Open concern the user sent | Chat → Ask the DSA → under the thread, type a reply and Send (POST `/concerns/{id}/messages`) — no subject | follow-up text | HTTP 201 "Reply sent."; the message joins the same thread (opener + replies shown oldest-first, student right / DSA left); admins get a "New reply on a concern" notification; audit `concern_message_added` |  |  |
+| TC-CON-014 | P2 | [N] Follow-ups stop once resolved / only on your own | Resolved concern; another user's concern | POST a reply to each | any body; empty body | Resolved → HTTP 422 "This concern is resolved. Start a new one above if you still need help." (the reply box is hidden, replaced by that hint); another user's → HTTP 404 "Concern not found."; empty body → HTTP 422 "Type your reply." |  |  |
 
-### 22.4 Settings (application/renewal period)
+### 22.4 Settings (application period)
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-SET-001 | P2 | [H] Public application-status reflects toggle | — | GET `/settings/application-status` | — | Returns `open`, closed message, and renewal window info |  |  |
+| TC-SET-001 | P2 | [H] Public application-status reflects toggle | — | GET `/settings/application-status` | — | Returns `open`, closed message, and `renewal` {open, academic_year, semester} taken from the semester period with renewal open |  |  |
 | TC-SET-002 | P2 | [H] Admin opens/closes application period | Admin | PUT `/admin/settings` | `applications_open=true/false`, closed message | "Settings updated."; registration and submission allowed/blocked accordingly |  |  |
-| TC-SET-003 | P2 | [H] Admin configures renewal window | Admin | PUT `/admin/settings` | `renewal_open`, year, semester | Renewal window persisted and enforced on renewal submit |  |  |
+| TC-SET-003 | P2 | [S] **OBSOLETE** — renewal window in Settings | Admin | PUT `/admin/settings` with `renewal_open`, year, semester | — | Keys ignored; Admin → Applications shows "Renewal Period — Open/Closed … Manage in Semesters" instead of the old switch (TC-SEM-005) |  |  |
 | TC-SET-004 | P3 | [S] Non-admin cannot change settings | Non-admin | PUT `/admin/settings` | any | HTTP 403 |  |  |
-| TC-SET-005 | P3 | [N] Semester end fallback can't be set [NEEDS-CLARIFICATION] | Assignment without an end date | Try to set a semester end date as admin | — | No setting exists for `semester_end_date` in the API/UI; promissory notes then fail with TC-PROM-003 |  |  |
+| TC-SET-005 | P2 | [H] Semester end is set by the admin | Assignment without an end date | Admin → Semesters → add the term's period | — | The period's end date applies to that term (pace, promissory window, end-of-semester check); see TC-SEM-001, TC-SEM-009 |  |  |
 
 ### 22.5 Notifications
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
@@ -595,6 +629,55 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-ANN-006 | P2 | [N] No one to send to | No active recipients | Open Announcements; POST anyway | — | The page warns there are no active recipients and disables Send; the API answers HTTP 422, "There are no active recipients to send this announcement to."; nothing saved |  |  |
 | TC-ANN-007 | P2 | [N] Mail outage still delivers in the portal | Mail provider down | Send one | — | HTTP 201; every active recipient has it in the portal; message "…The email reached 0 of them; check the mail settings."; history shows the emailed count highlighted |  |  |
 | TC-ANN-008 | P1 | [S] Admins only, and double-sends are throttled | Applicant, recipient, supervisor; admin | Non-admins call GET/POST `/admin/announcements`; admin sends 6 in a minute | — | Non-admins HTTP 403; the admin's 6th send in a minute → HTTP 429 |  |  |
+| TC-ANN-009 | P2 | [H] Delete a sent announcement | Two announcements sent | Trash icon on one → "Yes, delete it" (DELETE `/admin/announcements/{id}`) | — | The confirmation warns emails can't be recalled; "Announcement deleted and removed from the notifications of N recipient(s). Emails already sent can't be recalled."; it leaves the history and every recipient's notifications, the other announcement stays; audit `announcement_deleted`; deleting it again → 404 |  |  |
+
+
+### 22.8 Semester periods (`TC-SEM`) — Admin
+The DSA calendar (Admin → Semesters). Every term-date rule reads from it; an assignment's own end date overrides its period's.
+
+| ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
+|---|---|---|---|---|---|---|---|---|
+| TC-SEM-001 | P1 | [H] Add a semester | Admin | Semesters → Add semester → save (POST `/admin/semester-periods`) | `2026-2027`, 1st Semester, Aug 10, 2026 – Dec 18, 2026 | "1st Semester 2026-2027 saved."; listed with an Upcoming / Current / Ended badge (Current shows "N days left"); audit `semester_period_created` |  |  |
+| TC-SEM-002 | P2 | [N] Field validation | Admin | Save | `2026`; `2026-2028`; semester `Third`; end = start | HTTP 422: "Enter the school year as two years, e.g. 2026-2027." / "The school year must be two consecutive years, e.g. 2026-2027." / "Choose 1st Semester, 2nd Semester or Summer." / "The end date must be after the start date." — shown under the field |  |  |
+| TC-SEM-003 | P2 | [N] One period per school year + semester | 1st Semester 2026-2027 exists | Add it again with other dates | — | HTTP 422, "This semester of that school year is already set up." |  |  |
+| TC-SEM-004 | P1 | [B] Dates never overlap | 1st Semester Aug 10 – Dec 18, 2026 | Add 2nd Semester Dec 1, 2026 – May 20, 2027; then Dec 19, 2026 – May 20, 2027; edit a period's own dates | — | First: HTTP 422, "These dates overlap 1st Semester 2026-2027 (Aug 10, 2026 to Dec 18, 2026)."; the day after is accepted; editing never conflicts with itself |  |  |
+| TC-SEM-005 | P1 | [H] Renewal opens for one semester at a time | Two upcoming periods | Open renewal on one (checkbox or "Open renewal"), then on the other | — | Only the latest stays "Renewal open"; `/settings/application-status` and Admin → Applications name that period; recipients renew for it (TC-REN-001); "Close renewal" closes it |  |  |
+| TC-SEM-006 | P2 | [N] No renewal for an ended semester | Ended period | Save it with renewal open | — | HTTP 422, "Renewal can only be opened for a semester that hasn't ended."; the row offers no "Open renewal" button |  |  |
+| TC-SEM-007 | P2 | [N] A semester in use can't be deleted | Assignments or applications use the term; another unused period | Delete each (trash → "Yes, delete it") | — | Used: HTTP 422, "Assignments or applications already use this semester, so it cannot be deleted. Edit its dates instead."; unused: "{label} deleted.", audit `semester_period_deleted` |  |  |
+| TC-SEM-008 | P2 | [H] Current semester card | Admin dashboard | Open it with a current term; between terms; with none | — | "1st Semester 2026-2027 · Aug 10, 2026 to Dec 18, 2026 · N days left" and "Renewal open · {label}" / "Renewal closed"; "Between semesters" with "{next} starts {date}"; "No semester set up" with a link to Semesters |  |  |
+| TC-SEM-009 | P1 | [H] The period drives term dates | Assignment without its own end date; then with one | Check pace, the promissory window and the student page "Term Ends" | — | Without: the period's end date applies; with: the assignment's own date overrides |  |  |
+| TC-SEM-010 | P1 | [S] Admins only | Applicant, recipient, supervisor | GET/POST `/admin/semester-periods` | — | HTTP 403; nothing created |  |  |
+| TC-SEM-011 | P3 | [B] Phase and days left follow the Manila day | Period ending today (PHT) | Open Semesters before and after midnight PHT | — | Last day: Current, "Last day today"; next day: Ended |  |  |
+
+### 22.9 End-of-term verdict (`TC-TERM`) — System → Recipient / Supervisor / Admin
+`semester:close` runs daily at 00:10 PHT (one server). For each semester period that has ended it records each placement's verdict. Stipend release does not wait for it.
+
+| ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
+|---|---|---|---|---|---|---|---|---|
+| TC-TERM-001 | P1 | [H] Ended terms get a verdict | Period ended yesterday; one student 4/10 h, one 10/10 h | Run `php artisan semester:close` | — | 4/10 → Deficient with 6.00 deficient hours; 10/10 → Qualified; the period's `closed_at` set; audit `term_closed` with no user (system) |  |  |
+| TC-TERM-002 | P1 | [H] The short student is told | As TC-TERM-001 | Check the student's bell and email | — | "Semester service: Deficient" — "You were 6 hours short for {term}. Submit a promissory note on the Stipend page."; nothing for the qualified student |  |  |
+| TC-TERM-003 | P1 | [B] Idempotent | After TC-TERM-001 | Run the command again | — | Nothing changes; no second notification |  |  |
+| TC-TERM-004 | P2 | [B] A term ending today isn't closed yet | Period ends today (PHT) | Run the command | — | No verdict until the next run after midnight PHT |  |  |
+| TC-TERM-005 | P1 | [N] Terms without a semester period are left alone | Assignment with a past end date, no period for its term | Run the command | — | No verdict, no notification (adding old data never triggers a mass email) |  |  |
+| TC-TERM-006 | P2 | [H] Dry run | Ended period | `semester:close --dry-run` | — | "[dry run] N qualified, M deficient, …"; nothing saved, nobody notified |  |  |
+| TC-TERM-007 | P1 | [H] A verified makeup re-qualifies the term | Deficient term (7/10 h) | Verify a 1 h log, then a 2 h log (or add verified bonus hours) | — | Still Deficient after 1 h; Qualified at once after reaching 10 h; deficient hours kept; student notified "Semester service: Qualified" |  |  |
+| TC-TERM-008 | P2 | [H] Old terms and rolled-over terms are recorded quietly | Period that ended over 14 days ago; a `completed` placement | Run the command | — | Both get a verdict; neither student is emailed or notified |  |  |
+| TC-TERM-009 | P2 | [H] Badges and the admin filter | Terms in each state | Admin → Assignments chips; GET `/admin/assignments?term=deficient` / `qualified` / `in_progress` | — | Badges Qualified / Deficient · Xh short / Promissory pending / Promissory approved; the filter returns only that verdict |  |  |
+| TC-TERM-010 | P2 | [H] A mark made during the term is re-measured | Marked deficient mid-term (8 h short), 3 more hours verified before the term ended | Run the command after the end | — | Still Deficient, deficient hours now 5.00; the supervisor's name and reason kept |  |  |
+| TC-TERM-011 | P2 | [H] Rollover records the old term's verdict | Renewal approved before the nightly job ran | Approve the renewal | — | The old assignment gets its verdict at approval (no notification) |  |  |
+
+### 22.10 Supervisor evaluation (`TC-EVAL`) — Supervisor → Admin
+A rating from 1 (Poor) to 5 (Excellent) with remarks; 3 or more passes. Needed to approve the student's renewal (TC-ADMR-030).
+
+| ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
+|---|---|---|---|---|---|---|---|---|
+| TC-EVAL-001 | P1 | [H] Evaluate a student | Governing supervisor, active placement | Student page → End-of-Term Evaluation → "4 · Very good" + remarks → Save (PUT `/supervisor/assignments/{id}/evaluation`) | — | "Evaluation saved."; badge "Passed · 4/5"; "Last saved … by {name}"; audit `term_evaluated` |  |  |
+| TC-EVAL-002 | P2 | [H] Change it while the placement is current | Evaluation 2/5 | Save 3/5 with new remarks | — | One evaluation per placement, now passed; GET returns the new rating and remarks |  |  |
+| TC-EVAL-003 | P2 | [N] Validation | — | Save rating 6; no remarks; 2,001-character remarks | — | HTTP 422 "Choose a rating from 1 to 5." / "Add remarks about the student’s service this term." / remarks too long; Save stays disabled until both are filled |  |  |
+| TC-EVAL-004 | P1 | [S] Only a governing supervisor | Other office's supervisor; a recipient | GET/PUT the evaluation | — | Supervisor: HTTP 404 "Student not found or not assigned to you."; recipient: HTTP 403 |  |  |
+| TC-EVAL-005 | P2 | [N] Ended placement is locked | Placement `completed` | PUT evaluation | — | HTTP 422, "This placement has ended, so its evaluation can no longer be changed." |  |  |
+| TC-EVAL-006 | P2 | [H] Evaluations due | Term ends within 14 days (or has ended), no evaluation | Open the supervisor dashboard and Students | — | "N evaluations due" with the students' names; "Evaluation due" chip on the roster; both disappear once saved |  |  |
+| TC-EVAL-007 | P2 | [H] The admin sees it | Evaluated term, renewal submitted | Open the renewal (TC-ADMR-032) | — | "Evaluation 4/5 · Very good" with the remarks and the supervisor's name |  |  |
 
 ---
 
@@ -633,7 +716,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-NFR-003 | Scalability | Pagination under many records | Seed hundreds of logs/applications | Pagination works; no timeout / memory blow-up; per-page caps enforced |  |  |
 | TC-NFR-004 | Usability | Mobile responsiveness | Open recipient attendance/scan on a phone | Layout usable; QR scanner & GPS prompts work |  |  |
 | TC-NFR-005 | Compatibility | Cross-browser | Test on Chrome, Edge, Firefox, mobile Safari | Consistent behaviour |  |  |
-| TC-NFR-006 | Reliability | Scheduler runs exactly once per slot | Run the web container's `schedule:work` and the cron `schedule:run` together; check `schedule:list` | `attendance:close-stale` hourly, signature reminder weekly, token pruning daily — each job fires once per slot (database lock) |  |  |
+| TC-NFR-006 | Reliability | Scheduler runs exactly once per slot | Run the web container's `schedule:work` and the cron `schedule:run` together; check `schedule:list` | `attendance:close-stale` hourly, signature reminder weekly, token pruning daily, `semester:close` daily at 00:10 PHT — each job fires once per slot (database lock) |  |  |
 | TC-NFR-007 | Reliability | Mail outage doesn't break saves | Point MAIL at a dead server; approve, place, record a Banking Office payout, reply to a concern, resend verification | Every action saves and returns success; failures are logged |  |  |
 | TC-NFR-008 | Availability | GPS/permission denied handling | Deny location permission in the browser | Clear, friendly error; no crash |  |  |
 | TC-NFR-009 | Security | HTTPS & token handling | Inspect transport, logs and mail | HTTPS only; reset/verification/invitation links not written to production logs (mailer not `log`) |  |  |
@@ -650,15 +733,14 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 
 | # | Topic | What the build does now | Decision needed | Cases |
 |---|---|---|---|---|
-| 1 | Promissory makeup deadline | Approval makes the student payable immediately; the deadline is display-only; several approved notes per assignment are possible; `lacking_hours` isn't checked against the real shortfall | Should payment wait for the makeup hours or the deadline? | TC-PROM-015 |
-| 2 | Promissory with zero hours | Allowed when verified = 0 | Is a note acceptable with no hours at all? | TC-PROM-014 |
-| 3 | Semester end fallback | `semester_end_date` can only be set in the database | Add it to Settings? | TC-SET-005 |
-| 4 | Admin demotion | Any admin can demote another admin, then delete them | Block or restrict demoting admins? | TC-SEC-016 |
-| 5 | File existence leak | Signature/avatar return 404 before the permission check | Check permission first? | TC-SEC-018 |
-| 6 | Upload durability | Free-tier disk loses uploads on redeploy | Move to object storage (R2)? | TC-NFR-014 |
-| 7 | Pasted QA rule "chatbot unthrottled" | Chatbot is throttled at 20/min | None — the catalogue follows the code | TC-BOT-005 |
+| 1 | Admin demotion | Any admin can demote another admin, then delete them | Block or restrict demoting admins? | TC-SEC-016 |
+| 2 | File existence leak | Signature/avatar return 404 before the permission check | Check permission first? | TC-SEC-018 |
+| 3 | Upload durability | Free-tier disk loses uploads on redeploy | Move to object storage (R2)? | TC-NFR-014 |
+| 4 | Pasted QA rule "chatbot unthrottled" | Chatbot is throttled at 20/min | None — the catalogue follows the code | TC-BOT-005 |
 
 Resolved on 2026-09-28 and removed from this list: the Banking Office verify QR (TC-STIP-019..022), the concerns inbox (TC-CON-004..010) and the real-time stack (TC-NOTIF-006).
+
+Resolved on 2026-10-01: the promissory makeup deadline (payment still follows the approval, but an overdue makeup blocks the renewal — TC-PROM-015, TC-ADMR-031), promissory notes with zero hours (now refused — TC-PROM-014) and the semester end fallback (set under Admin → Semesters — TC-SET-005, TC-SEM-*).
 
 ---
 
@@ -670,31 +752,34 @@ Resolved on 2026-09-28 and removed from this list: the Banking Office verify QR 
 | Email Verification | TC-EV-001..008 | 8 | Account activation | AuthTest |
 | Login / Sessions | TC-AUTH-001..018 | 18 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
 | Password Reset | TC-PWD-001..007 | 7 | Auth | — (manual) |
-| Staff Invitations | TC-INV-001..008 | 8 | Onboarding | — (manual) |
+| Staff Invitations | TC-INV-001..009 | 9 | Onboarding | EmployeeIdTest |
 | Applications | TC-APP-001..016 | 16 | Core workflow | DocumentTest, ResourceAccessTest, NotificationTest |
-| Renewal | TC-REN-001..008 | 8 | Core workflow | — (manual) |
-| Admin Review & Interviews | TC-ADMR-001..026 | 26 | State machine, interview rules | AdminTest, InterviewLifecycleTest |
+| Renewal | TC-REN-001..010 | 10 | Core workflow | RenewalTest |
+| Admin Review & Interviews | TC-ADMR-001..036 | 36 | State machine, interview rules, renewal gate | AdminTest, InterviewLifecycleTest, RenewalTest |
 | Assignments & QR | TC-ASSIGN-001..014 | 14 | Placement integrity | AdminTest, QrCodeServiceTest, AuditTrailTest |
-| Profile & Account | TC-PROF-001..010 | 10 | Account mgmt | AuditTrailTest, SignatureTest |
+| Profile & Account | TC-PROF-001..011 | 11 | Account mgmt | AuditTrailTest, SignatureTest, EmployeeIdTest |
 | Signature Specimen | TC-SIG-001..009 | 9 | Payout signature, receipts | SignatureTest, StipendClaimTest, AttendanceTest |
 | Attendance / Clock-In | TC-ATT-001..024 | 24 | Integrity, geofence | AttendanceTest, AuditTrailTest; axiosInterceptors (Vitest) |
 | Clock-Out / Auto | TC-OUT-001..016 | 16 | Integrity | AttendanceTest, AuditTrailTest |
 | Session Notes & Term Report | TC-NARR-001..014 | 14 | Workflow, payout prerequisite | AttendanceTest, TermReportTest |
-| Hours | TC-HRS-001..003 | 3 | Hours | AttendanceTest |
-| Promissory Notes | TC-PROM-001..015 | 15 | Money eligibility | PromissoryNoteTest |
-| Verification & Students | TC-VERIF-001..019 | 19 | Integrity, hours | VerificationTest, SupervisorReportTest, AuditTrailTest |
-| Stipend Claim Stubs | TC-STIP-001..039 | 39 | Money integrity, Banking Office release | StipendClaimTest, StipendTotalsTest, SignatureTest |
-| Reports & Duty Slips | TC-RPT-001..016 | 16 | Reporting, tamper-evidence | DutySlipVerifyTest, SupervisorReportTest, StipendTotalsTest; DutySlip (Vitest) |
+| Hours | TC-HRS-001..006 | 6 | Hours, per-term history | AttendanceTest, TermHistoryTest |
+| Promissory Notes | TC-PROM-001..015 | 15 | Money eligibility | PromissoryNoteTest, RenewalTest |
+| Verification & Students | TC-VERIF-001..023 | 23 | Integrity, hours, term verdict | VerificationTest, SupervisorReportTest, AuditTrailTest, TermStatusTest, TermHistoryTest |
+| Stipend Claim Stubs | TC-STIP-001..044 | 44 | Money integrity, Banking Office release, promissory deficiency | StipendClaimTest, StipendTotalsTest, SignatureTest, PromissoryNoteTest, StudentIdReferenceTest |
+| Reports & Duty Slips | TC-RPT-001..018 | 18 | Reporting, tamper-evidence | DutySlipVerifyTest, SupervisorReportTest, StipendTotalsTest, TermHistoryTest; DutySlip (Vitest) |
 | QR codes | TC-QR-001..006 | 6 | Security | QrCodeServiceTest |
 | Chatbot / FAQ | TC-BOT-001..006 | 6 | Support, cost | ChatbotTest |
-| Concerns | TC-CON-001..010 | 10 | Support | ConcernTest |
+| Concerns | TC-CON-001..014 | 14 | Support | ConcernTest |
 | Settings | TC-SET-001..005 | 5 | Config | — (manual) |
 | Notifications | TC-NOTIF-001..006 | 6 | Comms | NotificationTest |
 | Analytics & Audit | TC-ANL-001..004 | 4 | Admin, traceability | StipendTotalsTest, AuditTrailTest, ListQueryCountTest |
-| Announcements | TC-ANN-001..008 | 8 | Comms | AnnouncementTest |
+| Announcements | TC-ANN-001..009 | 9 | Comms | AnnouncementTest |
+| Semester periods | TC-SEM-001..011 | 11 | Term calendar, renewal window | SemesterPeriodTest |
+| End-of-term verdict | TC-TERM-001..011 | 11 | Deficiency record, notifications | TermStatusTest, RenewalTest |
+| Supervisor evaluation | TC-EVAL-001..007 | 7 | Renewal prerequisite | TermEvaluationTest, RenewalTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..015 | 15 | Quality attributes | CI workflow (TC-NFR-013) |
-| **TOTAL** | — | **364** | — | — |
+| **TOTAL** | — | **426** | — | — |
 
 ---
 
@@ -710,6 +795,7 @@ One end-to-end pass through the money-and-integrity path. Every step must pass b
 | 4 | Applicant | Submit an application and upload the COR | TC-APP-001, TC-APP-007 |
 | 5 | Admin | Move to review, schedule an in-window interview | TC-ADMR-002, TC-ADMR-003 |
 | 6 | Admin | Approve after the interview | TC-ADMR-011 |
+| 6a | Admin | Add the current semester under Semesters | TC-SEM-001 |
 | 7 | Admin | Assign office + supervisor | TC-ASSIGN-001 |
 | 8 | Recipient | Clock in inside the geofence (Mon–Sat, 06:00–17:30) | TC-ATT-001 |
 | 9 | Recipient | Clock out with the office QR (note optional) | TC-OUT-002 |

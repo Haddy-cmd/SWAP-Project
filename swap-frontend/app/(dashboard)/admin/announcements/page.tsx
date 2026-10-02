@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Megaphone, Send, Mail, Users } from 'lucide-react'
+import { Megaphone, Send, Mail, Users, Trash2 } from 'lucide-react'
 import { announcementsApi } from '@/lib/api/announcements.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import type { ApiRequestError } from '@/lib/api/axios'
@@ -12,6 +12,8 @@ const MAX = 5000
 /**
  * Admin → Announcements: one message to every active recipient. It lands in their
  * portal notifications and in their email inbox; the history below keeps what was sent.
+ * Deleting one removes it from the history and from recipients' notifications (an
+ * email already delivered can't be recalled, and the confirmation says so).
  */
 export default function AdminAnnouncementsPage() {
   const qc = useQueryClient()
@@ -21,6 +23,8 @@ export default function AdminAnnouncementsPage() {
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [historyNote, setHistoryNote] = useState<{ text: string; error?: boolean } | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-announcements', page],
@@ -43,6 +47,21 @@ export default function AdminAnnouncementsPage() {
     onError: (e: ApiRequestError) => {
       setConfirming(false)
       setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not send the announcement.')
+    },
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: number) => announcementsApi.remove(id),
+    onSuccess: (res, id) => {
+      qc.setQueryData<Awaited<ReturnType<typeof announcementsApi.list>>>(['admin-announcements', page],
+        (old) => old && { ...old, data: old.data.filter((a) => a.id !== id) })
+      qc.invalidateQueries({ queryKey: ['admin-announcements'] })
+      setDeletingId(null)
+      setHistoryNote({ text: res.message })
+    },
+    onError: (e: ApiRequestError) => {
+      setDeletingId(null)
+      setHistoryNote({ text: e.message ?? 'Could not delete the announcement.', error: true })
     },
   })
 
@@ -114,6 +133,9 @@ export default function AdminAnnouncementsPage() {
       <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
         <div className="border-b border-ink-100 px-5 py-4">
           <h2 className="font-semibold text-ink-900">Sent announcements</h2>
+          {historyNote && (
+            <p className={`mt-1 text-xs font-medium ${historyNote.error ? 'text-danger-700' : 'text-success-700'}`}>{historyNote.text}</p>
+          )}
         </div>
         {isLoading ? (
           <div className="space-y-3 p-5">{[1, 2].map((n) => <div key={n} className="h-16 animate-pulse rounded-xl bg-ink-200" />)}</div>
@@ -125,8 +147,31 @@ export default function AdminAnnouncementsPage() {
               <li key={a.id} className="px-5 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <p className="font-semibold text-ink-900">{a.title}</p>
-                  <span className="text-xs text-ink-350">{a.created_at ? formatDateTime(a.created_at) : ''}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-ink-350">{a.created_at ? formatDateTime(a.created_at) : ''}</span>
+                    {deletingId !== a.id && (
+                      <button onClick={() => { setHistoryNote(null); setDeletingId(a.id) }} title="Delete" aria-label={`Delete ${a.title}`}
+                        className="rounded-lg border border-ink-200 p-1.5 text-danger-700 hover:bg-danger-50">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {deletingId === a.id && (
+                  <div className="mt-2 rounded-xl border border-danger-200 bg-danger-50 p-3">
+                    <p className="text-sm text-danger-700">
+                      Delete this announcement? It disappears from the history and from the notifications of {a.recipient_count} recipient{a.recipient_count === 1 ? '' : 's'}. Emails already sent can&apos;t be recalled.
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => remove.mutate(a.id)} disabled={remove.isPending}
+                        className="flex items-center gap-1.5 rounded-lg bg-danger-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+                        <Trash2 className="h-3.5 w-3.5" /> {remove.isPending ? 'Deleting…' : 'Yes, delete it'}
+                      </button>
+                      <button onClick={() => setDeletingId(null)} disabled={remove.isPending}
+                        className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
+                    </div>
+                  </div>
+                )}
                 <p className="mt-1 whitespace-pre-line text-sm text-ink-700">{a.message}</p>
                 <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
                   <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" /> {a.recipient_count} recipient{a.recipient_count === 1 ? '' : 's'}</span>

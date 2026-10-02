@@ -15,7 +15,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 class VerificationService
 {
     public function __construct(
-        private readonly TimeLogRepositoryInterface $timeLogRepository
+        private readonly TimeLogRepositoryInterface $timeLogRepository,
+        private readonly TermStatusService $termStatus,
     ) {}
 
     public function verify(TimeLog $log, User $supervisor, string $action, ?string $feedback = null): TimeLog
@@ -47,6 +48,7 @@ class VerificationService
         AuditLog::record($action, $updated, ['status' => $log->status], ['status' => $newStatus]);
 
         if ($action === 'verified') {
+            $this->termStatus->refreshById($updated->assignment_id);
             event(new HoursVerified($updated));
         } else {
             event(new HoursRejected($updated, $feedback));

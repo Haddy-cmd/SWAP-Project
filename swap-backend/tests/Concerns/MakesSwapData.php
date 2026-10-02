@@ -124,6 +124,21 @@ trait MakesSwapData
         ]);
     }
 
+    /** A finished shift of `$hours` (duration_hours is generated from the span). */
+    protected function makeClosedLog(Assignment $assignment, float $hours, string $status = 'verified', int $daysAgo = 10): TimeLog
+    {
+        $in = Carbon::now()->subDays($daysAgo)->setTime(8, 0);
+
+        return TimeLog::create([
+            'assignment_id' => $assignment->id,
+            'user_id' => $assignment->user_id,
+            'date' => $in->toDateString(),
+            'time_in' => $in,
+            'time_out' => $in->copy()->addMinutes((int) round($hours * 60)),
+            'status' => $status,
+        ]);
+    }
+
     protected function addNarrative(TimeLog $log): NarrativeReport
     {
         return $log->narrativeReport()->create([

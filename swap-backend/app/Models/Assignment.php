@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
+use App\Services\SemesterPeriodService;
 
 class Assignment extends Model
 {
@@ -27,7 +29,16 @@ class Assignment extends Model
         'status',
         'qr_code',
         'qr_secret',
+        'term_status',
+        'deficient_hours',
+        'term_status_at',
+        'term_status_by',
+        'term_status_reason',
     ];
+
+    // Persisted end-of-term verdict (TermStatusService); null while in progress.
+    public const TERM_QUALIFIED = 'qualified';
+    public const TERM_DEFICIENT = 'deficient';
 
     protected function casts(): array
     {
@@ -36,6 +47,8 @@ class Assignment extends Model
             'end_date' => 'date',
             'required_hours' => 'integer',
             'pending_required_hours' => 'integer',
+            'deficient_hours' => 'decimal:2',
+            'term_status_at' => 'datetime',
         ];
     }
 
@@ -57,6 +70,12 @@ class Assignment extends Model
     public function timeLogs(): HasMany
     {
         return $this->hasMany(TimeLog::class);
+    }
+
+    /** The supervisor's end-of-term evaluation (TermEvaluationService). */
+    public function evaluation(): HasOne
+    {
+        return $this->hasOne(TermEvaluation::class);
     }
 
     public function promissoryNotes(): HasMany
@@ -217,15 +236,68 @@ class Assignment extends Model
         return $result($behind ? 'behind' : 'on_track', $expected, $behind ? round($expected - $verified, 2) : 0.0);
     }
 
+    /**
+     * The term's badge: qualified, deficient (with or without a promissory note) or
+     * in_progress. List queries preload the note flags (withPromissoryFlags) so only
+     * single models fall back to a query, and only when the term is deficient.
+     *
+     * @return 'qualified'|'promissory_approved'|'promissory_pending'|'deficient'|'in_progress'
+     */
+    public function termBadge(): string
+    {
+        if ($this->term_status === self::TERM_QUALIFIED) {
+            return 'qualified';
+        }
+        if ($this->term_status !== self::TERM_DEFICIENT) {
+            return 'in_progress';
+        }
+
+        $has = fn (string $status, string $attr) => array_key_exists($attr, $this->attributes)
+            ? (bool) $this->attributes[$attr]
+            : $this->promissoryNotes()->where('status', $status)->exists();
+
+        return match (true) {
+            $has(PromissoryNote::STATUS_APPROVED, 'has_approved_promissory') => 'promissory_approved',
+            $has(PromissoryNote::STATUS_PENDING, 'has_pending_promissory') => 'promissory_pending',
+            default => 'deficient',
+        };
+    }
+
+    /** Preload the flags termBadge() reads. */
+    public function scopeWithPromissoryFlags(Builder $query): Builder
+    {
+        return $query->withExists([
+            'promissoryNotes as has_approved_promissory' => fn ($q) => $q->where('status', PromissoryNote::STATUS_APPROVED),
+            'promissoryNotes as has_pending_promissory' => fn ($q) => $q->where('status', PromissoryNote::STATUS_PENDING),
+        ]);
+    }
+
+    /** The DSA semester period this assignment's term belongs to, if it was set up. */
+    public function semesterPeriod(): ?SemesterPeriod
+    {
+        return app(SemesterPeriodService::class)->forTerm($this->academic_year, $this->semester);
+    }
+
+    /**
+     * The term's last day: the assignment's own end date (a per-placement override),
+     * else its semester period's end date. Drives pace, the promissory window and the
+     * end-of-term job.
+     */
+    public function effectiveEndDate(): ?Carbon
+    {
+        return $this->end_date ?? $this->semesterPeriod()?->end_date;
+    }
+
     /** Fraction of the placement window already elapsed (0–1), or null if undated. */
     private function elapsedFraction(): ?float
     {
-        if (!$this->start_date || !$this->end_date) {
+        $endDate = $this->effectiveEndDate();
+        if (!$this->start_date || !$endDate) {
             return null;
         }
 
         $start = $this->start_date->copy()->startOfDay()->getTimestamp();
-        $end = $this->end_date->copy()->endOfDay()->getTimestamp();
+        $end = $endDate->copy()->endOfDay()->getTimestamp();
 
         if ($end <= $start) {
             return null;

@@ -11,7 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-/** Admin → Concerns inbox: read, triage and answer what users send from the Help page. */
+/** Admin → Concerns inbox: read, triage and answer what users send from the SWAP Assistant (Ask the DSA). */
 class ConcernController extends Controller
 {
     public function __construct(private readonly ConcernService $concerns) {}

@@ -40,6 +40,14 @@ class StipendHistory extends Model
         'voided_at',
         'void_reason',
         'remarks',
+        // Set when the release went through an approved promissory note: the note,
+        // the term's shortfall and the makeup it promised (printed on the stub).
+        'via_promissory',
+        'promissory_note_id',
+        'required_hours',
+        'deficient_hours',
+        'lacking_hours',
+        'makeup_deadline',
     ];
 
     // claim_token is a bearer-like secret; slip_path is an internal storage detail.
@@ -57,7 +65,17 @@ class StipendHistory extends Model
             'claimed_at' => 'datetime',
             'receipt_signed_at' => 'datetime',
             'voided_at' => 'datetime',
+            'via_promissory' => 'boolean',
+            'required_hours' => 'decimal:2',
+            'deficient_hours' => 'decimal:2',
+            'lacking_hours' => 'decimal:2',
+            'makeup_deadline' => 'date',
         ];
+    }
+
+    public function promissoryNote(): BelongsTo
+    {
+        return $this->belongsTo(PromissoryNote::class);
     }
 
     public function recipient(): BelongsTo

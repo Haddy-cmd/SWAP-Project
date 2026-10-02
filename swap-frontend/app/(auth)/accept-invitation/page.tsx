@@ -17,6 +17,7 @@ import type { ApiError } from '@/types/api.types'
 const schema = z
   .object({
     name: z.string().min(2, 'Your name is required'),
+    employee_id: z.string().regex(/^\d{4,15}$/, 'Enter your employee ID (digits only).'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     password_confirmation: z.string(),
   })
@@ -121,6 +122,18 @@ function AcceptInvitationForm() {
             className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 text-sm focus:border-brand-700 focus:outline-none"
           />
           {errors.name && <p className="mt-1 text-xs text-danger-600">{errors.name.message}</p>}
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink-950">Employee ID</label>
+          <input
+            {...register('employee_id')}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder="Digits only, e.g. 20190123"
+            className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 text-sm focus:border-brand-700 focus:outline-none"
+          />
+          {errors.employee_id && <p className="mt-1 text-xs text-danger-600">{errors.employee_id.message}</p>}
         </div>
 
         <div>

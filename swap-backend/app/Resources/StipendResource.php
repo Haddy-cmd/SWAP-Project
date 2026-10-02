@@ -28,6 +28,14 @@ class StipendResource extends JsonResource
             // The claim slip PDF is downloadable once certified (via /recipient/stipend/{id}/slip).
             'has_slip' => in_array($this->status, ['certified', 'claimed'], true),
             'remarks' => $this->remarks,
+            // Released through an approved promissory note: the term's shortfall and
+            // the makeup the note promised, as recorded at release.
+            'via_promissory' => (bool) $this->via_promissory,
+            'promissory_note_id' => $this->promissory_note_id,
+            'required_hours' => $this->required_hours !== null ? (float) $this->required_hours : null,
+            'deficient_hours' => $this->deficient_hours !== null ? (float) $this->deficient_hours : null,
+            'lacking_hours' => $this->lacking_hours !== null ? (float) $this->lacking_hours : null,
+            'makeup_deadline' => $this->makeup_deadline?->toDateString(),
             'created_at' => $this->created_at->toISOString(),
             'recipient' => $this->whenLoaded('recipient', fn () => new UserResource($this->recipient)),
             'certifier' => $this->whenLoaded('certifiedBy', fn () => $this->certifiedBy ? [

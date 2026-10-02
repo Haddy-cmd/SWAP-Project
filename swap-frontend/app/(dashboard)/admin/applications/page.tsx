@@ -11,7 +11,8 @@ import {
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationPeriodToggle } from '@/components/admin/ApplicationPeriodToggle'
-import { RenewalPeriodToggle } from '@/components/admin/RenewalPeriodToggle'
+import { RenewalPeriodStatus } from '@/components/admin/RenewalPeriodStatus'
+import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
@@ -49,6 +50,14 @@ const STAT_CARDS: {
 
 type Toast = { text: string; bg: string; border: string; color: string; Icon: ComponentType<{ className?: string }> }
 
+// New applications vs. renewals from returning recipients.
+type TypeFilter = 'all' | 'new' | 'renewal'
+const TYPE_TABS: { value: TypeFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'new', label: 'New applications' },
+  { value: 'renewal', label: 'Renewals' },
+]
+
 export default function AdminApplicationsPage() {
   const queryClient = useQueryClient()
 
@@ -56,6 +65,8 @@ export default function AdminApplicationsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | null>(null)
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  const typeParam: Record<string, string> = typeFilter === 'all' ? {} : { type: typeFilter }
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
   // review-panel form state
@@ -69,10 +80,11 @@ export default function AdminApplicationsPage() {
 
   // ── queue list (same params/behaviour as before) ─────────────────────────
   const { data: listData, isLoading } = useQuery({
-    queryKey: ['admin-applications', statusFilter ?? 'active', search, page],
+    queryKey: ['admin-applications', typeFilter, statusFilter ?? 'active', search, page],
     queryFn: () =>
       applicationsApi.adminListApplications({
         page: String(page),
+        ...typeParam,
         ...(search && { search }),
         // Approved applicants graduate to the Assignments queue, so the default
         // view hides them. Each stat card narrows to one explicit status.
@@ -83,12 +95,20 @@ export default function AdminApplicationsPage() {
   const meta = listData?.meta
 
   // ── per-status counts for the stat cards ─────────────────────────────────
+  // The cards count within the selected tab, so they always agree with the list.
   const countQueries = useQueries({
     queries: STAT_CARDS.map((c) => ({
-      queryKey: ['admin-applications', 'count', c.status],
+      queryKey: ['admin-applications', 'count', typeFilter, c.status],
       queryFn: () =>
-        applicationsApi.adminListApplications({ status: c.status, page: '1' }).then((r) => r.meta?.total ?? 0),
+        applicationsApi.adminListApplications({ status: c.status, page: '1', ...typeParam }).then((r) => r.meta?.total ?? 0),
     })),
+  })
+
+  // Renewals waiting for a decision (they stay "Submitted" until approved or rejected).
+  const { data: renewalsWaiting } = useQuery({
+    queryKey: ['admin-applications', 'count', 'renewal', 'waiting'],
+    queryFn: () =>
+      applicationsApi.adminListApplications({ type: 'renewal', status: 'submitted', page: '1' }).then((r) => r.meta?.total ?? 0),
   })
 
   // The active selection defaults to the first item in the current queue.
@@ -201,6 +221,12 @@ export default function AdminApplicationsPage() {
     setSelectedId(null)
   }
 
+  const setType = (t: TypeFilter) => {
+    setTypeFilter(t)
+    setPage(1)
+    setSelectedId(null)
+  }
+
   const status = selected?.status
   const isRenewal = selected?.type === 'renewal'
   const iv = selected?.interview
@@ -216,7 +242,8 @@ export default function AdminApplicationsPage() {
 
       {/* application-period toggle (unchanged behaviour) */}
       <ApplicationPeriodToggle />
-      <RenewalPeriodToggle />
+      {/* renewal is opened per semester under Admin → Semesters */}
+      <RenewalPeriodStatus />
 
       {/* approved applicants move to the assignment queue */}
       <Link
@@ -262,18 +289,35 @@ export default function AdminApplicationsPage() {
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_1.4fr]">
         {/* ── queue ─────────────────────────────────────────────────────── */}
         <div>
+          {/* type tabs: everything / new applications / renewals from returning recipients */}
+          <div className="mb-3 flex gap-1 rounded-[11px] bg-ink-100 p-1" role="tablist" aria-label="Application type">
+            {TYPE_TABS.map((t) => (
+              <button key={t.value} role="tab" aria-selected={typeFilter === t.value} onClick={() => setType(t.value)}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[12.5px] font-semibold transition-colors ${
+                  typeFilter === t.value ? 'bg-white text-brand-800 shadow-sm' : 'text-ink-500 hover:text-brand-700'
+                }`}>
+                {t.value === 'renewal' && <RefreshCw className="h-3.5 w-3.5" />}
+                {t.label}
+                {t.value === 'renewal' && !!renewalsWaiting && (
+                  <span className="rounded-full bg-violet-100 px-1.5 py-px text-[10.5px] font-bold text-violet-700">{renewalsWaiting}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
           <div className="relative mb-3">
             <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
             <input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); setSelectedId(null) }}
-              placeholder="Search applicants…"
+              placeholder="Search name, email or student ID…"
               className="h-11 w-full rounded-[11px] border border-ink-200 bg-white pl-10 pr-4 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
             />
           </div>
 
           <div className="mb-2.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-warning-700">
-            {statusFilter ? STATUS_META[statusFilter]?.short ?? 'Filtered' : 'All pending'}
+            {typeFilter === 'renewal' ? 'Renewals · ' : typeFilter === 'new' ? 'New · ' : ''}
+            {statusFilter ? STATUS_META[statusFilter]?.short ?? 'Filtered' : typeFilter === 'all' ? 'All pending' : 'pending'}
             <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] text-gold-700">{meta?.total ?? applications.length}</span>
             {statusFilter && (
               <button onClick={() => { setStatusFilter(null); setSelectedId(null) }} className="ml-auto text-xs font-semibold text-brand-700">
@@ -289,7 +333,9 @@ export default function AdminApplicationsPage() {
               <div className="rounded-[13px] border border-dashed border-ink-300 bg-white px-5 py-10 text-center">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-success-600" />
                 <p className="mt-2.5 text-[13.5px] font-semibold text-ink-700">All caught up</p>
-                <p className="mt-1 text-[12.5px] text-ink-400">No applications match this view.</p>
+                <p className="mt-1 text-[12.5px] text-ink-400">
+                  {typeFilter === 'renewal' && !statusFilter && !search ? 'No renewals waiting.' : 'No applications match this view.'}
+                </p>
               </div>
             ) : (
               applications.map((a) => {
@@ -307,6 +353,9 @@ export default function AdminApplicationsPage() {
                       className="h-[38px] w-[38px] rounded-full text-[13px] font-bold" style={{ background: avBg, color: avFg }} />
                     <span className="min-w-0 flex-1 leading-tight">
                       <span className="block truncate text-[13.5px] font-semibold text-ink-950">{a.user?.name ?? '—'}</span>
+                      {a.user?.profile?.student_id_number && (
+                        <span className="block font-mono text-[11px] text-ink-500">ID {a.user.profile.student_id_number}</span>
+                      )}
                       <span className="flex items-center gap-1.5 text-[11.5px] text-ink-400">
                         {formatDate(a.created_at)}
                         {a.type === 'renewal' && (
@@ -390,6 +439,7 @@ export default function AdminApplicationsPage() {
                   {[
                     ['Period', `${selected.academic_year} · ${selected.semester}`],
                     ['Submitted', formatDate(selected.created_at)],
+                    ['Student ID', selected.user?.profile?.student_id_number ?? '—'],
                     ['Email', selected.user?.email ?? '—'],
                     ['Application', `#${selected.id}`],
                   ].map(([label, value]) => (
@@ -409,13 +459,18 @@ export default function AdminApplicationsPage() {
                     {selected.renewal_context ? (
                       <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-[12.5px] text-ink-700 sm:grid-cols-2">
                         <span>Office: <b>{selected.renewal_context.office ?? '—'}</b></span>
-                        <span>Supervisor: <b>{selected.renewal_context.supervisor ?? '—'}</b></span>
+                        <span>Supervisor: <b>{selected.renewal_context.supervisor ?? '—'}</b>
+                          {selected.renewal_context.supervisor_employee_id && (
+                            <span className="ml-1 font-mono text-[11px] text-ink-500">EMP {selected.renewal_context.supervisor_employee_id}</span>
+                          )}
+                        </span>
                         <span>Period: <b>{selected.renewal_context.period}</b></span>
                         <span>Verified hours: <b>{selected.renewal_context.verified_hours}h / {selected.renewal_context.required_hours}h</b></span>
                       </div>
                     ) : (
                       <p className="text-[12.5px] text-violet-700">No previous assignment found for this student.</p>
                     )}
+                    {selected.renewal_readiness && status === 'submitted' && <RenewalReadinessPanel readiness={selected.renewal_readiness} />}
                     <p className="mt-2 text-[11.5px] text-ink-500">
                       Approving rolls their assignment into {selected.academic_year} — {selected.semester} at the same office. No interview needed.
                     </p>
@@ -625,7 +680,9 @@ export default function AdminApplicationsPage() {
                       {(isRenewal || (status === 'interview_scheduled' && iv?.status !== 'no_show')) && (
                         <button
                           onClick={() => decide.mutate('approved')}
-                          disabled={decide.isPending}
+                          // A renewal waits for its readiness checks (the backend refuses with the same blocker).
+                          disabled={decide.isPending || (isRenewal && selected?.renewal_readiness?.ready === false)}
+                          title={isRenewal ? selected?.renewal_readiness?.blocker ?? undefined : undefined}
                           className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-success-600 to-success-700 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(25,107,83,.24)] disabled:opacity-50"
                         >
                           <CheckCircle className="h-[18px] w-[18px]" /> Approve

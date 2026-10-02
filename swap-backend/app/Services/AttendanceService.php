@@ -248,6 +248,10 @@ class AttendanceService
         // duration_hours is a DB-generated column — reload so it's present in the response.
         $log->refresh();
 
+        if ($log->status === 'verified') {
+            app(TermStatusService::class)->refreshById($assignment->id);
+        }
+
         AuditLog::record('manual_hours_added', $log, null, [
             'hours' => $hours,
             'date' => $log->date,
@@ -256,6 +260,52 @@ class AttendanceService
         ], $recordedBy->id);
 
         return $log;
+    }
+
+    /**
+     * The recipient's past terms: every placement except the current one, with its
+     * hours, verdict and that term's stipend. Hours never carry into the next term.
+     */
+    public function termHistory(User $user): array
+    {
+        $stipends = \App\Models\StipendHistory::where('user_id', $user->id)
+            ->orderByDesc('id')
+            ->get(['academic_year', 'semester', 'status', 'via_promissory'])
+            ->groupBy(fn ($s) => "{$s->academic_year}|{$s->semester}");
+
+        return Assignment::with('office')
+            ->where('user_id', $user->id)
+            ->where('status', '!=', 'active')
+            ->withSum(['timeLogs as rendered_sum' => fn ($q) => $q->whereNotNull('time_out')], 'duration_hours')
+            ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
+            ->withPromissoryFlags()
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function (Assignment $a) use ($stipends) {
+                // The live stub for the term if there is one, else the latest (e.g. void).
+                $rows = $stipends->get("{$a->academic_year}|{$a->semester}") ?? collect();
+                $stipend = $rows->first(fn ($s) => $s->status !== 'void') ?? $rows->first();
+
+                return [
+                    'assignment_id' => $a->id,
+                    'academic_year' => $a->academic_year,
+                    'semester' => $a->semester,
+                    'office' => $a->office?->name,
+                    'status' => $a->status,
+                    'start_date' => $a->start_date?->toDateString(),
+                    'end_date' => $a->effectiveEndDate()?->toDateString(),
+                    'required_hours' => (float) $a->required_hours,
+                    'verified_hours' => round($a->verified_hours, 2),
+                    'rendered_hours' => round($a->rendered_hours, 2),
+                    'term_status' => $a->term_status,
+                    'term_badge' => $a->termBadge(),
+                    'deficient_hours' => $a->deficient_hours !== null ? (float) $a->deficient_hours : null,
+                    'stipend_status' => $stipend?->status,
+                    'stipend_via_promissory' => (bool) $stipend?->via_promissory,
+                ];
+            })
+            ->all();
     }
 
     public function getLogsForUser(User $user, array $filters = [], int $perPage = 15): \Illuminate\Contracts\Pagination\LengthAwarePaginator

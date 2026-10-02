@@ -27,7 +27,7 @@ export const authApi = {
       .get<ApiResponse<{ email: string; name: string | null; role: string; office: string | null; expires_at: string }>>(`/invitations/${token}`)
       .then((r) => r.data.data),
 
-  acceptInvitation: (token: string, data: { name: string; password: string; password_confirmation: string }) =>
+  acceptInvitation: (token: string, data: { name: string; employee_id: string; password: string; password_confirmation: string }) =>
     apiClient.post<AuthResponse>(`/invitations/${token}/accept`, data).then((r) => r.data),
 
   getProfile: () =>

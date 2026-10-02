@@ -10,6 +10,10 @@ export const concernsApi = {
   submit: (data: { subject: string; message: string }) =>
     apiClient.post<ApiResponse<Concern>>('/concerns', data).then((r) => r.data),
 
+  // Add a follow-up to an unresolved concern (no subject — the thread keeps it).
+  reply: (id: number, body: string) =>
+    apiClient.post<ApiResponse<Concern>>(`/concerns/${id}/messages`, { body }).then((r) => r.data),
+
   // ─── Admin inbox ────────────────────────────────────────────────────────
   // meta.counts carries the open / in_progress / resolved totals for the tabs.
   getInbox: (params?: { status?: ConcernStatus; page?: number }) =>

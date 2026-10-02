@@ -54,11 +54,20 @@ class ApplicationRepository implements ApplicationRepositoryInterface
             $query->where('semester', $filters['semester']);
         }
 
+        // New applications vs. renewals from returning recipients (legacy rows have no type: new).
+        match ($filters['type'] ?? null) {
+            'renewal' => $query->where('type', 'renewal'),
+            'new' => $query->where(fn ($q) => $q->where('type', 'new')->orWhereNull('type')),
+            default => null,
+        };
+
         if (!empty($filters['search'])) {
-            $query->whereHas('user', fn ($q) =>
-                $q->where('name', 'ilike', "%{$filters['search']}%")
-                    ->orWhere('email', 'ilike', "%{$filters['search']}%")
-            );
+            $term = "%{$filters['search']}%";
+            $query->whereHas('user', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'ilike', $term)
+                ->orWhere('email', 'ilike', $term)
+                ->orWhereHas('profile', fn ($p) => $p->where('student_id_number', 'ilike', $term))
+            ));
         }
 
         return $query->paginate($perPage);

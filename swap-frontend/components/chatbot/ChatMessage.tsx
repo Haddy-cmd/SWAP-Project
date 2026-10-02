@@ -1,17 +1,21 @@
-import { Bot, User } from 'lucide-react'
+import { Bot, LifeBuoy, User } from 'lucide-react'
 
 export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
+  /** The question this reply answers, so it can be sent on to the DSA if it missed. */
+  handoff?: string
 }
 
 interface ChatMessageProps {
   message: Message
+  /** Send an unanswered question to the DSA (signed-in non-admins only). */
+  onHandoff?: (question: string) => void
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, onHandoff }: ChatMessageProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -36,6 +40,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
         }`}
       >
         {message.content}
+        {message.handoff && onHandoff && (
+          <button onClick={() => onHandoff(message.handoff!)}
+            className="mt-2 flex items-center gap-1 border-t border-ink-200 pt-1.5 text-[11.5px] font-semibold text-brand-700 hover:underline">
+            <LifeBuoy className="h-3 w-3" /> Not answered? Send this to the DSA
+          </button>
+        )}
       </div>
     </div>
   )

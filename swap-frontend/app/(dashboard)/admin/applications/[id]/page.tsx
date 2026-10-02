@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
+import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import {
   manilaToday, manilaNowMinutes, manilaToISO, minutesToLabel,
   slotsFor, slotViolation, windowFor, type InterviewMode,
@@ -175,8 +176,8 @@ export default function AdminApplicationDetailPage() {
             </div>
           )}
 
-          {/* Actions */}
-          {application.status === 'submitted' && (
+          {/* Actions (fresh applications; a renewal is decided directly, no review stage) */}
+          {application.status === 'submitted' && application.type !== 'renewal' && (
             <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
               <h2 className="mb-4 font-semibold text-ink-900">Action</h2>
               <button
@@ -289,9 +290,16 @@ export default function AdminApplicationDetailPage() {
             </div>
           )}
 
-          {(application.status === 'under_review' || application.status === 'interview_scheduled') && (
+          {(application.status === 'under_review' || application.status === 'interview_scheduled'
+            || (application.type === 'renewal' && application.status === 'submitted')) && (
             <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm space-y-4">
               <h2 className="font-semibold text-ink-900">Decision</h2>
+              {application.type === 'renewal' && application.renewal_readiness && (
+                <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-[0.06em] text-violet-700">Previous term · {application.renewal_readiness.term}</p>
+                  <RenewalReadinessPanel readiness={application.renewal_readiness} />
+                </div>
+              )}
               <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)}
                 placeholder="Remarks (required for rejection)"
                 rows={3}
@@ -302,7 +310,9 @@ export default function AdminApplicationDetailPage() {
                     (scheduled, not a no-show); renewals skip the interview. */}
                 {(application.type === 'renewal' ||
                   (application.status === 'interview_scheduled' && application.interview?.status !== 'no_show')) && (
-                <button onClick={() => decide.mutate('approved')} disabled={decide.isPending}
+                <button onClick={() => decide.mutate('approved')}
+                  disabled={decide.isPending || (application.type === 'renewal' && application.renewal_readiness?.ready === false)}
+                  title={application.type === 'renewal' ? application.renewal_readiness?.blocker ?? undefined : undefined}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-success-700 disabled:opacity-50 transition-colors">
                   <CheckCircle className="h-4 w-4" />
                   Approve

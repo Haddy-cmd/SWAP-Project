@@ -28,7 +28,7 @@ class ConcernRepliedNotification extends Notification implements ShouldQueue
             ->line("Your concern: {$this->concern->subject}")
             ->line('Reply from the DSA Office:')
             ->line($this->concern->response ?? '')
-            ->action('View on the Help page', \App\Support\Frontend::url('/help'));
+            ->action('Open the SWAP Assistant', \App\Support\Frontend::url('/help')); // /help opens the chat on Ask the DSA
     }
 
     public function toArray(object $notifiable): array

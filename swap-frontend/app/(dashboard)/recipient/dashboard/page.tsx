@@ -2,12 +2,12 @@
 
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { Clock, TrendingUp, FileText, Banknote, MapPin, UserRound, ArrowRight, Lightbulb, PartyPopper, Bot } from 'lucide-react'
+import { Clock, TrendingUp, FileText, Banknote, MapPin, UserRound, ArrowRight, Lightbulb, PartyPopper } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { UserAvatar } from '@/components/shared/UserAvatar'
-import { AskChatbotButton } from '@/components/chatbot/AskChatbotButton'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
+import { TermEndedBanner } from '@/components/attendance/TermEndedBanner'
 
 const ACTIONS = [
   { href: '/recipient/attendance', icon: Clock, label: 'Time In / Out', sub: 'Scan your QR code' },
@@ -98,10 +98,10 @@ export default function RecipientDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* ── Welcome hero + assistant ── */}
-      <div className="flex items-start gap-4">
+      {/* ── Welcome hero ── */}
+      <div>
         <section
-          className="relative min-w-0 flex-1 overflow-hidden rounded-[18px] px-6 py-[26px] shadow-[0_2px_8px_rgba(19,36,26,0.08)]"
+          className="relative min-w-0 overflow-hidden rounded-[18px] px-6 py-[26px] shadow-[0_2px_8px_rgba(19,36,26,0.08)]"
           style={{ background: HERO_BG }}
         >
           {/* Faded seal watermark */}
@@ -162,15 +162,10 @@ export default function RecipientDashboard() {
             </div>
           </div>
         </section>
-
-        <AskChatbotButton
-          label="Ask the SWAP Assistant"
-          className="relative hidden h-14 w-14 flex-none items-center justify-center rounded-full bg-brand-900 shadow-[0_6px_16px_rgba(16,51,31,0.25)] transition-colors hover:bg-brand-800 sm:flex"
-        >
-          <Bot className="h-[26px] w-[26px] text-white" />
-          <span className="absolute right-px top-px h-[11px] w-[11px] rounded-full border-2 border-ink-50 bg-success-400" />
-        </AskChatbotButton>
       </div>
+
+      {/* The current term has ended: Qualified, or Deficient and what to do */}
+      {assignment && <TermEndedBanner assignment={assignment} />}
 
       {/* ── Main grid ── */}
       <div className="grid items-start gap-6 lg:grid-cols-2">

@@ -1,18 +1,24 @@
 'use client'
 
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import {
   ArrowLeft, ReceiptText, Building2, Mail, CalendarDays, Flag, BadgeCheck,
-  History, TrendingUp, Clock, AlertTriangle, CheckCircle2, FileText,
+  History, TrendingUp, Clock, AlertTriangle, CheckCircle2, FileText, CircleAlert, CalendarClock,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { TermReportBody } from '@/components/attendance/TermReportCard'
 import { PACE_META, UNKNOWN_PACE, paceDetail, type PaceStatus } from '@/lib/utils/pace'
+import { TermBadge } from '@/components/shared/TermBadge'
+import { MarkDeficientModal } from '@/components/supervisor/MarkDeficientModal'
+import { EvaluationCard } from '@/components/supervisor/EvaluationCard'
+import { formatDay } from '@/lib/utils/semester'
+import { formatDateTime } from '@/lib/utils/formatDate'
 import type { TimeLog } from '@/types/attendance.types'
 
 const PACE_ICON: Record<PaceStatus, LucideIcon> = {
@@ -39,6 +45,7 @@ function lastActivity(log?: TimeLog): string {
 
 export default function StudentDetailPage() {
   const { studentId } = useParams<{ studentId: string }>()
+  const [marking, setMarking] = useState(false)
 
   const { data: result, isLoading } = useQuery({
     queryKey: ['student-summary', studentId],
@@ -55,6 +62,7 @@ export default function StudentDetailPage() {
 
   const summary = result?.data
   const student = result?.student
+  const term = result?.term
   const name = student?.name ?? `Student #${studentId}`
 
   const required = summary?.required ?? student?.required_hours ?? 0
@@ -83,6 +91,7 @@ export default function StudentDetailPage() {
     { Icon: Mail, label: 'Email', value: student?.email ?? '—' },
     { Icon: CalendarDays, label: 'Period', value: [student?.academic_year, student?.semester].filter(Boolean).join(' · ') || '—' },
     { Icon: Flag, label: 'Required Hours', value: required ? `${fmtHrs(required)} hours` : '—' },
+    { Icon: CalendarClock, label: 'Term Ends', value: term?.effective_end_date ? formatDay(term.effective_end_date, 'long') : 'Not set up yet' },
     { Icon: BadgeCheck, label: 'Student ID', value: student?.student_id_number ?? '—' },
     { Icon: History, label: 'Last Activity', value: lastActivity(logsPage?.data?.[0]) },
   ]
@@ -119,9 +128,13 @@ export default function StudentDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-50 px-3.5 py-[7px] text-[12px] font-bold text-success-800">
-            <span className="h-[7px] w-[7px] rounded-full bg-success-600" /> Active recipient
-          </span>
+          <TermBadge badge={term?.badge} deficientHours={term?.deficient_hours} className="px-3.5 py-[7px] text-[12px]" />
+          {term && term.status !== 'deficient' && term.shortfall > 0 && (
+            <button onClick={() => setMarking(true)}
+              className="flex h-11 items-center gap-2 rounded-xl border border-danger-200 bg-white px-[18px] text-[13.5px] font-semibold text-danger-700 hover:bg-danger-50 transition-colors">
+              <CircleAlert className="h-[19px] w-[19px]" /> Mark deficient
+            </button>
+          )}
           <Link href={`/supervisor/students/${studentId}/duty-slip`}
             className="flex h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-[18px] text-[13.5px] font-semibold text-brand-700 hover:bg-brand-50 transition-colors">
             <FileText className="h-[19px] w-[19px]" /> Duty Slip
@@ -133,6 +146,24 @@ export default function StudentDetailPage() {
           </Link>
         </div>
       </div>
+
+      {/* the term's deficiency, with who recorded it and why */}
+      {term?.status === 'deficient' && (
+        <div className="mb-[18px] flex items-start gap-3 rounded-[14px] border border-danger-200 bg-danger-50 px-5 py-4 text-sm text-danger-800">
+          <CircleAlert className="mt-0.5 h-5 w-5 flex-none text-danger-600" />
+          <div>
+            <p className="font-semibold">
+              Deficient{term.deficient_hours ? ` by ${fmtHrs(term.deficient_hours)} hours` : ''}
+              {term.badge === 'promissory_approved' ? ' · promissory note approved' : term.badge === 'promissory_pending' ? ' · promissory note pending your review' : ''}
+            </p>
+            <p className="mt-0.5 text-danger-700">
+              {term.marked_by_supervisor ? 'Marked by a supervisor' : 'Recorded at the end of the semester'}
+              {term.marked_at ? ` on ${formatDateTime(term.marked_at)}` : ''}.
+              {term.reason ? ` Reason: ${term.reason}` : ''}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* progress hero */}
       <div className="rounded-[18px] border border-ink-200 bg-white px-7 py-[26px] shadow-[0_2px_10px_rgba(19,36,26,.05)]">
@@ -214,6 +245,16 @@ export default function StudentDetailPage() {
           <p className="mt-3 text-sm text-ink-500">Not submitted yet. The student writes it on their Hours page; the stipend cannot be released without it.</p>
         )}
       </div>
+
+      {result?.assignment_id && (
+        <EvaluationCard assignmentId={result.assignment_id} evaluation={result.evaluation ?? null} />
+      )}
+
+      {marking && term && (
+        <MarkDeficientModal studentId={Number(studentId)} studentName={name}
+          term={[student?.semester, student?.academic_year].filter(Boolean).join(' ')}
+          shortfall={term.shortfall} onClose={() => setMarking(false)} />
+      )}
     </div>
   )
 }

@@ -6,7 +6,6 @@ use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\PromissoryNote;
-use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -44,7 +43,7 @@ class PromissoryService
 
         $semesterEnd = $this->semesterEndFor($assignment);
         if ($semesterEnd === null) {
-            throw new UnprocessableEntityHttpException('Semester end date is not set. Ask the admin to set it first.');
+            throw new UnprocessableEntityHttpException(self::msgNoPeriod($assignment));
         }
         if (Carbon::now(self::TIMEZONE)->lt($semesterEnd->copy()->endOfDay())) {
             throw new UnprocessableEntityHttpException('Promissory notes can only be submitted after the semester ends.');
@@ -54,6 +53,10 @@ class PromissoryService
         $required = (float) $assignment->required_hours;
         if ($required <= 0 || $verified >= $required) {
             throw new UnprocessableEntityHttpException('No lacking hours — a promissory note is not needed.');
+        }
+        // A promissory note covers a shortfall, not a term with no service at all.
+        if ($verified <= 0) {
+            throw new UnprocessableEntityHttpException(self::msgNoHours($assignment));
         }
 
         $pendingExists = PromissoryNote::where('assignment_id', $assignment->id)
@@ -73,6 +76,7 @@ class PromissoryService
                 'academic_year' => $assignment->academic_year,
                 'semester' => $assignment->semester,
                 'verified_hours_snapshot' => $verified,
+                'deficient_hours' => $lacking,
                 'lacking_hours' => $lacking,
                 'file_path' => $path,
                 'file_name' => $file->getClientOriginalName(),
@@ -117,7 +121,7 @@ class PromissoryService
             // Recomputed inside the transaction; also guards a semester-end change mid-review.
             $semesterEnd = $this->semesterEndFor($assignment);
             if ($data['action'] === 'approve' && $semesterEnd === null) {
-                throw new UnprocessableEntityHttpException('Semester end date is not set. Ask the admin to set it first.');
+                throw new UnprocessableEntityHttpException(self::msgNoPeriod($assignment));
             }
             if ($data['action'] === 'approve') {
                 $note->update([
@@ -173,7 +177,7 @@ class PromissoryService
 
         $semesterEnd = $this->semesterEndFor($assignment);
         if ($semesterEnd === null) {
-            return ['can_submit' => false, 'reason' => 'Semester end date is not set yet.', 'assignment_id' => $assignment->id, 'lacking_hours' => null];
+            return ['can_submit' => false, 'reason' => self::msgNoPeriod($assignment), 'assignment_id' => $assignment->id, 'lacking_hours' => null];
         }
         if (Carbon::now(self::TIMEZONE)->lt($semesterEnd->copy()->endOfDay())) {
             return ['can_submit' => false, 'reason' => 'Available only after the semester ends.', 'assignment_id' => $assignment->id, 'lacking_hours' => null];
@@ -183,6 +187,9 @@ class PromissoryService
         $required = (float) $assignment->required_hours;
         if ($required <= 0 || $verified >= $required) {
             return ['can_submit' => false, 'reason' => 'No lacking hours.', 'assignment_id' => $assignment->id, 'lacking_hours' => null];
+        }
+        if ($verified <= 0) {
+            return ['can_submit' => false, 'reason' => self::msgNoHours($assignment), 'assignment_id' => $assignment->id, 'lacking_hours' => null];
         }
 
         $pendingExists = PromissoryNote::where('assignment_id', $assignment->id)
@@ -196,25 +203,24 @@ class PromissoryService
     }
 
     /**
-     * The semester end in Manila: the assignment's end_date, else the admin-set
-     * `semester_end_date` setting. Null when neither exists.
+     * The semester end in Manila: the assignment's own end date, else its DSA
+     * semester period's (Admin → Semesters). Null when the term isn't set up.
      */
     public function semesterEndFor(Assignment $assignment): ?Carbon
     {
-        if ($assignment->end_date) {
-            return Carbon::parse($assignment->end_date->toDateString(), self::TIMEZONE);
-        }
+        $end = $assignment->effectiveEndDate();
 
-        $fallback = Setting::get('semester_end_date');
-        if ($fallback) {
-            try {
-                return Carbon::parse($fallback, self::TIMEZONE);
-            } catch (\Throwable) {
-                return null;
-            }
-        }
+        return $end ? Carbon::parse($end->toDateString(), self::TIMEZONE) : null;
+    }
 
-        return null;
+    public static function msgNoPeriod(Assignment $assignment): string
+    {
+        return "The semester period for {$assignment->semester} {$assignment->academic_year} isn't set up yet. Ask the DSA to add it under Semesters.";
+    }
+
+    public static function msgNoHours(Assignment $assignment): string
+    {
+        return "A promissory note needs some verified service hours. You have none for {$assignment->semester} {$assignment->academic_year}.";
     }
 
     /** Store the promissory document; storage misconfig surfaces as a 500 with the root cause. */

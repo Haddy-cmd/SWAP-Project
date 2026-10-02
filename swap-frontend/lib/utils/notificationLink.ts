@@ -28,6 +28,8 @@ export function notificationLink(n: Notification, role?: string | null): string 
       return '/admin/assignments'
     case 'concern': // new concern (admin) / the DSA replied (sender)
       return role === 'admin' ? '/admin/concerns' : '/help'
+    case 'term': // the term was judged deficient / re-qualified → promissory note + stipend
+      return '/recipient/stipend'
     case 'announcement': // the full text is on the Notifications page
       return '/notifications'
     default:

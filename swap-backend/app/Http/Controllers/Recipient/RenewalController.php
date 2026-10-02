@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Recipient;
 
 use App\Http\Controllers\Controller;
 use App\Models\Application;
-use App\Models\Setting;
+use App\Models\Assignment;
 use App\Resources\ApplicationResource;
 use App\Services\ApplicationService;
+use App\Services\SemesterPeriodService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,17 +18,27 @@ class RenewalController extends Controller
     /** The recipient's submission for the current renewal term, if any. */
     public function index(Request $request): JsonResponse
     {
-        $year = Setting::get('renewal_year');
-        $semester = Setting::get('renewal_semester');
+        $target = SemesterPeriodService::renewalTarget();
 
-        $application = $year && $semester
+        $application = $target
             ? Application::where('user_id', $request->user()->id)
-                ->where('academic_year', $year)
-                ->where('semester', $semester)
+                ->where('academic_year', $target->academic_year)
+                ->where('semester', $target->semester)
                 ->first()
             : null;
 
-        return response()->json(['data' => $application ? new ApplicationResource($application) : null]);
+        // An approved renewal rolls the student into the new term; say "approved"
+        // only when that placement really exists.
+        $placed = $target && Assignment::where('user_id', $request->user()->id)
+            ->where('academic_year', $target->academic_year)
+            ->where('semester', $target->semester)
+            ->where('status', 'active')
+            ->exists();
+
+        return response()->json([
+            'data' => $application ? new ApplicationResource($application) : null,
+            'meta' => ['placed' => $placed],
+        ]);
     }
 
     /** Submit a semester renewal: one updated COR, no interview round. */

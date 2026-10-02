@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Users, Clock, UserCheck, TrendingUp, FileText, Coins, ArrowRight, ArrowUpRight, CheckCircle, Calendar, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { analyticsApi } from '@/lib/api/analytics.api'
+import { CurrentSemesterCard } from '@/components/admin/CurrentSemesterCard'
 
 const FALLBACK_YEAR = '2024-2025'
 const FALLBACK_SEM = '1st Semester'
@@ -93,6 +94,9 @@ export default function AdminDashboard() {
           </select>
         </div>
       </div>
+
+      {/* The DSA calendar: current term, days left, renewal */}
+      <CurrentSemesterCard />
 
       {/* Compact KPI strip */}
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] border border-ink-200 bg-ink-200 lg:grid-cols-4">

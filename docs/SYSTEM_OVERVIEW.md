@@ -6,7 +6,7 @@
 > caught people. Read the "Traps" section before changing anything — several of them are
 > non-obvious and have each cost a debugging session.
 
-> Last verified against the repository: **2026-09-25** (HEAD `fda695a5`).
+> Last verified against the repository: **2026-10-01** (after `2fd9e4f9`: semester periods, term verdicts, evaluations, renewal gate).
 
 ---
 
@@ -37,7 +37,12 @@ Marawi's student assistantship programme, run by the **Division / Office of Stud
    `docs/STIPEND_CLAIM_DESIGN.md` and §6.
 9. A recipient short on hours after semester end may file a **promissory note** (with supporting
    document); a governing supervisor approves (with a makeup deadline) or rejects, which can
-   restore stipend eligibility.
+   restore stipend eligibility. A stub released through a note records and prints the shortfall.
+10. The DSA keeps a **semester calendar** (Admin → Semesters). When a semester ends, a daily job
+    records each placement as **Qualified** or **Deficient** (with the hours short). The supervisor
+    **evaluates** each student (1–5, 3+ passes), and an admin can only **approve a renewal** once the
+    previous term is paid (or covered by a note), evaluated and passed, with no overdue makeup.
+    Hours are strictly per term; earlier terms are kept as history.
 
 Roles: `applicant`, `recipient`, `supervisor`, `admin`. There is no Banking Office role — the
 releasing officer uses the public, token-gated `/claim/{claimToken}` page (the stub's QR) with a
@@ -180,22 +185,24 @@ four `2026_09_20_*` and five `2026_09_21_*` / `2026_09_23_*` additions).
 
 | Model | Notes |
 |---|---|
-| `User` | **SoftDeletes.** Holds `role`, `is_active`, `office_id` (supervisors), `avatar_path`, `require_clock_in_selfie`, plus `signature_image_path` (drawn e-signature specimen, served via `GET /users/{id}/signature`) and `position_title` (required on the releasing admin — prints on every claim stub) |
+| `User` | **SoftDeletes.** Holds `role`, `is_active`, `office_id` (supervisors), `avatar_path`, `require_clock_in_selfie`, plus `signature_image_path` (drawn e-signature specimen, served via `GET /users/{id}/signature`) and `position_title` (required on the releasing admin — prints on every claim stub), plus `employee_id` (supervisors/admins: digits, unique; entered when accepting the invitation or on Profile, shown and searchable in admin lists — the staff counterpart of the student ID) |
 | `StudentProfile` | 1:1 with User. **SoftDeletes.** `student_id_number` (9 digits, unique among live rows), first/middle/last name, college, program, year_level |
 | `Office` | Host office. Geofence (`latitude`, `longitude`, `radius_meters`, `geofence_enabled`), `qr_code`/`qr_secret`, `max_recipients`, `logo_path` (+ `logo_url` accessor) |
 | `Application` | Status enum (Postgres type `application_status`): `submitted → under_review → interview_scheduled → approved \| rejected`. Has `type` (new/renewal) |
 | `ApplicationDocument` | Uploaded requirements; served through a controller, not public URLs |
 | `Interview` | 1:1 with Application. `scheduled_at`, `mode` (`in_person`\|`online`), `location`, `meeting_link`, `duration_minutes`, `status` |
-| `Assignment` | Recipient ↔ Office ↔ Supervisor for an academic year/semester. `required_hours` (default 200), `status` (`active`\|`completed`\|`suspended`) |
+| `Assignment` | Recipient ↔ Office ↔ Supervisor for an academic year/semester. `required_hours` (default 200), `status` (`active`\|`completed`\|`suspended`). `end_date` is an optional per-placement override; `effectiveEndDate()` returns `end_date`, else its `SemesterPeriod`'s end. Term verdict: `term_status` (null = in progress \| `qualified` \| `deficient`), `deficient_hours`, `term_status_at/by/reason` (`by` null = the `semester:close` job). `termBadge()` adds the promissory states for the UI |
+| `SemesterPeriod` | The DSA calendar: one row per `academic_year` + `semester` (unique), `start_date`/`end_date` (no two periods overlap — checked in `SaveSemesterPeriodRequest`), `renewal_open` (at most one row; `SemesterPeriodService::renewalTarget()`), `closed_at` (stamped by `semester:close`). `SemesterPeriodService::forTerm()` loads the whole calendar once per request |
+| `TermEvaluation` | Supervisor's end-of-term evaluation, one per assignment: `rating` 1–5, `remarks`, `passed` (rating ≥ 3), `evaluator_id` |
 | `TimeLog` | One attendance session. `status`: `open → pending_verification → verified \| rejected`. GPS + accuracy + `location_flagged` + selfie path |
 | `NarrativeReport` | Optional per-session note at clock-out |
 | `TermReport` | End-of-term narrative report, one per assignment; required before the stipend is released; editable until then |
 | `Verification` | Supervisor's accept/reject of logged hours |
-| `StipendHistory` | Claim stub lifecycle (plain `varchar(20)`, **not** a Postgres enum): `pending → certified → claimed`, with `void` terminal (pre-claim only). New rows are created already `certified` (release == certify, Option C). `released` survives only as a legacy read value for pre-2026-09-21 rows. Columns: `control_number` (`SWAP-STP-YYYYMM-#####`, unique), `claim_token` (64-char, single-use, nulled on receipt/void), `certified_by/at`, `claimed_at`, `receipt_signed_at`, `releasing_officer_name`, `slip_path`, `voided_at`, `void_reason` |
+| `StipendHistory` | Claim stub lifecycle (plain `varchar(20)`, **not** a Postgres enum): `pending → certified → claimed`, with `void` terminal (pre-claim only). New rows are created already `certified` (release == certify, Option C). `released` survives only as a legacy read value for pre-2026-09-21 rows. Columns: `control_number` (`SWAP-STP-{studentID}-{YYYY}{SEM}`, e.g. `SWAP-STP-202512345-2627S2`, `-R2`… on re-issue, unique; built with `DutySlipControl::studentRef/termCode` like the duty slip), `claim_token` (64-char, single-use, nulled on receipt/void), `certified_by/at`, `claimed_at`, `receipt_signed_at`, `releasing_officer_name`, `slip_path`, `voided_at`, `void_reason`, plus the promissory record set at release: `via_promissory`, `promissory_note_id`, `required_hours`, `deficient_hours`, `lacking_hours`, `makeup_deadline` |
 | `StipendSignature` | One row per signatory on a stub: `supervisor` (SWAP Mentor) + `director` at release, `beneficiary` + `releasing_officer` at receipt. `method`: `drawn` (specimen image) vs `authenticated` (typed/action fallback) |
-| `PromissoryNote` | Post-semester shortfall pledge: `assignment_id`, `user_id`, `verified_hours_snapshot`, `lacking_hours`, document (`file_path/name/mime/file_size`), `reason`, `status` (`pending → approved \| rejected`), `reviewed_by/at`, `review_remarks`, `makeup_deadline` (= semester end + 7 days, server-computed). One pending note per assignment enforced in the service |
+| `PromissoryNote` | Post-semester shortfall pledge: `assignment_id`, `user_id`, `verified_hours_snapshot`, `deficient_hours` (required − verified at submit), `lacking_hours` (the makeup the supervisor approved), document (`file_path/name/mime/file_size`), `reason`, `status` (`pending → approved \| rejected`), `reviewed_by/at`, `review_remarks`, `makeup_deadline` (= semester end + 7 days, server-computed). One pending note per assignment enforced in the service |
 | `StaffInvitation` | Token-based invite flow for supervisor/admin accounts (students self-register) |
-| `Setting` | Key/value app settings, e.g. `applications_open`, `semester_end_date` (promissory fallback when an assignment has no `end_date`) |
+| `Setting` | Key/value app settings, e.g. `applications_open`, the Banking Office PIN + officer name. The old `semester_end_date` and `renewal_*` rows are no longer read (semester periods replaced them) |
 | `AuditLog` | Polymorphic change trail |
 | `Concern`, `FaqKnowledgeBase` | Chatbot / help desk |
 | `Announcement` | Admin → Announcements history. Sending one creates a `database` notification for every active recipient and emails them in Bcc batches of 50 (`AnnouncementService`); `emailed_count` shows how many the email reached |
@@ -253,15 +260,17 @@ All comparisons in **Asia/Manila**.
   in-app ping.
 
 ### Stipend claim stub (`StipendClaimService`, Option C — release == certify)
-- Eligibility (`StipendService`): active assignment with `verified_sum >= required_hours`, **or** a
-  shortfall covered by an **approved** promissory note for the same user/year/semester; minus any
-  live (`pending|certified|claimed|released`) row. `void` frees the period. Default amount
+- Eligibility (`StipendService`): an `active` or `completed` (rolled over by a renewal; `suspended`
+  is never paid) assignment with `verified_sum >= required_hours`, **or** a shortfall covered by an
+  **approved** promissory note for the same user/year/semester; minus any live
+  (`pending|certified|claimed|released`) row. Payable as soon as the hours are met — the end of the
+  semester is not awaited. `void` frees the period. Default amount
   `₱5,000` (`DEFAULT_STIPEND_AMOUNT`, admin-overridable per release). Each eligible row also
   carries `has_signature` and `narrative_submitted`; release (single and bulk) refuses when either
   is false ("This recipient has not saved a digital signature yet." / "…has not submitted their
   end-of-term narrative report yet.").
-- Release creates the row already `certified` with `control_number SWAP-STP-YYYYMM-#####`
-  (Manila month, `-R2…` suffix on collision) + 64-char `claim_token`; auto co-signs `supervisor`
+- Release creates the row already `certified` with `control_number SWAP-STP-{studentID}-{YYYY}{SEM}`
+  (`-R2…` suffix when a voided stub is re-issued; `U{userId}` when no student ID) + 64-char `claim_token`; auto co-signs `supervisor`
   (assignment's supervisor, `drawn` if they saved a specimen else `authenticated`) and `director`
   (per-release image wins, else the admin's specimen); refuses with 422 when the admin has no
   `position_title`. Renders the PDF (non-fatal), audit-logs `released`, notifies `StipendAvailable`.
@@ -287,16 +296,61 @@ All comparisons in **Asia/Manila**.
   audit-logged.
 - `claim_token`/`slip_path`/`file_path` are never in list JSON (`has_slip` flag instead); the slip
   download regenerates a missing PDF (ephemeral-disk caveat, §8/§11.1).
+- A release through a promissory note (the eligible row's `via_promissory`) stores the note, the
+  term's deficient hours, the approved makeup and its deadline on the `stipend_history` row, appends
+  "via approved promissory #N" to the remarks, and prints "…has rendered {v} of the {r} duty hours
+  required for {period}, with a deficiency of {d} hours covered by approved promissory note #{n}
+  (makeup due {date})" (Parts 2–3: a "Deficiency: {d} hrs" line). A student who met the hours
+  after an approved note is released normally (no marker, normal text).
 
 ### Promissory notes (`PromissoryService`)
-- Submit (recipient, Asia/Manila) only after semester end (`assignment.end_date`, else
-  `Setting semester_end_date` end-of-day), only when `0 < verified < required`, one pending note
-  per assignment. File: pdf/jpg/jpeg/png ≤ 5 MB on the `documents` disk. `lacking_hours` is
-  snapshotted server-side (`required − verified`).
+- Submit (recipient, Asia/Manila) only after semester end (`Assignment::effectiveEndDate()`
+  end-of-day: its own `end_date`, else its semester period's; neither → 422 "The semester period
+  for {term} isn't set up yet…"), only when `0 < verified < required` (0 → 422 "A promissory note
+  needs some verified service hours…"), one pending note per assignment. File: pdf/jpg/jpeg/png
+  ≤ 5 MB on the `documents` disk. `lacking_hours` and `deficient_hours` are snapshotted
+  server-side (`required − verified`).
 - Review by a **governing supervisor** only (else 404). Approve requires `lacking_hours` and sets
   `makeup_deadline = semester_end + 7 days`; reject requires `review_remarks`. Single review —
   re-review → 422. Notifications: `promissory_submitted → supervisors`,
   `promissory_reviewed → student`.
+
+### Semester periods, term verdicts and evaluations
+- **Calendar** (`SemesterPeriodService`, Admin → Semesters): CRUD with audit `semester_period_*`;
+  year `^\d{4}-\d{4}$` with consecutive years, semester in 1st/2nd/Summer, end after start, unique
+  year+semester, **no date overlap**; opening renewal on one period closes it on the others and is
+  refused for an ended period; delete refused while assignments/applications use the term.
+  `current()` / `next()` judge the Manila calendar day. Renewal submit
+  (`ApplicationService::submitRenewal`), the recipient renewal page and
+  `GET /settings/application-status` all read `renewalTarget()`; `PUT /admin/settings` no longer
+  accepts `renewal_*`.
+- **Verdict** (`TermStatusService`, `semester:close` daily 00:10 PHT, `onOneServer`): for each
+  period whose end date has passed, every `active`/`completed` placement of that term (whose own
+  end has passed) becomes `qualified` (verified ≥ required) or `deficient` with `deficient_hours`.
+  Only current placements whose term ended within `CloseSemesters::NOTIFY_WITHIN_DAYS` (14) are
+  notified (`term_status` notification: portal + email), so setting up an old semester never
+  mails a past cohort. Idempotent; `--dry-run` prints the counts. Terms with no period are left
+  alone. `refresh()` re-qualifies a deficient term the moment its hours are met (log verified,
+  verified bonus hours, lowered requirement) and keeps `deficient_hours` as history. A governing
+  supervisor can `markDeficient` a current placement that is short (reason ≥ 10 chars); a mark made
+  during the term is re-measured when the term ends. Renewal rollover records the old term's
+  verdict (no notification).
+- **Evaluation** (`TermEvaluationService`): a governing supervisor saves rating + remarks while the
+  placement is `active` (`GET/PUT /supervisor/assignments/{id}/evaluation`); `evaluation_due` on the
+  roster = no evaluation and the term ends within 14 days (or has ended).
+- **Renewal approval gate** (`RenewalReadinessService::assertReady`, 409, checked in order):
+  the renewal carries its COR document and there is an earlier placement; previous term paid, else covered by an approved note (else "Release this recipient's stipend…" when
+  owed / "…is not paid and has no approved promissory note."); if covered but unpaid, its
+  end-of-term report must be in; evaluated (else "The supervisor has not evaluated…") and passed
+  (else "…did not pass the supervisor evaluation for {term} (rating n/5)."); no approved note whose
+  makeup deadline passed with hours still short. `check()` feeds `renewal_readiness` on
+  `ApplicationResource` (admins only). Submitting early is allowed; rejecting is never blocked.
+  The recipient Renewal page says "approved" only when the new term's assignment exists
+  (`GET /recipient/renewals` → `meta.placed`).
+- **Per-term hours:** `GET /recipient/attendance/logs` and `/supervisor/students/{id}/logs` default
+  to the current placement (`scope=all` for every term — the duty slips pass it);
+  `GET /recipient/assignments/history` lists earlier terms with hours, verdict and stipend state;
+  the admin dashboard's average completion counts only active placements' verified hours.
 
 ### Duty-slip verification (`DutySlipControl` + `DutySlipController::verify`)
 - Control No. `SWAP-{SID}-{YY}{YY}{SEM}-{RANGE}-{checksum}` (`SEM` or `W+YYYYMMDD` Monday,
@@ -322,10 +376,10 @@ Base path `/api`. Auth via `Authorization: Bearer <sanctum token>`.
 | `qr-codes/*` | **none (public)** | 2 | Legacy dead endpoints — see §13 security note |
 | `chatbot/query` | public, **unthrottled** | 1 | gap — see AUDIT R4 |
 | `applicant/*` | `role:applicant` | 5 | submit application, upload documents |
-| `recipient/*` | `role:recipient` | 18 | attendance, hours, session notes, end-of-term report, stipend history + claim-slip download, promissory index/store/file, renewal, duty slip |
-| `supervisor/*` | `role:supervisor` | 20 | students, verifications, roster reports, office QR, **settings**, promissory index/review/file |
-| `admin/*` | `role:admin` | 54 | applications, interviews, offices, assignments, users, stipend (index/eligible/**unlock/release/release-bulk/void/banking-office-pin**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics, audit logs |
-| `profile/*`, `notifications/*`, `concerns`, `chatbot`, `settings` | authenticated | ~15 | shared + signature specimen upload/delete (`POST/DELETE /profile/signature`); `GET/POST /concerns` back the Help page |
+| `recipient/*` | `role:recipient` | 19 | attendance (logs default to the current term), hours, past terms (`assignments/history`), session notes, end-of-term report, stipend history + claim-slip download, promissory index/store/file, renewal, duty slip |
+| `supervisor/*` | `role:supervisor` | 23 | students (+ `mark-deficient`), term evaluations (`assignments/{id}/evaluation`), verifications, roster reports, office QR, **settings**, promissory index/review/file |
+| `admin/*` | `role:admin` | 59 | applications, interviews, offices, assignments (`?term=` verdict filter), **semester periods**, users, stipend (index/eligible/**unlock/release/release-bulk/void/banking-office-pin**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics, audit logs |
+| `profile/*`, `notifications/*`, `concerns`, `chatbot`, `settings` | authenticated | ~15 | shared + signature specimen upload/delete (`POST/DELETE /profile/signature`); `GET/POST /concerns` + `POST /concerns/{id}/messages` back the SWAP Assistant's Ask the DSA tab as a running thread (the old `/help` route just opens it); each concern's messages live in `concern_messages` |
 
 Response shape is consistently `{ "data": …, "message": … }`, with Laravel's standard
 `{ "message": …, "errors": { field: [msg] } }` on 422. Sensitive paths (`claim_token`,
@@ -522,8 +576,12 @@ for stub-PDF assertions (transparent-ink / smask / draw counts).
 Feature test files: `AdminTest`, `AttendanceTest`, `AuthTest`, `ChatbotTest`, `DocumentTest`,
 `DutySlipVerifyTest` (semester-scoped counts, rejected excluded, tampered checksum invalid),
 `EmailBrandingTest` (asserts seal-green `#1F5B3A`/`#16452B`), `InterviewLifecycleTest`,
-`NotificationTest`, `PromissoryNoteTest` (submit window, single-pending, governing-only review,
-`+7d` deadline, `via_promissory` eligibility), `RbacTest`, `ResourceAccessTest`,
+`NotificationTest`, `PromissoryNoteTest` (submit window from the semester period, zero-hours
+refusal, single-pending, governing-only review, `+7d` deadline, `via_promissory` eligibility,
+deficiency stored and printed on the stub), `RenewalTest` (the approval gate in order, rollover
+dates, hours reset), `SemesterPeriodTest`, `TermStatusTest` (`semester:close`, re-qualify,
+manual mark, badges), `TermEvaluationTest`, `TermHistoryTest` (log scope, past terms, average
+completion), `RbacTest`, `ResourceAccessTest`,
 `SignatureTest` (specimen upload/serve policy, drawn-vs-typed stub), `StipendClaimTest`
 (certify co-sign, step-up/unlock, single-use verify, receipt + notifications, `503` GD path,
 bulk skip-duplicates), `SupervisorReportTest`, `VerificationTest`.

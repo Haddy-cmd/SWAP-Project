@@ -85,6 +85,14 @@ export interface StipendRecord {
   void_reason: string | null
   has_slip: boolean
   remarks: string | null
+  // Released through an approved promissory note: the term's shortfall and the
+  // makeup the note promised, recorded at release (printed on the stub).
+  via_promissory?: boolean
+  promissory_note_id?: number | null
+  required_hours?: number | null
+  deficient_hours?: number | null
+  lacking_hours?: number | null
+  makeup_deadline?: string | null
   created_at: string
   recipient?: import('./auth.types').User
   certifier?: { id: number; name: string } | null
@@ -95,6 +103,8 @@ export interface StipendRecord {
 export interface ClaimVerification {
   control_number: string
   recipient_name: string | null
+  // To match against the student's ID card at the window.
+  student_id_number?: string | null
   amount: number | string
   academic_year: string
   semester: string
@@ -124,6 +134,7 @@ export interface BankingOfficePinStatus {
 export interface EligibleStipend {
   user_id: number
   name: string
+  student_id_number?: string | null
   academic_year: string
   semester: string
   required_hours: number
@@ -132,6 +143,8 @@ export interface EligibleStipend {
   // Set for short students released via an approved promissory note.
   via_promissory: boolean
   promissory_id?: number
+  // The term's shortfall the note covers (null for a normal release).
+  deficient_hours?: number | null
   lacking_hours?: number | null
   makeup_deadline?: string | null
   // Release also needs these (StipendClaimService refuses without them).

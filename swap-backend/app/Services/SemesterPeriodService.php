@@ -1,0 +1,121 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Application;
+use App\Models\Assignment;
+use App\Models\AuditLog;
+use App\Models\SemesterPeriod;
+use App\Models\User;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
+
+/**
+ * The DSA's semester calendar: which term is current, when a term ends, and which
+ * term renewal is open for. Every date rule reads from here (assignment dates are
+ * per-placement overrides on top).
+ */
+class SemesterPeriodService
+{
+    public const MSG_IN_USE = 'Assignments or applications already use this semester, so it cannot be deleted. Edit its dates instead.';
+
+    /**
+     * @var ?array<string, SemesterPeriod> every period keyed "year|semester", loaded
+     * once (the calendar is a handful of rows) so a list of assignments costs one
+     * query. Forgotten after each request and whenever a period is saved/deleted.
+     */
+    private ?array $byTerm = null;
+
+    public function forTerm(?string $academicYear, ?string $semester): ?SemesterPeriod
+    {
+        if (!$academicYear || !$semester) {
+            return null;
+        }
+
+        $this->byTerm ??= SemesterPeriod::all()->keyBy(fn (SemesterPeriod $p) => "{$p->academic_year}|{$p->semester}")->all();
+
+        return $this->byTerm["{$academicYear}|{$semester}"] ?? null;
+    }
+
+    /** Forget the memoised calendar. */
+    public function flush(): void
+    {
+        $this->byTerm = null;
+    }
+
+    public static function today(): Carbon
+    {
+        return Carbon::now(SemesterPeriod::TIMEZONE)->startOfDay();
+    }
+
+    /** The period whose dates include today (Manila), if any. Periods never overlap. */
+    public function current(): ?SemesterPeriod
+    {
+        $today = self::today()->toDateString();
+
+        return SemesterPeriod::where('start_date', '<=', $today)->where('end_date', '>=', $today)->first();
+    }
+
+    /** The next period that hasn't started yet. */
+    public function next(): ?SemesterPeriod
+    {
+        return SemesterPeriod::where('start_date', '>', self::today()->toDateString())->orderBy('start_date')->first();
+    }
+
+    /** The one period renewal is open for, if any. */
+    public static function renewalTarget(): ?SemesterPeriod
+    {
+        return SemesterPeriod::where('renewal_open', true)->orderBy('start_date')->first();
+    }
+
+    /** @return Collection<int, SemesterPeriod> newest first */
+    public function all(): Collection
+    {
+        return SemesterPeriod::orderByDesc('start_date')->get();
+    }
+
+    public function create(array $data, User $admin): SemesterPeriod
+    {
+        return DB::transaction(function () use ($data, $admin) {
+            $period = SemesterPeriod::create($data + ['created_by' => $admin->id]);
+            $this->keepRenewalExclusive($period);
+            AuditLog::record('semester_period_created', $period, null, $period->only(['academic_year', 'semester', 'start_date', 'end_date', 'renewal_open']), $admin->id);
+
+            return $period->fresh();
+        });
+    }
+
+    public function update(SemesterPeriod $period, array $data, User $admin): SemesterPeriod
+    {
+        return DB::transaction(function () use ($period, $data, $admin) {
+            $old = $period->only(['academic_year', 'semester', 'start_date', 'end_date', 'renewal_open']);
+            $period->update($data);
+            $this->keepRenewalExclusive($period);
+            AuditLog::record('semester_period_updated', $period, $old, $period->only(['academic_year', 'semester', 'start_date', 'end_date', 'renewal_open']), $admin->id);
+
+            return $period->fresh();
+        });
+    }
+
+    public function delete(SemesterPeriod $period, User $admin): void
+    {
+        $used = Assignment::where('academic_year', $period->academic_year)->where('semester', $period->semester)->exists()
+            || Application::where('academic_year', $period->academic_year)->where('semester', $period->semester)->exists();
+        if ($used) {
+            throw new UnprocessableEntityHttpException(self::MSG_IN_USE);
+        }
+
+        AuditLog::record('semester_period_deleted', $period, $period->only(['academic_year', 'semester', 'start_date', 'end_date']), null, $admin->id);
+        $period->delete();
+    }
+
+    /** Opening renewal for one term closes it for every other. */
+    private function keepRenewalExclusive(SemesterPeriod $period): void
+    {
+        if ($period->renewal_open) {
+            SemesterPeriod::where('id', '!=', $period->id)->where('renewal_open', true)->update(['renewal_open' => false]);
+        }
+    }
+}

@@ -38,6 +38,7 @@ class AssignmentRepository implements AssignmentRepositoryInterface
             ->withSum(['timeLogs as rendered_sum' => fn ($q) => $q->whereNotNull('time_out')], 'duration_hours')
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->withSum(['timeLogs as pending_sum' => fn ($q) => $q->where('status', 'pending_verification')], 'duration_hours')
+            ->withPromissoryFlags()
             ->orderByDesc('created_at');
 
         if (!empty($filters['office_id'])) {
@@ -55,6 +56,13 @@ class AssignmentRepository implements AssignmentRepositoryInterface
         if (!empty($filters['academic_year'])) {
             $query->where('academic_year', $filters['academic_year']);
         }
+
+        // Term verdict: in_progress (not decided yet), qualified or deficient.
+        match ($filters['term'] ?? null) {
+            'in_progress' => $query->whereNull('term_status'),
+            Assignment::TERM_QUALIFIED, Assignment::TERM_DEFICIENT => $query->where('term_status', $filters['term']),
+            default => null,
+        };
 
         return $query->paginate($perPage);
     }

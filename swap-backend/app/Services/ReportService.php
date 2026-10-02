@@ -165,7 +165,7 @@ class ReportService
         return [
             'title' => 'Recipients & Hours',
             'slug' => 'recipients-hours',
-            'headers' => ['Recipient', 'Email', 'Student ID', 'College', 'Office', 'Supervisor', 'Required Hours', 'Verified Hours', 'Remaining', 'Status'],
+            'headers' => ['Recipient', 'Email', 'Student ID', 'College', 'Office', 'Supervisor', 'Required Hours', 'Verified Hours', 'Remaining', 'Status', 'Term Status', 'Deficient Hours'],
             'stats' => [
                 ['label' => 'Recipients', 'value' => (string) $asgs->count()],
                 ['label' => 'Avg Completion', 'value' => $avg . '%'],
@@ -185,6 +185,8 @@ class ReportService
                     $v,
                     max(0, $a->required_hours - $v),
                     ucwords($a->status),
+                    $a->term_status ? ucfirst($a->term_status) : 'In Progress',
+                    $a->deficient_hours !== null ? (float) $a->deficient_hours : '',
                 ];
             })->all(),
         ];
@@ -204,7 +206,7 @@ class ReportService
         return [
             'title' => 'Stipend Disbursement',
             'slug' => 'stipend-disbursement',
-            'headers' => ['Recipient', 'Email', 'Student ID', 'Amount', 'Status', 'Period', 'Claimed At'],
+            'headers' => ['Recipient', 'Email', 'Student ID', 'Amount', 'Status', 'Period', 'Claimed At', 'Via Promissory', 'Deficient Hours'],
             'stats' => [
                 ['label' => 'Total Claimed', 'value' => '₱' . number_format((float) $paid->sum('amount'), 0)],
                 ['label' => 'Recipients', 'value' => (string) $stipends->where('status', '!=', 'void')->count()],
@@ -219,6 +221,8 @@ class ReportService
                 ucwords($s->status),
                 $s->period_label,
                 ($s->claimed_at ?? $s->released_at)?->format('Y-m-d H:i') ?? '—',
+                $s->via_promissory ? 'Yes' : 'No',
+                $s->deficient_hours !== null ? (float) $s->deficient_hours : '',
             ])->all(),
         ];
     }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Concern extends Model
 {
@@ -41,5 +42,11 @@ class Concern extends Model
     public function respondedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'responded_by');
+    }
+
+    /** The thread: the opener and every reply, oldest first. */
+    public function messages(): HasMany
+    {
+        return $this->hasMany(ConcernMessage::class)->orderBy('id');
     }
 }

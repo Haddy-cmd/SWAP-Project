@@ -9,7 +9,9 @@ use App\Models\User;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use App\Resources\AssignmentResource;
 use App\Resources\TimeLogResource;
+use App\Http\Requests\Supervisor\MarkDeficientRequest;
 use App\Services\AttendanceService;
+use App\Services\TermStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,6 +20,7 @@ class StudentController extends Controller
     public function __construct(
         private readonly TimeLogRepositoryInterface $timeLogRepository,
         private readonly AttendanceService $attendanceService,
+        private readonly TermStatusService $termStatus,
     ) {}
 
     /**
@@ -36,10 +39,11 @@ class StudentController extends Controller
     {
         // Preload the hour sums the resource needs (verified + pending drive pace), so a
         // roster of N students costs a constant number of queries rather than 3N.
-        $assignments = Assignment::with(['user.profile', 'office'])
+        $assignments = Assignment::with(['user.profile', 'office', 'evaluation'])
             ->withCount(['timeLogs as pending_logs_count' => fn ($q) => $q->where('status', 'pending_verification')])
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->withSum(['timeLogs as pending_sum' => fn ($q) => $q->where('status', 'pending_verification')], 'duration_hours')
+            ->withPromissoryFlags()
             ->visibleToSupervisor($request->user())
             ->where('status', 'active')
             ->get();
@@ -74,7 +78,7 @@ class StudentController extends Controller
 
     public function summary(Request $request, int $studentId): JsonResponse
     {
-        $assignment = Assignment::with(['user.profile', 'office', 'supervisor', 'termReport'])
+        $assignment = Assignment::with(['user.profile', 'office', 'supervisor', 'termReport', 'evaluation.evaluator'])
             ->where('user_id', $studentId)
             ->visibleToSupervisor($request->user())
             ->where('status', 'active')
@@ -110,6 +114,41 @@ class StudentController extends Controller
                 'required_hours' => $assignment->required_hours,
                 'pace' => $assignment->paceStatus(),
             ],
+            'term' => $this->termPayload($assignment),
+            // The end-of-term evaluation card (GET/PUT /supervisor/assignments/{id}/evaluation).
+            'assignment_id' => $assignment->id,
+            'evaluation' => $assignment->evaluation?->toPayload(),
+        ]);
+    }
+
+    /** The term's verdict for the student page (badge + Mark deficient). */
+    private function termPayload(Assignment $assignment): array
+    {
+        return [
+            'badge' => $assignment->termBadge(),
+            'status' => $assignment->term_status,
+            'deficient_hours' => $assignment->deficient_hours !== null ? (float) $assignment->deficient_hours : null,
+            'reason' => $assignment->term_status_reason,
+            'marked_at' => $assignment->term_status_at?->toISOString(),
+            'marked_by_supervisor' => $assignment->term_status_by !== null,
+            'effective_end_date' => $assignment->effectiveEndDate()?->toDateString(),
+            'shortfall' => $this->termStatus->shortfall($assignment),
+        ];
+    }
+
+    /** Mark the student's current term deficient (reason required; the student is notified). */
+    public function markDeficient(MarkDeficientRequest $request, int $studentId): JsonResponse
+    {
+        $assignment = $this->ownedAssignment($request->user(), $studentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        $updated = $this->termStatus->markDeficient($assignment, $request->user(), $request->validated('reason'));
+
+        return response()->json([
+            'message' => 'Marked deficient. The student has been notified.',
+            'term' => $this->termPayload($updated),
         ]);
     }
 
@@ -128,9 +167,15 @@ class StudentController extends Controller
         // Same ceiling as the recipient's own log feed: the duty slip spans semesters.
         $perPage = min(500, max(1, (int) $request->input('per_page', 15)));
 
+        // Hours are per term: this placement's logs unless the duty slip asks for all.
+        $scoped = $request->input('scope', 'current') !== 'all';
+
         $logs = $this->timeLogRepository->paginateForSupervisor(
             $request->user()->id,
-            array_merge($request->only(['status', 'from', 'to']), ['user_id' => $studentId]),
+            array_merge($request->only(['status', 'from', 'to']), [
+                'user_id' => $studentId,
+                'assignment_id' => $scoped ? $assignment->id : null,
+            ]),
             $perPage
         );
 
@@ -233,6 +278,7 @@ class StudentController extends Controller
         $old = $assignment->only(['required_hours']);
         $assignment->update(['required_hours' => $data['required_hours']]);
         AuditLog::record('updated', $assignment, $old, $assignment->only(['required_hours']));
+        $this->termStatus->refresh($assignment);
 
         return response()->json(['message' => 'Required hours updated.', 'data' => ['required_hours' => $assignment->required_hours]]);
     }
@@ -271,6 +317,7 @@ class StudentController extends Controller
             $old,
             $assignment->only(['required_hours', 'pending_required_hours'])
         );
+        $this->termStatus->refresh($assignment);
 
         return response()->json(['message' => $message, 'data' => ['required_hours' => $assignment->required_hours]]);
     }

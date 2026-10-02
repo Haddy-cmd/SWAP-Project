@@ -14,14 +14,20 @@ class StipendService
     public const DEFAULT_STIPEND_AMOUNT = 5000;
 
     /**
-     * Recipients who can be paid for an academic period: those whose active
-     * assignment met its required verified hours, PLUS short students whose
-     * promissory note was approved for the period — minus anyone already paid.
+     * Terms that can still be paid: the current one, and one already rolled into the
+     * next term by a renewal (a suspended placement is not paid).
+     */
+    public const PAYABLE_STATUSES = ['active', 'completed'];
+
+    /**
+     * Recipients who can be paid for an academic period: those whose assignment
+     * met its required verified hours, PLUS short students whose promissory note
+     * was approved for the period — minus anyone already paid.
      */
     public function eligibleRecipients(): array
     {
         $assignments = Assignment::with(['user.profile', 'termReport'])
-            ->where('status', 'active')
+            ->whereIn('status', self::PAYABLE_STATUSES)
             ->where('required_hours', '>', 0)
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->get()
@@ -39,12 +45,14 @@ class StipendService
             ->map(fn ($a) => [
                 'user_id' => $a->user_id,
                 'name' => $a->user->profile?->full_name ?? $a->user->name,
+                'student_id_number' => $a->user->profile?->student_id_number,
                 'academic_year' => $a->academic_year,
                 'semester' => $a->semester,
                 'required_hours' => (float) $a->required_hours,
                 'verified_hours' => (float) ($a->verified_sum ?? 0),
                 'suggested_amount' => self::DEFAULT_STIPEND_AMOUNT,
                 'via_promissory' => false,
+                'deficient_hours' => null,
             ] + self::readiness($a));
 
         return $standard
@@ -61,7 +69,7 @@ class StipendService
     private function promissoryEligibleRecipients(\Illuminate\Support\Collection $releasedKeys): \Illuminate\Support\Collection
     {
         return Assignment::with(['user.profile', 'promissoryNotes', 'termReport'])
-            ->where('status', 'active')
+            ->whereIn('status', self::PAYABLE_STATUSES)
             ->where('required_hours', '>', 0)
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->whereHas('promissoryNotes', fn ($q) => $q->where('status', PromissoryNote::STATUS_APPROVED))
@@ -83,6 +91,7 @@ class StipendService
                 return [
                     'user_id' => $a->user_id,
                     'name' => $a->user->profile?->full_name ?? $a->user->name,
+                    'student_id_number' => $a->user->profile?->student_id_number,
                     'academic_year' => $a->academic_year,
                     'semester' => $a->semester,
                     'required_hours' => (float) $a->required_hours,
@@ -90,6 +99,10 @@ class StipendService
                     'suggested_amount' => self::DEFAULT_STIPEND_AMOUNT,
                     'via_promissory' => true,
                     'promissory_id' => $note->id,
+                    // The term's shortfall: its recorded verdict, else the note's.
+                    'deficient_hours' => (float) ($a->deficient_hours
+                        ?? $note->deficient_hours
+                        ?? max(0, (float) $a->required_hours - (float) ($a->verified_sum ?? 0))),
                     'lacking_hours' => (float) $note->lacking_hours,
                     'makeup_deadline' => $note->makeup_deadline?->toDateString(),
                 ] + self::readiness($a);
@@ -130,6 +143,17 @@ class StipendService
 
         if (!empty($filters['academic_year'])) {
             $query->where('academic_year', $filters['academic_year']);
+        }
+
+        // Name, email, student ID or control number.
+        if (!empty($filters['search'])) {
+            $term = '%' . trim($filters['search']) . '%';
+            $query->where(fn ($q) => $q
+                ->where('control_number', 'ilike', $term)
+                ->orWhereHas('recipient', fn ($u) => $u
+                    ->where('name', 'ilike', $term)
+                    ->orWhere('email', 'ilike', $term)
+                    ->orWhereHas('profile', fn ($p) => $p->where('student_id_number', 'ilike', $term))));
         }
 
         return $query->paginate($perPage);

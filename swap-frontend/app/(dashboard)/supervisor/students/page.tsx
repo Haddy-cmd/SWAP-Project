@@ -12,6 +12,8 @@ import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 import { UNKNOWN_PACE, isBehind, paceDetail, type Pace } from '@/lib/utils/pace'
 import { cn } from '@/lib/utils/cn'
+import { TERM_FILTERS, TermBadge, matchesTermFilter, type TermFilter } from '@/components/shared/TermBadge'
+import type { TermBadgeValue } from '@/types/assignment.types'
 
 /** Shown when verified hours have fallen behind what the elapsed term expects. */
 function BehindBadge({ pace }: { pace: Pace }) {
@@ -35,6 +37,9 @@ type Row = {
   pendingRequired: number | null
   pendingLogs: number
   pace: Pace
+  term: TermBadgeValue
+  deficientHours: number | null
+  evaluationDue: boolean
 }
 type Selected = { userId: number; name: string; required: number }
 
@@ -48,6 +53,13 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }
 function PendingBadges({ row }: { row: Row }) {
   return (
     <div className="flex flex-shrink-0 flex-col items-end gap-1">
+      {row.term !== 'in_progress' && <TermBadge badge={row.term} deficientHours={row.deficientHours} />}
+      {row.evaluationDue && (
+        <Link href={`/supervisor/students/${row.userId}`}
+          className="rounded-full bg-gold-50 px-2.5 py-0.5 text-[11px] font-semibold text-warning-800 ring-1 ring-gold-200 hover:bg-gold-100">
+          Evaluation due
+        </Link>
+      )}
       <BehindBadge pace={row.pace} />
       {row.pendingLogs > 0 && (
         <span className="rounded-full bg-warning-50 px-2.5 py-0.5 text-xs font-semibold text-warning-800">
@@ -188,6 +200,7 @@ export default function SupervisorStudentsPage() {
   const [bonusFor, setBonusFor] = useState<Selected | null>(null)
   const [docsFor, setDocsFor] = useState<Selected | null>(null)
   const [hoursFor, setHoursFor] = useState<Selected | null>(null)
+  const [termFilter, setTermFilter] = useState<TermFilter>('all')
 
   const { data, isLoading } = useQuery({
     queryKey: ['supervisor-students'],
@@ -208,13 +221,16 @@ export default function SupervisorStudentsPage() {
       pendingRequired: s.pending_required_hours != null ? Number(s.pending_required_hours) : null,
       pendingLogs: Number(s.pending_logs_count ?? 0),
       pace: (s.pace as Pace | undefined) ?? UNKNOWN_PACE,
+      term: (s.term_badge as TermBadgeValue | undefined) ?? 'in_progress',
+      deficientHours: s.deficient_hours != null ? Number(s.deficient_hours) : null,
+      evaluationDue: Boolean(s.evaluation_due),
     }
   })
 
   const q = search.trim().toLowerCase()
-  const filtered = q
-    ? rows.filter((r) => r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.office.toLowerCase().includes(q))
-    : rows
+  const filtered = rows
+    .filter((r) => matchesTermFilter(r.term, termFilter))
+    .filter((r) => !q || r.name.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || r.office.toLowerCase().includes(q))
   const toReview = rows.reduce((n, r) => n + r.pendingLogs, 0)
   const behindCount = rows.filter((r) => isBehind(r.pace)).length
 
@@ -285,6 +301,16 @@ export default function SupervisorStudentsPage() {
               <TrendingDown className="h-3.5 w-3.5" /> {behindCount} behind pace
             </span>
           )}
+          {/* Term verdict filter (Qualified / Deficient once the semester closes) */}
+          <div className="ml-auto flex flex-wrap gap-1">
+            {TERM_FILTERS.map((f) => (
+              <button key={f.value} onClick={() => setTermFilter(f.value)} aria-pressed={termFilter === f.value}
+                className={cn('rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                  termFilter === f.value ? 'border-brand-700 bg-brand-700 text-white' : 'border-ink-200 bg-white text-ink-500 hover:text-brand-700')}>
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -295,7 +321,7 @@ export default function SupervisorStudentsPage() {
       ) : !filtered.length ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-ink-300 py-16 text-center">
           <Users className="h-10 w-10 text-ink-300" />
-          <p className="text-sm font-medium text-ink-350">{rows.length ? 'No students match your search.' : 'No students assigned yet.'}</p>
+          <p className="text-sm font-medium text-ink-350">{rows.length ? 'No students match your search or filter.' : 'No students assigned yet.'}</p>
         </div>
       ) : view === 'cards' ? (
         /* ── CARD VIEW ── */
@@ -350,6 +376,7 @@ export default function SupervisorStudentsPage() {
                             {r.pendingLogs > 0 && (
                               <span className="rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-semibold text-warning-800">{r.pendingLogs} to review</span>
                             )}
+                            {r.term !== 'in_progress' && <TermBadge badge={r.term} deficientHours={r.deficientHours} />}
                             <BehindBadge pace={r.pace} />
                           </div>
                           <p className="truncate text-xs text-ink-350">{r.email}</p>

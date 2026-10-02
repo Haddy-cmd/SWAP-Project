@@ -21,6 +21,7 @@ class PromissoryNote extends Model
         'semester',
         'verified_hours_snapshot',
         'lacking_hours',
+        'deficient_hours',
         'file_path',
         'file_name',
         'mime_type',
@@ -43,6 +44,7 @@ class PromissoryNote extends Model
         return [
             'verified_hours_snapshot' => 'decimal:2',
             'lacking_hours' => 'decimal:2',
+            'deficient_hours' => 'decimal:2',
             'file_size' => 'integer',
             'reviewed_at' => 'datetime',
             'makeup_deadline' => 'date',

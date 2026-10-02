@@ -169,9 +169,14 @@ class AnalyticsService
             ->toArray();
 
         $requiredHoursAll = (float) Assignment::whereHas('user')->where('status', 'active')->sum('required_hours');
-        $verifiedHoursAll = (float) TimeLog::whereHas('user')->where('status', 'verified')->sum('duration_hours');
+        // Same placements on both sides: a renewed recipient's past-term hours must
+        // not count toward the current terms' completion.
+        $verifiedHoursActive = (float) TimeLog::whereHas('user')
+            ->where('status', 'verified')
+            ->whereHas('assignment', fn ($q) => $q->where('status', 'active'))
+            ->sum('duration_hours');
         $avgCompletionRate = $requiredHoursAll > 0
-            ? round(min(($verifiedHoursAll / $requiredHoursAll) * 100, 100), 1)
+            ? round(min(($verifiedHoursActive / $requiredHoursAll) * 100, 100), 1)
             : 0.0;
 
         return [

@@ -6,12 +6,12 @@ use App\Events\StipendReleased;
 use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
 use App\Models\AuditLog;
-use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
 use App\Models\StipendSignature;
 use App\Models\User;
 use App\Repositories\Contracts\StipendClaimRepositoryInterface;
 use App\Support\AfterCommit;
+use App\Support\DutySlipControl;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -63,7 +63,7 @@ class StipendClaimService
             throw new UnprocessableEntityHttpException($missing);
         }
 
-        return $this->issueStub($data, $admin);
+        return $this->issueStub($data, $admin, $row);
     }
 
     /**
@@ -103,13 +103,17 @@ class StipendClaimService
         return "{$row['user_id']}|{$row['academic_year']}|{$row['semester']}";
     }
 
-    /** Create, certify, co-sign and archive one stub. Callers have already run the guards. */
-    private function issueStub(array $data, User $admin): StipendHistory
+    /**
+     * Create, certify, co-sign and archive one stub. Callers have already run the
+     * guards; `$row` is the recipient's eligible row (StipendService), which says
+     * whether the release goes through a promissory note.
+     */
+    private function issueStub(array $data, User $admin, array $row): StipendHistory
     {
         $amount = $data['amount'] ?? StipendService::DEFAULT_STIPEND_AMOUNT;
 
         try {
-            $stipend = $this->createCertifiedStub($data, $amount, $admin);
+            $stipend = $this->createCertifiedStub($data, $amount, $admin, $row);
         } catch (UniqueConstraintViolationException) {
             // The partial unique index is the last line against a concurrent release.
             throw new UnprocessableEntityHttpException(self::MSG_ALREADY_LIVE);
@@ -128,10 +132,14 @@ class StipendClaimService
         return $stipend->load(['recipient.profile', 'certifiedBy', 'signatures']);
     }
 
-    private function createCertifiedStub(array $data, $amount, User $admin): StipendHistory
+    private function createCertifiedStub(array $data, $amount, User $admin, array $row): StipendHistory
     {
-        return DB::transaction(function () use ($data, $amount, $admin) {
+        return DB::transaction(function () use ($data, $amount, $admin, $row) {
+            $viaPromissory = (bool) ($row['via_promissory'] ?? false);
+
             // Releasing the stub IS the certification — no pending limbo (Option C).
+            // A release through a promissory note keeps the term's shortfall on the
+            // paid record itself (and the stub prints it).
             $stipend = StipendHistory::create([
                 'user_id' => $data['user_id'],
                 'amount' => $amount,
@@ -142,6 +150,12 @@ class StipendClaimService
                 'certified_by' => $admin->id,
                 'certified_at' => now(),
                 'remarks' => $data['remarks'] ?? null,
+                'required_hours' => $row['required_hours'] ?? null,
+                'via_promissory' => $viaPromissory,
+                'promissory_note_id' => $viaPromissory ? ($row['promissory_id'] ?? null) : null,
+                'deficient_hours' => $viaPromissory ? ($row['deficient_hours'] ?? null) : null,
+                'lacking_hours' => $viaPromissory ? ($row['lacking_hours'] ?? null) : null,
+                'makeup_deadline' => $viaPromissory ? ($row['makeup_deadline'] ?? null) : null,
             ]);
 
             $stipend->update([
@@ -184,16 +198,11 @@ class StipendClaimService
 
             $stipend->refresh();
 
-            // Promissory override stays visible on the row: when the recipient was
-            // short on hours, the approving note id is recorded with the release.
-            $promissory = PromissoryNote::where('user_id', $stipend->user_id)
-                ->where('academic_year', $stipend->academic_year)
-                ->where('semester', $stipend->semester)
-                ->where('status', PromissoryNote::STATUS_APPROVED)
-                ->latest('id')
-                ->first();
-            if ($promissory) {
-                $via = "via approved promissory #{$promissory->id}";
+            // The override stays readable in the remarks too — but only when the
+            // release really went through the note. A student who met the hours
+            // (e.g. after a makeup) is paid normally even if a note was approved.
+            if ($viaPromissory && $stipend->promissory_note_id) {
+                $via = "via approved promissory #{$stipend->promissory_note_id}";
                 if (!str_contains((string) $stipend->remarks, $via)) {
                     $stipend->update(['remarks' => trim(($stipend->remarks ? $stipend->remarks.' · ' : '').$via)]);
                 }
@@ -240,7 +249,7 @@ class StipendClaimService
                 continue;
             }
             try {
-                $released[] = $this->issueStub($item, $admin);
+                $released[] = $this->issueStub($item, $admin, $row);
             } catch (UnprocessableEntityHttpException) {
                 // Lost a race to a concurrent release (unique index).
                 $skipped[] = ['user_id' => (int) $item['user_id'], 'reason' => 'Already has a live stipend for this period.'];
@@ -369,9 +378,18 @@ class StipendClaimService
     }
 
     /** SWAP-STP-YYYYMM-#####, unique; a collision (re-issue) bumps a revision suffix. */
+    /**
+     * The stub's control number carries the student ID and the term, like the duty
+     * slip: SWAP-STP-{STUDENTID}-{YYYY}{SEM}, e.g. SWAP-STP-202512345-2627S2. A stub
+     * re-issued after a void gets -R2, -R3…; a recipient without a student ID on
+     * file falls back to U{userId}.
+     */
     private function makeControlNumber(StipendHistory $stipend): string
     {
-        $base = 'SWAP-STP-' . now()->timezone('Asia/Manila')->format('Ym') . '-' . str_pad((string) $stipend->id, 5, '0', STR_PAD_LEFT);
+        $stipend->loadMissing('recipient.profile');
+        $sid = DutySlipControl::studentRef($stipend->recipient?->profile?->student_id_number);
+        $base = 'SWAP-STP-' . ($sid !== '' ? $sid : 'U' . $stipend->user_id)
+            . '-' . DutySlipControl::termCode($stipend->academic_year, $stipend->semester);
 
         $candidate = $base;
         $rev = 2;

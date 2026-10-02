@@ -8,6 +8,7 @@ use App\Models\StaffInvitation;
 use App\Models\User;
 use App\Notifications\StaffInvitationNotification;
 use App\Resources\UserResource;
+use App\Support\EmployeeId;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -84,11 +85,13 @@ class InvitationController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
+            'employee_id' => EmployeeId::rules(),
             'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
-        ]);
+        ], EmployeeId::messages());
 
         $user = User::create([
             'name' => $validated['name'],
+            'employee_id' => $validated['employee_id'],
             'email' => $invitation->email,
             'password' => $validated['password'], // hashed by the model cast
             'role' => $invitation->role,

@@ -46,6 +46,8 @@ class StipendVerifyController extends Controller
             'data' => [
                 'control_number' => $stipend->control_number,
                 'recipient_name' => $stipend->recipient?->profile?->full_name ?? $stipend->recipient?->name,
+                // To match against the student's ID card at the window.
+                'student_id_number' => $stipend->recipient?->profile?->student_id_number,
                 'amount' => $stipend->amount,
                 'academic_year' => $stipend->academic_year,
                 'semester' => $stipend->semester,

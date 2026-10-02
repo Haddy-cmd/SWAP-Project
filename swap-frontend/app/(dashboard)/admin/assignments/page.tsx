@@ -11,6 +11,7 @@ import { adminApi } from '@/lib/api/admin.api'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
 import { UserAvatar } from '@/components/shared/UserAvatar'
+import { TERM_FILTERS, TermBadge, type TermFilter } from '@/components/shared/TermBadge'
 import type { Application } from '@/types/application.types'
 import type { Assignment } from '@/types/assignment.types'
 
@@ -48,6 +49,7 @@ export default function AdminAssignmentsPage() {
   const [editFor, setEditFor] = useState<Assignment | null>(null)
   const [bonusFor, setBonusFor] = useState<Assignment | null>(null)
   const [hoursFor, setHoursFor] = useState<Assignment | null>(null)
+  const [termFilter, setTermFilter] = useState<TermFilter>('all')
 
   // Inline assign-panel fields
   const [officeId, setOfficeId] = useState('')
@@ -63,6 +65,13 @@ export default function AdminAssignmentsPage() {
   const { data: assignmentsData, isLoading } = useQuery({
     queryKey: ['admin-assignments'],
     queryFn: () => assignmentsApi.getAssignments(),
+  })
+
+  // Term verdict filter runs server-side; the unfiltered list above still drives the pending queue.
+  const { data: termData, isLoading: termLoading } = useQuery({
+    queryKey: ['admin-assignments', 'term', termFilter],
+    queryFn: () => assignmentsApi.getAssignments({ term: termFilter }),
+    enabled: termFilter !== 'all',
   })
 
   const { data: approvedData } = useQuery({
@@ -86,16 +95,18 @@ export default function AdminAssignmentsPage() {
   // Approved applicants who do not yet have an assignment
   const pending = (approvedData?.data ?? []).filter((app) => !assignedUserIds.has(app.user_id))
 
-  const matchesQuery = (query: string, name?: string, email?: string) => {
+  const matchesQuery = (query: string, name?: string, email?: string, studentId?: string | null) => {
     const s = query.trim().toLowerCase()
     return !s || (name ?? '').toLowerCase().includes(s) || (email ?? '').toLowerCase().includes(s)
+      || (studentId ?? '').toLowerCase().includes(s)
   }
   const q = search.trim().toLowerCase()
   const aq = assignedSearch.trim().toLowerCase()
 
   // The header search drives the pending queue; the Assigned section has its own search.
-  const filteredPending = pending.filter((app) => matchesQuery(search, app.user?.name, app.user?.email))
-  const filteredAssignments = assignments.filter((a) => matchesQuery(assignedSearch, a.user?.name, a.user?.email))
+  const filteredPending = pending.filter((app) => matchesQuery(search, app.user?.name, app.user?.email, app.user?.profile?.student_id_number))
+  const shownAssignments = termFilter === 'all' ? assignments : (termData?.data ?? [])
+  const filteredAssignments = shownAssignments.filter((a) => matchesQuery(assignedSearch, a.user?.name, a.user?.email, a.user?.profile?.student_id_number))
 
   // The recipient currently loaded into the assign panel.
   const selected: Application | null =
@@ -199,7 +210,7 @@ export default function AdminAssignmentsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search pending recipients…"
+            placeholder="Search name, email or student ID…"
             className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-11 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10"
           />
         </div>
@@ -237,7 +248,9 @@ export default function AdminAssignmentsPage() {
                     style={{ background: bg, color: fg }} />
                   <span className="min-w-0 flex-1 leading-tight">
                     <span className="block text-[14.5px] font-semibold text-ink-950">{app.user?.name ?? '—'}</span>
-                    <span className="block truncate text-xs text-ink-400">{app.user?.email ?? '—'}</span>
+                    <span className="block truncate text-xs text-ink-400">
+                      {app.user?.profile?.student_id_number ? `ID ${app.user.profile.student_id_number} · ` : ''}{app.user?.email ?? '—'}
+                    </span>
                   </span>
                   <span className="flex flex-col items-end gap-1.5">
                     <span className="whitespace-nowrap text-[11.5px] text-ink-500">{app.academic_year} · {app.semester}</span>
@@ -430,24 +443,34 @@ export default function AdminAssignmentsPage() {
             Assigned Recipients
             <span className="rounded-full bg-success-200 px-2.5 py-0.5 text-[11px] text-success-800">{filteredAssignments.length}</span>
           </div>
+          <div className="flex flex-wrap gap-1">
+            {TERM_FILTERS.map((f) => (
+              <button key={f.value} onClick={() => setTermFilter(f.value)} aria-pressed={termFilter === f.value}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                  termFilter === f.value ? 'border-brand-700 bg-brand-700 text-white' : 'border-ink-200 bg-white text-ink-500 hover:text-brand-700'
+                }`}>
+                {f.label}
+              </button>
+            ))}
+          </div>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-400" />
             <input
               value={assignedSearch}
               onChange={(e) => setAssignedSearch(e.target.value)}
-              placeholder="Search assigned recipients…"
+              placeholder="Search name, email or student ID…"
               className="h-10 w-full rounded-xl border border-ink-200 bg-white pl-10 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-success-800 focus:outline-none focus:ring-2 focus:ring-success-800/10"
             />
           </div>
         </div>
 
-        {isLoading ? (
+        {isLoading || (termFilter !== 'all' && termLoading) ? (
           <div className="grid gap-3 md:grid-cols-2">
             {[1, 2, 3, 4].map((n) => <div key={n} className="h-32 animate-pulse rounded-[13px] bg-ink-200/50" />)}
           </div>
         ) : filteredAssignments.length === 0 ? (
           <div className="rounded-[13px] border border-dashed border-ink-300 bg-white px-6 py-10 text-center text-sm text-ink-400">
-            {aq ? <>No assigned recipients match “{assignedSearch}”.</> : 'No assignments yet.'}
+            {aq ? <>No assigned recipients match “{assignedSearch}”.</> : termFilter !== 'all' ? 'No assignments with this term status.' : 'No assignments yet.'}
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -461,12 +484,18 @@ export default function AdminAssignmentsPage() {
                       style={{ background: bg, color: fg }} />
                     <div className="min-w-0 flex-1 leading-tight">
                       <p className="truncate text-sm font-semibold text-ink-950">{a.user?.name ?? '—'}</p>
+                      {a.user?.profile?.student_id_number && (
+                        <p className="font-mono text-[11px] text-ink-500">ID {a.user.profile.student_id_number}</p>
+                      )}
                       <p className="flex items-center gap-1.5 text-xs text-ink-400">
                         <span className="h-[7px] w-[7px] flex-none rounded-full" style={{ background: av(a.office_id)[1] }} />
                         <span className="truncate">{a.office?.name ?? '—'}</span>
                       </p>
                     </div>
-                    <StatusPill status={a.status} />
+                    <div className="flex flex-col items-end gap-1">
+                      <StatusPill status={a.status} />
+                      {a.term_badge && a.term_badge !== 'in_progress' && <TermBadge badge={a.term_badge} deficientHours={a.deficient_hours} />}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between border-t border-ink-100 pt-3">

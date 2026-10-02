@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Announcement\StoreAnnouncementRequest;
+use App\Models\Announcement;
 use App\Resources\AnnouncementResource;
 use App\Services\AnnouncementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
-/** Admin → Announcements: message every active recipient (portal + email) and see what was sent. */
+/** Admin → Announcements: message every active recipient (portal + email), see what was sent, delete a mistake. */
 class AnnouncementController extends Controller
 {
     public function __construct(private readonly AnnouncementService $announcements) {}
@@ -43,5 +45,15 @@ class AnnouncementController extends Controller
             'data' => new AnnouncementResource($announcement),
             'message' => $message,
         ], 201);
+    }
+
+    /** Delete a sent announcement: gone from the history and from recipients' notifications. */
+    public function destroy(Request $request, int $id): JsonResponse
+    {
+        $removed = $this->announcements->delete(Announcement::findOrFail($id), $request->user());
+
+        return response()->json([
+            'message' => "Announcement deleted and removed from the notifications of {$removed} recipient(s). Emails already sent can't be recalled.",
+        ]);
     }
 }

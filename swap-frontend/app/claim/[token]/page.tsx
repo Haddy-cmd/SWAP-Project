@@ -91,6 +91,7 @@ export default function ClaimReleasePage() {
               <p className="mt-2 text-2xl font-bold text-brand-700">{PHP.format(Number(claim.amount))}</p>
               <dl className="mt-2 space-y-1 text-sm">
                 <Row label="Beneficiary" value={claim.recipient_name ?? '—'} />
+                <Row label="Student ID" value={claim.student_id_number ?? '—'} />
                 <Row label="Control No." value={claim.control_number} mono />
                 <Row label="Period" value={[claim.period_label, claim.semester, claim.academic_year].filter(Boolean).join(' · ')} />
                 {claim.certified_at && <Row label="Certified" value={formatDate(claim.certified_at)} />}

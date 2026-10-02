@@ -35,7 +35,9 @@ export default function RenewalPage() {
     : null
 
   // The renewal submission for the target term, if one exists already.
-  const existing = target ? myRenewal ?? undefined : undefined
+  const existing = target ? myRenewal?.application ?? undefined : undefined
+  // "Approved" means the new term's assignment exists, not just the application's status.
+  const approved = existing?.status === 'approved' && !!myRenewal?.placed
 
   const submit = useMutation({
     mutationFn: () => {
@@ -81,24 +83,27 @@ export default function RenewalPage() {
         <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
-              existing.status === 'approved' ? 'bg-success-50' : existing.status === 'rejected' ? 'bg-danger-50' : 'bg-warning-50'
+              approved ? 'bg-success-50' : existing.status === 'rejected' ? 'bg-danger-50' : 'bg-warning-50'
             }`}>
-              {existing.status === 'approved' ? <CheckCircle className="h-5 w-5 text-success-600" />
+              {approved ? <CheckCircle className="h-5 w-5 text-success-600" />
                 : existing.status === 'rejected' ? <XCircle className="h-5 w-5 text-danger-600" />
                 : <Clock className="h-5 w-5 text-warning-600" />}
             </div>
             <div>
               <p className="font-semibold text-ink-900">
-                {existing.status === 'approved' && 'Renewal Approved — Welcome Back!'}
+                {approved && 'Renewal Approved — Welcome Back!'}
+                {existing.status === 'approved' && !approved && 'Renewal Approved — Placement Not Set Up'}
                 {existing.status === 'rejected' && 'Renewal Not Approved'}
                 {existing.status !== 'approved' && existing.status !== 'rejected' && 'Renewal Submitted — Under Review'}
               </p>
               <p className="mt-1 text-sm text-ink-500">
-                {existing.status === 'approved'
+                {approved
                   ? `Your assignment for ${target.year} — ${target.semester} is active. Check your dashboard for your office and supervisor.`
+                  : existing.status === 'approved'
+                  ? `Your renewal for ${target.year} — ${target.semester} is marked approved, but no assignment for that term exists yet. Please contact the DSA office.`
                   : existing.status === 'rejected'
                   ? (existing.remarks || 'Please coordinate with the DSA office for details.')
-                  : `Your updated COR for ${target.year} — ${target.semester} is with the DSA office. You'll be notified once it's decided.`}
+                  : `Your updated COR for ${target.year} — ${target.semester} is with the DSA office. It is approved once your current term is settled and your supervisor has evaluated you. You'll be notified once it's decided.`}
               </p>
             </div>
           </div>

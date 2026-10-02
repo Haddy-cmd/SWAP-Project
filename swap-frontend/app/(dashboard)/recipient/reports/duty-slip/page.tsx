@@ -24,7 +24,7 @@ export default function DutySlipPage() {
   const { data: logsData, isLoading } = useQuery({
     queryKey: ['my-logs', 'duty-slip'],
     // Enough to span several semesters of duty for the semester navigator.
-    queryFn: () => attendanceApi.getMyLogs({ per_page: '300' }),
+    queryFn: () => attendanceApi.getMyLogs({ per_page: '300', scope: 'all' }),
   })
   const logs: TimeLog[] = logsData?.data ?? []
 

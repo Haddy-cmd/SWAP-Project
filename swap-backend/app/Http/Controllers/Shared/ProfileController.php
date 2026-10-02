@@ -28,7 +28,7 @@ class ProfileController extends Controller
     {
         $user = $request->user();
         $validated = $request->validated();
-        $before = $user->only(['name', 'position_title']) + ($user->profile?->only(array_keys($validated)) ?? []);
+        $before = $user->only(['name', 'position_title', 'employee_id']) + ($user->profile?->only(array_keys($validated)) ?? []);
 
         if (isset($validated['name'])) {
             $user->update(['name' => $validated['name']]);
@@ -38,7 +38,11 @@ class ProfileController extends Controller
             $user->update(['position_title' => $validated['position_title']]);
         }
 
-        $profileFields = array_diff_key($validated, ['name' => true, 'position_title' => true]);
+        if (array_key_exists('employee_id', $validated)) {
+            $user->update(['employee_id' => $validated['employee_id']]);
+        }
+
+        $profileFields = array_diff_key($validated, ['name' => true, 'position_title' => true, 'employee_id' => true]);
         if (!empty($profileFields)) {
             $user->profile()->updateOrCreate(['user_id' => $user->id], $profileFields);
         }

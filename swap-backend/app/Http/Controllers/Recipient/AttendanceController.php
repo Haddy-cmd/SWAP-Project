@@ -38,11 +38,18 @@ class AttendanceController extends Controller
             // The duty slip loads several semesters at once (semester navigator +
             // Semestral Service Report); 100 rejected its request and left it blank.
             'per_page' => ['nullable', 'integer', 'min:1', 'max:500'],
+            // Hours are per term: the current placement's logs by default; the duty
+            // slip asks for every term (scope=all).
+            'scope' => ['nullable', 'in:current,all'],
         ]);
+
+        $current = ($validated['scope'] ?? 'current') === 'current'
+            ? $this->attendanceService->getActiveAssignment($request->user())
+            : null;
 
         $logs = $this->attendanceService->getLogsForUser(
             $request->user(),
-            ['status' => $validated['status'] ?? null],
+            ['status' => $validated['status'] ?? null, 'assignment_id' => $current?->id],
             $validated['per_page'] ?? 15,
         );
 
@@ -54,6 +61,12 @@ class AttendanceController extends Controller
                 'total' => $logs->total(),
             ],
         ]);
+    }
+
+    /** Past terms (every placement but the current one), newest first, for the Hours page. */
+    public function history(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->attendanceService->termHistory($request->user())]);
     }
 
     public function timeInGeofence(Request $request): JsonResponse
