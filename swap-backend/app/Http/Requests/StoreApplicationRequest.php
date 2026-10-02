@@ -11,11 +11,9 @@ class StoreApplicationRequest extends FormRequest
         return true;
     }
 
+    /** Nothing to choose: the term is the current semester, set by the server. */
     public function rules(): array
     {
-        return [
-            'academic_year' => ['required', 'string', 'regex:/^\d{4}-\d{4}$/'],
-            'semester' => ['required', 'string', 'in:1st Semester,2nd Semester,Summer'],
-        ];
+        return [];
     }
 }

@@ -13,6 +13,8 @@ class SendApplicationRejectedNotification
             'user_id' => $event->application->user_id,
             'application_id' => $event->application->id,
             'remarks' => $event->application->remarks,
+            'type' => $event->application->type ?? 'new',
+            'term' => "{$event->application->semester} {$event->application->academic_year}",
         ])->onQueue('notifications');
     }
 }

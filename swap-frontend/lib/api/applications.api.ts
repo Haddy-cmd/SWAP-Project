@@ -1,5 +1,5 @@
 import apiClient from './axios'
-import type { Application, StoreApplicationData, ScheduleInterviewData, DecideApplicationData } from '@/types/application.types'
+import type { Application, ScheduleInterviewData, DecideApplicationData } from '@/types/application.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
 export const applicationsApi = {
@@ -7,8 +7,9 @@ export const applicationsApi = {
   getMyApplications: () =>
     apiClient.get<ApiResponse<Application[]>>('/applicant/applications').then((r) => r.data.data),
 
-  submitApplication: (data: StoreApplicationData) =>
-    apiClient.post<ApiResponse<Application>>('/applicant/applications', data).then((r) => r.data.data),
+  // Always for the current semester: the server sets the term.
+  submitApplication: () =>
+    apiClient.post<ApiResponse<Application>>('/applicant/applications').then((r) => r.data.data),
 
   getApplication: (id: number) =>
     apiClient.get<ApiResponse<Application>>(`/applicant/applications/${id}`).then((r) => r.data.data),

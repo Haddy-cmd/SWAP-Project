@@ -10,10 +10,13 @@ use App\Models\StipendHistory;
 use App\Models\TermEvaluation;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Notifications\ApplicationApprovedNotification;
+use App\Notifications\ApplicationRejectedNotification;
 use App\Services\RenewalReadinessService as Gate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\MakesSwapData;
@@ -118,6 +121,37 @@ class RenewalTest extends TestCase
         return $this->putJson("/api/admin/applications/{$application->id}/decide", [
             'decision' => $decision, 'remarks' => 'Reviewed.',
         ]);
+    }
+
+    public function test_renewal_decisions_are_announced_as_renewals_not_applications(): void
+    {
+        Notification::fake();
+        [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
+        $this->pay($previous);
+        $this->evaluate($previous, 4);
+        $renewal = $this->renewalFor($recipient);
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        $this->decide($renewal, 'approved')->assertOk();
+
+        Notification::assertSentTo($recipient, ApplicationApprovedNotification::class, function ($n) use ($recipient, $previous) {
+            $mail = $n->toMail($recipient);
+            $bell = $n->toArray($recipient);
+            $office = $previous->office->name;
+
+            return $mail->subject === 'SWAP Renewal Approved'
+                && in_array('Your SWAP renewal for 2nd Semester 2024-2025 has been approved.', $mail->introLines, true)
+                && in_array("You continue in {$office} for 2nd Semester 2024-2025.", $mail->introLines, true)
+                && in_array('Required hours for the term: 3.', $mail->introLines, true)
+                && $bell['title'] === 'Renewal Approved'
+                && $bell['message'] === 'Your SWAP renewal for 2nd Semester 2024-2025 has been approved.';
+        });
+
+        // A refused renewal says "renewal" too.
+        [$other] = $this->recipientWithTerm(metHours: true);
+        $this->decide($this->renewalFor($other), 'rejected')->assertOk();
+        Notification::assertSentTo($other, ApplicationRejectedNotification::class, fn ($n) =>
+            $n->toMail($other)->subject === 'SWAP Renewal Update' && $n->toArray($other)['title'] === 'Renewal Not Approved');
     }
 
     public function test_approval_waits_while_the_previous_term_is_owed_a_stipend(): void

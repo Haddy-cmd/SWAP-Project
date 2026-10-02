@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Application;
 use App\Models\Assignment;
+use App\Models\NarrativeReport;
 use App\Models\PromissoryNote;
 use App\Models\StudentProfile;
 use App\Models\TermEvaluation;
@@ -447,8 +448,30 @@ class TestingToolsTest extends TestCase
         // Like every shortcut, the new ones need the switch on.
         $this->pick($student)->assertOk();
         TestTools::setEnabled(false);
-        foreach (['complete-hours', 'clock-in', 'auto-clock-out', 'file-promissory'] as $action) {
+        foreach (['complete-hours', 'reset-hours', 'clock-in', 'auto-clock-out', 'file-promissory'] as $action) {
             $this->act($student, $action)->assertStatus(409);
         }
+    }
+
+    public function test_reset_hours_sets_the_term_back_to_zero_and_undo_brings_them_back(): void
+    {
+        [$student, $assignment] = $this->realRecipient();
+        $log = TimeLog::where('assignment_id', $assignment->id)->firstOrFail();
+        $narrative = $this->addNarrative($log);
+        $this->pick($student)->assertOk();
+
+        $this->act($student, 'reset-hours')->assertOk()
+            ->assertJsonPath('message', 'Hours reset to 0: 1 time log (3 verified hours) set aside. Undo on Remove from testing brings them back.');
+        $this->assertEquals(0.0, $assignment->fresh()->verified_hours);
+        $this->assertSame(0, TimeLog::where('assignment_id', $assignment->id)->count());
+        $this->assertNull(NarrativeReport::find($narrative->id));
+        $this->act($student, 'reset-hours')->assertStatus(422)->assertJsonPath('message', TestingService::MSG_NO_HOURS);
+
+        // Hours added after the reset go away; the real ones come back with their own IDs.
+        $this->act($student, 'hours', ['hours' => 2, 'status' => 'verified'])->assertOk();
+        $this->release($student, true)->assertOk();
+        $this->assertSame([$log->id], TimeLog::where('assignment_id', $assignment->id)->pluck('id')->all());
+        $this->assertEquals(3.0, $assignment->fresh()->verified_hours);
+        $this->assertSame($log->id, NarrativeReport::findOrFail($narrative->id)->time_log_id);
     }
 }

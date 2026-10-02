@@ -104,7 +104,7 @@ export default function SupervisorPromissoryPage() {
                       )}
                     </div>
                     <p className="mt-0.5 text-xs text-ink-500">{n.academic_year} · {n.semester} · submitted {formatDate(n.created_at)}</p>
-                    <p className="mt-1 text-sm text-ink-800">{n.reason}</p>
+                    {n.reason && <p className="mt-1 text-sm text-ink-800">{n.reason}</p>}
                     <p className="mt-1 text-xs text-ink-500">
                       Lacking: <span className="font-semibold text-brand-700">{n.lacking_hours ?? '—'} hrs</span>
                       {n.makeup_deadline && <> · render ASAP by <span className="font-semibold">{formatDate(n.makeup_deadline)}</span></>}

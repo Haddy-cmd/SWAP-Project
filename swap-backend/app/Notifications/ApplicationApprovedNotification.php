@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
+/** A new application or a renewal was approved (data `type`: new | renewal). */
 class ApplicationApprovedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
@@ -18,8 +19,38 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
         return ['mail', 'database'];
     }
 
+    private function isRenewal(): bool
+    {
+        return ($this->data['type'] ?? 'new') === 'renewal';
+    }
+
+    private function term(): string
+    {
+        return $this->data['term'] ?? 'the next term';
+    }
+
     public function toMail(object $notifiable): MailMessage
     {
+        if ($this->isRenewal()) {
+            $mail = (new MailMessage())
+                ->subject('SWAP Renewal Approved')
+                ->greeting("Dear {$notifiable->name},")
+                ->line("Your SWAP renewal for {$this->term()} has been approved.");
+
+            if (!empty($this->data['office'])) {
+                $mail->line("You continue in {$this->data['office']} for {$this->term()}.");
+            }
+            if (!empty($this->data['required_hours'])) {
+                $carried = (int) ($this->data['carried_hours'] ?? 0);
+                $mail->line("Required hours for the term: {$this->data['required_hours']}"
+                    . ($carried > 0 ? " (including {$carried} unfinished makeup hours carried over from last term)." : '.'));
+            }
+
+            return $mail
+                ->action('View My Renewal', \App\Support\Frontend::url('/recipient/renewal'))
+                ->line('Thank you for continuing with the SWAP program at MSU Marawi.');
+        }
+
         return (new MailMessage())
             ->subject('SWAP Application Approved')
             ->greeting("Dear {$notifiable->name},")
@@ -32,8 +63,10 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
     public function toArray(object $notifiable): array
     {
         return [
-            'title' => 'Application Approved',
-            'message' => 'Congratulations! Your SWAP application has been approved.',
+            'title' => $this->isRenewal() ? 'Renewal Approved' : 'Application Approved',
+            'message' => $this->isRenewal()
+                ? "Your SWAP renewal for {$this->term()} has been approved."
+                : 'Congratulations! Your SWAP application has been approved.',
             'type' => 'application',
             'application_id' => $this->data['application_id'] ?? null,
         ];

@@ -7,10 +7,10 @@ export const promissoryApi = {
   getMine: () =>
     apiClient.get<{ data: { notes: PromissoryNote[]; submission: PromissorySubmission } }>('/recipient/promissory').then((r) => r.data.data),
 
-  submit: (assignmentId: number, reason: string, file: File) => {
+  // The uploaded document carries the student's explanation.
+  submit: (assignmentId: number, file: File) => {
     const fd = new FormData()
     fd.append('assignment_id', String(assignmentId))
-    fd.append('reason', reason)
     fd.append('file', file)
     return apiClient.post<ApiResponse<PromissoryNote>>('/recipient/promissory', fd).then((r) => r.data.data)
   },

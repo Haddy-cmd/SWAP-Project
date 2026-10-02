@@ -100,6 +100,31 @@ class PromissoryNoteTest extends TestCase
         $this->assertDatabaseMissing('promissory_notes', ['assignment_id' => $assignment->id]);
     }
 
+    public function test_the_document_alone_is_enough_and_met_hours_say_why_no_note_is_needed(): void
+    {
+        Storage::fake('public');
+        $supervisor = $this->makeUser('supervisor');
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->pastAssignment($recipient, $supervisor);
+
+        // No separate reason: the uploaded note carries the explanation.
+        Sanctum::actingAs($recipient);
+        $payload = $this->submitPayload($assignment->id);
+        unset($payload['reason']);
+        $this->post('/api/recipient/promissory', $payload, ['Accept' => 'application/json'])->assertStatus(201);
+        $this->assertNull(PromissoryNote::where('assignment_id', $assignment->id)->firstOrFail()->reason);
+
+        // Hours already met: the form and the API both say why there's nothing to file.
+        $done = $this->pastAssignment($this->makeUser('recipient'), $supervisor, ['required_hours' => 4]);
+        Sanctum::actingAs($done->user);
+        $message = 'No lacking hours: 5 of 4 required hours are verified, so a promissory note isn\'t needed.';
+        $this->getJson('/api/recipient/promissory')->assertOk()
+            ->assertJsonPath('data.submission.can_submit', false)
+            ->assertJsonPath('data.submission.reason', $message);
+        $this->post('/api/recipient/promissory', $this->submitPayload($done->id), ['Accept' => 'application/json'])
+            ->assertStatus(422)->assertJsonPath('message', $message);
+    }
+
     public function test_submit_with_zero_verified_hours_is_rejected(): void
     {
         Storage::fake('public');

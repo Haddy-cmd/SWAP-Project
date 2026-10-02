@@ -32,10 +32,7 @@ class ApplicationController extends Controller
             ], 403);
         }
 
-        $application = $this->applicationService->submitApplication(
-            $request->user(),
-            $request->validated()
-        );
+        $application = $this->applicationService->submitApplication($request->user());
 
         return response()->json([
             'data' => new ApplicationResource($application),

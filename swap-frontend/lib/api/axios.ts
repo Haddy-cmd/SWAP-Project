@@ -20,6 +20,12 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // Uploads: drop the JSON default so the browser sends multipart/form-data with its
+  // boundary. With "application/json" axios serialises the form to JSON and every
+  // file in it is lost (the API then answers "The file field is required.").
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    config.headers.delete('Content-Type')
+  }
   return config
 })
 

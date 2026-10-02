@@ -52,7 +52,7 @@ class PromissoryService
         $verified = (float) $assignment->verified_hours;
         $required = (float) $assignment->required_hours;
         if ($required <= 0 || $verified >= $required) {
-            throw new UnprocessableEntityHttpException('No lacking hours — a promissory note is not needed.');
+            throw new UnprocessableEntityHttpException(self::msgNoLacking($verified, $required));
         }
         // A promissory note covers a shortfall, not a term with no service at all.
         if ($verified <= 0) {
@@ -82,7 +82,7 @@ class PromissoryService
                 'file_name' => $file->getClientOriginalName(),
                 'mime_type' => $file->getMimeType(),
                 'file_size' => $file->getSize(),
-                'reason' => $data['reason'],
+                'reason' => $data['reason'] ?? null,
                 'status' => PromissoryNote::STATUS_PENDING,
             ]);
 
@@ -158,6 +158,16 @@ class PromissoryService
         return $updated->load(['student', 'reviewer']);
     }
 
+    /** Why no note is needed when the hours are already met (form and API say the same). */
+    public static function msgNoLacking(float $verified, float $required): string
+    {
+        $fmt = fn (float $h) => rtrim(rtrim(number_format($h, 2, '.', ''), '0'), '.');
+
+        return $required <= 0
+            ? 'No lacking hours: this term has no required hours, so a promissory note isn\'t needed.'
+            : "No lacking hours: {$fmt($verified)} of {$fmt($required)} required hours are verified, so a promissory note isn't needed.";
+    }
+
     /**
      * What the recipient UI needs: whether a note can be submitted right now
      * (and why not), plus the existing notes. Reads the latest active assignment.
@@ -186,7 +196,7 @@ class PromissoryService
         $verified = (float) $assignment->verified_hours;
         $required = (float) $assignment->required_hours;
         if ($required <= 0 || $verified >= $required) {
-            return ['can_submit' => false, 'reason' => 'No lacking hours.', 'assignment_id' => $assignment->id, 'lacking_hours' => null];
+            return ['can_submit' => false, 'reason' => self::msgNoLacking($verified, $required), 'assignment_id' => $assignment->id, 'lacking_hours' => null];
         }
         if ($verified <= 0) {
             return ['can_submit' => false, 'reason' => self::msgNoHours($assignment), 'assignment_id' => $assignment->id, 'lacking_hours' => null];

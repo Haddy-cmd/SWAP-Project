@@ -189,12 +189,12 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-APP-001 | P1 | [H] Submit a valid application | Logged in as applicant, period open, no in-progress app | POST `/applicant/applications` | `academic_year` `2024-2025`, `semester` `1st Semester` | HTTP 201, "Application submitted successfully.", status `submitted`, admins notified, audit logged |  |  |
-| TC-APP-002 | P2 | [N] Reject bad academic year format | Applicant | Submit | `2024/2025` or `24-25` | HTTP 422 (format `YYYY-YYYY`) |  |  |
-| TC-APP-003 | P2 | [N] Reject invalid semester | Applicant | Submit | `3rd Semester` | HTTP 422 (must be 1st Semester / 2nd Semester / Summer) |  |  |
+| TC-APP-001 | P1 | [H] Submit a valid application | Logged in as applicant, period open, no in-progress app | POST `/applicant/applications` | none (the term is set by the server) | HTTP 201, "Application submitted successfully.", status `submitted`, admins notified, audit logged |  |  |
+| TC-APP-002 | P1 | [H] The term is always the current semester | Semester calendar has a current period (e.g. 1st Semester 2026-2027) and a later one | Open Apply; submit — also POST a different `academic_year`/`semester` to the API | `2024-2025`, `Summer` | Step 1 shows "Applying for 1st Semester · 2026-2027" with no year/semester to pick; the application is saved for the current semester whatever was sent; between semesters it is the next period |  |  |
+| TC-APP-003 | P2 | [N] No semester on the calendar | No current or upcoming semester period | Open Apply; POST an application | — | Step 1 says "Applications open once the DSA sets up the current semester. Please check back later." and Next is disabled; the API answers HTTP 422 with the same text |  |  |
 | TC-APP-004 | P1 | [N] Block second application while one in progress | Has a `submitted`/`under_review`/`interview_scheduled` app | Submit another | different period | HTTP 409, "You already have an application in progress. Please wait for it to be reviewed before submitting another." |  |  |
 | TC-APP-005 | P1 | [N] Block new application after approval | Has an `approved` application | Submit another | any | HTTP 409, "Your application has already been approved. Please wait for the office assignment announcement." |  |  |
-| TC-APP-006 | P2 | [N] Block duplicate application for same period | App (e.g. rejected) exists for that AY+semester | Submit same period | same AY + semester | HTTP 409, "You already have an application for 2024-2025 1st Semester." |  |  |
+| TC-APP-006 | P2 | [N] Block duplicate application for same period | App (e.g. rejected) exists for the current semester | Submit again | — | HTTP 409, "You already have an application for 2024-2025 1st Semester." |  |  |
 | TC-APP-007 | P2 | [H] Upload document to application | Application exists | POST `/applicant/applications/{id}/documents` | `document_type=cor`, PDF ≤ 5 MB | HTTP 201, "Document uploaded successfully.", served via `/documents/{id}/file` |  |  |
 | TC-APP-008 | P3 | [B] Reject invalid document file | Application exists | Upload | `.exe`, `.docx`, PDF of 5.1 MB, unknown `document_type` | HTTP 422 |  |  |
 | TC-APP-009 | P2 | [S] **OBSOLETE** — separate status endpoint removed | Application exists | GET `/applicant/applications/{id}/status` | own id | HTTP 404 (use TC-APP-013 instead) |  |  |
@@ -223,6 +223,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-REN-009 | P2 | [H] Submitting early is allowed | Renewal open; the current term is still running, unpaid and not evaluated | POST renewal | valid COR | HTTP 201; the application waits in `submitted`; only the admin's approval checks the gates (TC-ADMR-027..031) |  |  |
 | TC-REN-010 | P2 | [N] "Approved" only once the new term exists | Renewal application marked `approved` but no assignment for that term | Open Renewal | — | "Renewal Approved — Placement Not Set Up" asking the student to contact the DSA (not "Welcome Back"); after the rollover: "Renewal Approved — Welcome Back!" (`GET /recipient/renewals` → `meta.placed`) |  |  |
 | TC-REN-011 | P1 | [H] Unfinished makeup hours carry into the next term | Previous term 200 required, short, covered by an approved promissory note, 6 hours still unfinished; report in; evaluated 3+ | Open the renewal; approve it | — | The readiness list says "On approval, 6 unfinished makeup hours are added to the next term"; the new assignment requires 206 h (`carried_over_hours` 6, from the old term; audit `renewal_hours_carried`); the recipient dashboard, supervisor student page and admin assignment card show the carried hours; a term that met its hours carries nothing |  |  |
+| TC-REN-012 | P2 | [H] Renewal decisions say "renewal" | Renewal ready for approval; another renewal to refuse | Approve one; reject the other; check email and the bell | — | Approved: email "SWAP Renewal Approved" — "Your SWAP renewal for {term} has been approved.", the office, the term's required hours (with carried makeup hours if any), button "View My Renewal"; bell "Renewal Approved". Rejected: "SWAP Renewal Update" / bell "Renewal Not Approved". New applications keep the "Application" wording |  |  |
 
 ---
 
@@ -424,10 +425,10 @@ A recipient who ends the semester short on verified hours may file a promissory 
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-PROM-001 | P1 | [H] Submit after the semester ends | Active assignment, semester ended, 0 < verified < required | POST `/recipient/promissory` | `assignment_id`, PDF ≤ 5 MB, reason | HTTP 201, note `pending` with `deficient_hours` = required − verified, governing supervisors notified, audit logged |  |  |
+| TC-PROM-001 | P1 | [H] Submit after the semester ends | Active assignment, semester ended, 0 < verified < required | POST `/recipient/promissory` | `assignment_id`, PDF ≤ 5 MB (no separate reason: the document carries it) | HTTP 201, note `pending` with `deficient_hours` = required − verified, governing supervisors notified, audit logged |  |  |
 | TC-PROM-002 | P1 | [N] Too early | Semester end is today or later (Manila) | Submit | valid file | HTTP 422, "Promissory notes can only be submitted after the semester ends." |  |  |
 | TC-PROM-003 | P2 | [N] Semester not set up | No end date on the assignment and no semester period for its term | Submit | valid file | HTTP 422, "The semester period for 1st Semester 2024-2025 isn't set up yet. Ask the DSA to add it under Semesters."; the Stipend page shows the same reason |  |  |
-| TC-PROM-004 | P1 | [N] Hours already complete | verified ≥ required | Submit | valid file | HTTP 422, "No lacking hours — a promissory note is not needed." |  |  |
+| TC-PROM-004 | P1 | [N] Hours already complete | verified ≥ required | Submit | valid file | HTTP 422, "No lacking hours: 216 of 200 required hours are verified, so a promissory note isn't needed." (the Stipend page shows the same sentence instead of the upload) |  |  |
 | TC-PROM-005 | P2 | [N] One pending note per assignment | A pending note exists | Submit another | valid file | HTTP 422, "There is already a pending promissory note for this assignment." |  |  |
 | TC-PROM-006 | P2 | [B] File type and size | Semester ended, short on hours | Submit | `.docx`; PDF 5.1 MB; missing reason | HTTP 422 on `file` / `reason` |  |  |
 | TC-PROM-007 | P1 | [S] Can't file for someone else's assignment | Assignment of another recipient | Submit with their `assignment_id` | valid file | HTTP 404, "Assignment not found." |  |  |
@@ -703,6 +704,7 @@ Admin → System Testing (always in the admin sidebar) lets the admin pick exist
 | TC-TEST-011 | P1 | [H] Complete hours | Picked recipient with 3 of 20 hours | Complete hours; try it again; try Clock in now | — | 17 verified hours added (≤ 8 h a day, past days, no Sundays); the student is listed under Stipend → eligible; again: "This recipient's hours are already complete." (also for Clock in now); undo removes the added logs |  |  |
 | TC-TEST-012 | P1 | [H] File promissory note | Picked recipient short on hours | File promissory note before End term now; End term now → File promissory note; supervisor reviews it on their page; Remove → Undo | — | Before: "Promissory notes can only be submitted after the semester ends." After: a pending note with a sample PDF reaches the supervisor; undo deletes the note and its file (kept, with a reason, if a stipend stub or an approved renewal already used it) |  |  |
 | TC-TEST-013 | P1 | [H] Clock in now / Auto clock-out | Picked recipient, not clocked in | Clock in now → student clocks out with the office QR; Clock in now → Auto clock-out; Auto clock-out with no open shift | — | An open shift starts now without the QR; Auto clock-out closes it like the 12-hour safety net (pending verification, reason auto-closed) for the supervisor's review; with no shift: "This recipient isn't clocked in."; undo removes the shift or reopens one the student opened |  |  |
+| TC-TEST-014 | P1 | [H] Reset hours | Picked recipient with logged hours (one with a narrative report) | Reset hours → Yes, reset; Reset hours again; Add hours; Remove from testing → Undo | — | The term shows 0h; again: "This recipient has no hours to reset."; undo deletes the added hours and puts every reset log back with its own ID, narrative report and verifications, so the hours return to what they were |  |  |
 
 ---
 
@@ -778,8 +780,8 @@ Resolved on 2026-10-01: the promissory makeup deadline (payment still follows th
 | Login / Sessions | TC-AUTH-001..018 | 18 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
 | Password Reset | TC-PWD-001..007 | 7 | Auth | — (manual) |
 | Staff Invitations | TC-INV-001..009 | 9 | Onboarding | EmployeeIdTest |
-| Applications | TC-APP-001..016 | 16 | Core workflow | DocumentTest, ResourceAccessTest, NotificationTest |
-| Renewal | TC-REN-001..011 | 11 | Core workflow | RenewalTest |
+| Applications | TC-APP-001..016 | 16 | Core workflow | DocumentTest, ResourceAccessTest, NotificationTest, ApplicationTermTest |
+| Renewal | TC-REN-001..012 | 12 | Core workflow | RenewalTest |
 | Admin Review & Interviews | TC-ADMR-001..036 | 36 | State machine, interview rules, renewal gate | AdminTest, InterviewLifecycleTest, RenewalTest |
 | Assignments & QR | TC-ASSIGN-001..014 | 14 | Placement integrity | AdminTest, QrCodeServiceTest, AuditTrailTest |
 | Profile & Account | TC-PROF-001..011 | 11 | Account mgmt | AuditTrailTest, SignatureTest, EmployeeIdTest |
@@ -802,10 +804,10 @@ Resolved on 2026-10-01: the promissory makeup deadline (payment still follows th
 | Semester periods | TC-SEM-001..014 | 14 | Term calendar, renewal window | SemesterPeriodTest |
 | End-of-term verdict | TC-TERM-001..011 | 11 | Deficiency record, notifications | TermStatusTest, RenewalTest |
 | Supervisor evaluation | TC-EVAL-001..007 | 7 | Renewal prerequisite | TermEvaluationTest, RenewalTest |
-| System Testing | TC-TEST-001..013 | 13 | Test tooling, bypasses, undo | TestingToolsTest |
+| System Testing | TC-TEST-001..014 | 14 | Test tooling, bypasses, undo | TestingToolsTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..015 | 15 | Quality attributes | CI workflow (TC-NFR-013) |
-| **TOTAL** | — | **444** | — | — |
+| **TOTAL** | — | **446** | — | — |
 
 ---
 

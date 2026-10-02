@@ -9,6 +9,8 @@ export interface ApplicationStatus {
     academic_year: string | null
     semester: string | null
   }
+  // The term a new application is for: the current semester (else the next). Null until set up.
+  term: { academic_year: string; semester: string } | null
 }
 
 export interface AdminSettings {

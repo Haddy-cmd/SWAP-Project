@@ -1,6 +1,10 @@
 #!/usr/bin/env sh
 set -e
 
+# OPcache file cache (docker/opcache.ini): short-lived PHP processes — migrations below,
+# the scheduler's schedule:run every minute — reuse compiled code instead of recompiling.
+mkdir -p /tmp/opcache
+
 # Apply database migrations against the production DB (non-interactive).
 php artisan migrate --force
 
@@ -29,4 +33,7 @@ php artisan attendance:close-stale || true
 php artisan schedule:work &
 
 # Boot the API on the platform-provided port (foreground — keeps the container alive).
-php artisan serve --host 0.0.0.0 --port "${PORT:-8000}"
+# Several workers, so a page's parallel API calls are served side by side instead of
+# queueing behind each other. Laravel only honours PHP_CLI_SERVER_WORKERS with --no-reload.
+export PHP_CLI_SERVER_WORKERS="${PHP_CLI_SERVER_WORKERS:-4}"
+php artisan serve --no-reload --host 0.0.0.0 --port "${PORT:-8000}"

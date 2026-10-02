@@ -57,6 +57,6 @@ export interface TestingCandidate {
 export const TESTING_OFF_MESSAGE = 'Switch System Testing on first.'
 
 export type TestingAction =
-  | 'hours' | 'complete-hours' | 'clock-in' | 'auto-clock-out'
+  | 'hours' | 'complete-hours' | 'reset-hours' | 'clock-in' | 'auto-clock-out'
   | 'end-term' | 'file-promissory' | 'close-term' | 'makeup-overdue'
   | 'term-report' | 'evaluation' | 'renewal' | 'reset-term'

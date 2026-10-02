@@ -13,7 +13,8 @@ export interface PromissoryNote {
   file_name: string
   mime_type: string | null
   file_url: string
-  reason: string
+  /** Older notes only: the form no longer asks for a separate reason. */
+  reason: string | null
   status: PromissoryStatus
   review_remarks: string | null
   reviewed_at: string | null

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FlaskConical, UserRound, Clock, CalendarX, Gavel, AlarmClock, FileText, Star, RefreshCw, RotateCcw, Search, UserPlus,
-  UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature,
+  UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser,
 } from 'lucide-react'
 import { testingApi } from '@/lib/api/testing.api'
 import { TermBadge } from '@/components/shared/TermBadge'
@@ -265,8 +265,8 @@ function RemoveFromTesting({ account, onRemoved }: { account: TestingAccount; on
         <p>Nothing was changed by the shortcuts. Remove {account.name} from testing?</p>
       ) : (
         <p>
-          Undo puts back what the shortcuts changed ({n} {n === 1 ? 'change' : 'changes'}): added hours, report, evaluation and renewal are deleted; dates,
-          term result and makeup deadline return to what they were. Clock-ins and anything people did on the normal pages stay, as does a renewal
+          Undo puts back what the shortcuts changed ({n} {n === 1 ? 'change' : 'changes'}): added hours, report, evaluation and renewal are deleted; reset hours,
+          dates, term result and makeup deadline return to what they were. Clock-ins and anything people did on the normal pages stay, as does a renewal
           that was already decided.
         </p>
       )}
@@ -297,6 +297,7 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
   const [date, setDate] = useState('')
   const [rating, setRating] = useState(4)
   const [msg, setMsg] = useState<Note>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   const act = useMutation({
     mutationFn: (v: { action: TestingAction; data?: Record<string, unknown> }) => testingApi.act(r.id, v.action, v.data),
@@ -349,6 +350,17 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
           <button onClick={() => run('complete-hours')} disabled={busy} className={BTN}
             title="Log exactly the hours still missing, verified (up to 8 h a day on past days), so the required hours are complete.">
             <CheckCheck className="h-3.5 w-3.5" /> Complete hours</button>
+          {!confirmReset ? (
+            <button onClick={() => { setMsg(null); setConfirmReset(true) }} disabled={busy} className={BTN}
+              title="Set every hour of this term aside so it starts again at 0. Undo on Remove from testing brings them all back.">
+              <Eraser className="h-3.5 w-3.5" /> Reset hours</button>
+          ) : (
+            <span className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+              Set aside all {current?.verified_hours ?? 0}h of this term?
+              <button onClick={() => { setConfirmReset(false); run('reset-hours') }} disabled={busy} className="rounded-md bg-brand-700 px-2 py-0.5 font-semibold text-white">Yes, reset</button>
+              <button onClick={() => setConfirmReset(false)} className="font-semibold">Cancel</button>
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

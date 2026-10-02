@@ -26,6 +26,8 @@ class SettingController extends Controller
                 'message' => $open ? null : Setting::get('applications_closed_message', self::DEFAULT_CLOSED_MESSAGE),
                 // Renewal is open for one semester period at a time (Admin → Semesters).
                 'renewal' => $this->renewalPayload(),
+                // The term a new application is for (current semester, else the next).
+                'term' => $this->applicationTermPayload(),
             ],
         ]);
     }
@@ -64,6 +66,14 @@ class SettingController extends Controller
             'applications_open' => Setting::bool('applications_open', false),
             'applications_closed_message' => Setting::get('applications_closed_message', self::DEFAULT_CLOSED_MESSAGE),
         ];
+    }
+
+    /** @return array{academic_year: string, semester: string}|null */
+    private function applicationTermPayload(): ?array
+    {
+        $term = app(SemesterPeriodService::class)->applicationTerm();
+
+        return $term ? ['academic_year' => $term->academic_year, 'semester' => $term->semester] : null;
     }
 
     /** @return array{open: bool, academic_year: ?string, semester: ?string} */

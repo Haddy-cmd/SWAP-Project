@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
 class TestingController extends Controller
 {
     public const ACTIONS = [
-        'hours', 'complete-hours', 'clock-in', 'auto-clock-out', 'end-term', 'file-promissory', 'close-term',
+        'hours', 'complete-hours', 'reset-hours', 'clock-in', 'auto-clock-out', 'end-term', 'file-promissory', 'close-term',
         'makeup-overdue', 'term-report', 'evaluation', 'renewal', 'reset-term',
     ];
 
@@ -103,6 +103,11 @@ class TestingController extends Controller
                 ['hours' => $hours, 'days' => $days] = $this->testing->completeHours($recipient, $admin);
 
                 return "Added {$hours} verified hours over {$days} " . ($days === 1 ? 'day' : 'days') . '. Hours are now complete.';
+            })(),
+            'reset-hours' => (function () use ($recipient, $admin) {
+                ['logs' => $logs, 'hours' => $hours] = $this->testing->resetHours($recipient, $admin);
+
+                return "Hours reset to 0: {$logs} time " . ($logs === 1 ? 'log' : 'logs') . " ({$hours} verified hours) set aside. Undo on Remove from testing brings them back.";
             })(),
             'clock-in' => ($this->testing->clockInNow($recipient, $admin) ? 'Clocked in now. The student can clock out by scanning their office QR.' : ''),
             'auto-clock-out' => ($this->testing->autoClockOut($recipient, $admin)

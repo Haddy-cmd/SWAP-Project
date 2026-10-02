@@ -16,6 +16,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # served via `php artisan serve` (CLI SAPI) — without it OPcache has no effect.
 COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
+# Upload limits: PHP's default 2 MB is below the portal's 5 MB document limit.
+COPY docker/uploads.ini /usr/local/etc/php/conf.d/uploads.ini
+
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

@@ -37,10 +37,11 @@ class StudentController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        // Preload the hour sums the resource needs (verified + pending drive pace), so a
-        // roster of N students costs a constant number of queries rather than 3N.
+        // Preload the hour sums the resource needs (rendered, verified + pending drive pace),
+        // so a roster of N students costs a constant number of queries rather than 3N.
         $assignments = Assignment::with(['user.profile', 'office', 'evaluation'])
             ->withCount(['timeLogs as pending_logs_count' => fn ($q) => $q->where('status', 'pending_verification')])
+            ->withSum(['timeLogs as rendered_sum' => fn ($q) => $q->whereNotNull('time_out')], 'duration_hours')
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->withSum(['timeLogs as pending_sum' => fn ($q) => $q->where('status', 'pending_verification')], 'duration_hours')
             ->withPromissoryFlags()

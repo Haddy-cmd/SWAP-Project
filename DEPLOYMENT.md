@@ -130,3 +130,19 @@ Files added for this path:
 
 > Other hosts (Railway, Fly.io) build the same `Dockerfile` — just set the same env vars by hand, and
 > run the queue worker + scheduler from §1–§2 (e.g. via supervisor + crontab on a VPS).
+
+## 6. Speed on the free plan
+
+What the code already does: OPcache (with a file cache for the scheduler's processes) and four
+`php artisan serve` workers (`PHP_CLI_SERVER_WORKERS`, default 4 in `start.sh`), so a page's parallel
+API calls don't queue. What only the hosting can fix:
+
+- **Cold starts.** Render's free web service sleeps after 15 minutes without traffic; the next visitor
+  waits ~20–60 s while it wakes. Either keep it awake with a free pinger (cron-job.org or UptimeRobot)
+  calling `https://<backend>/up` every 10 minutes — one always-on service fits in the free plan's
+  750 instance-hours a month — or move to the Starter plan (no sleep, more CPU).
+- **CPU.** The free instance has a small CPU share, so every request is slower than on a laptop. The
+  Starter plan is the direct fix.
+- **Distance.** Without a `region:` in `render.yaml` the service and database run in Oregon (US), adding
+  ~0.15–0.2 s to every call from the Philippines. Singapore is closest, but Render can't move an existing
+  service: it means creating a new service + database there (`region: singapore`) and copying the data.

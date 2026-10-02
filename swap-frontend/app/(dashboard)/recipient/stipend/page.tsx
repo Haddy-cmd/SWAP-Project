@@ -42,15 +42,14 @@ export default function StipendPage() {
   const notes = promissory?.notes ?? []
   const submission = promissory?.submission
 
-  const [reason, setReason] = useState('')
   const [doc, setDoc] = useState<File | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const submitPromissory = useMutation({
-    mutationFn: () => promissoryApi.submit(submission!.assignment_id!, reason, doc!),
+    mutationFn: () => promissoryApi.submit(submission!.assignment_id!, doc!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['promissory-mine'] })
-      setReason(''); setDoc(null); setSubmitError(null)
+      setDoc(null); setSubmitError(null)
     },
     onError: (e: { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }) =>
       setSubmitError(Object.values(e.response?.data?.errors ?? {}).flat()[0] ?? e.response?.data?.message ?? 'Could not submit.'),
@@ -176,7 +175,7 @@ export default function StipendPage() {
           <h2 className="font-semibold text-ink-900">Promissory Note</h2>
         </div>
         <p className="mt-1 text-xs text-ink-500">
-          Short on hours after the semester ended? Upload a promissory note — once your supervisor approves it and records the lacking hours, the admin can release your stipend.
+          Short on hours after the semester ended? Upload your signed promissory note, stating why you fell short and when you will render the lacking hours. Once your supervisor approves it and records the lacking hours, the admin can release your stipend.
         </p>
 
         {submission?.can_submit ? (
@@ -184,18 +183,25 @@ export default function StipendPage() {
             <p className="text-xs text-ink-500">
               Lacking: <span className="font-semibold text-brand-700">{submission.lacking_hours} hrs</span> — to be rendered ASAP (deadline: 1 week after semester end).
             </p>
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3}
-              placeholder="Why did you fall short, and when will you render the lacking hours?"
-              className="w-full rounded-xl border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-500 hover:bg-ink-50">
               <Upload className="h-4 w-4" />
               {doc ? doc.name : 'Attach promissory document (PDF/JPG/PNG, max 5MB)'}
               <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
-                onChange={(e) => setDoc(e.target.files?.[0] ?? null)} />
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null
+                  // Same limit and wording as the API (SubmitPromissoryRequest).
+                  if (file && file.size > 5 * 1024 * 1024) {
+                    setDoc(null)
+                    setSubmitError('The file must be 5 MB or smaller.')
+                    return
+                  }
+                  setSubmitError(null)
+                  setDoc(file)
+                }} />
             </label>
             {submitError && <p className="text-sm text-danger-700">{submitError}</p>}
             <button onClick={() => { setSubmitError(null); submitPromissory.mutate() }}
-              disabled={submitPromissory.isPending || !reason.trim() || !doc}
+              disabled={submitPromissory.isPending || !doc}
               className="rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
               {submitPromissory.isPending ? 'Submitting…' : 'Submit promissory note'}
             </button>

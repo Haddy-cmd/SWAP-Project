@@ -60,11 +60,6 @@ export interface Interview {
   }[]
 }
 
-export interface StoreApplicationData {
-  academic_year: string
-  semester: string
-}
-
 export interface ScheduleInterviewData {
   scheduled_at: string
   location?: string

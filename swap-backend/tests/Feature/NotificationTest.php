@@ -90,11 +90,14 @@ class NotificationTest extends TestCase
         $admin = $this->makeUser('admin');
         $applicant = $this->makeUser('applicant');
         \App\Models\Setting::put('applications_open', '1');
+        // Applications are for the current semester on the calendar.
+        \App\Models\SemesterPeriod::create([
+            'academic_year' => '2025-2026', 'semester' => '1st Semester',
+            'start_date' => now('Asia/Manila')->subMonth()->toDateString(), 'end_date' => now('Asia/Manila')->addMonths(3)->toDateString(),
+        ]);
 
         Sanctum::actingAs($applicant);
-        $this->postJson('/api/applicant/applications', [
-            'academic_year' => '2025-2026', 'semester' => '1st Semester',
-        ])->assertStatus(201);
+        $this->postJson('/api/applicant/applications')->assertStatus(201);
 
         $note = Notification::where('notifiable_id', $admin->id)
             ->where('notifiable_type', User::class)

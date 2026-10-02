@@ -66,6 +66,15 @@ class SemesterPeriodService
         return SemesterPeriod::where('start_date', '>', self::today()->toDateString())->orderBy('start_date')->first();
     }
 
+    /**
+     * The term new applications are for: the current semester, or — between semesters —
+     * the next one. Applicants don't choose it.
+     */
+    public function applicationTerm(): ?SemesterPeriod
+    {
+        return $this->current() ?? $this->next();
+    }
+
     /** The one period renewal is open for, if any. */
     public static function renewalTarget(): ?SemesterPeriod
     {

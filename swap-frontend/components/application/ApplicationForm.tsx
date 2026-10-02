@@ -1,25 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, ChevronLeft, Send } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Send, CalendarRange } from 'lucide-react'
 import { DocumentUpload } from './DocumentUpload'
 import { applicationsApi } from '@/lib/api/applications.api'
+import { settingsApi } from '@/lib/api/settings.api'
 import type { ApiError } from '@/types/api.types'
 
-const ACADEMIC_YEARS = ['2024-2025', '2025-2026', '2026-2027']
-const SEMESTERS = ['1st Semester', '2nd Semester', 'Summer']
-
-const step1Schema = z.object({
-  academic_year: z.string().min(1, 'Required'),
-  semester: z.string().min(1, 'Required'),
-})
-
-type Step1Data = z.infer<typeof step1Schema>
+// Same text as ApplicationService::MSG_NO_TERM.
+const NO_TERM_MESSAGE = 'Applications open once the DSA sets up the current semester. Please check back later.'
 
 export function ApplicationForm() {
   const router = useRouter()
@@ -32,20 +23,16 @@ export function ApplicationForm() {
   const [docErrors, setDocErrors] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState<string | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    getValues,
-    formState: { errors },
-  } = useForm<Step1Data>({ resolver: zodResolver(step1Schema) })
+  // The term isn't chosen: it's the current semester (the server sets it the same way).
+  const { data: status, isLoading: termLoading } = useQuery({
+    queryKey: ['application-status'],
+    queryFn: () => settingsApi.getApplicationStatus(),
+  })
+  const term = status?.term ?? null
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const values = getValues()
-      const application = await applicationsApi.submitApplication({
-        academic_year: values.academic_year,
-        semester: values.semester,
-      })
+      const application = await applicationsApi.submitApplication()
       const files: Array<{ key: string; file: File }> = []
       if (cor) files.push({ key: 'cor', file: cor })
       if (grades) files.push({ key: 'grades', file: grades })
@@ -101,10 +88,6 @@ export function ApplicationForm() {
     return Object.keys(errs).length === 0
   }
 
-  function onStep1(data: Step1Data) {
-    void data
-    setStep(2)
-  }
 
   function onSubmit() {
     if (!validateDocs()) return
@@ -142,51 +125,33 @@ export function ApplicationForm() {
       </div>
 
       {step === 1 && (
-        <form onSubmit={handleSubmit(onStep1)} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-ink-900 mb-1.5">
-              Academic Year
-            </label>
-            <select
-              {...register('academic_year')}
-              className="w-full rounded-lg border border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/15"
-            >
-              <option value="">Select academic year</option>
-              {ACADEMIC_YEARS.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-            {errors.academic_year && (
-              <p className="mt-1 text-xs text-danger-600">{errors.academic_year.message}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-ink-900 mb-1.5">
-              Semester
-            </label>
-            <select
-              {...register('semester')}
-              className="w-full rounded-lg border border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/15"
-            >
-              <option value="">Select semester</option>
-              {SEMESTERS.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-            {errors.semester && (
-              <p className="mt-1 text-xs text-danger-600">{errors.semester.message}</p>
+        <div className="space-y-5">
+          <div className="rounded-xl border border-ink-200 bg-white p-4">
+            <p className="flex items-center gap-1.5 text-sm font-medium text-ink-900">
+              <CalendarRange className="h-4 w-4 text-brand-700" /> Applying for
+            </p>
+            {termLoading ? (
+              <div className="mt-2 h-6 w-48 animate-pulse rounded bg-ink-100" />
+            ) : term ? (
+              <>
+                <p className="mt-1 text-lg font-semibold text-ink-950">{term.semester} · {term.academic_year}</p>
+                <p className="mt-0.5 text-xs text-ink-500">Applications are always for the current semester.</p>
+              </>
+            ) : (
+              <p className="mt-1 text-sm text-danger-700">{NO_TERM_MESSAGE}</p>
             )}
           </div>
 
           <button
-            type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
+            type="button"
+            onClick={() => setStep(2)}
+            disabled={!term}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors disabled:opacity-50"
           >
             Next
             <ChevronRight className="h-4 w-4" />
           </button>
-        </form>
+        </div>
       )}
 
       {step === 2 && (

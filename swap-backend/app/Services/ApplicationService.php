@@ -29,8 +29,17 @@ class ApplicationService
         private readonly RenewalReadinessService $renewalReadiness,
     ) {}
 
-    public function submitApplication(User $user, array $data): Application
+    public const MSG_NO_TERM = 'Applications open once the DSA sets up the current semester. Please check back later.';
+
+    /** A new application, always for the current semester (SemesterPeriodService::applicationTerm). */
+    public function submitApplication(User $user): Application
     {
+        $term = app(SemesterPeriodService::class)->applicationTerm();
+        if (!$term) {
+            throw new UnprocessableEntityHttpException(self::MSG_NO_TERM);
+        }
+        $data = ['academic_year' => $term->academic_year, 'semester' => $term->semester];
+
         // Once an application is approved, the applicant is in the pipeline waiting for
         // an office assignment and may not submit further applications.
         if ($this->applicationRepository->findByUser($user->id)->contains('status', 'approved')) {
@@ -311,13 +320,14 @@ class ApplicationService
         AuditLog::record('updated', $updated, $old, $updated->only(['status', 'remarks']));
 
         if ($decision === 'approved') {
-            AfterCommit::quietly(fn () => event(new ApplicationApproved($updated)), 'Application approved notification', ['application_id' => $updated->id]);
-
             // Approving a renewal immediately rolls the assignment into the new
-            // term — same office and supervisor, hours reset.
+            // term — same office and supervisor, hours reset. Done before the
+            // announcement, so the renewal email can name the new placement.
             if ($updated->type === 'renewal') {
                 $this->rolloverRenewal($updated, $admin);
             }
+
+            AfterCommit::quietly(fn () => event(new ApplicationApproved($updated)), 'Application approved notification', ['application_id' => $updated->id]);
         } elseif ($decision === 'rejected') {
             AfterCommit::quietly(fn () => event(new ApplicationRejected($updated)), 'Application rejected notification', ['application_id' => $updated->id]);
         }

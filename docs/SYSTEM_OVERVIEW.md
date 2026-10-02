@@ -361,7 +361,9 @@ All comparisons in **Asia/Manila**.
   accounts and the shortcuts answer 409 "Switch System Testing on first."; removing still works.
 - The admin picks existing active recipients/applicants (`users.testing_added_at`, never
   mass-assignable). Shortcuts on a picked recipient's current term: add hours, complete hours (the
-  missing hours, verified, ≤ 8 h/day on past days), clock in now (open shift without the QR), auto
+  missing hours, verified, ≤ 8 h/day on past days), reset hours (every log of the term copied into
+  the journal with its narrative report and verifications, then removed; undo re-inserts them with
+  their own IDs), clock in now (open shift without the QR), auto
   clock-out (`AttendanceService::closeStaleLog`, the 12-hour safety net, now), end term now (own end
   date → yesterday), file promissory note (real `PromissoryService::submit` with a sample PDF), close
   term now, makeup overdue, term report, evaluation, renewal (sample COR), reset. Undo keeps a filed
