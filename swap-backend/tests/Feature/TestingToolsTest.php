@@ -6,6 +6,8 @@ use App\Models\Application;
 use App\Models\Assignment;
 use App\Models\NarrativeReport;
 use App\Models\PromissoryNote;
+use App\Models\StipendHistory;
+use App\Models\StipendSignature;
 use App\Models\StudentProfile;
 use App\Models\TermEvaluation;
 use App\Models\TermReport;
@@ -451,6 +453,98 @@ class TestingToolsTest extends TestCase
         foreach (['complete-hours', 'reset-hours', 'clock-in', 'auto-clock-out', 'file-promissory'] as $action) {
             $this->act($student, $action)->assertStatus(409);
         }
+    }
+
+    public function test_the_whole_flow_from_pending_hours_to_a_paid_stipend_and_back(): void
+    {
+        $supervisor = $this->makeSupervisorWithoutSelfie();
+        [$student, $assignment] = $this->realRecipient($supervisor);
+        $this->pick($student)->assertOk();
+
+        // Hours: logged as pending, verified as the supervisor.
+        $this->act($student, 'hours', ['hours' => 2, 'status' => 'pending_verification'])->assertOk();
+        $this->act($student, 'verify-hours')->assertOk()
+            ->assertJsonPath('message', "Verified 1 pending log (2 hours) as {$supervisor->name}.");
+        $this->assertEquals(5.0, $assignment->fresh()->verified_hours);
+        $this->act($student, 'verify-hours')->assertStatus(422)->assertJsonPath('message', TestingService::MSG_NO_PENDING_HOURS);
+
+        // Promissory: filed after the term ends, approved as the supervisor.
+        $this->act($student, 'end-term')->assertOk();
+        $this->act($student, 'file-promissory')->assertOk();
+        $this->act($student, 'approve-promissory')->assertOk();
+        $note = PromissoryNote::where('assignment_id', $assignment->id)->firstOrFail();
+        $this->assertSame(PromissoryNote::STATUS_APPROVED, $note->status);
+        $this->assertEquals(15.0, (float) $note->lacking_hours);
+        $this->assertSame($supervisor->id, $note->reviewed_by);
+        $this->act($student, 'approve-promissory')->assertStatus(422)->assertJsonPath('message', TestingService::MSG_NO_PENDING_NOTE);
+
+        // Stipend: the stub is released as the admin, then paid out as the Banking Office.
+        $this->act($student, 'term-report')->assertOk();
+        $this->act($student, 'release-stub')->assertOk();
+        $stub = StipendHistory::where('user_id', $student->id)->firstOrFail();
+        $this->assertSame(StipendHistory::STATUS_CERTIFIED, $stub->status);
+        $this->assertTrue((bool) $stub->via_promissory);
+        $this->act($student, 'pay-out')->assertOk()->assertJsonPath('message', "Paid out as the Banking Office: {$stub->control_number} is now received.");
+        $this->assertSame(StipendHistory::STATUS_CLAIMED, $stub->fresh()->status);
+        $this->assertSame(TestingService::TEST_RELEASING_OFFICER, $stub->fresh()->releasing_officer_name);
+        $this->act($student, 'pay-out')->assertStatus(422);
+        $this->assertSame('claimed', collect($this->getJson('/api/admin/testing')->json('data.accounts.0.assignments'))->first()['stipend']);
+
+        // Undo walks it all back.
+        $this->release($student, true)->assertOk();
+        $this->assertNull(StipendHistory::find($stub->id));
+        $this->assertSame(0, StipendSignature::where('stipend_history_id', $stub->id)->count());
+        $this->assertNull(PromissoryNote::find($note->id));
+        $this->assertSame(0, \App\Models\Verification::count());
+        $this->assertEquals(3.0, $assignment->fresh()->verified_hours);
+        $this->assertSame(1, TimeLog::where('assignment_id', $assignment->id)->count());
+    }
+
+    public function test_a_promissory_note_can_be_rejected_as_the_supervisor(): void
+    {
+        [$student, $assignment] = $this->realRecipient();
+        $this->pick($student)->assertOk();
+        $this->act($student, 'reject-promissory')->assertStatus(422)->assertJsonPath('message', TestingService::MSG_NO_PENDING_NOTE);
+
+        $this->act($student, 'end-term')->assertOk();
+        $this->act($student, 'file-promissory')->assertOk();
+        $this->act($student, 'reject-promissory')->assertOk()->assertJsonPath('message', 'Promissory note rejected by the supervisor.');
+        $this->assertSame(PromissoryNote::STATUS_REJECTED, PromissoryNote::where('assignment_id', $assignment->id)->firstOrFail()->status);
+    }
+
+    public function test_reset_stipend_makes_the_student_eligible_again_and_undo_restores_the_stub(): void
+    {
+        [$student, $assignment] = $this->realRecipient();
+        $this->makeClosedLog($assignment, 17); // 20 of 20 hours: eligible once there's no stub
+        $stub = StipendHistory::create([
+            'user_id' => $student->id, 'amount' => 5000, 'academic_year' => '2026-2027', 'semester' => '1st Semester',
+            'status' => StipendHistory::STATUS_CLAIMED, 'control_number' => 'SWAP-STP-TEST-1', 'claimed_at' => now(),
+        ]);
+        $signature = StipendSignature::create([
+            'stipend_history_id' => $stub->id, 'signatory_role' => StipendSignature::ROLE_BENEFICIARY,
+            'user_id' => $student->id, 'printed_name' => $student->name, 'method' => StipendSignature::METHOD_AUTHENTICATED, 'signed_at' => now(),
+        ]);
+        $eligible = fn () => array_column(app(\App\Services\StipendService::class)->eligibleRecipients(), 'user_id');
+        $this->assertNotContains($student->id, $eligible());
+
+        $this->pick($student)->assertOk();
+        Sanctum::actingAs($this->admin);
+        $this->assertSame('claimed', collect($this->getJson('/api/admin/testing')->json('data.accounts.0.assignments'))->first()['stipend']);
+
+        $this->act($student, 'reset-stipend')->assertOk()
+            ->assertJsonPath('message', 'Stipend reset for 1st Semester 2026-2027: the stub was removed, so the student is eligible again under Admin → Stipend. Undo on Remove from testing brings it back.');
+        $this->assertNull(StipendHistory::find($stub->id));
+        $this->assertNull(StipendSignature::find($signature->id));
+        $this->assertContains($student->id, $eligible());
+        $this->act($student, 'reset-stipend')->assertStatus(422)
+            ->assertJsonPath('message', 'This recipient has no stipend stub for 1st Semester 2026-2027.');
+
+        $this->release($student, true)->assertOk();
+        $restored = StipendHistory::findOrFail($stub->id);
+        $this->assertSame(StipendHistory::STATUS_CLAIMED, $restored->status);
+        $this->assertSame('SWAP-STP-TEST-1', $restored->control_number);
+        $this->assertSame($stub->id, StipendSignature::findOrFail($signature->id)->stipend_history_id);
+        $this->assertNotContains($student->id, $eligible());
     }
 
     public function test_reset_hours_sets_the_term_back_to_zero_and_undo_brings_them_back(): void

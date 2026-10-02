@@ -366,7 +366,13 @@ All comparisons in **Asia/Manila**.
   their own IDs), clock in now (open shift without the QR), auto
   clock-out (`AttendanceService::closeStaleLog`, the 12-hour safety net, now), end term now (own end
   date → yesterday), file promissory note (real `PromissoryService::submit` with a sample PDF), close
-  term now, makeup overdue, term report, evaluation, renewal (sample COR), reset. Undo keeps a filed
+  term now, makeup overdue, term report, evaluation, renewal (sample COR), reset term. Other people's
+  steps run through the real services as the right person: verify pending hours (VerificationService,
+  as the placement's supervisor), approve/reject the note (PromissoryService::review, as the supervisor),
+  release claim stub (StipendClaimService::releaseClaimStub, as the admin), pay out
+  (releaseAtBankingOffice, officer "System Testing (Banking Office)"); reset stipend
+  (the term's live stub and its signatures copied into the journal and removed, so the student is
+  eligible again under Admin → Stipend; undo re-inserts them). Undo keeps a filed
   note once a stipend stub or an approved renewal used it.
 - Each shortcut journals what it did in `testing_changes` (records it created; raw old values of
   records it changed). "Remove from testing" either replays the journal newest-first (delete created

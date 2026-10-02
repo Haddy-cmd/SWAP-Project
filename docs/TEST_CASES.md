@@ -705,6 +705,9 @@ Admin → System Testing (always in the admin sidebar) lets the admin pick exist
 | TC-TEST-012 | P1 | [H] File promissory note | Picked recipient short on hours | File promissory note before End term now; End term now → File promissory note; supervisor reviews it on their page; Remove → Undo | — | Before: "Promissory notes can only be submitted after the semester ends." After: a pending note with a sample PDF reaches the supervisor; undo deletes the note and its file (kept, with a reason, if a stipend stub or an approved renewal already used it) |  |  |
 | TC-TEST-013 | P1 | [H] Clock in now / Auto clock-out | Picked recipient, not clocked in | Clock in now → student clocks out with the office QR; Clock in now → Auto clock-out; Auto clock-out with no open shift | — | An open shift starts now without the QR; Auto clock-out closes it like the 12-hour safety net (pending verification, reason auto-closed) for the supervisor's review; with no shift: "This recipient isn't clocked in."; undo removes the shift or reopens one the student opened |  |  |
 | TC-TEST-014 | P1 | [H] Reset hours | Picked recipient with logged hours (one with a narrative report) | Reset hours → Yes, reset; Reset hours again; Add hours; Remove from testing → Undo | — | The term shows 0h; again: "This recipient has no hours to reset."; undo deletes the added hours and puts every reset log back with its own ID, narrative report and verifications, so the hours return to what they were |  |  |
+| TC-TEST-015 | P1 | [H] Reset stipend | Picked recipient whose term's stipend was received (or is ready to claim) | Reset stipend → Yes, reset; Reset stipend again; Remove from testing → Undo | — | The stub disappears and the student is listed again under Admin → Stipend as eligible (the release can be tested again); again: "This recipient has no stipend stub for {term}."; undo puts the stub back with its control number, status and signatures |  |  |
+| TC-TEST-016 | P1 | [H] The whole flow from one card | Picked recipient short on hours, with a supervisor, signature on file | Add hours (pending) → Verify pending hours → End term now → File promissory note → Approve note → Submit end-of-term report → Release claim stub → Pay out; then Remove from testing → Undo | — | Each step runs the real rule as the right person (supervisor, admin, Banking Office) and the card shows it (pending hours, promissory approved, stipend ready to claim → received); again on an empty step: "This recipient has no hours waiting for verification." / "…no promissory note waiting for review."; undo removes the verification, note, review, stub, signatures and payout |  |  |
+| TC-TEST-017 | P2 | [H] Reject a promissory note | Picked recipient, term ended, note filed | Reject note | — | The note shows as rejected for the student and supervisor |  |  |
 
 ---
 
@@ -804,10 +807,10 @@ Resolved on 2026-10-01: the promissory makeup deadline (payment still follows th
 | Semester periods | TC-SEM-001..014 | 14 | Term calendar, renewal window | SemesterPeriodTest |
 | End-of-term verdict | TC-TERM-001..011 | 11 | Deficiency record, notifications | TermStatusTest, RenewalTest |
 | Supervisor evaluation | TC-EVAL-001..007 | 7 | Renewal prerequisite | TermEvaluationTest, RenewalTest |
-| System Testing | TC-TEST-001..014 | 14 | Test tooling, bypasses, undo | TestingToolsTest |
+| System Testing | TC-TEST-001..017 | 17 | Test tooling, bypasses, undo | TestingToolsTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..015 | 15 | Quality attributes | CI workflow (TC-NFR-013) |
-| **TOTAL** | — | **446** | — | — |
+| **TOTAL** | — | **449** | — | — |
 
 ---
 

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FlaskConical, UserRound, Clock, CalendarX, Gavel, AlarmClock, FileText, Star, RefreshCw, RotateCcw, Search, UserPlus,
-  UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser,
+  UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser, Banknote, BadgeCheck, ThumbsUp, ThumbsDown,
+  Ticket, Wallet,
 } from 'lucide-react'
 import { testingApi } from '@/lib/api/testing.api'
 import { TermBadge } from '@/components/shared/TermBadge'
@@ -265,9 +266,9 @@ function RemoveFromTesting({ account, onRemoved }: { account: TestingAccount; on
         <p>Nothing was changed by the shortcuts. Remove {account.name} from testing?</p>
       ) : (
         <p>
-          Undo puts back what the shortcuts changed ({n} {n === 1 ? 'change' : 'changes'}): added hours, report, evaluation and renewal are deleted; reset hours,
-          dates, term result and makeup deadline return to what they were. Clock-ins and anything people did on the normal pages stay, as does a renewal
-          that was already decided.
+          Undo puts back everything these buttons did ({n} {n === 1 ? 'change' : 'changes'}): added hours, verifications, notes and their reviews, report,
+          evaluation, renewal, stubs and payouts are removed; reset hours and stipends, dates, term result and makeup deadline return to what they were.
+          Clock-ins and anything people did on the normal pages stay, as does a renewal that was already decided.
         </p>
       )}
       <div className="mt-2 flex flex-wrap gap-2">
@@ -298,6 +299,7 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
   const [rating, setRating] = useState(4)
   const [msg, setMsg] = useState<Note>(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [confirmStipend, setConfirmStipend] = useState(false)
 
   const act = useMutation({
     mutationFn: (v: { action: TestingAction; data?: Record<string, unknown> }) => testingApi.act(r.id, v.action, v.data),
@@ -322,9 +324,11 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
       {current ? (
         <p className="mt-2 text-xs text-ink-600">
           {current.term} · {current.verified_hours}h / {current.required_hours}h verified
+          {current.pending_hours > 0 ? ` · ${current.pending_hours}h pending` : ''}
           {current.end_date ? ` · ends ${formatDay(current.end_date)}` : ''}
           {current.report_submitted ? ' · report in' : ''}{current.evaluation ? ` · evaluated ${current.evaluation}/5` : ''}
           {current.promissory ? ` · promissory ${current.promissory}` : ''}
+          {current.stipend ? ` · stipend ${STIPEND_LABEL[current.stipend] ?? current.stipend}` : ''}
         </p>
       ) : <p className="mt-2 text-xs text-ink-500">No current term.</p>}
       {r.applications.filter((a) => a.type === 'renewal').map((a) => (
@@ -347,6 +351,9 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={SMALL} />
           </label>
           <button onClick={() => run('hours', { hours, status, ...(date ? { date } : {}) })} disabled={busy} className={BTN}>Add hours</button>
+          <button onClick={() => run('verify-hours')} disabled={busy} className={BTN}
+            title="As the supervisor: verify every hour waiting for review (the real verification, with its notifications).">
+            <BadgeCheck className="h-3.5 w-3.5" /> Verify pending hours</button>
           <button onClick={() => run('complete-hours')} disabled={busy} className={BTN}
             title="Log exactly the hours still missing, verified (up to 8 h a day on past days), so the required hours are complete.">
             <CheckCheck className="h-3.5 w-3.5" /> Complete hours</button>
@@ -383,6 +390,11 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
           <button onClick={() => run('file-promissory')} disabled={busy} className={BTN}
             title="File a promissory note for the student with a sample PDF (only after the term has ended). Their supervisor then reviews it.">
             <FileSignature className="h-3.5 w-3.5" /> File promissory note</button>
+          <button onClick={() => run('approve-promissory')} disabled={busy} className={BTN}
+            title="As the supervisor: approve the pending note, recording its lacking hours and a makeup deadline a week after the term ends.">
+            <ThumbsUp className="h-3.5 w-3.5" /> Approve note</button>
+          <button onClick={() => run('reject-promissory')} disabled={busy} className={BTN} title="As the supervisor: reject the pending note.">
+            <ThumbsDown className="h-3.5 w-3.5" /> Reject note</button>
           <button onClick={() => run('close-term')} disabled={busy} className={BTN} title="Record Qualified or Deficient now (this term only).">
             <Gavel className="h-3.5 w-3.5" /> Close term now</button>
           <button onClick={() => run('makeup-overdue')} disabled={busy} className={BTN} title="An approved promissory note's makeup deadline becomes yesterday.">
@@ -399,6 +411,23 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
             <RefreshCw className="h-3.5 w-3.5" /> Submit renewal</button>
           <button onClick={() => run('reset-term')} disabled={busy} className={BTN} title="Back to in progress: clears the verdict and the term-end shortcut.">
             <RotateCcw className="h-3.5 w-3.5" /> Reset term</button>
+          <button onClick={() => run('release-stub')} disabled={busy} className={BTN}
+            title="As the admin (Admin → Stipend): release this term's claim stub, with the real checks (hours or approved note, signature, end-of-term report).">
+            <Ticket className="h-3.5 w-3.5" /> Release claim stub</button>
+          <button onClick={() => run('pay-out')} disabled={busy} className={BTN}
+            title="As the Banking Office: scan the ready-to-claim stub and pay it out (no PIN needed here).">
+            <Wallet className="h-3.5 w-3.5" /> Pay out</button>
+          {!confirmStipend ? (
+            <button onClick={() => { setMsg(null); setConfirmStipend(true) }} disabled={busy} className={BTN}
+              title="Remove this term's stipend stub so the student is eligible again under Admin → Stipend. Undo on Remove from testing brings it back.">
+              <Banknote className="h-3.5 w-3.5" /> Reset stipend</button>
+          ) : (
+            <span className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+              Remove the {current?.term ?? 'term'} stub so the stipend can be released again?
+              <button onClick={() => { setConfirmStipend(false); run('reset-stipend') }} disabled={busy} className="rounded-md bg-brand-700 px-2 py-0.5 font-semibold text-white">Yes, reset</button>
+              <button onClick={() => setConfirmStipend(false)} className="font-semibold">Cancel</button>
+            </span>
+          )}
         </div>
       </div>
 
@@ -408,6 +437,9 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
     </div>
   )
 }
+
+// How the term's stub reads on the card.
+const STIPEND_LABEL: Record<string, string> = { pending: 'being prepared', certified: 'ready to claim', claimed: 'received', released: 'received' }
 
 const SMALL = 'mt-0.5 block rounded-lg border border-ink-300 bg-white px-2 py-1.5 text-xs focus:border-brand-700 focus:outline-none'
 const BTN = 'flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-50'

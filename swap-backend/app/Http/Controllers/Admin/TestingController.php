@@ -17,8 +17,9 @@ use Illuminate\Validation\Rule;
 class TestingController extends Controller
 {
     public const ACTIONS = [
-        'hours', 'complete-hours', 'reset-hours', 'clock-in', 'auto-clock-out', 'end-term', 'file-promissory', 'close-term',
-        'makeup-overdue', 'term-report', 'evaluation', 'renewal', 'reset-term',
+        'hours', 'complete-hours', 'reset-hours', 'verify-hours', 'clock-in', 'auto-clock-out', 'end-term', 'file-promissory',
+        'approve-promissory', 'reject-promissory', 'close-term', 'makeup-overdue', 'term-report', 'evaluation', 'renewal',
+        'reset-term', 'release-stub', 'pay-out', 'reset-stipend',
     ];
 
     public function __construct(private readonly TestingService $testing) {}
@@ -109,6 +110,27 @@ class TestingController extends Controller
 
                 return "Hours reset to 0: {$logs} time " . ($logs === 1 ? 'log' : 'logs') . " ({$hours} verified hours) set aside. Undo on Remove from testing brings them back.";
             })(),
+            'verify-hours' => (function () use ($recipient, $admin) {
+                ['logs' => $logs, 'hours' => $hours, 'supervisor' => $by] = $this->testing->verifyHours($recipient, $admin);
+
+                return "Verified {$logs} pending " . ($logs === 1 ? 'log' : 'logs') . " ({$hours} hours) as {$by}.";
+            })(),
+            'approve-promissory' => (function () use ($recipient, $admin) {
+                $note = $this->testing->reviewNote($recipient, $admin, true);
+
+                return "Promissory note approved by the supervisor: {$note->lacking_hours} lacking hours, makeup due {$note->makeup_deadline?->toDateString()}.";
+            })(),
+            'reject-promissory' => ($this->testing->reviewNote($recipient, $admin, false) ? 'Promissory note rejected by the supervisor.' : ''),
+            'release-stub' => (function () use ($recipient, $admin) {
+                $stub = $this->testing->releaseStub($recipient, $admin);
+
+                return "Claim stub released ({$stub->control_number}): ready to claim at the Banking Office.";
+            })(),
+            'pay-out' => (function () use ($recipient, $admin) {
+                $stub = $this->testing->payOut($recipient, $admin);
+
+                return "Paid out as the Banking Office: {$stub->control_number} is now received.";
+            })(),
             'clock-in' => ($this->testing->clockInNow($recipient, $admin) ? 'Clocked in now. The student can clock out by scanning their office QR.' : ''),
             'auto-clock-out' => ($this->testing->autoClockOut($recipient, $admin)
                 ? "Clocked out automatically, as the 12-hour safety net does. The log now waits for the supervisor's review." : ''),
@@ -129,6 +151,11 @@ class TestingController extends Controller
                 return "Renewal submitted for {$app->semester} {$app->academic_year}. Review it under Applications → Renewals.";
             })(),
             'reset-term' => ($this->testing->resetTerm($recipient, $admin) ? 'Term reset to in progress.' : ''),
+            'reset-stipend' => (function () use ($recipient, $admin) {
+                ['term' => $term] = $this->testing->resetStipend($recipient, $admin);
+
+                return "Stipend reset for {$term}: the stub was removed, so the student is eligible again under Admin → Stipend. Undo on Remove from testing brings it back.";
+            })(),
         };
 
         return response()->json(['message' => $message, 'data' => $this->testing->status()]);

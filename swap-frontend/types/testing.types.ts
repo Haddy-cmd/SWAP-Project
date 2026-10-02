@@ -7,12 +7,16 @@ export interface TestingAssignment {
   status: 'active' | 'completed' | 'suspended'
   required_hours: number
   verified_hours: number
+  /** Hours logged and waiting for the supervisor. */
+  pending_hours: number
   end_date: string | null
   term_badge: TermBadgeValue
   evaluation: number | null
   report_submitted: boolean
   /** The term's promissory note, if any. */
   promissory: 'approved' | 'pending' | null
+  /** The term's stipend stub: certified = ready to claim; claimed/released = received. */
+  stipend: 'pending' | 'certified' | 'claimed' | 'released' | null
 }
 
 export interface TestingApplication {
@@ -57,6 +61,6 @@ export interface TestingCandidate {
 export const TESTING_OFF_MESSAGE = 'Switch System Testing on first.'
 
 export type TestingAction =
-  | 'hours' | 'complete-hours' | 'reset-hours' | 'clock-in' | 'auto-clock-out'
-  | 'end-term' | 'file-promissory' | 'close-term' | 'makeup-overdue'
-  | 'term-report' | 'evaluation' | 'renewal' | 'reset-term'
+  | 'hours' | 'complete-hours' | 'reset-hours' | 'verify-hours' | 'clock-in' | 'auto-clock-out'
+  | 'end-term' | 'file-promissory' | 'approve-promissory' | 'reject-promissory' | 'close-term' | 'makeup-overdue'
+  | 'term-report' | 'evaluation' | 'renewal' | 'reset-term' | 'release-stub' | 'pay-out' | 'reset-stipend'
