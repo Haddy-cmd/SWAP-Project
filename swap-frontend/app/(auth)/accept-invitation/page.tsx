@@ -13,12 +13,14 @@ import { useAuthStore } from '@/lib/store/authStore'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import type { UserRole } from '@/types/auth.types'
 import type { ApiError } from '@/types/api.types'
+import { strongPassword } from '@/lib/utils/password'
+import { PasswordGuide } from '@/components/auth/PasswordGuide'
 
 const schema = z
   .object({
     name: z.string().min(2, 'Your name is required'),
     employee_id: z.string().regex(/^\d{4,15}$/, 'Enter your employee ID (digits only).'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: strongPassword,
     password_confirmation: z.string(),
   })
   .refine((d) => d.password === d.password_confirmation, {
@@ -48,6 +50,7 @@ function AcceptInvitationForm() {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
@@ -138,18 +141,20 @@ function AcceptInvitationForm() {
 
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink-950">Password</label>
-          <div className="relative">
-            <input
-              {...register('password')}
-              type={showPw ? 'text' : 'password'}
-              placeholder="At least 8 characters, mixed case + number"
-              className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 pr-11 text-sm focus:border-brand-700 focus:outline-none"
-            />
-            <button type="button" onClick={() => setShowPw((s) => !s)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-brand-700">
-              {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-            </button>
-          </div>
+          <PasswordGuide value={watch('password')}>
+            <div className="relative">
+              <input
+                {...register('password')}
+                type={showPw ? 'text' : 'password'}
+                placeholder="At least 8 characters, mixed case + number"
+                className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 pr-11 text-sm focus:border-brand-700 focus:outline-none"
+              />
+              <button type="button" onClick={() => setShowPw((s) => !s)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400 hover:text-brand-700">
+                {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </PasswordGuide>
           {errors.password && <p className="mt-1 text-xs text-danger-600">{errors.password.message}</p>}
         </div>
 

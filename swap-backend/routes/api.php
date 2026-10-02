@@ -37,11 +37,11 @@ use App\Http\Controllers\Admin\AssignmentController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ConcernController as AdminConcernController;
 use App\Http\Controllers\Admin\AnalyticsController;
-use App\Http\Controllers\Admin\DutySlipController;
 use App\Http\Controllers\Admin\LandingPhotoController;
 use App\Http\Controllers\Shared\LandingPhotoController as PublicLandingPhotoController;
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\SemesterPeriodController;
+use App\Http\Controllers\Admin\TestingController;
 use App\Http\Controllers\Admin\StipendController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -215,6 +215,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/reports/preview', [ReportController::class, 'previewAdminReport']);
         Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
 
+        // System Testing — 404 unless SWAP_TEST_TOOLS is on; test accounts only.
+        Route::get('/testing', [TestingController::class, 'status']);
+        Route::put('/testing/switch', [TestingController::class, 'switch']);
+        Route::get('/testing/candidates', [TestingController::class, 'candidates']);
+        Route::post('/testing/accounts/{id}', [TestingController::class, 'addAccount'])->whereNumber('id');
+        Route::delete('/testing/accounts/{id}', [TestingController::class, 'removeAccount'])->whereNumber('id');
+        Route::post('/testing/recipients/{id}/{action}', [TestingController::class, 'action']);
+        Route::delete('/testing', [TestingController::class, 'releaseAll']);
         Route::get('/semester-periods', [SemesterPeriodController::class, 'index']);
         Route::get('/semester-periods/current', [SemesterPeriodController::class, 'current']);
         Route::post('/semester-periods', [SemesterPeriodController::class, 'store']);
@@ -224,7 +232,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings', [SettingController::class, 'update']);
 
-        Route::get('/duty-slip/verify', [DutySlipController::class, 'verify']);
 
         Route::get('/announcements', [AnnouncementController::class, 'index']);
         // Every send emails all active recipients: throttled against double-sends.

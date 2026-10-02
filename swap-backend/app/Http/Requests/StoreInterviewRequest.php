@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\TestTools;
 use App\Support\InterviewWindow;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
@@ -42,7 +43,8 @@ class StoreInterviewRequest extends FormRequest
         return [
             // The window rules below re-check "not in the past" in Manila time;
             // `after:now` only guards against a wildly stale payload.
-            'scheduled_at' => ['required', 'date', 'after:now'],
+            // System Testing: a picked applicant's interview may also be in the past.
+            'scheduled_at' => $this->isTestApplicant() ? ['required', 'date'] : ['required', 'date', 'after:now'],
             'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:180'],
             'location' => ['nullable', 'string', 'max:255'],
             'mode' => ['required', 'string', 'in:in_person,online'],
@@ -65,12 +67,24 @@ class StoreInterviewRequest extends FormRequest
                 return;
             }
 
+            // System Testing: a picked applicant's interview may be at any time, even past.
+            if ($this->isTestApplicant()) {
+                return;
+            }
+
             $start = Carbon::parse($this->input('scheduled_at'))->setTimezone(InterviewWindow::TIMEZONE);
 
             foreach (InterviewWindow::violations($start, (string) $this->input('mode'), $this->durationMinutes()) as $message) {
                 $validator->errors()->add('scheduled_at', $message);
             }
         });
+    }
+
+    /** The application belongs to an account picked for System Testing (and the tools are on). */
+    private function isTestApplicant(): bool
+    {
+        return TestTools::enabled()
+            && TestTools::bypasses(\App\Models\Application::find($this->route('id'))?->user);
     }
 
     public function durationMinutes(): int

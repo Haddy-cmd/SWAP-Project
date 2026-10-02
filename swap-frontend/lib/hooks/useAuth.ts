@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth.api'
 import { useAuthStore } from '@/lib/store/authStore'
+import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import type { LoginCredentials, RegisterData } from '@/types/auth.types'
 
 export function useAuth() {
@@ -17,13 +18,7 @@ export function useAuth() {
       setAuth(data.data, data.token)
       queryClient.clear()
 
-      const roleRoutes: Record<string, string> = {
-        admin: '/admin',
-        recipient: '/recipient',
-        supervisor: '/supervisor',
-        applicant: '/applicant',
-      }
-      router.push(roleRoutes[data.data.role] ?? '/applicant')
+      router.push(getRoleDashboard(data.data.role))
     },
   })
 

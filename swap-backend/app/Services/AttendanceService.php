@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\TestTools;
 use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
 use App\Models\AuditLog;
@@ -69,18 +70,21 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('This QR code belongs to a different office than your assignment.');
         }
 
+        // System Testing: picked accounts may clock in from anywhere.
+        $testing = TestTools::bypasses($user);
+
         // Geofencing is required for every office: it must have a configured location.
-        if (!$office->geofence_enabled || $office->latitude === null || $office->longitude === null) {
+        if (!$testing && (!$office->geofence_enabled || $office->latitude === null || $office->longitude === null)) {
             throw new UnprocessableEntityHttpException(
                 'This office has no location configured yet. Please contact your administrator before clocking in.'
             );
         }
 
-        if ($latitude === null || $longitude === null) {
+        if (!$testing && ($latitude === null || $longitude === null)) {
             throw new UnprocessableEntityHttpException('Location access is required to clock in at this office.');
         }
 
-        if (!$this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
+        if (!$testing && !$this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
             // Say exactly how far off the reading was, so a mis-placed office pin,
             // a too-tight radius, and a bad GPS fix are distinguishable at a glance.
             $distance = round($this->geofenceService->distanceMeters(
@@ -122,6 +126,11 @@ class AttendanceService
      */
     public function selfieRequiredFor(Assignment $assignment): bool
     {
+        // System Testing: no selfie for picked accounts (checked only while the tools are on).
+        if (TestTools::enabled() && TestTools::bypasses($assignment->user)) {
+            return false;
+        }
+
         $supervisors = $assignment->governingSupervisors();
 
         if ($supervisors->isEmpty()) {
@@ -315,7 +324,10 @@ class AttendanceService
 
     private function guardClockIn(Assignment $assignment, User $user): void
     {
-        $this->assertWithinClockInWindow();
+        // System Testing: picked accounts may clock in any day, any hour.
+        if (!TestTools::bypasses($user)) {
+            $this->assertWithinClockInWindow();
+        }
 
         if ($assignment->required_hours > 0 && $assignment->verified_hours >= $assignment->required_hours) {
             throw new ConflictHttpException('You have already completed your required service hours.');

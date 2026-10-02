@@ -21,6 +21,10 @@ export interface SemesterPeriod {
   days_left: number | null
   // When the end-of-term job closed it.
   closed_at: string | null
+  // Placements and applications in this term (they link by school year + semester).
+  usage?: { assignments: number; applications: number }
+  // What can no longer change: used terms can't be renamed or deleted; closed terms keep their dates.
+  locked?: { delete: boolean; rename: boolean; dates: boolean }
 }
 
 export interface CurrentSemester {

@@ -36,6 +36,9 @@ export function RenewalReadinessPanel({ readiness }: { readiness: RenewalReadine
       label: ev ? `Evaluation ${ev.rating}/5 · ${ev.rating_label}${ev.passed ? '' : ` (needs ${readiness.passing_rating}+)`}` : 'Not evaluated by the supervisor yet',
       detail: ev?.remarks ? `“${ev.remarks}”${ev.evaluator ? ` — ${ev.evaluator}` : ''}` : undefined,
     },
+    ...(readiness.carry_hours > 0
+      ? [{ ok: null, label: `On approval, ${readiness.carry_hours} unfinished makeup hours are added to the next term` }]
+      : []),
     ...(readiness.makeup_deadline
       ? [{ ok: !readiness.makeup_overdue, label: `Makeup due ${formatDay(readiness.makeup_deadline)}${readiness.makeup_overdue ? ' — overdue' : ''}` }]
       : []),

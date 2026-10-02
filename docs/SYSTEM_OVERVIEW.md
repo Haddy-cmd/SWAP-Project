@@ -172,7 +172,7 @@ Conventions:
   `#16452B` header band, `themeColor #10331F`).
 - Duty slips have two modes in `DutySlip.tsx` + `SemesterServiceReport.tsx`: weekly grid
   (Mon–Sun) vs. semester service report (summary + weekly breakdown + certification). The control
-  number must stay bit-identical to `App\Support\DutySlipControl` (see Traps §9.11). Full-semester
+  number is generated in the browser and printed for reference only (no verify endpoint). Full-semester
   views fetch `per_page=300` (backend max `500`); printing relies on `SlipPrintStyles` + the
   dashboard shell's `print:hidden` chrome.
 
@@ -319,7 +319,7 @@ All comparisons in **Asia/Manila**.
 - **Calendar** (`SemesterPeriodService`, Admin → Semesters): CRUD with audit `semester_period_*`;
   year `^\d{4}-\d{4}$` with consecutive years, semester in 1st/2nd/Summer, end after start, unique
   year+semester, **no date overlap**; opening renewal on one period closes it on the others and is
-  refused for an ended period; delete refused while assignments/applications use the term.
+  refused for an ended period; delete and renaming (school year/semester) refused while assignments/applications use the term — they link by that text; a closed period's dates are locked.
   `current()` / `next()` judge the Manila calendar day. Renewal submit
   (`ApplicationService::submitRenewal`), the recipient renewal page and
   `GET /settings/application-status` all read `renewalTarget()`; `PUT /admin/settings` no longer
@@ -345,6 +345,9 @@ All comparisons in **Asia/Manila**.
   (else "…did not pass the supervisor evaluation for {term} (rating n/5)."); no approved note whose
   makeup deadline passed with hours still short. `check()` feeds `renewal_readiness` on
   `ApplicationResource` (admins only). Submitting early is allowed; rejecting is never blocked.
+  On rollover, a promissory-covered term's unfinished makeup hours (`RenewalReadinessService::carryHours`)
+  are added to the new assignment: `required_hours = base + carry`, recorded as `carried_over_hours` /
+  `carried_from_assignment_id` (`Assignment::baseRequiredHours()` strips it again on the next rollover).
   The recipient Renewal page says "approved" only when the new term's assignment exists
   (`GET /recipient/renewals` → `meta.placed`).
 - **Per-term hours:** `GET /recipient/attendance/logs` and `/supervisor/students/{id}/logs` default
@@ -352,13 +355,31 @@ All comparisons in **Asia/Manila**.
   `GET /recipient/assignments/history` lists earlier terms with hours, verdict and stipend state;
   the admin dashboard's average completion counts only active placements' verified hours.
 
-### Duty-slip verification (`DutySlipControl` + `DutySlipController::verify`)
-- Control No. `SWAP-{SID}-{YY}{YY}{SEM}-{RANGE}-{checksum}` (`SEM` or `W+YYYYMMDD` Monday,
-  6-char base36 djb2 of `sid|ay|sem|range`). The PHP and TS generators must stay **bit-identical**.
-- Verify recomputes the checksum, resolves the student (non-alphanumerics stripped), and returns
-  `recorded_hours` (rejected logs excluded, manual bonus included; `SEM` scoped to the assignment
-  term, `W…` to the Mon–Sun range) so the admin compares it against the printed total. Checksum
-  proves format-authenticity only — the hour comparison is manual.
+### System Testing (`TestingService`, `TestTools`)
+- Always in the admin sidebar; switched on and off on its own page (setting `test_tools_enabled`, off
+  by default, audit-logged; `TestTools::enabled()` is memoised per request/job). While off, picking
+  accounts and the shortcuts answer 409 "Switch System Testing on first."; removing still works.
+- The admin picks existing active recipients/applicants (`users.testing_added_at`, never
+  mass-assignable). Shortcuts on a picked recipient's current term: add hours, complete hours (the
+  missing hours, verified, ≤ 8 h/day on past days), clock in now (open shift without the QR), auto
+  clock-out (`AttendanceService::closeStaleLog`, the 12-hour safety net, now), end term now (own end
+  date → yesterday), file promissory note (real `PromissoryService::submit` with a sample PDF), close
+  term now, makeup overdue, term report, evaluation, renewal (sample COR), reset. Undo keeps a filed
+  note once a stipend stub or an approved renewal used it.
+- Each shortcut journals what it did in `testing_changes` (records it created; raw old values of
+  records it changed). "Remove from testing" either replays the journal newest-first (delete created
+  records, restore old values; a renewal already decided is kept) or keeps the changes; "Remove all
+  and undo" does it for every picked account.
+- Bypasses only for picked accounts while on (`TestTools::bypasses`): clock-in window, geofence and
+  selfie in `AttendanceService`; interview window/past checks in `StoreInterviewRequest`.
+- Picked accounts stay normal accounts: they sign in, get email at their real address (so
+  notifications can be tested), count in analytics and reports, and are never deleted.
+
+### Duty-slip control numbers
+- Printed on every slip as `SWAP-{SID}-{YY}{YY}{SEM}-{RANGE}-{checksum}` (generated in
+  `DutySlip.tsx`). Paper slips are not official records, so the admin verify page/endpoint was
+  removed; `App\Support\DutySlipControl` now only holds the shared `studentRef()` / `termCode()`
+  that the claim stub's control number also uses.
 
 ---
 
@@ -529,11 +550,10 @@ producing confusing half-broken states (a form rejecting a field that wasn't ren
 camera button, a toggle with no effect). **Always `git add -A` from the repo root and check
 `git status` before pushing.**
 
-### 9.11 Duty-slip control numbers must stay bit-identical on both stacks
-`App\Support\DutySlipControl` (djb2 mod 2³² → 6-char base36 of `sid|ay|sem|range`) and the
-frontend `makeControlNo` are maintained in parallel by hand. A one-character drift makes every
-printed slip fail admin verification. Change both, and keep the `DutySlipVerifyTest` +
-`DutySlip.test.tsx` pair green.
+### 9.11 Control-number parts are shared
+The claim stub's control number (`StipendClaimService::makeControlNumber`) and the duty slip use the
+same student-ID and term encoding (`DutySlipControl::studentRef/termCode`, `makeControlNo` in the
+frontend). Keep them reading the same way; `DutySlip.test.tsx` covers the slip side.
 
 ### 9.12 Full-semester slips need the raised pagination caps
 `AttendanceController` and `StudentController` allow `per_page` up to `500`, and the recipient /
@@ -574,7 +594,6 @@ with `RefreshDatabase`. Shared fixtures live in `tests/Concerns/MakesSwapData.ph
 for stub-PDF assertions (transparent-ink / smask / draw counts).
 
 Feature test files: `AdminTest`, `AttendanceTest`, `AuthTest`, `ChatbotTest`, `DocumentTest`,
-`DutySlipVerifyTest` (semester-scoped counts, rejected excluded, tampered checksum invalid),
 `EmailBrandingTest` (asserts seal-green `#1F5B3A`/`#16452B`), `InterviewLifecycleTest`,
 `NotificationTest`, `PromissoryNoteTest` (submit window from the semester period, zero-hours
 refusal, single-pending, governing-only review, `+7d` deadline, `via_promissory` eligibility,

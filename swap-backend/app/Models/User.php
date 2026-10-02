@@ -43,6 +43,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'testing_added_at' => 'datetime',
             'require_clock_in_selfie' => 'boolean',
         ];
     }

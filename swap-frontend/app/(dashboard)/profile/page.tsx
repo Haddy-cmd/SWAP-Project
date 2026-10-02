@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { strongPassword } from '@/lib/utils/password'
+import { PasswordGuide } from '@/components/auth/PasswordGuide'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ChevronRight, ShieldCheck, Mail, Phone, Building2, CalendarDays, LogOut,
@@ -41,7 +43,7 @@ type ProfileForm = z.infer<typeof profileSchema>
 const passwordSchema = z
   .object({
     current_password: z.string().min(1, 'Current password required'),
-    password: z.string().min(8, 'Minimum 8 characters'),
+    password: strongPassword,
     password_confirmation: z.string(),
   })
   .refine((d) => d.password === d.password_confirmation, {
@@ -158,6 +160,7 @@ export default function ProfilePage() {
     register: rpw,
     handleSubmit: hpw,
     reset: resetPw,
+    watch: watchPw,
     formState: { errors: pwe },
   } = useForm<PasswordForm>({ resolver: zodResolver(passwordSchema) })
 
@@ -474,7 +477,9 @@ export default function ProfilePage() {
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label className={LABEL}>New Password</label>
-                      <input {...rpw('password')} type={showPw ? 'text' : 'password'} placeholder="••••••••" className={INPUT} />
+                      <PasswordGuide value={watchPw('password')}>
+                        <input {...rpw('password')} type={showPw ? 'text' : 'password'} placeholder="••••••••" className={INPUT} />
+                      </PasswordGuide>
                       {pwe.password && <p className="mt-1 text-xs text-danger-700">{pwe.password.message}</p>}
                     </div>
                     <div>

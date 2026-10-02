@@ -6,6 +6,9 @@ export interface Assignment {
   academic_year: string
   semester: string
   required_hours: number
+  /** Unfinished promissory makeup hours added from the previous term (included in required_hours). */
+  carried_over_hours?: number
+  carried_from_term?: string | null
   pending_required_hours?: number | null
   start_date: string
   end_date: string | null

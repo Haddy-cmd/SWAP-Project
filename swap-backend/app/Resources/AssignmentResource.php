@@ -17,6 +17,10 @@ class AssignmentResource extends JsonResource
             'academic_year' => $this->academic_year,
             'semester' => $this->semester,
             'required_hours' => $this->required_hours,
+            // Unfinished promissory makeup hours added from the previous term (included above).
+            'carried_over_hours' => (int) ($this->carried_over_hours ?? 0),
+            'carried_from_term' => $this->carried_over_hours > 0 && $this->carriedFrom
+                ? "{$this->carriedFrom->semester} {$this->carriedFrom->academic_year}" : null,
             'pending_required_hours' => $this->pending_required_hours,
             'start_date' => $this->start_date?->toDateString(),
             'end_date' => $this->end_date?->toDateString(),

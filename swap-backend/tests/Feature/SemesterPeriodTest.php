@@ -171,6 +171,49 @@ class SemesterPeriodTest extends TestCase
         $this->assertSame('2024-12-27', $assignment->fresh()->effectiveEndDate()->toDateString());
     }
 
+    public function test_a_used_semester_cannot_be_renamed_but_its_dates_can_change(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'));
+        $id = $this->postJson('/api/admin/semester-periods', $this->payload(['academic_year' => '2024-2025', 'start_date' => '2024-08-12', 'end_date' => '2024-12-20']))
+            ->assertStatus(201)->json('data.id');
+
+        // Unused: renaming is fine.
+        $this->putJson("/api/admin/semester-periods/{$id}", $this->payload(['academic_year' => '2024-2025', 'semester' => 'Summer', 'start_date' => '2024-08-12', 'end_date' => '2024-12-20']))
+            ->assertOk();
+        $this->putJson("/api/admin/semester-periods/{$id}", $this->payload(['academic_year' => '2024-2025', 'start_date' => '2024-08-12', 'end_date' => '2024-12-20']))
+            ->assertOk();
+
+        $this->makeAssignment($this->makeUser('recipient'), $this->makeUser('supervisor')); // 1st Semester 2024-2025
+        $this->getJson('/api/admin/semester-periods')->assertOk()
+            ->assertJsonPath('data.0.usage.assignments', 1)
+            ->assertJsonPath('data.0.locked.rename', true)
+            ->assertJsonPath('data.0.locked.delete', true)
+            ->assertJsonPath('data.0.locked.dates', false);
+
+        $this->putJson("/api/admin/semester-periods/{$id}", $this->payload(['academic_year' => '2024-2025', 'semester' => '2nd Semester', 'start_date' => '2024-08-12', 'end_date' => '2024-12-20']))
+            ->assertStatus(422)->assertJsonPath('message', SemesterPeriodService::MSG_RENAME_IN_USE);
+
+        // Dates and renewal stay editable.
+        $this->putJson("/api/admin/semester-periods/{$id}", $this->payload(['academic_year' => '2024-2025', 'start_date' => '2024-08-12', 'end_date' => '2024-12-23']))
+            ->assertOk()->assertJsonPath('data.end_date', '2024-12-23');
+    }
+
+    public function test_a_closed_semester_keeps_its_dates(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'));
+        $period = SemesterPeriod::create([
+            'academic_year' => '2024-2025', 'semester' => '1st Semester',
+            'start_date' => '2024-08-12', 'end_date' => '2024-12-20', 'closed_at' => now(),
+        ]);
+        $same = ['academic_year' => '2024-2025', 'start_date' => '2024-08-12', 'end_date' => '2024-12-20'];
+
+        $this->putJson("/api/admin/semester-periods/{$period->id}", $this->payload(['end_date' => '2024-12-27'] + $same))
+            ->assertStatus(422)->assertJsonPath('message', SemesterPeriodService::MSG_CLOSED_DATES);
+        // Saving it unchanged (e.g. the renewal switch) still works.
+        $this->putJson("/api/admin/semester-periods/{$period->id}", $this->payload($same))->assertOk()
+            ->assertJsonPath('data.locked.dates', true);
+    }
+
     public function test_only_admins_manage_periods(): void
     {
         foreach (['recipient', 'supervisor', 'applicant'] as $role) {

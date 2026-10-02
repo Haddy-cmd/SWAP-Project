@@ -12,7 +12,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
   BarChart2, Building2, Banknote, Bell, BookOpen,
-  ClipboardList, LogOut, Calendar, CalendarRange, X, QrCode, ShieldCheck, RefreshCw, Images, Megaphone, Inbox,
+  ClipboardList, LogOut, Calendar, CalendarRange, X, QrCode, RefreshCw, Images, Megaphone, Inbox, FlaskConical,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
@@ -51,11 +51,11 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Stipend', href: '/admin/stipend', icon: Banknote },
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
     { label: 'Reports', href: '/admin/reports', icon: ClipboardList },
-    { label: 'Verify Slip', href: '/admin/duty-slip-verify', icon: ShieldCheck },
     { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },
     { label: 'Concerns', href: '/admin/concerns', icon: Inbox },
     { label: 'Landing Page', href: '/admin/landing', icon: Images },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: BookOpen },
+    { label: 'System Testing', href: '/admin/testing', icon: FlaskConical },
   ],
 }
 

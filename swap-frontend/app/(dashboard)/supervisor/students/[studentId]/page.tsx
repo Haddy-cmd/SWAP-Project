@@ -90,7 +90,9 @@ export default function StudentDetailPage() {
     { Icon: Building2, label: 'Office', value: student?.office ?? '—' },
     { Icon: Mail, label: 'Email', value: student?.email ?? '—' },
     { Icon: CalendarDays, label: 'Period', value: [student?.academic_year, student?.semester].filter(Boolean).join(' · ') || '—' },
-    { Icon: Flag, label: 'Required Hours', value: required ? `${fmtHrs(required)} hours` : '—' },
+    { Icon: Flag, label: 'Required Hours', value: required
+      ? `${fmtHrs(required)} hours${student?.carried_over_hours ? ` (incl. ${student.carried_over_hours} carried over)` : ''}`
+      : '—' },
     { Icon: CalendarClock, label: 'Term Ends', value: term?.effective_end_date ? formatDay(term.effective_end_date, 'long') : 'Not set up yet' },
     { Icon: BadgeCheck, label: 'Student ID', value: student?.student_id_number ?? '—' },
     { Icon: History, label: 'Last Activity', value: lastActivity(logsPage?.data?.[0]) },

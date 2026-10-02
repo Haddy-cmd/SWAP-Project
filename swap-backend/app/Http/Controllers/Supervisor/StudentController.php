@@ -112,6 +112,7 @@ class StudentController extends Controller
                 'academic_year' => $assignment->academic_year,
                 'semester' => $assignment->semester,
                 'required_hours' => $assignment->required_hours,
+                'carried_over_hours' => (int) $assignment->carried_over_hours,
                 'pace' => $assignment->paceStatus(),
             ],
             'term' => $this->termPayload($assignment),

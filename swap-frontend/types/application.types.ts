@@ -84,6 +84,8 @@ export interface RenewalReadiness {
   term: string
   // The renewal carries the recipient's updated COR.
   cor_attached: boolean
+  // Unfinished promissory makeup hours that approval adds to the next term.
+  carry_hours: number
   term_status: 'qualified' | 'deficient' | null
   deficient_hours: number | null
   payment: 'paid' | 'not_required' | 'owed' | 'promissory' | 'unpaid'

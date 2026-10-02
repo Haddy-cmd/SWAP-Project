@@ -54,6 +54,21 @@ class AuthTest extends TestCase
         Notification::assertSentTo($user, VerifyEmail::class);
     }
 
+    public function test_names_are_capitalised_and_the_full_name_is_built_from_them(): void
+    {
+        Notification::fake();
+
+        // Whatever full name is sent, it is First + middle initial + Last.
+        $this->postJson('/api/auth/register', $this->validRegisterPayload([
+            'first_name' => 'NORHADI', 'middle_name' => 'andres', 'last_name' => 'NORODIN',
+            'name' => 'Someone Else Entirely',
+        ]))->assertStatus(201);
+
+        $user = User::where('email', 'juan@s.msumain.edu.ph')->firstOrFail();
+        $this->assertSame('Norhadi A. Norodin', $user->name);
+        $this->assertSame(['Norhadi', 'Andres', 'Norodin'], [$user->profile->first_name, $user->profile->middle_name, $user->profile->last_name]);
+    }
+
     public function test_student_id_must_be_exactly_nine_digits(): void
     {
         foreach (['2024-9999', '12345678', '1234567890', '20240999A'] as $badId) {

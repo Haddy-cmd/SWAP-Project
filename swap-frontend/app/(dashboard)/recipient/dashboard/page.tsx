@@ -157,6 +157,7 @@ export default function RecipientDashboard() {
               {assignment && (
                 <p className="text-[11.5px] text-white/60">
                   {assignment.academic_year} · {assignment.semester} · {assignment.required_hours}h required
+                  {!!assignment.carried_over_hours && ` (incl. ${assignment.carried_over_hours}h carried over from ${assignment.carried_from_term ?? 'last term'})`}
                 </p>
               )}
             </div>

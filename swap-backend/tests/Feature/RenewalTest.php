@@ -225,6 +225,49 @@ class RenewalTest extends TestCase
             ->assertJsonFragment(['user_id' => $recipient->id, 'semester' => '1st Semester', 'via_promissory' => true]);
     }
 
+    public function test_unfinished_makeup_hours_carry_into_the_next_term(): void
+    {
+        // 240 required, 4 verified, covered by an approved note; 6 makeup hours done before approval.
+        [$recipient, $previous] = $this->recipientWithTerm(metHours: false);
+        $this->approvedNote($previous, Carbon::now('Asia/Manila')->addDays(6)->toDateString());
+        $this->makeClosedLog($previous, 6);
+        $this->evaluate($previous, 4);
+        $this->submitTermReport($previous);
+        $renewal = $this->renewalFor($recipient);
+        Sanctum::actingAs($admin = $this->makeUser('admin'));
+
+        $this->getJson("/api/admin/applications/{$renewal->id}")->assertOk()
+            ->assertJsonPath('data.renewal_readiness.carry_hours', 230);
+
+        $this->decide($renewal, 'approved')->assertOk();
+
+        $next = Assignment::where('user_id', $recipient->id)->where('semester', '2nd Semester')->firstOrFail();
+        $this->assertSame(240 + 230, $next->required_hours);
+        $this->assertSame(230, $next->carried_over_hours);
+        $this->assertSame($previous->id, $next->carried_from_assignment_id);
+        $this->assertSame(240, $next->baseRequiredHours());
+        $this->assertDatabaseHas('audit_logs', ['action' => 'renewal_hours_carried', 'user_id' => $admin->id]);
+
+        Sanctum::actingAs($recipient);
+        $this->getJson('/api/recipient/assignment')->assertOk()
+            ->assertJsonPath('data.carried_over_hours', 230)
+            ->assertJsonPath('data.carried_from_term', self::TERM);
+    }
+
+    public function test_a_term_that_met_its_hours_carries_nothing(): void
+    {
+        [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
+        $this->pay($previous);
+        $this->evaluate($previous, 4);
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->decide($this->renewalFor($recipient), 'approved')->assertOk();
+
+        $next = Assignment::where('user_id', $recipient->id)->where('semester', '2nd Semester')->firstOrFail();
+        $this->assertSame(3, $next->required_hours);
+        $this->assertSame(0, $next->carried_over_hours);
+        $this->assertNull($next->carried_from_assignment_id);
+    }
+
     public function test_an_overdue_makeup_blocks_approval(): void
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: false);

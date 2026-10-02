@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\AuditLog;
 use App\Resources\UserResource;
+use App\Support\PasswordPolicy;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class ProfileController extends Controller
@@ -183,8 +183,8 @@ class ProfileController extends Controller
     {
         $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
-        ]);
+            'password' => ['required', 'confirmed', PasswordPolicy::rule()],
+        ], PasswordPolicy::messages());
 
         if (!Hash::check($request->current_password, $request->user()->password)) {
             throw ValidationException::withMessages([

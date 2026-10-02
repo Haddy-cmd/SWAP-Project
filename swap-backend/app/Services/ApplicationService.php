@@ -346,8 +346,15 @@ class ApplicationService
         // Close out the old term so the recipient has exactly one active assignment,
         // recording its Qualified/Deficient verdict now if the nightly job hasn't yet.
         app(TermStatusService::class)->close($previous, notify: false);
+        $carry = $this->renewalReadiness->carryHours($previous);
         if ($previous->status === 'active') {
             $previous->update(['status' => 'completed']);
+        }
+
+        if ($carry > 0) {
+            AuditLog::record('renewal_hours_carried', $application, null, [
+                'hours' => $carry, 'from_assignment_id' => $previous->id,
+            ], $admin->id);
         }
 
         $this->assignmentService->createAssignment([
@@ -356,7 +363,11 @@ class ApplicationService
             'supervisor_id' => $previous->supervisor_id,
             'academic_year' => $application->academic_year,
             'semester' => $application->semester,
-            'required_hours' => $previous->required_hours,
+            // The term's base requirement, plus any unfinished promissory makeup hours
+            // from the previous term (they are made up in this one).
+            'required_hours' => $previous->baseRequiredHours() + $carry,
+            'carried_over_hours' => $carry,
+            'carried_from_assignment_id' => $carry > 0 ? $previous->id : null,
             // The new term's dates come from its semester period: it starts on the
             // period's first day (today if the DSA hasn't set the period up) and has
             // no end-date override, so the period's end date applies.

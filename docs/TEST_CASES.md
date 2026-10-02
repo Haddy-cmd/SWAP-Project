@@ -101,7 +101,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-REG-003 | P1 | [B] Student ID must be exactly 9 digits | Period open | Register with 8-digit / 10-digit / non-numeric ID | `20091234` / `2009123456` / `20091234A` | HTTP 422, "Student ID must be exactly 9 digits." |  |  |
 | TC-REG-004 | P2 | [N] Duplicate email rejected | An account with that email exists | Register with the same email | existing email | HTTP 422, email unique validation error |  |  |
 | TC-REG-005 | P2 | [N] Duplicate student ID rejected | A profile with that student ID exists | Register with the same student ID | existing student ID | HTTP 422, student_id_number unique error |  |  |
-| TC-REG-006 | P2 | [N] Password complexity enforced | Period open | Register with weak passwords | `pass`, `password`, `12345678`, `alllower1` | HTTP 422 (min 8, mixed case, numbers required) |  |  |
+| TC-REG-006 | P2 | [N] Password complexity enforced on step 2 | Period open | Type weak passwords on step 2 and press Continue; also send them to the API | `pass`, `password`, `12345678`, `alllower1` | While Set Password has focus, a small guide under it ticks each requirement as it is met (8+ characters, uppercase, lowercase, number) and disappears on leaving the field; Continue stays on step 2 with the first unmet rule (e.g. "Password must have at least one uppercase and one lowercase letter."); the API answers HTTP 422 with the same messages |  |  |
 | TC-REG-007 | P2 | [N] Password confirmation mismatch | Period open | Register with mismatched confirmation | password `Abcd1234`, confirm `Abcd9999` | HTTP 422, confirmed validation error |  |  |
 | TC-REG-008 | P2 | [N] 5th year only for 5-year programs | Period open | Register year_level 5 with a 4-year program | year 5, program `BS Computer Science` | HTTP 422, "A 5th year applies only to Engineering and BS Accountancy programs." |  |  |
 | TC-REG-009 | P3 | [H] 5th year allowed for Engineering / BS Accountancy | Period open | Register year 5 with 5-year program | year 5, program `BS Civil Engineering` | HTTP 201 accepted |  |  |
@@ -111,6 +111,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-REG-013 | P1 | [S] Rate limiting on register | — | Send >5 register requests within 1 minute | 6 rapid requests | 6th returns HTTP 429 Too Many Requests |  |  |
 | TC-REG-014 | P2 | [N] Names accept letters only | Period open | Register with digits/symbols in a name | first name `J0hn!` | HTTP 422, "Use letters, spaces, hyphens, apostrophes and periods only." |  |  |
 | TC-REG-015 | P1 | [S] Cannot self-register as staff | Period open | Add `role` and `is_active` to a valid payload | `role=admin`, `is_active=true` | HTTP 201; account is `applicant` and **inactive** (extra fields ignored) |  |  |
+| TC-REG-016 | P2 | [H] Names in name case; Full Name built from them | Period open | Type first `NORHADI`, middle `andres`, last `NORODIN`; try to edit Full Name; also POST a different `name` to the API | — | Each name shows with the first letter of each word capitalised (Norhadi, Andres, Norodin); Full Name is read-only and shows "Norhadi A. Norodin" (a two-word middle name gives "D. C.", no middle name gives "Norhadi Norodin"); the API ignores the sent `name` and saves "Norhadi A. Norodin" |  |  |
 
 ---
 
@@ -162,7 +163,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-PWD-002 | P2 | [S] Request reset for unknown email **[KNOWN GAP]** | — | POST `/auth/forgot-password` | non-existent email | Generic success message, same as TC-PWD-001 (no user enumeration). *Current build returns HTTP 422 "We can't find a user with that email address." — a way to test which emails are registered.* |  |  |
 | TC-PWD-003 | P1 | [H] Reset with valid token | Reset token issued | POST `/auth/reset-password` | valid token + new compliant password | Password updated; can log in with new password |  |  |
 | TC-PWD-004 | P1 | [N] Reset with invalid/expired token | — | POST `/auth/reset-password` | bad/expired token | HTTP 422, "This password reset token is invalid." |  |  |
-| TC-PWD-005 | P2 | [N] Reset enforces password complexity | Valid token | Reset with weak password | `weak` | HTTP 422 complexity error |  |  |
+| TC-PWD-005 | P2 | [N] Reset enforces password complexity | Valid token | Reset with weak password | `weak` | The same typing guide and messages as registration (also on Accept invitation and Profile → Change password); HTTP 422 with the same text |  |  |
 | TC-PWD-006 | P1 | [S] Forgot-password rate limiting | — | >3 requests in 1 minute | 4 rapid requests | 4th returns HTTP 429 |  |  |
 | TC-PWD-007 | P2 | [S] Reset-password rate limiting | — | >6 reset attempts in 1 minute | 7 rapid requests | 7th returns HTTP 429 |  |  |
 
@@ -221,6 +222,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-REN-008 | P2 | [N] A decided renewal can't be approved again | Renewal already approved | Admin approves again | approve | HTTP 409, "This application has already been decided."; no second assignment or email |  |  |
 | TC-REN-009 | P2 | [H] Submitting early is allowed | Renewal open; the current term is still running, unpaid and not evaluated | POST renewal | valid COR | HTTP 201; the application waits in `submitted`; only the admin's approval checks the gates (TC-ADMR-027..031) |  |  |
 | TC-REN-010 | P2 | [N] "Approved" only once the new term exists | Renewal application marked `approved` but no assignment for that term | Open Renewal | — | "Renewal Approved — Placement Not Set Up" asking the student to contact the DSA (not "Welcome Back"); after the rollover: "Renewal Approved — Welcome Back!" (`GET /recipient/renewals` → `meta.placed`) |  |  |
+| TC-REN-011 | P1 | [H] Unfinished makeup hours carry into the next term | Previous term 200 required, short, covered by an approved promissory note, 6 hours still unfinished; report in; evaluated 3+ | Open the renewal; approve it | — | The readiness list says "On approval, 6 unfinished makeup hours are added to the next term"; the new assignment requires 206 h (`carried_over_hours` 6, from the old term; audit `renewal_hours_carried`); the recipient dashboard, supervisor student page and admin assignment card show the carried hours; a term that met its hours carries nothing |  |  |
 
 ---
 
@@ -525,24 +527,24 @@ Lifecycle (Option C): releasing a stub **is** certifying it — `certified` → 
 
 ## 21. Module: Reports & Duty Slips (`TC-RPT`) — Recipient / Supervisor / Admin
 
-Duty slips are built in the browser from the attendance logs and carry a Control No. `SWAP-{SID}-{YY}{YY}{S1/S2/SM}-{SEM or W<yyyymmdd>}-{checksum}` that the admin can verify.
+Duty slips are built in the browser from the attendance logs and carry a Control No. `SWAP-{SID}-{YY}{YY}{S1/S2/SM}-{SEM or W<yyyymmdd>}-{checksum}` for reference. Paper slips are not official records (hours live in the portal), so there is no verify page.
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-RPT-001 | P2 | [S] **OBSOLETE** — weekly report endpoint removed | Recipient | GET `/recipient/reports/weekly` | — | HTTP 404 (weekly duty slip replaces it — TC-RPT-010) |  |  |
 | TC-RPT-002 | P2 | [S] **OBSOLETE** — monthly report endpoint removed | Recipient | GET `/recipient/reports/monthly` | — | HTTP 404 |  |  |
 | TC-RPT-003 | P2 | [S] **OBSOLETE** — semester report endpoint removed | Recipient | GET `/recipient/reports/semester` | — | HTTP 404 (semester service report replaces it — TC-RPT-011) |  |  |
-| TC-RPT-004 | P1 | [H] Duty slip control-no verify (valid) | Duty slip printed | GET `/admin/duty-slip/verify?control_no=…` | valid control no | `valid:true`, recipient resolved, recorded hours for the encoded range; audit `duty_slip_verified` |  |  |
-| TC-RPT-005 | P2 | [N] Duty slip invalid format | — | Verify | `hello-world` | `valid:false`, "This is not a valid SWAP control number format." |  |  |
-| TC-RPT-006 | P1 | [S] Duty slip checksum tamper | Altered control no | Verify | valid format, last character changed | `valid:false` (checksum mismatch) |  |  |
-| TC-RPT-007 | P3 | [N] Duty slip for unknown student | Control no with unknown SID | Verify | unknown student id | `recipient_found:false`, hours null |  |  |
+| TC-RPT-004 | P2 | [S] **OBSOLETE** — duty slip verify removed | Admin | GET `/admin/duty-slip/verify?control_no=…`; look for Verify Slip in the sidebar | any control no. | HTTP 404; no Verify Slip page or sidebar item |  |  |
+| TC-RPT-005 | P3 | [S] **OBSOLETE** — duty slip verify (invalid format) | — | See TC-RPT-004 | — | Endpoint removed: HTTP 404 |  |  |
+| TC-RPT-006 | P3 | [S] **OBSOLETE** — duty slip verify (checksum tamper) | — | See TC-RPT-004 | — | Endpoint removed: HTTP 404 |  |  |
+| TC-RPT-007 | P3 | [S] **OBSOLETE** — duty slip verify (unknown student) | — | See TC-RPT-004 | — | Endpoint removed: HTTP 404 |  |  |
 | TC-RPT-008 | P2 | [H] Supervisor roster + CSV export | Supervisor with students | GET `/supervisor/reports/roster` and `/roster/export` | — | Roster JSON + CSV download; export audit-logged |  |  |
 | TC-RPT-009 | P2 | [H] Admin report preview & generate | Admin | GET `/admin/reports/preview` and `/generate` | `type=stipend`, AY, semester | Preview + CSV; stipend stats "Total Claimed", "Recipients", "Awaiting Claim", "Claimed"; export audit `report_exported` |  |  |
 | TC-RPT-010 | P1 | [H] Weekly duty slip prints | Recipient with a week of logs | Recipient → Reports → Duty slip → Weekly → Print | a Mon–Sun week | One A4 portrait page: AM/PM in-out, BONUS then TOTAL (= regular + bonus), control number; supervisor + beneficiary ink only when every day is verified |  |  |
 | TC-RPT-011 | P2 | [H] Semester service report prints | Recipient with a semester of logs | Duty slip → Semester → Print | whole term | Summary, weekly breakdown, certification and signatures on A4 portrait; control number with range `SEM` |  |  |
-| TC-RPT-012 | P1 | [H] Semester verify counts only its term | Logs in two terms incl. rejected and bonus | Verify a `SEM` control number | `…-2425S1-SEM-…` | Hours = that term only, rejected excluded, bonus included; range "Whole semester — 1st Semester, AY 2024-2025" |  |  |
-| TC-RPT-013 | P1 | [S] Unknown coverage range is not a slip | — | Verify a well-formed, correctly checksummed control number with a made-up range | range `X123` or `W20241399` | `valid:false`, "This control number has an unrecognised coverage range."; no hours returned |  |  |
-| TC-RPT-014 | P2 | [B] Semester slip with no academic year | — | Verify a `SEM` control number with AY `0000` | `…-0000S1-SEM-…` | `valid:true`, `recorded_hours` null, range "Whole semester — 1st Semester, AY unknown"; page shows "AY unknown" |  |  |
+| TC-RPT-012 | P3 | [S] **OBSOLETE** — duty slip verify (semester verify counts only its term) | — | See TC-RPT-004 | — | Endpoint removed: HTTP 404 |  |  |
+| TC-RPT-013 | P3 | [S] **OBSOLETE** — duty slip verify (unknown coverage range) | — | See TC-RPT-004 | — | Endpoint removed: HTTP 404 |  |  |
+| TC-RPT-014 | P3 | [S] **OBSOLETE** — duty slip verify (semester slip with no academic year) | — | See TC-RPT-004 | — | Endpoint removed: HTTP 404 |  |  |
 | TC-RPT-015 | P2 | [H] Slip times print in Manila time | Device clock set to UTC (or another zone) | Print a weekly slip | logs at 09:30 and 13:00 PHT | Slip shows 9:30 AM in the AM column and 1:00 PM in the PM column |  |  |
 | TC-RPT-016 | P1 | [S] CSV formula injection neutralised | Recipient named `=HYPERLINK("http://evil.example","Click")` | Export the roster / admin report CSV | — | Cell starts with an apostrophe (`'=HYPERLINK(…`) so the spreadsheet shows text, not a formula |  |  |
 | TC-RPT-017 | P2 | [H] Report columns for verdicts and promissory releases | Deficient and qualified terms; a promissory release | Admin → Reports: Recipients & Hours, Stipend Disbursement (preview + CSV) | — | Recipients & Hours adds "Term Status" (In Progress / Qualified / Deficient) and "Deficient Hours"; Stipend Disbursement adds "Via Promissory" (Yes/No) and "Deficient Hours" |  |  |
@@ -550,7 +552,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 
 ---
 
-## 22. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`, `TC-ANN`, `TC-SEM`, `TC-TERM`, `TC-EVAL`)
+## 22. Module: Supporting Features (`TC-QR`, `TC-BOT`, `TC-CON`, `TC-SET`, `TC-NOTIF`, `TC-ANL`, `TC-ANN`, `TC-SEM`, `TC-TERM`, `TC-EVAL`, `TC-TEST`)
 
 ### 22.1 QR codes
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
@@ -648,6 +650,9 @@ The DSA calendar (Admin → Semesters). Every term-date rule reads from it; an a
 | TC-SEM-009 | P1 | [H] The period drives term dates | Assignment without its own end date; then with one | Check pace, the promissory window and the student page "Term Ends" | — | Without: the period's end date applies; with: the assignment's own date overrides |  |  |
 | TC-SEM-010 | P1 | [S] Admins only | Applicant, recipient, supervisor | GET/POST `/admin/semester-periods` | — | HTTP 403; nothing created |  |  |
 | TC-SEM-011 | P3 | [B] Phase and days left follow the Manila day | Period ending today (PHT) | Open Semesters before and after midnight PHT | — | Last day: Current, "Last day today"; next day: Ended |  |  |
+| TC-SEM-012 | P1 | [N] A used semester can't be renamed | Semester with placements or applications | Edit it: change the school year or semester; then change only its end date | — | Rename → HTTP 422 "Students are already placed in this semester, so its school year and semester can't change. Add a new semester instead." (the form shows those fields locked with that reason); the date change saves. An unused semester can be renamed |  |  |
+| TC-SEM-013 | P2 | [N] A closed semester keeps its dates | Semester closed by `semester:close` | Edit its dates; save it unchanged / toggle renewal off | — | Date change → HTTP 422 "This semester has been closed and its results recorded, so its dates can't change." (date fields locked in the form); saving unchanged works |  |  |
+| TC-SEM-014 | P3 | [H] The list says why a semester is protected | Used and unused semesters | Open Admin → Semesters | — | Each row shows "Used by N placements · M applications" or "Not used yet" (plus "Closed, results recorded"); used semesters show a lock instead of Delete, with the reason on hover |  |  |
 
 ### 22.9 End-of-term verdict (`TC-TERM`) — System → Recipient / Supervisor / Admin
 `semester:close` runs daily at 00:10 PHT (one server). For each semester period that has ended it records each placement's verdict. Stipend release does not wait for it.
@@ -678,6 +683,26 @@ A rating from 1 (Poor) to 5 (Excellent) with remarks; 3 or more passes. Needed t
 | TC-EVAL-005 | P2 | [N] Ended placement is locked | Placement `completed` | PUT evaluation | — | HTTP 422, "This placement has ended, so its evaluation can no longer be changed." |  |  |
 | TC-EVAL-006 | P2 | [H] Evaluations due | Term ends within 14 days (or has ended), no evaluation | Open the supervisor dashboard and Students | — | "N evaluations due" with the students' names; "Evaluation due" chip on the roster; both disappear once saved |  |  |
 | TC-EVAL-007 | P2 | [H] The admin sees it | Evaluated term, renewal submitted | Open the renewal (TC-ADMR-032) | — | "Evaluation 4/5 · Very good" with the remarks and the supervisor's name |  |  |
+
+
+### 22.11 System Testing (`TC-TEST`) — Admin
+Admin → System Testing (always in the admin sidebar) lets the admin pick existing recipients/applicants and use shortcuts so time-gated flows can be tried without waiting; what the shortcuts change can be undone. It is switched on and off on its own page (off by default) and only ever touches picked accounts, which keep their real email.
+
+| ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
+|---|---|---|---|---|---|---|---|---|
+| TC-TEST-001 | P1 | [S] On/Off switch on the page | Admin; switch Off | Open System Testing from the sidebar; try to pick an account; switch On; switch Off; try the switch as a supervisor | — | Page opens while Off with picking and shortcuts disabled ("Switch System Testing on first.", HTTP 409 via the API); Remove from testing still works; On/Off saved and audit-logged (`testing_switched_on/off`); non-admins HTTP 403 |  |  |
+| TC-TEST-002 | P1 | [H] Pick an existing account | Switch On; a real recipient | Pick an account to test → search by student ID → Add to testing → Yes, add | student ID | The account appears with the shortcut buttons; audit `testing_account_added`. Staff, deactivated and already-picked accounts are refused (HTTP 422) and not listed in the search |  |  |
+| TC-TEST-003 | P1 | [H] Promissory without waiting | Picked recipient short on hours | Add 5 verified hours → End term now → file a promissory note as the recipient → approve as their supervisor → Close term now → Make makeup overdue | — | The note is accepted only after End term now; Close term now records Deficient; the overdue makeup then blocks the renewal approval (real rule) |  |  |
+| TC-TEST-004 | P2 | [H] Renewal and evaluation shortcuts | Picked recipient | Submit end-of-term report; Evaluate 4/5; Submit renewal (even with renewal closed) | — | The renewal (with a sample COR) appears under Applications → Renewals with its readiness checklist; a second renewal for the same term is refused |  |  |
+| TC-TEST-005 | P1 | [S] Bypasses apply to picked accounts only | Switch On | Clock in as the picked recipient on a Sunday 10 PM far from the office, no selfie; try the same as a recipient who isn't picked; schedule a picked applicant's interview in the past and another applicant's at the same slot | — | Picked recipient: clocked in. Other recipient: "Clock-in is only available Monday to Saturday." Picked interview: saved; other: HTTP 422 |  |  |
+| TC-TEST-006 | P1 | [S] A picked account stays a normal account | Picked recipient | Use shortcuts; check its email inbox, Analytics, sign-in; switch Off and clock in on a Sunday | — | Notification emails reach its own inbox; it is counted in Analytics; it can sign in any time; while Off the normal clock-in rules apply again and the shortcuts are disabled |  |  |
+| TC-TEST-007 | P1 | [H] Undo on Remove from testing | Picked recipient with added hours, ended/closed term, report, evaluation (overwriting one it had), renewal, overdue makeup | Remove from testing → Undo N changes and remove | — | Added hours, report and renewal (with its file) deleted; end date, term result, makeup deadline and the old evaluation restored; the promissory note itself stays; audit `testing_account_removed` |  |  |
+| TC-TEST-008 | P2 | [S] Keep changes; decided renewals stay | Picked recipient whose test renewal was decided | Remove from testing → Undo; pick again, add hours, Remove → Keep changes and remove | — | Undo keeps the decided renewal and says so; Keep leaves the record as it is and clears the journal |  |  |
+| TC-TEST-009 | P1 | [H] Remove all and undo | Two picked accounts, one with shortcut changes | Remove all and undo → Yes, undo all (also with the switch Off) | — | Both leave testing, changes undone, accounts kept; audit `testing_released_all` |  |  |
+| TC-TEST-010 | P1 | [S] Users can't put themselves in testing | Any user | PUT `/profile` with `testing_added_at` | — | Ignored; the account is not in testing |  |  |
+| TC-TEST-011 | P1 | [H] Complete hours | Picked recipient with 3 of 20 hours | Complete hours; try it again; try Clock in now | — | 17 verified hours added (≤ 8 h a day, past days, no Sundays); the student is listed under Stipend → eligible; again: "This recipient's hours are already complete." (also for Clock in now); undo removes the added logs |  |  |
+| TC-TEST-012 | P1 | [H] File promissory note | Picked recipient short on hours | File promissory note before End term now; End term now → File promissory note; supervisor reviews it on their page; Remove → Undo | — | Before: "Promissory notes can only be submitted after the semester ends." After: a pending note with a sample PDF reaches the supervisor; undo deletes the note and its file (kept, with a reason, if a stipend stub or an approved renewal already used it) |  |  |
+| TC-TEST-013 | P1 | [H] Clock in now / Auto clock-out | Picked recipient, not clocked in | Clock in now → student clocks out with the office QR; Clock in now → Auto clock-out; Auto clock-out with no open shift | — | An open shift starts now without the QR; Auto clock-out closes it like the 12-hour safety net (pending verification, reason auto-closed) for the supervisor's review; with no shift: "This recipient isn't clocked in."; undo removes the shift or reopens one the student opened |  |  |
 
 ---
 
@@ -748,13 +773,13 @@ Resolved on 2026-10-01: the promissory makeup deadline (payment still follows th
 
 | Module | Test Case Range | Count | Priority focus | Automated by (PHPUnit / Vitest) |
 |---|---|---|---|---|
-| Registration | TC-REG-001..015 | 15 | Auth integrity, validation | AuthTest |
+| Registration | TC-REG-001..016 | 16 | Auth integrity, validation | AuthTest |
 | Email Verification | TC-EV-001..008 | 8 | Account activation | AuthTest |
 | Login / Sessions | TC-AUTH-001..018 | 18 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
 | Password Reset | TC-PWD-001..007 | 7 | Auth | — (manual) |
 | Staff Invitations | TC-INV-001..009 | 9 | Onboarding | EmployeeIdTest |
 | Applications | TC-APP-001..016 | 16 | Core workflow | DocumentTest, ResourceAccessTest, NotificationTest |
-| Renewal | TC-REN-001..010 | 10 | Core workflow | RenewalTest |
+| Renewal | TC-REN-001..011 | 11 | Core workflow | RenewalTest |
 | Admin Review & Interviews | TC-ADMR-001..036 | 36 | State machine, interview rules, renewal gate | AdminTest, InterviewLifecycleTest, RenewalTest |
 | Assignments & QR | TC-ASSIGN-001..014 | 14 | Placement integrity | AdminTest, QrCodeServiceTest, AuditTrailTest |
 | Profile & Account | TC-PROF-001..011 | 11 | Account mgmt | AuditTrailTest, SignatureTest, EmployeeIdTest |
@@ -766,7 +791,7 @@ Resolved on 2026-10-01: the promissory makeup deadline (payment still follows th
 | Promissory Notes | TC-PROM-001..015 | 15 | Money eligibility | PromissoryNoteTest, RenewalTest |
 | Verification & Students | TC-VERIF-001..023 | 23 | Integrity, hours, term verdict | VerificationTest, SupervisorReportTest, AuditTrailTest, TermStatusTest, TermHistoryTest |
 | Stipend Claim Stubs | TC-STIP-001..044 | 44 | Money integrity, Banking Office release, promissory deficiency | StipendClaimTest, StipendTotalsTest, SignatureTest, PromissoryNoteTest, StudentIdReferenceTest |
-| Reports & Duty Slips | TC-RPT-001..018 | 18 | Reporting, tamper-evidence | DutySlipVerifyTest, SupervisorReportTest, StipendTotalsTest, TermHistoryTest; DutySlip (Vitest) |
+| Reports & Duty Slips | TC-RPT-001..018 | 18 | Reporting | RemovedEndpointsTest, SupervisorReportTest, StipendTotalsTest, TermHistoryTest; DutySlip (Vitest) |
 | QR codes | TC-QR-001..006 | 6 | Security | QrCodeServiceTest |
 | Chatbot / FAQ | TC-BOT-001..006 | 6 | Support, cost | ChatbotTest |
 | Concerns | TC-CON-001..014 | 14 | Support | ConcernTest |
@@ -774,12 +799,13 @@ Resolved on 2026-10-01: the promissory makeup deadline (payment still follows th
 | Notifications | TC-NOTIF-001..006 | 6 | Comms | NotificationTest |
 | Analytics & Audit | TC-ANL-001..004 | 4 | Admin, traceability | StipendTotalsTest, AuditTrailTest, ListQueryCountTest |
 | Announcements | TC-ANN-001..009 | 9 | Comms | AnnouncementTest |
-| Semester periods | TC-SEM-001..011 | 11 | Term calendar, renewal window | SemesterPeriodTest |
+| Semester periods | TC-SEM-001..014 | 14 | Term calendar, renewal window | SemesterPeriodTest |
 | End-of-term verdict | TC-TERM-001..011 | 11 | Deficiency record, notifications | TermStatusTest, RenewalTest |
 | Supervisor evaluation | TC-EVAL-001..007 | 7 | Renewal prerequisite | TermEvaluationTest, RenewalTest |
+| System Testing | TC-TEST-001..013 | 13 | Test tooling, bypasses, undo | TestingToolsTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..015 | 15 | Quality attributes | CI workflow (TC-NFR-013) |
-| **TOTAL** | — | **426** | — | — |
+| **TOTAL** | — | **444** | — | — |
 
 ---
 

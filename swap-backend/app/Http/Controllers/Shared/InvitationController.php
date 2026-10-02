@@ -9,11 +9,11 @@ use App\Models\User;
 use App\Notifications\StaffInvitationNotification;
 use App\Resources\UserResource;
 use App\Support\EmployeeId;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password;
 
 class InvitationController extends Controller
 {
@@ -86,8 +86,8 @@ class InvitationController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:150'],
             'employee_id' => EmployeeId::rules(),
-            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
-        ], EmployeeId::messages());
+            'password' => ['required', 'confirmed', PasswordPolicy::rule()],
+        ], EmployeeId::messages() + PasswordPolicy::messages());
 
         $user = User::create([
             'name' => $validated['name'],

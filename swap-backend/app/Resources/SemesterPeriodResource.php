@@ -15,6 +15,8 @@ class SemesterPeriodResource extends JsonResource
         $today = SemesterPeriodService::today();
         $phase = $this->phase($today);
         $end = Carbon::parse($this->end_date->toDateString(), SemesterPeriod::TIMEZONE);
+        $usage = app(SemesterPeriodService::class)->usage($this->resource);
+        $inUse = SemesterPeriodService::inUse($usage);
 
         return [
             'id' => $this->id,
@@ -29,6 +31,13 @@ class SemesterPeriodResource extends JsonResource
             // Whole days left in the current term (0 on its last day).
             'days_left' => $phase === 'current' ? (int) $today->diffInDays($end) : null,
             'closed_at' => $this->closed_at?->toISOString(),
+            // What the admin may still change, and why not (SemesterPeriodService rules).
+            'usage' => $usage,
+            'locked' => [
+                'delete' => $inUse,
+                'rename' => $inUse,
+                'dates' => $this->closed_at !== null,
+            ],
         ];
     }
 }

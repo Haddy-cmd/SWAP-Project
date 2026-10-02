@@ -501,6 +501,12 @@ export default function AdminAssignmentsPage() {
                   <div className="flex items-center justify-between border-t border-ink-100 pt-3">
                     <span className="text-xs text-ink-500">
                       {a.required_hours} hrs required
+                      {!!a.carried_over_hours && (
+                        <span className="ml-1.5 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-700"
+                          title={`Unfinished makeup hours from ${a.carried_from_term ?? 'the previous term'}`}>
+                          +{a.carried_over_hours}h carried
+                        </span>
+                      )}
                       {a.pending_required_hours != null && (
                         <span className="ml-1.5 rounded-full bg-gold-50 px-2 py-0.5 text-[11px] font-semibold text-warning-700" title="Awaiting supervisor approval">
                           → {a.pending_required_hours}h pending

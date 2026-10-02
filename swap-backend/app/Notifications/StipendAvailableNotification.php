@@ -36,7 +36,7 @@ class StipendAvailableNotification extends Notification implements ShouldQueue
             ->line("Your SWAP allowance of ₱{$amount} for {$period} has been approved and is now available for release.")
             ->line("Control Number: {$control}")
             ->line('Present your digital claim slip at the University Banking Office to claim it.')
-            ->action('View / Download Claim Slip', Frontend::url('/recipient/stipend/' . ($this->data['stipend_id'] ?? '')))
+            ->action('View / Download Claim Slip', Frontend::url('/recipient/stipend'))
             ->line('Thank you for your dedicated service.');
     }
 

@@ -65,7 +65,7 @@ export const attendanceApi = {
     apiClient.get<{ data: TimeLog[] }>('/supervisor/students/clocked-in').then((r) => r.data.data),
 
   getStudentSummary: (studentId: number) =>
-    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; pace?: Pace }; term_report?: TermReport | null; term?: import('@/types/assignment.types').StudentTerm; assignment_id?: number; evaluation?: import('@/types/application.types').TermEvaluation | null }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; carried_over_hours?: number; pace?: Pace }; term_report?: TermReport | null; term?: import('@/types/assignment.types').StudentTerm; assignment_id?: number; evaluation?: import('@/types/application.types').TermEvaluation | null }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
 
   // The supervisor's end-of-term evaluation of a placement (1–5, 3+ passes).
   saveEvaluation: (assignmentId: number, data: { rating: number; remarks: string }) =>

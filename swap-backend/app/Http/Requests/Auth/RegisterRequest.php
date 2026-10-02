@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Support\PasswordPolicy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
 {
@@ -26,11 +26,16 @@ class RegisterRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        $first = self::nameCase(self::normalizeName($this->input('first_name')));
+        $middle = self::nameCase(self::normalizeName($this->input('middle_name')));
+        $last = self::nameCase(self::normalizeName($this->input('last_name')));
+
         $this->merge(array_filter([
-            'first_name' => self::normalizeName($this->input('first_name')),
-            'middle_name' => self::normalizeName($this->input('middle_name')),
-            'last_name' => self::normalizeName($this->input('last_name')),
-            'name' => self::normalizeName($this->input('name')),
+            'first_name' => $first,
+            'middle_name' => $middle,
+            'last_name' => $last,
+            // Built from the parts, whatever the request sent.
+            'name' => self::fullName($first, $middle, $last),
             'email' => is_string($this->input('email')) ? strtolower(trim($this->input('email'))) : null,
         ], fn ($value) => $value !== null));
     }
@@ -42,7 +47,8 @@ class RegisterRequest extends FormRequest
         $nameRules = array_merge($nameChars, ['max:100']);
 
         return [
-            'name' => array_merge(['required'], $nameChars, ['max:255']),
+            // Built in prepareForValidation(); first and last name are required.
+            'name' => array_merge(['nullable'], $nameChars, ['max:255']),
             'email' => [
                 'required',
                 'email',
@@ -51,7 +57,7 @@ class RegisterRequest extends FormRequest
                 // Soft-deleted accounts keep their row; only live ones own an address.
                 Rule::unique('users', 'email')->whereNull('deleted_at'),
             ],
-            'password' => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
+            'password' => ['required', 'confirmed', PasswordPolicy::rule()],
             'student_id_number' => [
                 'required',
                 'string',
@@ -76,22 +82,6 @@ class RegisterRequest extends FormRequest
             if ((int) $this->year_level === 5 && !self::isFiveYearProgram((string) $this->program)) {
                 $validator->errors()->add('year_level', 'A 5th year applies only to Engineering and BS Accountancy programs.');
             }
-
-            // "Full Name (as per records)" must be the parts joined by single spaces.
-            // Skip it when a part is already invalid — one error per problem.
-            if ($validator->errors()->hasAny(['first_name', 'middle_name', 'last_name', 'name'])) {
-                return;
-            }
-
-            $accepted = array_map('mb_strtolower', self::acceptedFullNames(
-                (string) $this->first_name,
-                $this->middle_name,
-                (string) $this->last_name
-            ));
-
-            if (!in_array(mb_strtolower((string) $this->name), $accepted, true)) {
-                $validator->errors()->add('name', 'Full name must match your first, middle, and last name.');
-            }
         });
     }
 
@@ -105,42 +95,38 @@ class RegisterRequest extends FormRequest
         return trim(preg_replace('/\s+/u', ' ', $value) ?? '');
     }
 
-    /** First + (Middle, if given) + Last, single-spaced. */
-    public static function expectedFullName(string $first, ?string $middle, string $last): string
+    /**
+     * Name case: the first letter of each word — and after a hyphen, apostrophe or
+     * period ("Mary-Ann", "O'Brien", "Ma. Clara") — uppercase, the rest lowercase,
+     * so "NORODIN" and "norodin" are both saved as "Norodin". Mirrors the register form.
+     */
+    public static function nameCase(?string $value): ?string
     {
-        return implode(' ', array_filter([$first, $middle, $last], fn ($p) => $p !== null && $p !== ''));
+        if ($value === null) {
+            return null;
+        }
+
+        return preg_replace_callback(
+            "/(^|[\s\-'.])(\p{Ll})/u",
+            fn (array $m) => $m[1] . mb_strtoupper($m[2]),
+            mb_strtolower($value)
+        ) ?? $value;
     }
 
     /**
-     * Every spelling of the full name we accept. University records write the
-     * middle name in full ("Juan Macalabo Asimpin"), as an initial ("Juan M.
-     * Asimpin", with or without the period), or leave it out altogether — all
-     * three are the same person, so all three match.
+     * Full Name (as per records): first name, middle initial(s), last name — "Juan A.
+     * Dela Cruz"; a two-word middle name gives "D. C.". Never taken from the request.
+     * Mirrors fullNameFrom on the register form.
      */
-    public static function acceptedFullNames(string $first, ?string $middle, string $last): array
+    public static function fullName(?string $first, ?string $middle, ?string $last): ?string
     {
-        $first = self::normalizeName($first) ?? '';
-        $middle = self::normalizeName($middle) ?? '';
-        $last = self::normalizeName($last) ?? '';
+        $initials = implode(' ', array_map(
+            fn (string $word) => mb_strtoupper(mb_substr($word, 0, 1)) . '.',
+            preg_split('/\s+/u', (string) $middle, -1, PREG_SPLIT_NO_EMPTY) ?: []
+        ));
+        $full = implode(' ', array_filter([$first, $initials, $last], fn ($p) => $p !== null && $p !== ''));
 
-        $join = fn (string $mid) => trim(implode(' ', array_filter([$first, $mid, $last], fn ($p) => $p !== '')));
-
-        $variants = [$join('')];
-
-        if ($middle !== '') {
-            $variants[] = $join($middle);
-
-            // A multi-word middle name initialises word by word: "Dela Cruz" -> "D. C."
-            $letters = array_map(
-                fn (string $word) => mb_substr($word, 0, 1),
-                preg_split('/\s+/u', $middle) ?: []
-            );
-
-            $variants[] = $join(implode(' ', $letters));
-            $variants[] = $join(implode(' ', array_map(fn ($l) => $l . '.', $letters)));
-        }
-
-        return array_values(array_unique($variants));
+        return $full === '' ? null : $full;
     }
 
     /** Programs that run a five-year curriculum at MSU Main. */
@@ -161,6 +147,6 @@ class RegisterRequest extends FormRequest
             'middle_name.regex' => $nameMessage,
             'last_name.regex' => $nameMessage,
             'name.regex' => $nameMessage,
-        ];
+        ] + PasswordPolicy::messages();
     }
 }

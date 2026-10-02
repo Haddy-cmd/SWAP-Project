@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -14,6 +14,8 @@ import {
 import { authApi } from '@/lib/api/auth.api'
 import { settingsApi } from '@/lib/api/settings.api'
 import type { ApiError } from '@/types/api.types'
+import { strongPassword } from '@/lib/utils/password'
+import { PasswordGuide } from '@/components/auth/PasswordGuide'
 
 /** Only MSU Main Campus student addresses may register. Mirrors RegisterRequest::EMAIL_DOMAIN. */
 const EMAIL_DOMAIN = '@s.msumain.edu.ph'
@@ -23,40 +25,26 @@ const NAME_RE = /^[\p{L}\p{M}\-'. ]+$/u
 
 const NAME_CHARS_MSG = 'Use letters, spaces, hyphens, apostrophes and periods only.'
 const EMAIL_DOMAIN_MSG = `Please use your MSU-Main student email (${EMAIL_DOMAIN}).`
-const FULL_NAME_MSG = 'Full name must match your first, middle, and last name.'
 
 /** Trim, then collapse every run of whitespace to one space. Mirrors the backend. */
 const normalizeName = (value?: string) => (value ?? '').trim().replace(/\s+/gu, ' ')
 
 /**
- * Every spelling of the full name we accept. University records write the middle
- * name in full ("Juan Macalabo Asimpin"), as an initial ("Juan M. Asimpin", with
- * or without the period), or leave it out altogether. Mirrors the backend.
+ * Name case: the first letter of each word — and after a hyphen, apostrophe or period
+ * ("Mary-Ann", "O'Brien", "Ma. Clara") — uppercase, the rest lowercase. Only letter
+ * case changes, never spacing. Mirrors RegisterRequest::nameCase.
  */
-const acceptedFullNames = (first?: string, middle?: string, last?: string) => {
-  const f = normalizeName(first)
-  const m = normalizeName(middle)
-  const l = normalizeName(last)
-  const join = (mid: string) => [f, mid, l].filter(Boolean).join(' ')
+const toNameCase = (value: string) =>
+  value.toLowerCase().replace(/(^|[\s\-'.])(\p{Ll})/gu, (_, sep: string, letter: string) => sep + letter.toUpperCase())
 
-  const variants = [join('')]
-
-  if (m) {
-    variants.push(join(m))
-    // A multi-word middle name initialises word by word: "Dela Cruz" -> "D. C."
-    const letters = m.split(' ').map((word) => word[0])
-    variants.push(join(letters.join(' ')))
-    variants.push(join(letters.map((letter) => `${letter}.`).join(' ')))
-  }
-
-  return variants
+/**
+ * Full Name (as per records): first name, middle initial(s), last name — "Juan A. Dela Cruz";
+ * a two-word middle name gives "D. C.". Never typed by the applicant. Mirrors RegisterRequest::fullName.
+ */
+const fullNameFrom = (first?: string, middle?: string, last?: string) => {
+  const initials = normalizeName(middle).split(' ').filter(Boolean).map((word) => `${word[0]}.`).join(' ')
+  return toNameCase([normalizeName(first), initials, normalizeName(last)].filter(Boolean).join(' '))
 }
-
-/** True when the typed full name is one of the accepted spellings. */
-const fullNameMatches = (name?: string, first?: string, middle?: string, last?: string) =>
-  acceptedFullNames(first, middle, last).some(
-    (variant) => variant.toLowerCase() === normalizeName(name).toLowerCase()
-  )
 
 /** Validates the normalized value, so stray spaces are never the reason a name is rejected. */
 const nameField = (max: number, requiredMsg: string) =>
@@ -68,12 +56,13 @@ const nameField = (max: number, requiredMsg: string) =>
 
 const schema = z
   .object({
-    name: nameField(255, 'Full name is required'),
+    // Built from the name fields (read-only on the form).
+    name: z.string(),
     email: z
       .string()
       .email('Enter a valid email')
       .refine((e) => e.trim().toLowerCase().endsWith(EMAIL_DOMAIN), { message: EMAIL_DOMAIN_MSG }),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: strongPassword,
     password_confirmation: z.string(),
     student_id_number: z.string().regex(/^\d{9}$/, 'Student ID must be exactly 9 digits'),
     first_name: nameField(100, 'Required'),
@@ -96,11 +85,6 @@ const schema = z
   .refine((d) => d.year_level <= maxYearFor(d.program), {
     message: 'A 5th year applies only to Engineering and BS Accountancy programs.',
     path: ['year_level'],
-  })
-  // "Full Name (as per records)" must be one of the accepted spellings of the parts.
-  .refine((d) => fullNameMatches(d.name, d.first_name, d.middle_name, d.last_name), {
-    message: FULL_NAME_MSG,
-    path: ['name'],
   })
 
 type FormData = z.infer<typeof schema>
@@ -190,10 +174,28 @@ export default function RegisterPage() {
     trigger,
     watch,
     setValue,
-    setError,
-    clearErrors,
+    getFieldState,
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema), mode: 'onTouched' })
+
+  // Names take name case as they're typed; only letter case changes, so the caret stays put.
+  const nameInput = (field: 'first_name' | 'middle_name' | 'last_name') =>
+    register(field, {
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+        const el = e.target
+        const formatted = toNameCase(el.value)
+        if (formatted === el.value) return
+        const { selectionStart, selectionEnd } = el
+        setValue(field, formatted, { shouldDirty: true })
+        el.setSelectionRange(selectionStart, selectionEnd)
+      },
+    })
+
+  // Full Name is always First + middle initial(s) + Last ("Andres" -> "A.", "Dela Cruz" -> "D. C.").
+  const [firstName, middleName, lastName] = watch(['first_name', 'middle_name', 'last_name'])
+  useEffect(() => {
+    setValue('name', fullNameFrom(firstName, middleName, lastName), { shouldValidate: !!getFieldState('name').error })
+  }, [firstName, middleName, lastName, setValue, getFieldState])
 
   const selectedCollege = watch('college')
   const programs = COLLEGES.find((c) => c.value === selectedCollege)?.programs ?? []
@@ -216,10 +218,10 @@ export default function RegisterPage() {
     mutationFn: (data: FormData) =>
       authApi.register({
         ...data,
-        first_name: normalizeName(data.first_name),
-        middle_name: normalizeName(data.middle_name) || undefined,
-        last_name: normalizeName(data.last_name),
-        name: normalizeName(data.name),
+        first_name: toNameCase(normalizeName(data.first_name)),
+        middle_name: toNameCase(normalizeName(data.middle_name)) || undefined,
+        last_name: toNameCase(normalizeName(data.last_name)),
+        name: fullNameFrom(data.first_name, data.middle_name, data.last_name),
         email: data.email.trim().toLowerCase(),
       }),
     onSuccess: () => {
@@ -241,17 +243,6 @@ export default function RegisterPage() {
   const next = async () => {
     const fields = step === 1 ? STEP1_FIELDS : STEP2_FIELDS
     const ok = await trigger([...fields])
-
-    if (step === 1) {
-      const current = watch()
-
-      if (!fullNameMatches(current.name, current.first_name, current.middle_name, current.last_name)) {
-        setError('name', { type: 'manual', message: FULL_NAME_MSG })
-        return
-      }
-
-      if (errors.name?.type === 'manual') clearErrors('name')
-    }
 
     if (ok) {
       setServerError(null)
@@ -373,24 +364,26 @@ export default function RegisterPage() {
                   <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-3">
                     <div>
                       <label className={LABEL}>First Name</label>
-                      <div className={FIELD}><User className={ICON} /><input {...register('first_name')} maxLength={100} placeholder="Juan" className={INPUT} /></div>
+                      <div className={FIELD}><User className={ICON} /><input {...nameInput('first_name')} maxLength={100} placeholder="Juan" className={INPUT} /></div>
                       {(errors.first_name || fieldErrors.first_name) && <p className="mt-1 text-xs text-danger-700">{errors.first_name?.message ?? fieldErrors.first_name}</p>}
                     </div>
                     <div>
                       <label className={LABEL}>Middle Name <span className="font-normal text-ink-400">(optional)</span></label>
-                      <div className={FIELD}><User className={ICON} /><input {...register('middle_name')} maxLength={100} placeholder="Andres" className={INPUT} /></div>
+                      <div className={FIELD}><User className={ICON} /><input {...nameInput('middle_name')} maxLength={100} placeholder="Andres" className={INPUT} /></div>
                       {(errors.middle_name || fieldErrors.middle_name) && <p className="mt-1 text-xs text-danger-700">{errors.middle_name?.message ?? fieldErrors.middle_name}</p>}
                     </div>
                     <div>
                       <label className={LABEL}>Last Name</label>
-                      <div className={FIELD}><User className={ICON} /><input {...register('last_name')} maxLength={100} placeholder="dela Cruz" className={INPUT} /></div>
+                      <div className={FIELD}><User className={ICON} /><input {...nameInput('last_name')} maxLength={100} placeholder="Dela Cruz" className={INPUT} /></div>
                       {(errors.last_name || fieldErrors.last_name) && <p className="mt-1 text-xs text-danger-700">{errors.last_name?.message ?? fieldErrors.last_name}</p>}
                     </div>
                   </div>
                   <div className="sm:col-span-2">
                     <label className={LABEL}>Full Name (as per records)</label>
-                    <div className={FIELD}><Contact className={ICON} /><input {...register('name')} maxLength={255} placeholder="Juan Andres dela Cruz" className={INPUT} /></div>
-                    {(errors.name || fieldErrors.name) && <p className="mt-1 text-xs text-danger-700">{errors.name?.message ?? fieldErrors.name}</p>}
+                    <div className={`${FIELD} !bg-ink-50`}><Contact className={ICON} /><input {...register('name')} readOnly tabIndex={-1} aria-readonly="true" placeholder="Juan A. Dela Cruz" className={`${INPUT} cursor-default`} /></div>
+                    {fieldErrors.name
+                      ? <p className="mt-1 text-xs text-danger-700">{fieldErrors.name}</p>
+                      : <p className="mt-1 text-[11px] text-ink-500">Filled in automatically from your names, with your middle initial.</p>}
                   </div>
                   <div>
                     <label className={LABEL}>Student ID Number</label>
@@ -451,13 +444,15 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className={LABEL}>Set Password</label>
-                    <div className={FIELD}>
-                      <Lock className={ICON} />
-                      <input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password" className={INPUT} />
-                      <button type="button" onClick={() => setShowPw((s) => !s)} className="text-ink-400 hover:text-brand-700 transition-colors" aria-label={showPw ? 'Hide password' : 'Show password'}>
-                        {showPw ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
-                      </button>
-                    </div>
+                    <PasswordGuide value={v.password}>
+                      <div className={FIELD}>
+                        <Lock className={ICON} />
+                        <input {...register('password')} type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="new-password" className={INPUT} />
+                        <button type="button" onClick={() => setShowPw((s) => !s)} className="text-ink-400 hover:text-brand-700 transition-colors" aria-label={showPw ? 'Hide password' : 'Show password'}>
+                          {showPw ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                        </button>
+                      </div>
+                    </PasswordGuide>
                     {(errors.password || fieldErrors.password) && <p className="mt-1 text-xs text-danger-700">{errors.password?.message ?? fieldErrors.password}</p>}
                   </div>
                   <div>

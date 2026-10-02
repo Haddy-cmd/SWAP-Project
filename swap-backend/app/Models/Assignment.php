@@ -34,6 +34,8 @@ class Assignment extends Model
         'term_status_at',
         'term_status_by',
         'term_status_reason',
+        'carried_over_hours',
+        'carried_from_assignment_id',
     ];
 
     // Persisted end-of-term verdict (TermStatusService); null while in progress.
@@ -70,6 +72,18 @@ class Assignment extends Model
     public function timeLogs(): HasMany
     {
         return $this->hasMany(TimeLog::class);
+    }
+
+    /** The term whose unfinished promissory makeup hours were added to this one. */
+    public function carriedFrom(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'carried_from_assignment_id');
+    }
+
+    /** The term's own requirement, without hours carried in from the previous term. */
+    public function baseRequiredHours(): int
+    {
+        return max(0, (int) $this->required_hours - (int) $this->carried_over_hours);
     }
 
     /** The supervisor's end-of-term evaluation (TermEvaluationService). */

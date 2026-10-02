@@ -13,6 +13,16 @@ const nextConfig = {
       },
     ],
   },
+  // Links in emails already sent point at these: they have no page of their own.
+  async redirects() {
+    return [
+      { source: '/applicant', destination: '/applicant/dashboard', permanent: false },
+      { source: '/recipient', destination: '/recipient/dashboard', permanent: false },
+      { source: '/supervisor', destination: '/supervisor/dashboard', permanent: false },
+      { source: '/admin', destination: '/admin/dashboard', permanent: false },
+      { source: '/recipient/stipend/:id', destination: '/recipient/stipend', permanent: false },
+    ]
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ['localhost:3000'],

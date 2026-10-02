@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarRange, Plus, Pencil, Trash2, RefreshCw, X } from 'lucide-react'
+import { CalendarRange, Plus, Pencil, Trash2, RefreshCw, X, Lock } from 'lucide-react'
 import { semestersApi } from '@/lib/api/semesters.api'
 import { PHASE_STYLE, daysLeftText, periodRange } from '@/lib/utils/semester'
 import { SEMESTERS, type SemesterPeriod, type SemesterPeriodInput } from '@/types/semester.types'
@@ -74,6 +74,10 @@ export default function AdminSemestersPage() {
   }
 
   const fieldError = (key: keyof SemesterPeriodInput) => errors[key]?.[0]
+  // The semester being edited: what it may still change.
+  const editingPeriod = typeof editing === 'number' ? periods.find((p) => p.id === editing) : undefined
+  const renameLocked = !!editingPeriod?.locked?.rename
+  const datesLocked = !!editingPeriod?.locked?.dates
   const ready = /^\d{4}-\d{4}$/.test(form.academic_year) && !!form.start_date && !!form.end_date
   const openRenewal = periods.find((p) => p.renewal_open)
 
@@ -88,27 +92,40 @@ export default function AdminSemestersPage() {
         <label className="block">
           <span className="text-xs font-semibold text-ink-700">School year</span>
           <input value={form.academic_year} onChange={(e) => set('academic_year', e.target.value.trim())} placeholder="e.g. 2026-2027"
-            maxLength={9} className={`${INPUT} mt-1`} />
+            maxLength={9} disabled={renameLocked} className={`${INPUT} mt-1 disabled:opacity-60`} />
           {fieldError('academic_year') && <span className="mt-1 block text-xs text-danger-700">{fieldError('academic_year')}</span>}
         </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-700">Semester</span>
-          <select value={form.semester} onChange={(e) => set('semester', e.target.value)} className={`${INPUT} mt-1`}>
+          <select value={form.semester} onChange={(e) => set('semester', e.target.value)} disabled={renameLocked} className={`${INPUT} mt-1 disabled:opacity-60`}>
             {SEMESTERS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
           {fieldError('semester') && <span className="mt-1 block text-xs text-danger-700">{fieldError('semester')}</span>}
         </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-700">First day</span>
-          <input type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} className={`${INPUT} mt-1`} />
+          <input type="date" value={form.start_date} onChange={(e) => set('start_date', e.target.value)} disabled={datesLocked} className={`${INPUT} mt-1 disabled:opacity-60`} />
           {fieldError('start_date') && <span className="mt-1 block text-xs text-danger-700">{fieldError('start_date')}</span>}
         </label>
         <label className="block">
           <span className="text-xs font-semibold text-ink-700">Last day</span>
-          <input type="date" value={form.end_date} min={form.start_date || undefined} onChange={(e) => set('end_date', e.target.value)} className={`${INPUT} mt-1`} />
+          <input type="date" value={form.end_date} min={form.start_date || undefined} onChange={(e) => set('end_date', e.target.value)} disabled={datesLocked} className={`${INPUT} mt-1 disabled:opacity-60`} />
           {fieldError('end_date') && <span className="mt-1 block text-xs text-danger-700">{fieldError('end_date')}</span>}
         </label>
       </div>
+
+      {(renameLocked || datesLocked) && (
+        <div className="mt-3 space-y-1 rounded-xl border border-ink-200 bg-ink-50 px-3 py-2 text-xs text-ink-600">
+          {renameLocked && (
+            <p className="flex items-start gap-1.5"><Lock className="mt-0.5 h-3.5 w-3.5 flex-none" />
+              Students are already placed in this semester, so its school year and semester can&apos;t change. Add a new semester instead.</p>
+          )}
+          {datesLocked && (
+            <p className="flex items-start gap-1.5"><Lock className="mt-0.5 h-3.5 w-3.5 flex-none" />
+              This semester has been closed and its results recorded, so its dates can&apos;t change.</p>
+          )}
+        </div>
+      )}
 
       <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 bg-ink-50 p-3">
         <input type="checkbox" checked={form.renewal_open} onChange={(e) => set('renewal_open', e.target.checked)}
@@ -194,6 +211,14 @@ export default function AdminSemestersPage() {
                         {periodRange(p)}
                         {p.phase === 'current' && <span className="font-medium text-success-700"> · {daysLeftText(p.days_left)}</span>}
                       </p>
+                      {p.usage && (
+                        <p className="mt-0.5 text-xs text-ink-400">
+                          {p.usage.assignments || p.usage.applications
+                            ? `Used by ${p.usage.assignments} placement${p.usage.assignments === 1 ? '' : 's'} · ${p.usage.applications} application${p.usage.applications === 1 ? '' : 's'}`
+                            : 'Not used yet'}
+                          {p.closed_at ? ' · Closed, results recorded' : ''}
+                        </p>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {p.phase !== 'ended' && (
@@ -207,7 +232,14 @@ export default function AdminSemestersPage() {
                         className="rounded-lg border border-ink-200 p-1.5 text-ink-600 hover:bg-ink-50">
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      {deletingId !== p.id && (
+                      {p.locked?.delete ? (
+                        // Placements and applications link to this term: it stays (edit dates instead).
+                        <span title="Students or applications use this semester, so it can't be deleted. Edit its dates instead."
+                          aria-label={`${p.label} can't be deleted`}
+                          className="rounded-lg border border-ink-200 p-1.5 text-ink-350">
+                          <Lock className="h-3.5 w-3.5" />
+                        </span>
+                      ) : deletingId !== p.id && (
                         <button onClick={() => { setNote(null); setDeletingId(p.id) }} title="Delete" aria-label={`Delete ${p.label}`}
                           className="rounded-lg border border-ink-200 p-1.5 text-danger-700 hover:bg-danger-50">
                           <Trash2 className="h-3.5 w-3.5" />

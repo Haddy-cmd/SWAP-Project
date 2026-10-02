@@ -40,7 +40,7 @@ class InterviewScheduledNotification extends Notification implements ShouldQueue
         }
 
         return $mail
-            ->action('View Details', \App\Support\Frontend::url('/applicant'))
+            ->action('View Details', \App\Support\Frontend::url('/applicant/dashboard'))
             ->line('Please be punctual and bring the required documents.');
     }
 

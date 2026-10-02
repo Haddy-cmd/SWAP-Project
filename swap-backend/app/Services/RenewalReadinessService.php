@@ -84,6 +84,18 @@ class RenewalReadinessService
         }
     }
 
+    /**
+     * Unfinished promissory makeup hours that move into the next term at rollover:
+     * the remaining shortfall of a term covered by an approved note, in whole hours.
+     */
+    public function carryHours(Assignment $previous): int
+    {
+        $covered = PromissoryNote::where('assignment_id', $previous->id)
+            ->where('status', PromissoryNote::STATUS_APPROVED)->exists();
+
+        return $covered ? (int) ceil($this->termStatus->shortfall($previous)) : 0;
+    }
+
     /** A renewal is submitted with the recipient's updated COR (ApplicationService::submitRenewal). */
     public static function hasCor(Application $application): bool
     {
@@ -151,6 +163,8 @@ class RenewalReadinessService
         return [
             'term' => $term,
             'cor_attached' => $corAttached,
+            // Added to the next term's requirement when this renewal is approved.
+            'carry_hours' => $this->carryHours($previous),
             'term_status' => $previous->term_status,
             'deficient_hours' => $previous->deficient_hours !== null
                 ? (float) $previous->deficient_hours

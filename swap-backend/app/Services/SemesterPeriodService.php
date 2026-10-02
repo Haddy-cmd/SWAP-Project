@@ -20,6 +20,8 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 class SemesterPeriodService
 {
     public const MSG_IN_USE = 'Assignments or applications already use this semester, so it cannot be deleted. Edit its dates instead.';
+    public const MSG_RENAME_IN_USE = "Students are already placed in this semester, so its school year and semester can't change. Add a new semester instead.";
+    public const MSG_CLOSED_DATES = "This semester has been closed and its results recorded, so its dates can't change.";
 
     /**
      * @var ?array<string, SemesterPeriod> every period keyed "year|semester", loaded
@@ -87,8 +89,41 @@ class SemesterPeriodService
         });
     }
 
+    /**
+     * Who uses this term. Placements and applications point to a semester by its school
+     * year + semester text, so a used semester can't be renamed or deleted.
+     *
+     * @return array{assignments: int, applications: int}
+     */
+    public function usage(SemesterPeriod $period): array
+    {
+        return [
+            'assignments' => Assignment::where('academic_year', $period->academic_year)->where('semester', $period->semester)->count(),
+            'applications' => Application::where('academic_year', $period->academic_year)->where('semester', $period->semester)->count(),
+        ];
+    }
+
+    public static function inUse(array $usage): bool
+    {
+        return $usage['assignments'] + $usage['applications'] > 0;
+    }
+
     public function update(SemesterPeriod $period, array $data, User $admin): SemesterPeriod
     {
+        $renamed = ($data['academic_year'] ?? $period->academic_year) !== $period->academic_year
+            || ($data['semester'] ?? $period->semester) !== $period->semester;
+        if ($renamed && self::inUse($this->usage($period))) {
+            throw new UnprocessableEntityHttpException(self::MSG_RENAME_IN_USE);
+        }
+
+        // Once closed, the recorded Qualified/Deficient results and makeup deadlines
+        // were computed from these dates.
+        $redated = (isset($data['start_date']) && Carbon::parse($data['start_date'])->toDateString() !== $period->start_date->toDateString())
+            || (isset($data['end_date']) && Carbon::parse($data['end_date'])->toDateString() !== $period->end_date->toDateString());
+        if ($redated && $period->closed_at !== null) {
+            throw new UnprocessableEntityHttpException(self::MSG_CLOSED_DATES);
+        }
+
         return DB::transaction(function () use ($period, $data, $admin) {
             $old = $period->only(['academic_year', 'semester', 'start_date', 'end_date', 'renewal_open']);
             $period->update($data);
@@ -101,9 +136,7 @@ class SemesterPeriodService
 
     public function delete(SemesterPeriod $period, User $admin): void
     {
-        $used = Assignment::where('academic_year', $period->academic_year)->where('semester', $period->semester)->exists()
-            || Application::where('academic_year', $period->academic_year)->where('semester', $period->semester)->exists();
-        if ($used) {
+        if (self::inUse($this->usage($period))) {
             throw new UnprocessableEntityHttpException(self::MSG_IN_USE);
         }
 
