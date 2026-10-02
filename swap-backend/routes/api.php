@@ -7,6 +7,7 @@ use App\Http\Controllers\Shared\ChatbotController;
 use App\Http\Controllers\Shared\ConcernController;
 use App\Http\Controllers\Shared\AttendancePhotoController;
 use App\Http\Controllers\Shared\AvatarController;
+use App\Http\Controllers\Shared\OfficeLogoController;
 use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
@@ -75,6 +76,8 @@ Route::post('/stipend/verify/{claimToken}/release', [StipendVerifyController::cl
 Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
 // Profile photo serving — same in-controller auth so it works in an <img src>.
 Route::get('/users/{id}/avatar', [AvatarController::class, 'show']);
+// Office logos — public, streamed from storage (works with a private R2 bucket).
+Route::get('/offices/{id}/logo', [OfficeLogoController::class, 'show'])->middleware('throttle:120,1');
 // Signature specimen serving — same pattern (self, admin, supervising supervisor).
 Route::get('/users/{id}/signature', [SignatureController::class, 'show']);
 Route::get('/attendance/{logId}/photo', [AttendancePhotoController::class, 'show']);

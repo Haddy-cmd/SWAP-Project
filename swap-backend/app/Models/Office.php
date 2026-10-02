@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 class Office extends Model
 {
@@ -50,14 +49,18 @@ class Office extends Model
         ];
     }
 
-    /** Public URL of the uploaded logo, or null when the office has none. */
+    /**
+     * URL of the uploaded logo, or null when the office has none. Streamed through the
+     * API (OfficeLogoController) so it works with a private storage bucket; ?v= changes
+     * whenever a new logo is uploaded, so browsers never show a stale one.
+     */
     public function getLogoUrlAttribute(): ?string
     {
         if (!$this->logo_path) {
             return null;
         }
 
-        return Storage::disk(config('filesystems.documents_disk', 'public'))->url($this->logo_path);
+        return rtrim(config('app.url'), '/') . "/api/offices/{$this->id}/logo?v=" . substr(md5($this->logo_path), 0, 8);
     }
 
     public function assignments(): HasMany

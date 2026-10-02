@@ -150,6 +150,9 @@ function LogoPicker({ name, currentUrl, file, remove, onPick, onRemove, onUndoRe
   }, [file])
 
   const shown = previewUrl ?? (remove ? null : currentUrl)
+  // A stored logo whose file is gone shows the initials, like the office cards do.
+  const [broken, setBroken] = useState(false)
+  useEffect(() => { setBroken(false) }, [shown])
 
   const choose = (picked: File | undefined) => {
     if (!picked) return
@@ -171,9 +174,9 @@ function LogoPicker({ name, currentUrl, file, remove, onPick, onRemove, onUndoRe
         <span
           className="flex h-16 w-16 flex-none items-center justify-center overflow-hidden rounded-full border border-ink-200 bg-ink-50 text-brand-700"
         >
-          {shown ? (
+          {shown && !broken ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={shown} alt="Office logo preview" className="h-full w-full object-contain p-1" />
+            <img src={shown} alt="Office logo preview" onError={() => setBroken(true)} className="h-full w-full object-contain p-1" />
           ) : (
             <span className="text-lg font-bold leading-none">{officeInitials(name) || '\u2014'}</span>
           )}
