@@ -5,13 +5,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FlaskConical, UserRound, Clock, CalendarX, Gavel, AlarmClock, FileText, Star, RefreshCw, RotateCcw, Search, UserPlus,
   UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser, Banknote, BadgeCheck, ThumbsUp, ThumbsDown,
-  Ticket, Wallet,
+  Ticket, Wallet, History,
 } from 'lucide-react'
 import { testingApi } from '@/lib/api/testing.api'
 import { TermBadge } from '@/components/shared/TermBadge'
 import { formatDay } from '@/lib/utils/semester'
 import type { ApiRequestError } from '@/lib/api/axios'
-import { TESTING_OFF_MESSAGE, type TestingAccount, type TestingAction, type TestingStatus } from '@/types/testing.types'
+import { TESTING_OFF_MESSAGE, type EarlierTest, type TestingAccount, type TestingAction, type TestingStatus } from '@/types/testing.types'
 
 const errorText = (e: ApiRequestError, fallback: string) => Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? fallback
 
@@ -21,20 +21,22 @@ type WithStatus = { data: TestingStatus; message: string }
 /**
  * Admin → System Testing: pick existing recipients/applicants and use shortcuts that move
  * their data into the state a test needs (end a term now, add hours, overdue makeup…), so
- * time-gated flows can be tried without waiting. What the shortcuts change is recorded
- * and can be undone on removal. Switched on and off here; picking, the relaxed rules and
- * the shortcuts only work while on.
+ * time-gated flows can be tried without waiting. Picking copies the account's record;
+ * removing it, or switching testing off, restores that copy — whatever changed it. Picking,
+ * the relaxed rules and the shortcuts only work while on.
  */
 export default function SystemTestingPage() {
   const qc = useQueryClient()
   const [note, setNote] = useState<Note>(null)
   const [confirmAll, setConfirmAll] = useState(false)
+  const [confirmOff, setConfirmOff] = useState(false)
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['testing-status'], queryFn: testingApi.status, retry: false })
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['testing-status'] })
     qc.invalidateQueries({ queryKey: ['testing-candidates'] })
+    qc.invalidateQueries({ queryKey: ['testing-earlier'] })
     qc.invalidateQueries({ queryKey: ['admin-applications'] })
     qc.invalidateQueries({ queryKey: ['admin-assignments'] })
   }
@@ -47,13 +49,13 @@ export default function SystemTestingPage() {
 
   const toggle = useMutation({
     mutationFn: (on: boolean) => testingApi.setEnabled(on),
-    onSuccess: (res) => { qc.setQueryData<TestingStatus>(['testing-status'], res.data); setNote({ text: res.message }) },
-    onError: (e: ApiRequestError) => setNote({ text: errorText(e, 'Could not change the switch.'), error: true }),
+    onSuccess: (res) => { setConfirmOff(false); applied(res) },
+    onError: (e: ApiRequestError) => { setConfirmOff(false); setNote({ text: errorText(e, 'Could not change the switch.'), error: true }) },
   })
   const releaseAll = useMutation({
     mutationFn: () => testingApi.releaseAll(),
     onSuccess: (res) => { setConfirmAll(false); applied(res) },
-    onError: (e: ApiRequestError) => { setConfirmAll(false); setNote({ text: errorText(e, 'Could not remove the accounts.'), error: true }) },
+    onError: (e: ApiRequestError) => { setConfirmAll(false); setNote({ text: errorText(e, 'Could not restore the accounts.'), error: true }) },
   })
 
   if (isLoading) return <div className="h-64 animate-pulse rounded-2xl bg-ink-200" />
@@ -93,8 +95,18 @@ export default function SystemTestingPage() {
           <p className="mt-0.5 text-sm text-ink-500">
             {on
               ? 'The shortcuts and the relaxed clock-in and interview rules work for picked accounts. Switch it off when you are done.'
-              : 'Every account follows the normal rules. Nothing is undone while it is off; you can still remove picked accounts.'}
+              : 'Every account follows the normal rules. Switching off restored every picked account to how it was when picked.'}
           </p>
+          {confirmOff && (
+            <span className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Switching off restores {data.accounts.length} {data.accounts.length === 1 ? 'account' : 'accounts'} to how
+              {data.accounts.length === 1 ? ' it was' : ' they were'} when picked. Everything done to them during the test is removed.
+              <button onClick={() => toggle.mutate(false)} disabled={toggle.isPending} className="rounded-lg bg-brand-700 px-2.5 py-1 font-semibold text-white">
+                {toggle.isPending ? 'Restoring…' : 'Yes, switch off'}
+              </button>
+              <button onClick={() => setConfirmOff(false)} className="font-semibold">Cancel</button>
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -102,7 +114,12 @@ export default function SystemTestingPage() {
           aria-checked={on}
           aria-label="System Testing"
           disabled={toggle.isPending}
-          onClick={() => { setNote(null); toggle.mutate(!on) }}
+          onClick={() => {
+            setNote(null)
+            // Switching off restores the picked accounts: ask first.
+            if (on && data.accounts.length > 0) setConfirmOff(true)
+            else toggle.mutate(!on)
+          }}
           className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${on ? 'bg-success-600' : 'bg-ink-300'}`}
         >
           <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${on ? 'translate-x-6' : 'translate-x-1'}`} />
@@ -110,6 +127,8 @@ export default function SystemTestingPage() {
       </div>
 
       <ExistingPicker enabled={on} onAdded={applied} />
+
+      <EarlierTests onCleaned={applied} />
 
       {note && <p className={`text-sm font-medium ${note.error ? 'text-danger-700' : 'text-success-700'}`}>{note.text}</p>}
 
@@ -124,13 +143,13 @@ export default function SystemTestingPage() {
             {!confirmAll ? (
               <button onClick={() => { setNote(null); setConfirmAll(true) }}
                 className="flex items-center gap-1.5 rounded-xl border border-danger-200 px-3.5 py-2 text-xs font-semibold text-danger-700 hover:bg-danger-50">
-                <Undo2 className="h-3.5 w-3.5" /> Remove all and undo
+                <Undo2 className="h-3.5 w-3.5" /> Restore all
               </button>
             ) : (
               <span className="flex flex-wrap items-center gap-2 rounded-xl border border-danger-200 bg-danger-50 px-3 py-2 text-xs text-danger-700">
-                Undo every account&apos;s recorded changes and remove them all from testing?
+                Restore every account to how it was when picked and remove them all from testing?
                 <button onClick={() => releaseAll.mutate()} disabled={releaseAll.isPending} className="rounded-lg bg-danger-700 px-2.5 py-1 font-semibold text-white">
-                  {releaseAll.isPending ? 'Removing…' : 'Yes, undo all'}
+                  {releaseAll.isPending ? 'Restoring…' : 'Yes, restore all'}
                 </button>
                 <button onClick={() => setConfirmAll(false)} className="font-semibold">Cancel</button>
               </span>
@@ -197,7 +216,7 @@ function ExistingPicker({ enabled, onAdded }: { enabled: boolean; onAdded: (res:
       <p className="flex items-center gap-1.5 text-sm font-semibold text-ink-900"><UserPlus className="h-4 w-4 text-brand-700" /> Pick an account to test</p>
       <p className="mt-1 max-w-3xl text-xs text-ink-500">
         A recipient or applicant. They stay a normal account: they can always sign in, get email at their own address and are counted
-        in analytics. What the shortcuts change is recorded, and you can undo it when you remove them from testing.
+        in analytics. Their record is copied when you pick them, and put back exactly when you remove them or switch testing off.
       </p>
       <div className="relative mt-3 max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
@@ -221,7 +240,8 @@ function ExistingPicker({ enabled, onAdded }: { enabled: boolean; onAdded: (res:
               </span>
               {confirmId === c.id ? (
                 <span className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                  Shortcuts change {c.name}&apos;s real record until you undo them. Add?
+                  Everything that happens to {c.name}&apos;s record while in testing — including what they do themselves — is reset when
+                  you remove them or switch testing off. Add?
                   <button onClick={() => add.mutate(c.id)} disabled={add.isPending} className="rounded-lg bg-brand-700 px-2.5 py-1 font-semibold text-white">
                     {add.isPending ? 'Adding…' : 'Yes, add'}
                   </button>
@@ -239,14 +259,14 @@ function ExistingPicker({ enabled, onAdded }: { enabled: boolean; onAdded: (res:
   )
 }
 
-/** Take a picked account out of testing: undo what the shortcuts changed, or keep it. Works while off too. */
+/** Take a picked account out of testing, restoring it to how it was when picked. Works while off too. */
 function RemoveFromTesting({ account, onRemoved }: { account: TestingAccount; onRemoved: (res: WithStatus) => void }) {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const n = account.changes
+  const picked = new Date(account.picked_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 
   const remove = useMutation({
-    mutationFn: (undo: boolean) => testingApi.removeExisting(account.id, undo),
+    mutationFn: () => testingApi.removeExisting(account.id),
     onSuccess: onRemoved,
     onError: (e: ApiRequestError) => setError(errorText(e, 'Could not remove this account from testing.')),
   })
@@ -254,35 +274,87 @@ function RemoveFromTesting({ account, onRemoved }: { account: TestingAccount; on
   if (!open) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-ink-500">{n === 0 ? 'No changes recorded yet.' : `${n} ${n === 1 ? 'change' : 'changes'} recorded — they can be undone when you remove this account.`}</span>
-        <button onClick={() => { setError(null); setOpen(true) }} className={BTN}><UserMinus className="h-3.5 w-3.5" /> Remove from testing</button>
+        <span className="text-xs text-ink-500">
+          {account.restorable
+            ? `Picked ${picked}. Removing it or switching off restores this account to that moment.`
+            : 'Picked before restore points existed: removing it cleans up what was created while it was in testing.'}
+        </span>
+        <button onClick={() => { setError(null); setOpen(true) }} className={BTN}><UserMinus className="h-3.5 w-3.5" /> Restore and remove</button>
       </div>
     )
   }
 
   return (
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-      {n === 0 ? (
-        <p>Nothing was changed by the shortcuts. Remove {account.name} from testing?</p>
-      ) : (
-        <p>
-          Undo puts back everything these buttons did ({n} {n === 1 ? 'change' : 'changes'}): added hours, verifications, notes and their reviews, report,
-          evaluation, renewal, stubs and payouts are removed; reset hours and stipends, dates, term result and makeup deadline return to what they were.
-          Clock-ins and anything people did on the normal pages stay, as does a renewal that was already decided.
-        </p>
-      )}
+      <p>
+        Put {account.name}&apos;s record back to how it was on {picked}? Everything done to it since — hours, notes, reviews, results, reports,
+        evaluations, renewals and their placements, stubs and payouts, including what they did themselves — is removed or changed back.
+      </p>
       <div className="mt-2 flex flex-wrap gap-2">
-        <button onClick={() => remove.mutate(true)} disabled={remove.isPending} className="rounded-lg bg-brand-700 px-2.5 py-1 font-semibold text-white disabled:opacity-50">
-          {n === 0 ? 'Remove' : `Undo ${n} ${n === 1 ? 'change' : 'changes'} and remove`}
+        <button onClick={() => remove.mutate()} disabled={remove.isPending} className="rounded-lg bg-brand-700 px-2.5 py-1 font-semibold text-white disabled:opacity-50">
+          {remove.isPending ? 'Restoring…' : 'Yes, restore and remove'}
         </button>
-        {n > 0 && (
-          <button onClick={() => remove.mutate(false)} disabled={remove.isPending} className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold disabled:opacity-50">
-            Keep changes and remove
-          </button>
-        )}
         <button onClick={() => setOpen(false)} disabled={remove.isPending} className="font-semibold">Cancel</button>
       </div>
       {error && <p className="mt-2 font-medium text-danger-700">{error}</p>}
+    </div>
+  )
+}
+
+/** Accounts tested before restore points existed: what's left over, and a one-time cleanup. */
+function EarlierTests({ onCleaned }: { onCleaned: (res: WithStatus) => void }) {
+  const { data: accounts = [] } = useQuery({ queryKey: ['testing-earlier'], queryFn: testingApi.earlierTests })
+  const [open, setOpen] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const clean = useMutation({
+    mutationFn: (id: number) => testingApi.cleanUpEarlierTest(id),
+    onSuccess: (res) => { setOpen(null); onCleaned(res) },
+    onError: (e: ApiRequestError) => setError(errorText(e, 'Could not clean up this account.')),
+  })
+
+  if (!accounts.length) return null
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
+      <p className="flex items-center gap-1.5 text-sm font-semibold text-ink-900"><History className="h-4 w-4 text-amber-700" /> Tested before restore points</p>
+      <p className="mt-1 max-w-3xl text-xs text-ink-600">
+        These accounts were tested before System Testing kept a copy of each record, so some test data is still on them. A cleanup removes what
+        was created for the account while it was in testing (going by the audit log), makes its earlier placement active again if a renewal
+        replaced it, and puts its term result back.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {accounts.map((a: EarlierTest) => (
+          <li key={a.id} className="rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <b className="text-ink-900">{a.name}</b>
+                <span className="mt-0.5 block font-mono text-xs text-ink-500">{a.email}{a.student_id_number ? ` · ID ${a.student_id_number}` : ''}</span>
+                <span className="mt-0.5 block text-xs text-ink-500">Tested {a.tested.join('; ')}{a.picked ? ' (still picked)' : ''}</span>
+              </span>
+              {open !== a.id && (
+                <button onClick={() => { setError(null); setOpen(a.id) }} className={BTN}><Eraser className="h-3.5 w-3.5" /> Preview cleanup</button>
+              )}
+            </div>
+            {open === a.id && (
+              <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                {a.items.length ? (
+                  <ul className="list-disc space-y-0.5 pl-4">{a.items.map((item) => <li key={item}>{item}</li>)}</ul>
+                ) : (
+                  <p>Nothing was created during the test; the cleanup only takes the account out of testing.</p>
+                )}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button onClick={() => clean.mutate(a.id)} disabled={clean.isPending} className="rounded-lg bg-brand-700 px-2.5 py-1 font-semibold text-white disabled:opacity-50">
+                    {clean.isPending ? 'Cleaning up…' : 'Clean up'}
+                  </button>
+                  <button onClick={() => setOpen(null)} disabled={clean.isPending} className="font-semibold">Cancel</button>
+                </div>
+                {error && <p className="mt-2 font-medium text-danger-700">{error}</p>}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

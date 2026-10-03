@@ -361,9 +361,8 @@ All comparisons in **Asia/Manila**.
   accounts and the shortcuts answer 409 "Switch System Testing on first."; removing still works.
 - The admin picks existing active recipients/applicants (`users.testing_added_at`, never
   mass-assignable). Shortcuts on a picked recipient's current term: add hours, complete hours (the
-  missing hours, verified, ≤ 8 h/day on past days), reset hours (every log of the term copied into
-  the journal with its narrative report and verifications, then removed; undo re-inserts them with
-  their own IDs), clock in now (open shift without the QR), auto
+  missing hours, verified, ≤ 8 h/day on past days), reset hours (every log of the term removed; the
+  restore brings them back), clock in now (open shift without the QR), auto
   clock-out (`AttendanceService::closeStaleLog`, the 12-hour safety net, now), end term now (own end
   date → yesterday), file promissory note (real `PromissoryService::submit` with a sample PDF), close
   term now, makeup overdue, term report, evaluation, renewal (sample COR), reset term. Other people's
@@ -371,13 +370,20 @@ All comparisons in **Asia/Manila**.
   as the placement's supervisor), approve/reject the note (PromissoryService::review, as the supervisor),
   release claim stub (StipendClaimService::releaseClaimStub, as the admin), pay out
   (releaseAtBankingOffice, officer "System Testing (Banking Office)"); reset stipend
-  (the term's live stub and its signatures copied into the journal and removed, so the student is
-  eligible again under Admin → Stipend; undo re-inserts them). Undo keeps a filed
-  note once a stipend stub or an approved renewal used it.
-- Each shortcut journals what it did in `testing_changes` (records it created; raw old values of
-  records it changed). "Remove from testing" either replays the journal newest-first (delete created
-  records, restore old values; a renewal already decided is kept) or keeps the changes; "Remove all
-  and undo" does it for every picked account.
+  (the term's live stub and its signatures removed, so the student is eligible again under Admin →
+  Stipend).
+- Restore: picking copies the student's whole record (`App\Support\AccountSnapshot` → `testing_snapshots`):
+  applications (+ documents, interviews), placements (+ time logs, narratives, verifications,
+  promissory notes, term reports, evaluations, weekly/monthly/semester reports) and stipend stubs
+  (+ signatures), as raw rows. "Restore and remove", "Restore all" and switching testing off delete the
+  student's current rows and re-insert the copy with its own IDs, whatever changed them (the buttons or
+  the normal pages — e.g. a renewal approved under Applications and its rollover); files of rows the
+  test created and the bell notifications from the test go too. The user row, profile, concerns and
+  audit logs aren't touched; emails already sent can't be unsent.
+- Accounts tested before restore points existed have no copy: "Tested before restore points" lists
+  them with a preview and cleans up from the audit log (rows created between `testing_account_added`
+  and `testing_account_removed`, the replaced placement made active again, the term result put back
+  from the first `term_closed`/`term_requalified`/`term_marked_deficient` in the window).
 - Bypasses only for picked accounts while on (`TestTools::bypasses`): clock-in window, geofence and
   selfie in `AttendanceService`; interview window/past checks in `StoreInterviewRequest`.
 - Picked accounts stay normal accounts: they sign in, get email at their real address (so

@@ -6,18 +6,15 @@ use App\Models\Application;
 use App\Models\ApplicationDocument;
 use App\Models\Assignment;
 use App\Models\AuditLog;
-use App\Models\Interview;
 use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
-use App\Models\StipendSignature;
 use App\Models\TermEvaluation;
 use App\Models\TermReport;
-use App\Models\TestingChange;
+use App\Models\TestingSnapshot;
 use App\Models\TimeLog;
 use App\Models\User;
-use App\Models\Verification;
+use App\Support\AccountSnapshot;
 use App\Support\TestTools;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -29,8 +26,9 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  * Admin → System Testing on existing accounts: the admin picks real recipients or
  * applicants, and shortcuts move their data into the state a test needs (end a term now,
  * add verified hours, overdue makeup…), so time-gated flows can be walked without
- * waiting. The real rules then run on that data. Every shortcut journals what it did, so
- * "Remove from testing" can undo it.
+ * waiting. The real rules then run on that data. Picking an account copies its whole
+ * record (AccountSnapshot); removing it, or switching testing off, puts that copy back —
+ * whatever changed it in the meantime, the buttons or the normal pages.
  */
 class TestingService
 {
@@ -47,18 +45,16 @@ class TestingService
     public const MSG_NO_PENDING_HOURS = 'This recipient has no hours waiting for verification.';
     public const MSG_NO_PENDING_NOTE = 'This recipient has no promissory note waiting for review.';
     public const MSG_NO_SUPERVISOR = 'This recipient has no supervisor on their placement.';
+    public const MSG_NOTHING_TO_CLEAN = 'Nothing is left from an earlier test on this account.';
 
     /** Printed on the stub when System Testing stands in for the Banking Office. */
     public const TEST_RELEASING_OFFICER = 'System Testing (Banking Office)';
 
-    /** Rows deleted with a time log (cascade), copied too so undo can put them back: table => key. */
-    private const TIME_LOG_CHILDREN = ['narrative_reports' => 'time_log_id', 'verifications' => 'time_log_id'];
-
-    /** Rows deleted with a stipend stub (cascade). */
-    private const STIPEND_CHILDREN = ['stipend_signatures' => 'stipend_history_id'];
-
     /** Stub statuses that count as paid or payable (a void one doesn't). */
     private const LIVE_STIPEND = [StipendHistory::STATUS_PENDING, StipendHistory::STATUS_CERTIFIED, StipendHistory::STATUS_CLAIMED, 'released'];
+
+    /** Audit actions that record a term's verdict, with the old one in old_values. */
+    private const VERDICT_ACTIONS = ['term_closed', 'term_requalified', 'term_marked_deficient'];
 
     private const PICKABLE_ROLES = ['recipient', 'applicant'];
 
@@ -70,27 +66,32 @@ class TestingService
     /** The `attendance:close-stale` default: a shift open this long is force-closed. */
     private const STALE_HOURS = 12;
 
-    /** Never journaled: bookkeeping, and generated columns the database computes itself. */
-    private const NOT_RESTORED = ['updated_at', 'duration_hours'];
-
     public function __construct(
         private readonly TermStatusService $termStatus,
         private readonly PromissoryService $promissory,
         private readonly AttendanceService $attendance,
         private readonly VerificationService $verification,
         private readonly StipendClaimService $stipendClaims,
+        private readonly AccountSnapshot $snapshots,
     ) {}
 
     // ── Switch ──────────────────────────────────────────────────────────────
 
-    public function setEnabled(User $admin, bool $on): void
+    /**
+     * Switching off ends testing: every picked account is restored to how it was when
+     * picked and leaves testing. Returns how many accounts were restored.
+     */
+    public function setEnabled(User $admin, bool $on): int
     {
+        $restored = $on ? 0 : $this->releaseAll($admin);
+
         $was = TestTools::enabled();
         TestTools::setEnabled($on);
-
         if ($was !== $on) {
             AuditLog::record($on ? 'testing_switched_on' : 'testing_switched_off', $admin, ['enabled' => $was], ['enabled' => $on], $admin->id);
         }
+
+        return $restored;
     }
 
     // ── Overview ────────────────────────────────────────────────────────────
@@ -98,8 +99,7 @@ class TestingService
     public function status(): array
     {
         $users = User::with('profile')->whereNotNull('testing_added_at')->orderBy('role')->orderBy('testing_added_at')->get();
-        $changes = TestingChange::whereIn('user_id', $users->pluck('id'))
-            ->selectRaw('user_id, count(*) as n')->groupBy('user_id')->pluck('n', 'user_id');
+        $withSnapshot = TestingSnapshot::whereIn('user_id', $users->pluck('id'))->pluck('user_id')->flip();
 
         $assignments = Assignment::with(['evaluation', 'termReport'])
             ->withPromissoryFlags()
@@ -121,8 +121,10 @@ class TestingService
                 'name' => $u->name,
                 'email' => $u->email,
                 'student_id_number' => $u->profile?->student_id_number,
-                // Shortcut changes recorded (undone on "Remove from testing").
-                'changes' => (int) ($changes[$u->id] ?? 0),
+                // Removing the account (or switching off) restores it to this moment.
+                'picked_at' => $u->testing_added_at?->toISOString(),
+                // False only for accounts picked before restore points existed.
+                'restorable' => $withSnapshot->has($u->id),
                 'clocked_in_since' => $openShifts->get($u->id)?->time_in?->toISOString(),
                 'assignments' => ($assignments[$u->id] ?? collect())->map(fn (Assignment $a) => [
                     'id' => $a->id,
@@ -157,24 +159,20 @@ class TestingService
         $day = $date ? Carbon::parse($date, self::TZ) : Carbon::now(self::TZ);
         $in = $day->copy()->setTime(8, 0)->utc();
 
-        // The assignment is watched too: verified hours can lift a Deficient result.
-        $log = $this->tracked($recipient, $admin, [$assignment], function () use ($assignment, $recipient, $day, $in, $hours, $status) {
-            $log = TimeLog::create([
-                'assignment_id' => $assignment->id,
-                'user_id' => $recipient->id,
-                'date' => $day->toDateString(),
-                'time_in' => $in,
-                'time_out' => $in->copy()->addMinutes((int) round($hours * 60)),
-                'status' => $status,
-                'verified_by' => $status === 'verified' ? $assignment->supervisor_id : null,
-                'verified_at' => $status === 'verified' ? now() : null,
-            ]);
-            if ($status === 'verified') {
-                $this->termStatus->refreshById($assignment->id);
-            }
-
-            return $log;
-        });
+        $log = TimeLog::create([
+            'assignment_id' => $assignment->id,
+            'user_id' => $recipient->id,
+            'date' => $day->toDateString(),
+            'time_in' => $in,
+            'time_out' => $in->copy()->addMinutes((int) round($hours * 60)),
+            'status' => $status,
+            'verified_by' => $status === 'verified' ? $assignment->supervisor_id : null,
+            'verified_at' => $status === 'verified' ? now() : null,
+        ]);
+        // Verified hours can lift a Deficient result.
+        if ($status === 'verified') {
+            $this->termStatus->refreshById($assignment->id);
+        }
         $this->audit('testing_hours_added', $assignment, ['hours' => $hours, 'date' => $day->toDateString(), 'status' => $status], $admin);
 
         return $log->refresh();
@@ -189,7 +187,7 @@ class TestingService
         if ($assignment->start_date === null || $assignment->start_date->gte($yesterday)) {
             $changes['start_date'] = $yesterday->copy()->subMonths(4)->toDateString();
         }
-        $this->tracked($recipient, $admin, [$assignment], fn () => $assignment->update($changes));
+        $assignment->update($changes);
         $this->audit('testing_term_ended', $assignment, $changes, $admin);
 
         return $assignment->fresh();
@@ -199,7 +197,7 @@ class TestingService
     public function closeTerm(User $recipient, User $admin): Assignment
     {
         $assignment = $this->currentAssignment($recipient);
-        $this->tracked($recipient, $admin, [$assignment], fn () => $this->termStatus->close($assignment));
+        $this->termStatus->close($assignment);
         $this->audit('testing_term_closed', $assignment, ['term_status' => $assignment->fresh()->term_status], $admin);
 
         return $assignment->fresh();
@@ -213,7 +211,7 @@ class TestingService
         if (!$note) {
             throw new UnprocessableEntityHttpException(self::MSG_NO_NOTE);
         }
-        $this->tracked($recipient, $admin, [$note], fn () => $note->update(['makeup_deadline' => Carbon::now(self::TZ)->subDay()->toDateString()]));
+        $note->update(['makeup_deadline' => Carbon::now(self::TZ)->subDay()->toDateString()]);
         $this->audit('testing_makeup_overdue', $assignment, ['promissory_note_id' => $note->id], $admin);
 
         return $note->fresh();
@@ -222,12 +220,11 @@ class TestingService
     public function submitTermReport(User $recipient, User $admin): TermReport
     {
         $assignment = $this->currentAssignment($recipient);
-        $report = $this->tracked($recipient, $admin, [TermReport::where('assignment_id', $assignment->id)->first()],
-            fn () => TermReport::updateOrCreate(['assignment_id' => $assignment->id], [
-                'user_id' => $recipient->id,
-                'content' => str_repeat('Test end-of-term report: assisted the office with filing, records and student queries. ', 2),
-                'submitted_at' => now(),
-            ]));
+        $report = TermReport::updateOrCreate(['assignment_id' => $assignment->id], [
+            'user_id' => $recipient->id,
+            'content' => str_repeat('Test end-of-term report: assisted the office with filing, records and student queries. ', 2),
+            'submitted_at' => now(),
+        ]);
         $this->audit('testing_term_report', $assignment, null, $admin);
 
         return $report;
@@ -236,13 +233,12 @@ class TestingService
     public function evaluate(User $recipient, int $rating, User $admin): TermEvaluation
     {
         $assignment = $this->currentAssignment($recipient);
-        $evaluation = $this->tracked($recipient, $admin, [TermEvaluation::where('assignment_id', $assignment->id)->first()],
-            fn () => TermEvaluation::updateOrCreate(['assignment_id' => $assignment->id], [
-                'evaluator_id' => $assignment->supervisor_id,
-                'rating' => $rating,
-                'remarks' => "Test evaluation ({$rating}/5).",
-                'passed' => $rating >= TermEvaluation::PASSING_RATING,
-            ]));
+        $evaluation = TermEvaluation::updateOrCreate(['assignment_id' => $assignment->id], [
+            'evaluator_id' => $assignment->supervisor_id,
+            'rating' => $rating,
+            'remarks' => "Test evaluation ({$rating}/5).",
+            'passed' => $rating >= TermEvaluation::PASSING_RATING,
+        ]);
         $this->audit('testing_evaluated', $assignment, ['rating' => $rating], $admin);
 
         return $evaluation;
@@ -258,15 +254,11 @@ class TestingService
             throw new UnprocessableEntityHttpException("This recipient already has a submission for {$semester} {$year}.");
         }
 
-        $application = $this->tracked($recipient, $admin, [], function () use ($recipient, $year, $semester) {
-            $application = Application::create([
-                'user_id' => $recipient->id, 'academic_year' => $year, 'semester' => $semester,
-                'status' => 'submitted', 'type' => 'renewal',
-            ]);
-            $this->attachSampleDocument($application, 'cor');
-
-            return $application;
-        });
+        $application = Application::create([
+            'user_id' => $recipient->id, 'academic_year' => $year, 'semester' => $semester,
+            'status' => 'submitted', 'type' => 'renewal',
+        ]);
+        $this->attachSampleDocument($application, 'cor');
         $this->audit('testing_renewal_submitted', $assignment, ['application_id' => $application->id, 'term' => "{$semester} {$year}"], $admin);
 
         return $application;
@@ -277,11 +269,11 @@ class TestingService
     {
         $assignment = $this->currentAssignment($recipient);
         $hasPeriod = $assignment->semesterPeriod() !== null;
-        $this->tracked($recipient, $admin, [$assignment], fn () => $assignment->update([
+        $assignment->update([
             'term_status' => null, 'deficient_hours' => null, 'term_status_at' => null,
             'term_status_by' => null, 'term_status_reason' => null,
             'end_date' => $hasPeriod ? null : Carbon::now(self::TZ)->addMonths(4)->toDateString(),
-        ]));
+        ]);
         $this->audit('testing_term_reset', $assignment, null, $admin);
 
         return $assignment->fresh();
@@ -301,8 +293,8 @@ class TestingService
             throw new UnprocessableEntityHttpException(self::MSG_HOURS_DONE);
         }
 
-        $logs = $this->tracked($recipient, $admin, [$assignment], function () use ($assignment, $recipient, $missing) {
-            $logs = [];
+        $days = DB::transaction(function () use ($assignment, $recipient, $missing) {
+            $days = 0;
             $left = $missing;
             $day = Carbon::now(self::TZ)->subDay()->startOfDay();
             while ($left > 0) {
@@ -312,7 +304,7 @@ class TestingService
                 }
                 $hours = min(self::DAY_HOURS, $left);
                 $in = $day->copy()->setTime(8, 0)->utc();
-                $logs[] = TimeLog::create([
+                TimeLog::create([
                     'assignment_id' => $assignment->id,
                     'user_id' => $recipient->id,
                     'date' => $day->toDateString(),
@@ -323,43 +315,37 @@ class TestingService
                     'verified_by' => $assignment->supervisor_id,
                     'verified_at' => now(),
                 ]);
+                $days++;
                 $left = round($left - $hours, 2);
                 $day->subDay();
             }
             $this->termStatus->refreshById($assignment->id);
 
-            return $logs;
+            return $days;
         });
-        $this->audit('testing_hours_completed', $assignment, ['hours' => $missing, 'days' => count($logs)], $admin);
+        $this->audit('testing_hours_completed', $assignment, ['hours' => $missing, 'days' => $days], $admin);
 
-        return ['hours' => $missing, 'days' => count($logs)];
+        return ['hours' => $missing, 'days' => $days];
     }
 
     /**
-     * Back to 0 hours for the current term: every time log of it is copied into the journal
-     * (with its narrative report and verifications) and removed, so the term can be tested
-     * from scratch. Undo on "Remove from testing" puts them all back with their own IDs.
+     * Back to 0 hours for the current term: every time log of it is removed (with its
+     * narrative report and verifications), so the term can be tested from scratch. Files
+     * stay; the restore at the end of testing brings the logs back.
      *
      * @return array{logs: int, hours: float}
      */
     public function resetHours(User $recipient, User $admin): array
     {
         $assignment = $this->currentAssignment($recipient);
-        $ids = TimeLog::where('assignment_id', $assignment->id)->orderBy('id')->pluck('id');
+        $ids = TimeLog::where('assignment_id', $assignment->id)->pluck('id');
         if ($ids->isEmpty()) {
             throw new UnprocessableEntityHttpException(self::MSG_NO_HOURS);
         }
         $hours = round((float) $assignment->verified_hours, 2);
 
-        DB::transaction(function () use ($recipient, $admin, $ids) {
-            foreach ($ids as $id) {
-                // duration_hours is generated by the database, so it isn't copied back.
-                $this->journalDeletion($recipient, $admin, TimeLog::class, 'time_logs', $id, self::TIME_LOG_CHILDREN, ['duration_hours']);
-            }
-            // A plain delete (no model events): selfie files stay for the restore; the
-            // narrative reports and verifications go with the logs (cascade), copied above.
-            TimeLog::whereIn('id', $ids)->toBase()->delete();
-        });
+        // Plain delete (no model events): narrative reports and verifications cascade.
+        TimeLog::whereIn('id', $ids)->toBase()->delete();
         $this->audit('testing_hours_reset', $assignment, ['logs' => $ids->count(), 'verified_hours' => $hours], $admin);
 
         return ['logs' => $ids->count(), 'hours' => $hours];
@@ -367,8 +353,8 @@ class TestingService
 
     /**
      * Back to "eligible" for the current term's stipend: the stub (with its signatures) is
-     * copied into the journal and removed, so the student is listed again under Admin →
-     * Stipend and the whole release can be tested again. Files stay for the undo.
+     * removed, so the student is listed again under Admin → Stipend and the whole release
+     * can be tested again. Files stay; the restore at the end of testing brings it back.
      *
      * @return array{stubs: int, term: string}
      */
@@ -378,18 +364,12 @@ class TestingService
         $term = "{$assignment->semester} {$assignment->academic_year}";
         $ids = StipendHistory::where('user_id', $recipient->id)
             ->where('academic_year', $assignment->academic_year)->where('semester', $assignment->semester)
-            ->whereIn('status', self::LIVE_STIPEND)->orderBy('id')->pluck('id');
+            ->whereIn('status', self::LIVE_STIPEND)->pluck('id');
         if ($ids->isEmpty()) {
             throw new UnprocessableEntityHttpException("This recipient has no stipend stub for {$term}.");
         }
 
-        DB::transaction(function () use ($recipient, $admin, $ids) {
-            foreach ($ids as $id) {
-                $this->journalDeletion($recipient, $admin, StipendHistory::class, 'stipend_history', $id, self::STIPEND_CHILDREN);
-            }
-            // Plain delete: the slip PDF and signature images stay on disk for the undo.
-            StipendHistory::whereIn('id', $ids)->toBase()->delete();
-        });
+        StipendHistory::whereIn('id', $ids)->toBase()->delete();
         $this->audit('testing_stipend_reset', $assignment, ['stipend_ids' => $ids->all()], $admin);
 
         return ['stubs' => $ids->count(), 'term' => $term];
@@ -412,14 +392,9 @@ class TestingService
             throw new UnprocessableEntityHttpException(self::MSG_NO_PENDING_HOURS);
         }
 
-        $this->tracked($recipient, $admin, [$assignment, ...$logs->all()], function () use ($recipient, $admin, $logs, $supervisor) {
-            $after = (int) Verification::max('id');
+        DB::transaction(function () use ($logs, $supervisor) {
             foreach ($logs as $log) {
                 $this->verification->verify($log, $supervisor, 'verified');
-            }
-            // The review records it wrote go too on undo.
-            foreach (Verification::where('id', '>', $after)->whereIn('time_log_id', $logs->pluck('id'))->get() as $row) {
-                $this->journal($recipient, $row, TestingChange::CREATED, null, $admin);
             }
         });
         $hours = round((float) $logs->sum('duration_hours'), 2);
@@ -442,7 +417,7 @@ class TestingService
         }
 
         $data = $approve ? ['action' => 'approve', 'lacking_hours' => (float) $note->lacking_hours] : ['action' => 'reject'];
-        $reviewed = $this->tracked($recipient, $admin, [$note, $assignment], fn () => $this->promissory->review($supervisor, $note, $data));
+        $reviewed = $this->promissory->review($supervisor, $note, $data);
         $this->audit($approve ? 'testing_promissory_approved' : 'testing_promissory_rejected', $assignment, ['promissory_note_id' => $note->id], $admin);
 
         return $reviewed;
@@ -452,11 +427,11 @@ class TestingService
     public function releaseStub(User $recipient, User $admin): StipendHistory
     {
         $assignment = $this->currentAssignment($recipient);
-        $stub = $this->tracked($recipient, $admin, [], fn () => $this->stipendClaims->releaseClaimStub([
+        $stub = $this->stipendClaims->releaseClaimStub([
             'user_id' => $recipient->id,
             'academic_year' => $assignment->academic_year,
             'semester' => $assignment->semester,
-        ], $admin));
+        ], $admin);
         $this->audit('testing_stub_released', $assignment, ['stipend_id' => $stub->id], $admin);
 
         return $stub;
@@ -474,16 +449,7 @@ class TestingService
             throw new UnprocessableEntityHttpException("This recipient has no stipend stub ready to claim for {$term}.");
         }
 
-        $paid = $this->tracked($recipient, $admin, [$stub], function () use ($recipient, $admin, $stub) {
-            $after = (int) StipendSignature::max('id');
-            $paid = $this->stipendClaims->releaseAtBankingOffice($stub, self::TEST_RELEASING_OFFICER);
-            // The beneficiary's and the officer's signatures go too on undo.
-            foreach (StipendSignature::where('id', '>', $after)->where('stipend_history_id', $stub->id)->get() as $row) {
-                $this->journal($recipient, $row, TestingChange::CREATED, null, $admin);
-            }
-
-            return $paid;
-        });
+        $paid = $this->stipendClaims->releaseAtBankingOffice($stub, self::TEST_RELEASING_OFFICER);
         $this->audit('testing_paid_out', $assignment, ['stipend_id' => $stub->id], $admin);
 
         return $paid;
@@ -508,9 +474,7 @@ class TestingService
 
         try {
             $file = new UploadedFile($tmp, 'promissory-note.pdf', 'application/pdf', null, true);
-            $note = $this->tracked($recipient, $admin, [], fn () => $this->promissory->submit(
-                $recipient, ['assignment_id' => $assignment->id], $file,
-            ));
+            $note = $this->promissory->submit($recipient, ['assignment_id' => $assignment->id], $file);
         } finally {
             @unlink($tmp);
         }
@@ -531,13 +495,13 @@ class TestingService
         }
 
         // Same fields as AttendanceService::createOpenLog, without a location.
-        $log = $this->tracked($recipient, $admin, [], fn () => TimeLog::create([
+        $log = TimeLog::create([
             'assignment_id' => $assignment->id,
             'user_id' => $recipient->id,
             'date' => Carbon::today()->toDateString(),
             'time_in' => now(),
             'status' => 'open',
-        ]));
+        ]);
         $this->audit('testing_clocked_in', $assignment, ['time_log_id' => $log->id], $admin);
 
         return $log;
@@ -551,13 +515,13 @@ class TestingService
             throw new UnprocessableEntityHttpException(self::MSG_NOT_CLOCKED_IN);
         }
 
-        $this->tracked($recipient, $admin, [$log], fn () => $this->attendance->closeStaleLog($log, self::STALE_HOURS));
+        $this->attendance->closeStaleLog($log, self::STALE_HOURS);
         $this->audit('testing_auto_clocked_out', $log->assignment, ['time_log_id' => $log->id], $admin);
 
         return $log->fresh();
     }
 
-    // ── Existing accounts: pick, journal, undo ──────────────────────────────
+    // ── Existing accounts: pick, restore ────────────────────────────────────
 
     /** Active recipients/applicants the admin can pick (not already picked). */
     public function candidates(string $search): array
@@ -586,6 +550,7 @@ class TestingService
         ])->values()->all();
     }
 
+    /** Pick an account: copy its whole record first, so the end of testing can put it back. */
     public function addExisting(User $admin, int $id): User
     {
         $user = User::find($id);
@@ -602,258 +567,269 @@ class TestingService
             throw new UnprocessableEntityHttpException(self::MSG_INACTIVE);
         }
 
-        $user->forceFill(['testing_added_at' => now()])->save();
+        DB::transaction(function () use ($user) {
+            $now = now();
+            TestingSnapshot::updateOrCreate(['user_id' => $user->id], ['taken_at' => $now, 'data' => $this->snapshots->take($user)]);
+            $user->forceFill(['testing_added_at' => $now])->save();
+        });
         AuditLog::record('testing_account_added', $user, null, ['email' => $user->email], $admin->id);
 
         return $user;
     }
 
     /**
-     * Take a picked account out of testing, first undoing what the shortcuts did to it
-     * (or keeping it). Works while the tools are off too.
+     * Take a picked account out of testing, restoring its record to how it was when it was
+     * picked (whatever changed it since). Works while the tools are off too. An account
+     * picked before restore points existed is cleaned up from the audit log instead.
      *
-     * @return array{undone: int, kept: list<string>}
+     * @return array{removed: int, restored: int, files: int, notifications: int}
      */
-    public function removeExisting(User $admin, int $id, bool $undo): array
+    public function removeExisting(User $admin, int $id): array
     {
         $user = User::whereNotNull('testing_added_at')->find($id);
         if (!$user) {
             throw new NotFoundHttpException(self::MSG_NOT_PICKED);
         }
 
-        $result = DB::transaction(function () use ($user, $undo) {
-            $result = $undo ? $this->undo($user) : ['undone' => 0, 'kept' => []];
-            TestingChange::where('user_id', $user->id)->delete();
+        $snapshot = TestingSnapshot::where('user_id', $user->id)->first();
+        if (!$snapshot) {
+            // Picked before restore points existed: clean up from the audit log instead.
+            $plan = $this->earlierTestPlan($user);
+            $plan ? $this->applyCleanup($admin, $user, $plan) : $user->forceFill(['testing_added_at' => null])->save();
+
+            return ['removed' => 0, 'restored' => 0, 'files' => 0, 'notifications' => 0];
+        }
+
+        $counts = $this->snapshots->restore($user, $snapshot->data, $snapshot->taken_at);
+        DB::transaction(function () use ($user, $snapshot) {
+            $snapshot->delete();
             $user->forceFill(['testing_added_at' => null])->save();
-
-            return $result;
         });
-        AuditLog::record('testing_account_removed', $user, null, ['undo' => $undo] + $result, $admin->id);
+        AuditLog::record('testing_account_removed', $user, null, ['restored' => true] + $counts, $admin->id);
 
-        return $result;
+        return $counts;
     }
 
-    /** Take every picked account out of testing, undoing what the shortcuts changed. */
+    /** Restore every picked account and take it out of testing. Returns how many. */
     public function releaseAll(User $admin): int
     {
         $ids = User::whereNotNull('testing_added_at')->pluck('id');
         foreach ($ids as $id) {
-            $this->removeExisting($admin, $id, true);
+            $this->removeExisting($admin, $id);
         }
-        AuditLog::record('testing_released_all', $admin, null, ['accounts' => $ids->count()], $admin->id);
+        if ($ids->isNotEmpty()) {
+            AuditLog::record('testing_released_all', $admin, null, ['accounts' => $ids->count()], $admin->id);
+        }
 
         return $ids->count();
     }
 
+    // ── Accounts tested before restore points existed ───────────────────────
+
     /**
-     * Replay a picked account's journal newest first: delete what the shortcuts created,
-     * put back the raw values they changed. A renewal that was decided in the meantime is
-     * kept (approving it may have placed the student for next term).
+     * Accounts with something left over from a test run before snapshots existed (or
+     * still picked from then), each with what a cleanup would do.
      *
-     * @return array{undone: int, kept: list<string>}
+     * @return list<array{id: int, name: string, email: string, student_id_number: ?string, picked: bool, tested: list<string>, items: list<string>}>
      */
-    private function undo(User $user): array
+    public function earlierTests(): array
     {
-        $undone = 0;
-        $kept = [];
+        $ids = AuditLog::where('action', 'testing_account_added')->where('auditable_type', User::class)
+            ->distinct()->pluck('auditable_id');
 
-        foreach (TestingChange::where('user_id', $user->id)->orderByDesc('id')->get() as $change) {
-            if ($change->action === TestingChange::DELETED) {
-                try {
-                    DB::transaction(fn () => $this->restoreDeleted($change->old_values ?? []));
-                    $undone++;
-                } catch (\Illuminate\Database\QueryException) {
-                    $what = $change->subject_type === StipendHistory::class ? 'stipend stub' : 'time log';
-                    $kept[] = "A reset {$what} (#{$change->subject_id}) couldn't be put back because something took its place in the meantime.";
+        return User::with('profile')->whereIn('id', $ids)->whereIn('role', self::PICKABLE_ROLES)->orderBy('name')->get()
+            ->map(function (User $u) {
+                $plan = $this->earlierTestPlan($u);
+                $stillPicked = $u->testing_added_at !== null && !TestingSnapshot::where('user_id', $u->id)->exists();
+                if (!$plan || (!$plan['items'] && !$stillPicked)) {
+                    return null;
                 }
-                continue;
-            }
 
-            $class = $change->subject_type;
-            $model = class_exists($class) ? $class::query()->find($change->subject_id) : null;
-            if (!$model) {
-                continue;
-            }
-
-            if ($change->action === TestingChange::CREATED && ($reason = $this->keepReason($model))) {
-                $kept[] = $reason;
-                continue;
-            }
-
-            try {
-                // A savepoint per change: one that can't go back doesn't undo the rest.
-                DB::transaction(fn () => $change->action === TestingChange::CREATED
-                    ? $this->deleteCreated($model)
-                    // Raw DB values, so dates and JSON go back exactly as they were.
-                    : $this->restoreUpdated($model, $change->old_values ?? []));
-                $undone++;
-            } catch (\Illuminate\Database\QueryException) {
-                $kept[] = 'One change to ' . class_basename($model) . " #{$model->getKey()} couldn't be undone because it changed in the meantime.";
-            }
-        }
-
-        return ['undone' => $undone, 'kept' => $kept];
-    }
-
-    /** Why a record a shortcut created must stay (something real now depends on it), or null. */
-    private function keepReason(Model $model): ?string
-    {
-        if ($model instanceof Application && in_array($model->status, ['approved', 'rejected'], true)) {
-            return "Renewal for {$model->semester} {$model->academic_year} was already {$model->status}, so it was kept.";
-        }
-        if ($model instanceof StipendHistory && $model->status !== StipendHistory::STATUS_CERTIFIED) {
-            return "The stipend stub for {$model->semester} {$model->academic_year} was already {$model->status}, so it was kept.";
-        }
-        if ($model instanceof PromissoryNote) {
-            $term = "{$model->semester} {$model->academic_year}";
-            $stub = StipendHistory::where('user_id', $model->user_id)->where('academic_year', $model->academic_year)
-                ->where('semester', $model->semester)->whereIn('status', ['pending', 'certified', 'claimed', 'released'])->exists();
-            if ($stub) {
-                return "The promissory note for {$term} was kept: a stipend stub was already prepared from it.";
-            }
-            if (Assignment::whereKey($model->assignment_id)->where('status', '!=', 'active')->exists()) {
-                return "The promissory note for {$term} was kept: a renewal was already approved with it.";
-            }
-        }
-
-        return null;
+                return [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'email' => $u->email,
+                    'student_id_number' => $u->profile?->student_id_number,
+                    'picked' => $stillPicked,
+                    'tested' => array_map(fn ($w) => $w['start']->timezone(self::TZ)->format('M j, Y g:i A')
+                        . ' – ' . $w['end']->timezone(self::TZ)->format('M j, Y g:i A'), $plan['windows']),
+                    'items' => $plan['items'],
+                ];
+            })->filter()->values()->all();
     }
 
     /**
-     * Copy a row, and the rows that hang off it (table => key), into the picked account's
-     * journal before it's deleted, so undo can put it back with its own ID.
+     * Clean up an account tested before snapshots existed: everything created for it while
+     * it was in testing goes (with files and bell entries), its earlier placement becomes
+     * active again if a renewal replaced it, and its term result goes back to what it was.
      *
-     * @param  array<string, string>  $children
-     * @param  list<string>  $generated  columns the database computes (not copied back)
+     * @return list<string> what was done
      */
-    private function journalDeletion(User $account, User $admin, string $model, string $table, int $id, array $children, array $generated = []): void
+    public function cleanUpEarlierTest(User $admin, int $id): array
     {
-        $row = (array) DB::table($table)->where('id', $id)->first();
-        foreach ($generated as $column) {
-            unset($row[$column]);
-        }
-        $copies = [];
-        foreach ($children as $childTable => $key) {
-            $copies[$childTable] = DB::table($childTable)->where($key, $id)->get()->map(fn ($r) => (array) $r)->all();
+        $user = User::find($id);
+        $plan = $user ? $this->earlierTestPlan($user) : null;
+        if (!$plan) {
+            throw new UnprocessableEntityHttpException(self::MSG_NOTHING_TO_CLEAN);
         }
 
-        TestingChange::create([
-            'user_id' => $account->id,
-            'subject_type' => $model,
-            'subject_id' => $id,
-            'action' => TestingChange::DELETED,
-            'old_values' => ['table' => $table, 'row' => $row, 'children' => array_filter($copies)],
-            'created_by' => $admin->id,
-        ]);
+        return $this->applyCleanup($admin, $user, $plan);
     }
 
-    /** Put a deleted record back exactly as it was (same ID), then the rows that hung off it. */
-    private function restoreDeleted(array $copy): void
+    /** @return list<string> */
+    private function applyCleanup(User $admin, User $user, array $plan): array
     {
-        if (DB::table($copy['table'])->where('id', $copy['row']['id'])->exists()) {
-            return;
-        }
-        DB::table($copy['table'])->insert($copy['row']);
-        foreach ($copy['children'] ?? [] as $table => $rows) {
-            foreach ($rows as $row) {
-                DB::table($table)->insert($row);
+        DB::transaction(function () use ($user, $plan) {
+            $this->snapshots->deleteRows($user->id, $plan['rows'], $plan['windows']);
+            if ($plan['reactivate']) {
+                DB::table('assignments')->where('id', $plan['reactivate'])->update(['status' => 'active', 'updated_at' => now()]);
             }
-        }
-    }
-
-    private function restoreUpdated(Model $model, array $old): void
-    {
-        $model->setRawAttributes(array_merge($model->getAttributes(), $old))->save();
-
-        // A stub's PDF shows its state (paid or not): drop it so the next download rebuilds it.
-        if ($model instanceof StipendHistory && $model->slip_path) {
-            Storage::disk(config('filesystems.documents_disk', 'public'))->delete($model->slip_path);
-        }
-    }
-
-    private function deleteCreated(Model $model): void
-    {
-        $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
-
-        if ($model instanceof StipendHistory) {
-            $disk->deleteDirectory("stipend-slips/{$model->id}");
-            $disk->deleteDirectory("stipend-signatures/{$model->id}");
-        }
-
-        if ($model instanceof Application) {
-            $disk->deleteDirectory("documents/{$model->id}");
-            ApplicationDocument::where('application_id', $model->id)->delete();
-            Interview::where('application_id', $model->id)->delete();
-        }
-        if ($model instanceof PromissoryNote) {
-            if ($model->file_path) {
-                $disk->delete($model->file_path);
-            }
-            // The supervisors' bell entries about it would lead nowhere.
-            DB::table('notifications')->where(fn ($q) => $q
-                ->whereRaw('CAST(data AS TEXT) LIKE ?', ['%"promissory_id":' . $model->id . ',%'])
-                ->orWhereRaw('CAST(data AS TEXT) LIKE ?', ['%"promissory_id":' . $model->id . '}%']))->delete();
-        }
-
-        $model->delete();
-    }
-
-    /**
-     * Run a shortcut and record what it did to the picked account: the record(s) it
-     * returns that it created, and the old raw values of each watched record it changed.
-     *
-     * @param  array<int, Model|null>  $watch
-     */
-    private function tracked(User $account, User $admin, array $watch, callable $run): mixed
-    {
-        return DB::transaction(function () use ($account, $admin, $watch, $run) {
-            $watch = array_values(array_filter($watch));
-            $before = array_map(fn (Model $m) => $m->getAttributes(), $watch);
-
-            $result = $run();
-
-            foreach ($watch as $i => $model) {
-                $now = $model->newQueryWithoutScopes()->find($model->getKey())?->getAttributes() ?? [];
-                $old = [];
-                foreach ($before[$i] as $key => $value) {
-                    if (!in_array($key, self::NOT_RESTORED, true) && self::raw($value) !== self::raw($now[$key] ?? null)) {
-                        $old[$key] = $value;
-                    }
+            foreach ($plan['verdicts'] as $assignmentId => $old) {
+                $values = ['term_status' => $old['term_status'] ?? null, 'deficient_hours' => $old['deficient_hours'] ?? null];
+                if ($values['term_status'] === null) {
+                    $values += ['term_status_at' => null, 'term_status_by' => null, 'term_status_reason' => null];
                 }
-                if ($old) {
-                    $this->journal($account, $model, TestingChange::UPDATED, $old, $admin);
-                }
+                DB::table('assignments')->where('id', $assignmentId)->update($values + ['updated_at' => now()]);
             }
-            foreach (is_iterable($result) ? $result : [$result] as $created) {
-                if ($created instanceof Model && $created->wasRecentlyCreated) {
-                    $this->journal($account, $created, TestingChange::CREATED, null, $admin);
-                }
-            }
-
-            return $result;
+            TestingSnapshot::where('user_id', $user->id)->delete();
+            $user->forceFill(['testing_added_at' => null])->save();
         });
+        AuditLog::record('testing_legacy_cleanup', $user, null, ['items' => $plan['items']], $admin->id);
+
+        return $plan['items'];
     }
 
-    private function journal(User $account, Model $subject, string $action, ?array $old, User $admin): void
+    /**
+     * What a cleanup of an earlier test would do: the test windows (picked → removed) from
+     * the audit log since the last cleanup, the rows created inside them, the placement to
+     * reactivate and the term results to put back. Null when there's no earlier test.
+     */
+    private function earlierTestPlan(User $user): ?array
     {
-        TestingChange::create([
-            'user_id' => $account->id,
-            'subject_type' => $subject::class,
-            'subject_id' => $subject->getKey(),
-            'action' => $action,
-            'old_values' => $old,
-            'created_by' => $admin->id,
-        ]);
+        $windows = $this->earlierTestWindows($user);
+        if (!$windows) {
+            return null;
+        }
+
+        $all = $this->snapshots->current($user->id);
+        $selected = [];
+        foreach ($all as $table => $rows) {
+            foreach ($rows as $id => $row) {
+                if (!empty($row['created_at']) && self::inWindows(Carbon::parse($row['created_at']), $windows)) {
+                    $selected[$table][$id] = $row;
+                }
+            }
+        }
+        $selected = AccountSnapshot::withChildren($selected, $all);
+
+        // A renewal approved during the test replaced the placement: make it active again.
+        $remaining = array_diff_key($all['assignments'], $selected['assignments'] ?? []);
+        $reactivate = null;
+        if (!empty($selected['assignments']) && $remaining && !collect($remaining)->contains(fn ($a) => $a['status'] === 'active')) {
+            $reactivate = (int) array_key_last($remaining);
+        }
+
+        // Term results recorded during the test go back to what the first one replaced.
+        $verdicts = [];
+        foreach (array_keys($remaining) as $assignmentId) {
+            $first = AuditLog::where('auditable_type', Assignment::class)->where('auditable_id', $assignmentId)
+                ->whereIn('action', self::VERDICT_ACTIONS)
+                ->where(function ($q) use ($windows) {
+                    foreach ($windows as $w) {
+                        $q->orWhereBetween('created_at', [$w['start'], $w['end']]);
+                    }
+                })->orderBy('id')->first();
+            $old = $first?->old_values ?? [];
+            if ($first && ($old['term_status'] ?? null) !== ($remaining[$assignmentId]['term_status'] ?? null)) {
+                $verdicts[$assignmentId] = $old;
+            }
+        }
+
+        return [
+            'windows' => $windows,
+            'rows' => $selected,
+            'reactivate' => $reactivate,
+            'verdicts' => $verdicts,
+            'items' => $this->describe($selected, $reactivate ? $remaining[$reactivate] : null, $verdicts, $remaining),
+        ];
     }
 
-    private static function raw(mixed $value): ?string
+    /** @return list<array{start: Carbon, end: Carbon}> test windows without a restore, since the last cleanup */
+    private function earlierTestWindows(User $user): array
     {
-        return match (true) {
-            $value === null => null,
-            is_bool($value) => $value ? '1' : '0',
-            $value instanceof \DateTimeInterface => $value->format('Y-m-d H:i:s'),
-            default => (string) $value,
-        };
+        $events = AuditLog::where('auditable_type', User::class)->where('auditable_id', $user->id)
+            ->whereIn('action', ['testing_account_added', 'testing_account_removed', 'testing_legacy_cleanup'])
+            ->orderBy('id')->get(['action', 'new_values', 'created_at']);
+
+        $windows = [];
+        $start = null;
+        foreach ($events as $event) {
+            if ($event->action === 'testing_legacy_cleanup') {
+                $windows = [];
+                $start = null;
+            } elseif ($event->action === 'testing_account_added') {
+                $start = $event->created_at;
+            } else {
+                if ($start && empty($event->new_values['restored'])) {
+                    $windows[] = ['start' => $start, 'end' => $event->created_at];
+                }
+                $start = null;
+            }
+        }
+        // Still picked from before restore points existed.
+        if ($start && $user->testing_added_at !== null && !TestingSnapshot::where('user_id', $user->id)->exists()) {
+            $windows[] = ['start' => $start, 'end' => now()];
+        }
+
+        return $windows;
+    }
+
+    private static function inWindows(Carbon $at, array $windows): bool
+    {
+        foreach ($windows as $w) {
+            if ($at->betweenIncluded($w['start'], $w['end'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return list<string> */
+    private function describe(array $rows, ?array $reactivate, array $verdicts, array $assignments): array
+    {
+        $term = fn (array $r) => "{$r['semester']} {$r['academic_year']}";
+        $items = [];
+        foreach ($rows['applications'] ?? [] as $r) {
+            $items[] = (($r['type'] ?? 'new') === 'renewal' ? 'Renewal' : 'Application') . " for {$term($r)} ({$r['status']})";
+        }
+        foreach ($rows['assignments'] ?? [] as $r) {
+            $items[] = "Placement for {$term($r)}";
+        }
+        foreach ($rows['promissory_notes'] ?? [] as $r) {
+            $items[] = "Promissory note for {$term($r)} ({$r['status']})";
+        }
+        foreach ($rows['stipend_history'] ?? [] as $r) {
+            $items[] = 'Stipend stub ' . ($r['control_number'] ?? "#{$r['id']}") . " ({$r['status']})";
+        }
+        if ($logs = $rows['time_logs'] ?? []) {
+            $items[] = count($logs) . ' time ' . (count($logs) === 1 ? 'log' : 'logs');
+        }
+        if ($rows['term_reports'] ?? []) {
+            $items[] = 'End-of-term report';
+        }
+        foreach ($rows['term_evaluations'] ?? [] as $r) {
+            $items[] = "Evaluation ({$r['rating']}/5)";
+        }
+        if ($reactivate) {
+            $items[] = "Placement for {$term($reactivate)} becomes active again";
+        }
+        foreach ($verdicts as $id => $old) {
+            $label = $old['term_status'] ?? 'in progress';
+            $items[] = "Result for {$term($assignments[$id])} goes back to {$label}";
+        }
+
+        return $items;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

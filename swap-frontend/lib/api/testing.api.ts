@@ -1,5 +1,5 @@
 import apiClient from './axios'
-import type { TestingAction, TestingCandidate, TestingStatus } from '@/types/testing.types'
+import type { EarlierTest, TestingAction, TestingCandidate, TestingStatus } from '@/types/testing.types'
 
 type WithStatus = { data: TestingStatus; message: string }
 
@@ -17,12 +17,17 @@ export const testingApi = {
   addExisting: (userId: number) =>
     apiClient.post<WithStatus>(`/admin/testing/accounts/${userId}`).then((r) => r.data),
 
-  // undo: put back what the shortcuts changed on that account first (otherwise the changes stay).
-  removeExisting: (userId: number, undo: boolean) =>
-    apiClient.delete<WithStatus & { kept: string[] }>(`/admin/testing/accounts/${userId}`, { data: { undo } }).then((r) => r.data),
+  // Restores the account to how it was when picked (whatever changed it), then takes it out of testing.
+  removeExisting: (userId: number) =>
+    apiClient.delete<WithStatus>(`/admin/testing/accounts/${userId}`).then((r) => r.data),
 
-  // Every picked account leaves testing, its changes undone.
+  // Every picked account is restored and leaves testing.
   releaseAll: () => apiClient.delete<WithStatus>('/admin/testing').then((r) => r.data),
+
+  // Accounts tested before restore points existed, and their one-time cleanup.
+  earlierTests: () => apiClient.get<{ data: EarlierTest[] }>('/admin/testing/earlier').then((r) => r.data.data),
+  cleanUpEarlierTest: (userId: number) =>
+    apiClient.post<WithStatus>(`/admin/testing/earlier/${userId}`).then((r) => r.data),
 
   // Shortcut on a picked recipient's current term (returns the refreshed status).
   act: (recipientId: number, action: TestingAction, data: Record<string, unknown> = {}) =>

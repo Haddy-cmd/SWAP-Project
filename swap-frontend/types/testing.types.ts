@@ -33,8 +33,10 @@ export interface TestingAccount {
   name: string
   email: string
   student_id_number: string | null
-  /** Shortcut changes recorded (undone on "Remove from testing"). */
-  changes: number
+  /** When it was picked: removing it, or switching off, restores it to this moment (ISO). */
+  picked_at: string
+  /** False only for an account picked before restore points existed (cleaned up instead). */
+  restorable: boolean
   /** When their open shift started (ISO), or null when not clocked in. */
   clocked_in_since: string | null
   assignments: TestingAssignment[]
@@ -55,6 +57,20 @@ export interface TestingCandidate {
   role: 'recipient' | 'applicant'
   student_id_number: string | null
   term: string | null
+}
+
+/** An account tested before restore points existed, with what its cleanup would do (TestingService::earlierTests). */
+export interface EarlierTest {
+  id: number
+  name: string
+  email: string
+  student_id_number: string | null
+  /** Still picked from before restore points existed. */
+  picked: boolean
+  /** The test windows, e.g. "Oct 2, 2026 3:24 PM – Oct 2, 2026 4:10 PM". */
+  tested: string[]
+  /** What the cleanup removes or puts back. */
+  items: string[]
 }
 
 // Same text as TestTools::MSG_OFF.

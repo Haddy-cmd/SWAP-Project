@@ -221,6 +221,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/testing/candidates', [TestingController::class, 'candidates']);
         Route::post('/testing/accounts/{id}', [TestingController::class, 'addAccount'])->whereNumber('id');
         Route::delete('/testing/accounts/{id}', [TestingController::class, 'removeAccount'])->whereNumber('id');
+        Route::get('/testing/earlier', [TestingController::class, 'earlierTests']);
+        Route::post('/testing/earlier/{id}', [TestingController::class, 'cleanUpEarlierTest'])->whereNumber('id');
         Route::post('/testing/recipients/{id}/{action}', [TestingController::class, 'action']);
         Route::delete('/testing', [TestingController::class, 'releaseAll']);
         Route::get('/semester-periods', [SemesterPeriodController::class, 'index']);

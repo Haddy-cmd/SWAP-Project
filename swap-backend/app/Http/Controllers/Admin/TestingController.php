@@ -12,7 +12,8 @@ use Illuminate\Validation\Rule;
 /**
  * Admin → System Testing. The page and its switch are always there for admins; picking
  * accounts and the shortcuts need the switch on (409 otherwise). Every action touches
- * picked accounts only (TestingService).
+ * picked accounts only, and switching off (or removing an account) restores each one to
+ * how it was when picked (TestingService).
  */
 class TestingController extends Controller
 {
@@ -37,11 +38,15 @@ class TestingController extends Controller
     public function switch(Request $request): JsonResponse
     {
         $data = $request->validate(['enabled' => ['required', 'boolean']]);
-        $this->testing->setEnabled($request->user(), (bool) $data['enabled']);
+        $restored = $this->testing->setEnabled($request->user(), (bool) $data['enabled']);
 
         return response()->json([
             'data' => $this->testing->status(),
-            'message' => $data['enabled'] ? 'System Testing is on.' : 'System Testing is off. Picked accounts follow the normal rules again.',
+            'message' => match (true) {
+                (bool) $data['enabled'] => 'System Testing is on.',
+                $restored === 0 => 'System Testing is off.',
+                default => $restored === 1 ? 'System Testing is off. 1 account was restored to how it was when picked.' : "System Testing is off. {$restored} accounts were restored to how they were when picked.",
+            },
         ]);
     }
 
@@ -67,17 +72,27 @@ class TestingController extends Controller
     // Works with the switch off too, so picked accounts can always be released.
     public function removeAccount(Request $request, int $id): JsonResponse
     {
-        $data = $request->validate(['undo' => ['required', 'boolean']]);
-        $result = $this->testing->removeExisting($request->user(), $id, (bool) $data['undo']);
-
-        $message = $data['undo']
-            ? "Removed from System Testing. {$result['undone']} " . ($result['undone'] === 1 ? 'change' : 'changes') . ' undone.'
-            : 'Removed from System Testing. The changes were kept.';
+        $this->testing->removeExisting($request->user(), $id);
 
         return response()->json([
             'data' => $this->testing->status(),
-            'message' => trim($message . ' ' . implode(' ', $result['kept'])),
-            'kept' => $result['kept'],
+            'message' => 'Restored to how it was when picked and removed from System Testing.',
+        ]);
+    }
+
+    /** Accounts tested before restore points existed, with what a cleanup would do. */
+    public function earlierTests(): JsonResponse
+    {
+        return response()->json(['data' => $this->testing->earlierTests()]);
+    }
+
+    public function cleanUpEarlierTest(Request $request, int $id): JsonResponse
+    {
+        $done = $this->testing->cleanUpEarlierTest($request->user(), $id);
+
+        return response()->json([
+            'data' => $this->testing->status(),
+            'message' => 'Earlier test cleaned up: ' . (count($done) ? implode('; ', $done) . '.' : 'nothing was left.'),
         ]);
     }
 
@@ -161,14 +176,16 @@ class TestingController extends Controller
         return response()->json(['message' => $message, 'data' => $this->testing->status()]);
     }
 
-    // Works with the switch off too: every picked account leaves testing, changes undone.
+    // Works with the switch off too: every picked account is restored and leaves testing.
     public function releaseAll(Request $request): JsonResponse
     {
         $count = $this->testing->releaseAll($request->user());
 
         return response()->json([
             'data' => $this->testing->status(),
-            'message' => $count === 1 ? '1 account removed from System Testing; its changes were undone.' : "{$count} accounts removed from System Testing; their changes were undone.",
+            'message' => $count === 1
+                ? '1 account was restored to how it was when picked and removed from System Testing.'
+                : "{$count} accounts were restored to how they were when picked and removed from System Testing.",
         ]);
     }
 }
