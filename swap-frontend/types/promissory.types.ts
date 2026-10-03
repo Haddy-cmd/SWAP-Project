@@ -8,8 +8,6 @@ export interface PromissoryNote {
   semester: string
   verified_hours_snapshot: number
   lacking_hours: number | null
-  makeup_deadline: string | null
-  overdue: boolean
   file_name: string
   mime_type: string | null
   file_url: string
@@ -28,4 +26,6 @@ export interface PromissorySubmission {
   reason: string | null
   assignment_id: number | null
   lacking_hours: number | null
+  /** How long notes stay open: until renewal for the next semester closes. */
+  window_note?: string | null
 }

@@ -17,12 +17,6 @@ class PromissoryNoteResource extends JsonResource
             'semester' => $this->semester,
             'verified_hours_snapshot' => $this->verified_hours_snapshot,
             'lacking_hours' => $this->lacking_hours,
-            // Fixed policy: exactly 1 week after the semester end (server-computed).
-            'makeup_deadline' => $this->makeup_deadline?->toDateString(),
-            // Late reviews still approve, but the deadline is flagged as passed.
-            'overdue' => $this->makeup_deadline !== null
-                && $this->status === \App\Models\PromissoryNote::STATUS_APPROVED
-                && $this->makeup_deadline->isPast(),
             'file_name' => $this->file_name,
             'mime_type' => $this->mime_type,
             // Same ?token= serving pattern as application documents: the bearer

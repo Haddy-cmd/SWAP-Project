@@ -35,9 +35,9 @@ export interface Assignment {
   term_status_reason?: string | null
   term_status_at?: string | null
   term_badge?: TermBadgeValue
-  /** Supervisor roster only: the end-of-term evaluation and whether it's due soon. */
-  evaluation?: import('./application.types').TermEvaluation | null
-  evaluation_due?: boolean
+  /** Supervisor roster only: the end-of-term report's state and whether it waits for acceptance. */
+  term_report?: { submitted_at: string | null; reviewed_at: string | null; renewal_eligible: boolean | null } | null
+  report_to_review?: boolean
 }
 
 export type TermBadgeValue = 'qualified' | 'promissory_approved' | 'promissory_pending' | 'deficient' | 'in_progress'

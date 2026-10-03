@@ -11,7 +11,8 @@ export interface TestingAssignment {
   pending_hours: number
   end_date: string | null
   term_badge: TermBadgeValue
-  evaluation: number | null
+  /** The supervisor's acceptance of the report: null until accepted, then eligible or not. */
+  report_eligible: boolean | null
   report_submitted: boolean
   /** The term's promissory note, if any. */
   promissory: 'approved' | 'pending' | null
@@ -78,5 +79,5 @@ export const TESTING_OFF_MESSAGE = 'Switch System Testing on first.'
 
 export type TestingAction =
   | 'hours' | 'complete-hours' | 'reset-hours' | 'verify-hours' | 'clock-in' | 'auto-clock-out'
-  | 'end-term' | 'file-promissory' | 'approve-promissory' | 'reject-promissory' | 'close-term' | 'makeup-overdue'
-  | 'term-report' | 'evaluation' | 'renewal' | 'reset-term' | 'release-stub' | 'pay-out' | 'reset-stipend'
+  | 'end-term' | 'file-promissory' | 'approve-promissory' | 'reject-promissory' | 'close-term'
+  | 'term-report' | 'review-report' | 'renewal' | 'reset-term' | 'release-stub' | 'pay-out' | 'reset-stipend'

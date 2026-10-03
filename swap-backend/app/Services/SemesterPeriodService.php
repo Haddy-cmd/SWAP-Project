@@ -91,7 +91,6 @@ class SemesterPeriodService
     {
         return DB::transaction(function () use ($data, $admin) {
             $period = SemesterPeriod::create($data + ['created_by' => $admin->id]);
-            $this->keepRenewalExclusive($period);
             AuditLog::record('semester_period_created', $period, null, $period->only(['academic_year', 'semester', 'start_date', 'end_date', 'renewal_open']), $admin->id);
 
             return $period->fresh();
@@ -125,8 +124,7 @@ class SemesterPeriodService
             throw new UnprocessableEntityHttpException(self::MSG_RENAME_IN_USE);
         }
 
-        // Once closed, the recorded Qualified/Deficient results and makeup deadlines
-        // were computed from these dates.
+        // Once closed, the recorded Qualified/Deficient results were computed from these dates.
         $redated = (isset($data['start_date']) && Carbon::parse($data['start_date'])->toDateString() !== $period->start_date->toDateString())
             || (isset($data['end_date']) && Carbon::parse($data['end_date'])->toDateString() !== $period->end_date->toDateString());
         if ($redated && $period->closed_at !== null) {
@@ -135,8 +133,11 @@ class SemesterPeriodService
 
         return DB::transaction(function () use ($period, $data, $admin) {
             $old = $period->only(['academic_year', 'semester', 'start_date', 'end_date', 'renewal_open']);
+            // Closing renewal also closes the promissory-note window of the term before it.
+            if (array_key_exists('renewal_open', $data) && (bool) $data['renewal_open'] !== $period->renewal_open) {
+                $data['renewal_closed_at'] = $data['renewal_open'] ? null : now();
+            }
             $period->update($data);
-            $this->keepRenewalExclusive($period);
             AuditLog::record('semester_period_updated', $period, $old, $period->only(['academic_year', 'semester', 'start_date', 'end_date', 'renewal_open']), $admin->id);
 
             return $period->fresh();
@@ -154,10 +155,4 @@ class SemesterPeriodService
     }
 
     /** Opening renewal for one term closes it for every other. */
-    private function keepRenewalExclusive(SemesterPeriod $period): void
-    {
-        if ($period->renewal_open) {
-            SemesterPeriod::where('id', '!=', $period->id)->where('renewal_open', true)->update(['renewal_open' => false]);
-        }
-    }
 }

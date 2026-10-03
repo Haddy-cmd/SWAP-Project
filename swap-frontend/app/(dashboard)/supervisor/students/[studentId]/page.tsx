@@ -12,11 +12,10 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
-import { TermReportBody } from '@/components/attendance/TermReportCard'
 import { PACE_META, UNKNOWN_PACE, paceDetail, type PaceStatus } from '@/lib/utils/pace'
 import { TermBadge } from '@/components/shared/TermBadge'
 import { MarkDeficientModal } from '@/components/supervisor/MarkDeficientModal'
-import { EvaluationCard } from '@/components/supervisor/EvaluationCard'
+import { TermReportReview } from '@/components/supervisor/TermReportReview'
 import { formatDay } from '@/lib/utils/semester'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import type { TimeLog } from '@/types/attendance.types'
@@ -238,19 +237,15 @@ export default function StudentDetailPage() {
         </div>
       </div>
 
-      {/* end-of-term narrative report (read-only) */}
+      {/* end-of-term narrative report, accepted with an eligible / not eligible for renewal mark */}
       <div className="mt-[18px] rounded-[18px] border border-ink-200 bg-white px-7 py-[22px] shadow-[0_2px_10px_rgba(19,36,26,.05)]">
         <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">End-of-Term Report</div>
-        {result?.term_report ? (
-          <TermReportBody report={result.term_report} />
+        {result?.assignment_id ? (
+          <TermReportReview assignmentId={result.assignment_id} report={result.term_report ?? null} hoursMet={result.hours_met ?? true} />
         ) : (
-          <p className="mt-3 text-sm text-ink-500">Not submitted yet. The student writes it on their Hours page; the stipend cannot be released without it.</p>
+          <p className="mt-3 text-sm text-ink-500">Not submitted yet.</p>
         )}
       </div>
-
-      {result?.assignment_id && (
-        <EvaluationCard assignmentId={result.assignment_id} evaluation={result.evaluation ?? null} />
-      )}
 
       {marking && term && (
         <MarkDeficientModal studentId={Number(studentId)} studentName={name}

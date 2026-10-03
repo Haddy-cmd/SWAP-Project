@@ -15,7 +15,6 @@
     $deficient = $promissory ? $hrs($stipend->deficient_hours) : null;
     $requiredHrs = $promissory && $stipend->required_hours !== null ? $hrs($stipend->required_hours) : null;
     $renderedHrs = $requiredHrs !== null ? $hrs(max(0, (float) $stipend->required_hours - (float) $stipend->deficient_hours)) : null;
-    $makeupDue = $stipend->makeup_deadline?->format('F j, Y');
 
     $sig = fn (string $role) => $stipend->signatures->firstWhere('signatory_role', $role);
     // Drawn specimen embedded as ink. Base64 data-URI keeps DomPDF self-contained
@@ -116,7 +115,7 @@
                         Student Welfare Assistantship Program (SWAP) and has rendered
                         @if ($requiredHrs !== null) <b>{{ $renderedHrs }}</b> of the <b>{{ $requiredHrs }}</b> @else the @endif
                         duty hours required for <b>{{ $period }}</b>, with a deficiency of <b>{{ $deficient }} hours</b>
-                        covered by approved promissory note #{{ $stipend->promissory_note_id }}@if ($makeupDue) (makeup due {{ $makeupDue }})@endif.
+                        covered by approved promissory note #{{ $stipend->promissory_note_id }}.
                     @else
                         This is to certify that Mr./Ms. <b>{{ $name }}</b>@if ($sid) (Student ID <b>{{ $sid }}</b>)@endif is a bonafide beneficiary of the
                         Student Welfare Assistantship Program (SWAP) and has completed the duty hours required for
@@ -156,7 +155,7 @@
         the SWAP Beneficiary allowance for <b>{{ $period }}</b>.
     </div>
     @if ($promissory)
-        <div class="body">Deficiency: <b>{{ $deficient }} hrs</b> · promissory note #{{ $stipend->promissory_note_id }}@if ($makeupDue) · makeup due {{ $makeupDue }}@endif</div>
+        <div class="body">Deficiency: <b>{{ $deficient }} hrs</b> · promissory note #{{ $stipend->promissory_note_id }}</div>
     @endif
     <table class="sigrow">
         <tr>
@@ -180,7 +179,7 @@
         the SWAP Beneficiary allowance for <b>{{ $period }}</b>.
     </div>
     @if ($promissory)
-        <div class="body">Deficiency: <b>{{ $deficient }} hrs</b> · promissory note #{{ $stipend->promissory_note_id }}@if ($makeupDue) · makeup due {{ $makeupDue }}@endif</div>
+        <div class="body">Deficiency: <b>{{ $deficient }} hrs</b> · promissory note #{{ $stipend->promissory_note_id }}</div>
     @endif
     <table class="sigrow">
         <tr>

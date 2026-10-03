@@ -53,6 +53,11 @@ export interface TermReport {
   challenges: string | null
   submitted_at: string | null
   updated_at: string | null
+  /** The supervisor's acceptance (null until accepted) and renewal mark. */
+  reviewed_at: string | null
+  reviewer: string | null
+  renewal_eligible: boolean | null
+  review_remarks: string | null
 }
 
 export interface TermReportMeta {

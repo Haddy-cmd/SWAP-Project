@@ -31,7 +31,7 @@ use App\Http\Controllers\Supervisor\OfficeController as SupervisorOfficeControll
 use App\Http\Controllers\Supervisor\SettingsController as SupervisorSettingsController;
 use App\Http\Controllers\Supervisor\StudentController;
 use App\Http\Controllers\Supervisor\VerificationController;
-use App\Http\Controllers\Supervisor\EvaluationController as SupervisorEvaluationController;
+use App\Http\Controllers\Supervisor\TermReportController as SupervisorTermReportController;
 use App\Http\Controllers\Admin\ApplicationController as AdminApplicationController;
 use App\Http\Controllers\Admin\AssignmentController;
 use App\Http\Controllers\Admin\AnnouncementController;
@@ -148,8 +148,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/students/{id}/required-hours', [StudentController::class, 'updateRequiredHours']);
         Route::post('/students/{id}/required-hours/decision', [StudentController::class, 'decideRequiredHours']);
         Route::post('/students/{id}/mark-deficient', [StudentController::class, 'markDeficient']);
-        Route::get('/assignments/{id}/evaluation', [SupervisorEvaluationController::class, 'show']);
-        Route::put('/assignments/{id}/evaluation', [SupervisorEvaluationController::class, 'update']);
+        Route::put('/assignments/{id}/term-report/review', [SupervisorTermReportController::class, 'review'])->whereNumber('id');
         Route::get('/reports/roster', [ReportController::class, 'supervisorRoster']);
         Route::get('/reports/roster/export', [ReportController::class, 'exportSupervisorRoster']);
         Route::get('/verifications/pending', [VerificationController::class, 'pending']);

@@ -10,7 +10,6 @@ use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
 use App\Models\StipendSignature;
 use App\Models\StudentProfile;
-use App\Models\TermEvaluation;
 use App\Models\TermReport;
 use App\Models\TestingSnapshot;
 use App\Models\TimeLog;
@@ -41,7 +40,7 @@ class TestingToolsTest extends TestCase
         $this->admin = $this->makeUser('admin', ['position_title' => 'Director']);
     }
 
-    /** @return array{0: User, 1: Assignment} a real recipient with 3 verified hours and a failing evaluation */
+    /** @return array{0: User, 1: Assignment} a real recipient with 3 verified hours */
     private function realRecipient(?User $supervisor = null): array
     {
         $student = $this->makeUser('recipient');
@@ -55,7 +54,6 @@ class TestingToolsTest extends TestCase
             'start_date' => '2026-08-01', 'end_date' => '2026-12-15',
         ]);
         $this->makeClosedLog($assignment, 3);
-        TermEvaluation::create(['assignment_id' => $assignment->id, 'evaluator_id' => $supervisor->id, 'rating' => 2, 'remarks' => 'Original.', 'passed' => false]);
 
         return [$student, $assignment];
     }
@@ -155,7 +153,9 @@ class TestingToolsTest extends TestCase
         $this->act($student, 'end-term')->assertOk();
         $this->act($student, 'close-term')->assertOk()->assertJsonPath('message', 'Term closed: deficient.');
         $this->act($student, 'term-report')->assertOk();
-        $this->act($student, 'evaluation', ['rating' => 5])->assertOk();
+        $this->act($student, 'review-report', ['eligible' => true])->assertOk()
+            ->assertJsonPath('message', 'End-of-term report accepted by the supervisor: eligible for renewal.');
+        $this->assertTrue(TermReport::where('assignment_id', $assignment->id)->firstOrFail()->renewal_eligible);
         $this->act($student, 'renewal')->assertOk();
         $renewal = Application::where('user_id', $student->id)->where('type', 'renewal')->firstOrFail();
         $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
@@ -180,10 +180,6 @@ class TestingToolsTest extends TestCase
         $this->assertEquals(3.0, $after->verified_hours);
         $this->assertSame(1, TimeLog::where('assignment_id', $assignment->id)->count());
         $this->assertNull(TermReport::where('assignment_id', $assignment->id)->first());
-        $evaluation = TermEvaluation::where('assignment_id', $assignment->id)->firstOrFail();
-        $this->assertSame(2, $evaluation->rating);
-        $this->assertSame('Original.', $evaluation->remarks);
-        $this->assertFalse($evaluation->passed);
         $this->assertNull(Application::find($renewal->id));
         $this->assertEmpty($disk->files("documents/{$renewal->id}"));
         $this->assertSame(0, TestingSnapshot::count());
@@ -211,32 +207,29 @@ class TestingToolsTest extends TestCase
         $noteId = $this->post('/api/recipient/promissory', ['assignment_id' => $assignment->id, 'reason' => 'Testing the flow quickly.', 'file' => $file()], ['Accept' => 'application/json'])
             ->assertStatus(201)->json('data.id');
 
-        $this->act($student, 'makeup-overdue')->assertStatus(422)->assertJsonPath('message', TestingService::MSG_NO_NOTE);
         Sanctum::actingAs($supervisor);
         $this->postJson("/api/supervisor/promissory/{$noteId}/review", ['action' => 'approve', 'lacking_hours' => 12])->assertOk();
 
         $this->act($student, 'close-term')->assertOk()->assertJsonPath('message', 'Term closed: deficient.');
-        $this->act($student, 'makeup-overdue')->assertOk();
-        $this->assertTrue(PromissoryNote::find($noteId)->makeup_deadline->isPast());
+        $this->assertNull(PromissoryNote::find($noteId)->makeup_deadline);
 
         $this->act($student, 'term-report')->assertOk();
-        $this->act($student, 'evaluation', ['rating' => 4])->assertOk()->assertJsonPath('message', 'Evaluated 4/5.');
         $this->act($student, 'renewal')->assertOk();
         $renewal = Application::where('user_id', $student->id)->where('type', 'renewal')->firstOrFail();
         $this->assertSame(1, $renewal->documents()->where('document_type', 'cor')->count());
         $this->act($student, 'renewal')->assertStatus(422);
 
-        // The real renewal gate still applies: the overdue makeup blocks approval.
+        // The real renewal gate: short on hours, the approved note and the report are enough,
+        // and the 12 lacking hours move into the next term.
         Sanctum::actingAs($this->admin);
         $this->putJson("/api/admin/applications/{$renewal->id}/decide", ['decision' => 'approved', 'remarks' => 'Test.'])
-            ->assertStatus(409);
-
-        $this->act($student, 'reset-term')->assertOk();
-        $this->assertNull($assignment->fresh()->term_status);
+            ->assertOk();
+        $this->assertSame(20 + 12, Assignment::where('user_id', $student->id)->where('status', 'active')->firstOrFail()->required_hours);
 
         // The restore removes the note too, although the student filed it on the normal page.
         $this->release($student)->assertOk();
         $this->assertNull(PromissoryNote::find($noteId));
+        $this->assertSame('active', $assignment->fresh()->status);
     }
 
     public function test_bypasses_apply_to_picked_accounts_only(): void
@@ -299,7 +292,6 @@ class TestingToolsTest extends TestCase
         // The term closes; the admin approves the renewal on Admin → Applications, moving the student to 2nd semester.
         $this->act($student, 'close-term')->assertOk();
         $this->act($student, 'term-report')->assertOk();
-        $this->act($student, 'evaluation', ['rating' => 4])->assertOk();
         $this->act($student, 'renewal')->assertOk();
         $renewal = Application::where('user_id', $student->id)->where('type', 'renewal')->firstOrFail();
         Sanctum::actingAs($this->admin);
@@ -342,7 +334,8 @@ class TestingToolsTest extends TestCase
         $this->act($student, 'reset-stipend')->assertOk();
         $this->act($student, 'reset-hours')->assertOk();
         $this->act($student, 'complete-hours')->assertOk();
-        $this->act($student, 'evaluation', ['rating' => 5])->assertOk();
+        $this->act($student, 'term-report')->assertOk();
+        $this->act($student, 'review-report', ['eligible' => false])->assertOk();
         $this->act($student, 'end-term')->assertOk();
         $this->release($student)->assertOk();
 
@@ -624,7 +617,7 @@ class TestingToolsTest extends TestCase
 
     public function test_an_account_tested_before_restore_points_is_cleaned_up_from_the_audit_log(): void
     {
-        // Before the test: a 1st-semester placement with 3 hours and an evaluation.
+        // Before the test: a 1st-semester placement with 3 hours.
         $this->travelTo(Carbon::parse('2026-10-02 09:00'));
         [$student, $first] = $this->realRecipient();
 
@@ -671,7 +664,6 @@ class TestingToolsTest extends TestCase
         $this->assertNull(Application::find($renewal->id));
         $this->assertSame(0, PromissoryNote::count());
         $this->assertEqualsCanonicalizing([TimeLog::where('assignment_id', $first->id)->min('id'), $later->id], TimeLog::where('assignment_id', $first->id)->pluck('id')->all());
-        $this->assertNotNull(TermEvaluation::where('assignment_id', $first->id)->first());
         $this->assertDatabaseHas('audit_logs', ['action' => 'testing_legacy_cleanup', 'auditable_id' => $student->id]);
         $this->getJson('/api/admin/testing/earlier')->assertOk()->assertJsonCount(0, 'data');
         $this->postJson("/api/admin/testing/earlier/{$student->id}")->assertStatus(422)

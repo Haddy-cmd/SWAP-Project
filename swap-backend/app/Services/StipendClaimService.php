@@ -155,7 +155,6 @@ class StipendClaimService
                 'promissory_note_id' => $viaPromissory ? ($row['promissory_id'] ?? null) : null,
                 'deficient_hours' => $viaPromissory ? ($row['deficient_hours'] ?? null) : null,
                 'lacking_hours' => $viaPromissory ? ($row['lacking_hours'] ?? null) : null,
-                'makeup_deadline' => $viaPromissory ? ($row['makeup_deadline'] ?? null) : null,
             ]);
 
             $stipend->update([

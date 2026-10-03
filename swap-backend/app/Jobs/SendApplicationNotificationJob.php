@@ -15,6 +15,8 @@ use App\Notifications\PromissorySubmittedNotification;
 use App\Notifications\SignatureRequiredNotification;
 use App\Notifications\StipendAvailableNotification;
 use App\Notifications\StipendReleasedNotification;
+use App\Notifications\TermReportReviewedNotification;
+use App\Notifications\TermReportSubmittedNotification;
 use App\Notifications\TermStatusNotification;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -56,6 +58,8 @@ class SendApplicationNotificationJob implements ShouldQueue
             'promissory_reviewed' => new PromissoryReviewedNotification($this->data),
             'signature_required' => new SignatureRequiredNotification($this->data),
             'term_status' => new TermStatusNotification($this->data),
+            'term_report_reviewed' => new TermReportReviewedNotification($this->data),
+            'term_report_submitted' => new TermReportSubmittedNotification($this->data),
             default => null,
         };
 

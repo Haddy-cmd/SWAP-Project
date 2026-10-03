@@ -8,7 +8,6 @@ use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
-use App\Models\TermEvaluation;
 use App\Models\TermReport;
 use App\Models\TestingSnapshot;
 use App\Models\TimeLog;
@@ -25,7 +24,7 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 /**
  * Admin → System Testing on existing accounts: the admin picks real recipients or
  * applicants, and shortcuts move their data into the state a test needs (end a term now,
- * add verified hours, overdue makeup…), so time-gated flows can be walked without
+ * add verified hours, file a promissory note…), so time-gated flows can be walked without
  * waiting. The real rules then run on that data. Picking an account copies its whole
  * record (AccountSnapshot); removing it, or switching testing off, puts that copy back —
  * whatever changed it in the meantime, the buttons or the normal pages.
@@ -67,6 +66,7 @@ class TestingService
     private const STALE_HOURS = 12;
 
     public function __construct(
+        private readonly TermReportReviewService $reportReviews,
         private readonly TermStatusService $termStatus,
         private readonly PromissoryService $promissory,
         private readonly AttendanceService $attendance,
@@ -101,7 +101,7 @@ class TestingService
         $users = User::with('profile')->whereNotNull('testing_added_at')->orderBy('role')->orderBy('testing_added_at')->get();
         $withSnapshot = TestingSnapshot::whereIn('user_id', $users->pluck('id'))->pluck('user_id')->flip();
 
-        $assignments = Assignment::with(['evaluation', 'termReport'])
+        $assignments = Assignment::with(['termReport'])
             ->withPromissoryFlags()
             ->whereIn('user_id', $users->pluck('id'))
             ->orderByDesc('id')
@@ -135,8 +135,9 @@ class TestingService
                     'pending_hours' => round($a->pending_hours, 2),
                     'end_date' => $a->effectiveEndDate()?->toDateString(),
                     'term_badge' => $a->termBadge(),
-                    'evaluation' => $a->evaluation?->rating,
                     'report_submitted' => $a->termReport?->submitted_at !== null,
+                    // The supervisor's acceptance: null until accepted, then eligible or not.
+                    'report_eligible' => $a->termReport?->reviewed_at ? (bool) $a->termReport->renewal_eligible : null,
                     'promissory' => $a->has_approved_promissory ? 'approved' : ($a->has_pending_promissory ? 'pending' : null),
                     // The term's stub: certified = ready to claim; claimed/released = received.
                     'stipend' => $stubs->get("{$a->user_id}|{$a->academic_year}|{$a->semester}")?->status,
@@ -203,20 +204,6 @@ class TestingService
         return $assignment->fresh();
     }
 
-    public function makeupOverdue(User $recipient, User $admin): PromissoryNote
-    {
-        $assignment = $this->currentAssignment($recipient);
-        $note = PromissoryNote::where('assignment_id', $assignment->id)
-            ->where('status', PromissoryNote::STATUS_APPROVED)->latest('id')->first();
-        if (!$note) {
-            throw new UnprocessableEntityHttpException(self::MSG_NO_NOTE);
-        }
-        $note->update(['makeup_deadline' => Carbon::now(self::TZ)->subDay()->toDateString()]);
-        $this->audit('testing_makeup_overdue', $assignment, ['promissory_note_id' => $note->id], $admin);
-
-        return $note->fresh();
-    }
-
     public function submitTermReport(User $recipient, User $admin): TermReport
     {
         $assignment = $this->currentAssignment($recipient);
@@ -230,18 +217,14 @@ class TestingService
         return $report;
     }
 
-    public function evaluate(User $recipient, int $rating, User $admin): TermEvaluation
+    /** Accept the end-of-term report as the placement's supervisor, eligible or not for renewal. */
+    public function reviewReport(User $recipient, bool $eligible, User $admin): TermReport
     {
         $assignment = $this->currentAssignment($recipient);
-        $evaluation = TermEvaluation::updateOrCreate(['assignment_id' => $assignment->id], [
-            'evaluator_id' => $assignment->supervisor_id,
-            'rating' => $rating,
-            'remarks' => "Test evaluation ({$rating}/5).",
-            'passed' => $rating >= TermEvaluation::PASSING_RATING,
-        ]);
-        $this->audit('testing_evaluated', $assignment, ['rating' => $rating], $admin);
+        $report = $this->reportReviews->review($this->supervisorOf($assignment), $assignment, $eligible, 'System Testing review.');
+        $this->audit('testing_report_reviewed', $assignment, ['renewal_eligible' => $eligible], $admin);
 
-        return $evaluation;
+        return $report;
     }
 
     /** A renewal for the next term with a sample COR, even while renewal is closed. */
@@ -817,9 +800,6 @@ class TestingService
         }
         if ($rows['term_reports'] ?? []) {
             $items[] = 'End-of-term report';
-        }
-        foreach ($rows['term_evaluations'] ?? [] as $r) {
-            $items[] = "Evaluation ({$r['rating']}/5)";
         }
         if ($reactivate) {
             $items[] = "Placement for {$term($reactivate)} becomes active again";

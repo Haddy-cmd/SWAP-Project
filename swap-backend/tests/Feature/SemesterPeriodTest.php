@@ -99,13 +99,24 @@ class SemesterPeriodTest extends TestCase
     {
         Sanctum::actingAs($this->makeUser('admin'));
         $first = $this->postJson('/api/admin/semester-periods', $this->payload(['renewal_open' => true]))->json('data.id');
-        $second = $this->postJson('/api/admin/semester-periods', $this->payload([
-            'semester' => '2nd Semester', 'start_date' => '2027-01-11', 'end_date' => '2027-05-21', 'renewal_open' => true,
-        ]))->assertStatus(201)->json('data.id');
+        $label = SemesterPeriod::find($first)->label();
 
-        $this->assertFalse(SemesterPeriod::find($first)->renewal_open);
-        $this->assertTrue(SemesterPeriod::find($second)->renewal_open);
+        // A second one can't open renewal while the first has it open.
+        $secondPayload = $this->payload(['semester' => '2nd Semester', 'start_date' => '2027-01-11', 'end_date' => '2027-05-21']);
+        $this->postJson('/api/admin/semester-periods', $secondPayload + ['renewal_open' => true])->assertStatus(422)
+            ->assertJsonPath('errors.renewal_open.0', \App\Http\Requests\Semester\SaveSemesterPeriodRequest::msgRenewalTaken($label));
+        $second = $this->postJson('/api/admin/semester-periods', $secondPayload)->assertStatus(201)->json('data.id');
+        $this->putJson("/api/admin/semester-periods/{$second}", $secondPayload + ['renewal_open' => true])->assertStatus(422);
+        $this->assertTrue(SemesterPeriod::find($first)->renewal_open);
+
+        // Closing the first records when; then the second can open, and reopening clears the close time.
+        $this->putJson("/api/admin/semester-periods/{$first}", $this->payload(['renewal_open' => false]))->assertOk();
+        $this->assertNotNull(SemesterPeriod::find($first)->renewal_closed_at);
+        $this->putJson("/api/admin/semester-periods/{$second}", $secondPayload + ['renewal_open' => true])->assertOk();
         $this->assertSame($second, SemesterPeriodService::renewalTarget()->id);
+
+        // Editing the open one (keeping renewal open) is fine.
+        $this->putJson("/api/admin/semester-periods/{$second}", $secondPayload + ['renewal_open' => true])->assertOk();
 
         // The public application status reads the same period.
         $this->getJson('/api/settings/application-status')->assertOk()

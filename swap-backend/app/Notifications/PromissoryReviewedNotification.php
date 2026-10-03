@@ -27,9 +27,9 @@ class PromissoryReviewedNotification extends Notification implements ShouldQueue
             ->greeting("Dear {$notifiable->name},");
 
         if ($approved) {
-            $lacking = number_format((float) ($this->data['lacking_hours'] ?? 0), 2);
-            $mail->line("Your promissory note was approved. Render the lacking {$lacking} hour(s) as soon as possible.")
-                ->line('Makeup deadline: '.($this->data['makeup_deadline'] ?? '—').'.')
+            $lacking = rtrim(rtrim(number_format((float) ($this->data['lacking_hours'] ?? 0), 2, '.', ''), '0'), '.');
+            $mail->line("Your promissory note was approved, covering {$lacking} lacking hour(s).")
+                ->line("If you renew, these {$lacking} hours are added to your next semester's required hours.")
                 ->action('View My Stipend', \App\Support\Frontend::url('/recipient/stipend'));
         } else {
             $mail->line('Your promissory note was not approved.')
@@ -46,7 +46,7 @@ class PromissoryReviewedNotification extends Notification implements ShouldQueue
         return [
             'title' => $approved ? 'Promissory Note Approved' : 'Promissory Note Rejected',
             'message' => $approved
-                ? 'Your promissory note was approved. Render the lacking hours as soon as possible.'
+                ? 'Your promissory note was approved. If you renew, the lacking hours are added to your next semester\'s required hours.'
                 : 'Your promissory note was not approved.',
             'type' => 'promissory',
             'promissory_id' => $this->data['promissory_id'] ?? null,

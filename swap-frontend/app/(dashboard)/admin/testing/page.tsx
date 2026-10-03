@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  FlaskConical, UserRound, Clock, CalendarX, Gavel, AlarmClock, FileText, Star, RefreshCw, RotateCcw, Search, UserPlus,
+  FlaskConical, UserRound, Clock, CalendarX, Gavel, FileText, ClipboardCheck, RefreshCw, RotateCcw, Search, UserPlus,
   UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser, Banknote, BadgeCheck, ThumbsUp, ThumbsDown,
   Ticket, Wallet, History,
 } from 'lucide-react'
@@ -20,7 +20,7 @@ type WithStatus = { data: TestingStatus; message: string }
 
 /**
  * Admin → System Testing: pick existing recipients/applicants and use shortcuts that move
- * their data into the state a test needs (end a term now, add hours, overdue makeup…), so
+ * their data into the state a test needs (end a term now, add hours, file a promissory note…), so
  * time-gated flows can be tried without waiting. Picking copies the account's record;
  * removing it, or switching testing off, restores that copy — whatever changed it. Picking,
  * the relaxed rules and the shortcuts only work while on.
@@ -81,8 +81,8 @@ export default function SystemTestingPage() {
           <h1 className="text-2xl font-bold text-ink-900">System Testing</h1>
         </div>
         <p className="mt-1 max-w-3xl text-sm text-ink-500">
-          Pick existing recipients or applicants and use shortcuts to try flows without waiting — end a term now, add hours, make a
-          makeup overdue. While on, picked accounts may also clock in any day, any hour, from anywhere and without a selfie, and their
+          Pick existing recipients or applicants and use shortcuts to try flows without waiting — end a term now, add hours, file a
+          promissory note. While on, picked accounts may also clock in any day, any hour, from anywhere and without a selfie, and their
           interviews can be scheduled at any time. They keep their real email, so notifications can be tested too.
         </p>
       </div>
@@ -368,7 +368,7 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
   const [hours, setHours] = useState(5)
   const [status, setStatus] = useState<'verified' | 'pending_verification'>('verified')
   const [date, setDate] = useState('')
-  const [rating, setRating] = useState(4)
+  const [eligible, setEligible] = useState(true)
   const [msg, setMsg] = useState<Note>(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmStipend, setConfirmStipend] = useState(false)
@@ -398,7 +398,8 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
           {current.term} · {current.verified_hours}h / {current.required_hours}h verified
           {current.pending_hours > 0 ? ` · ${current.pending_hours}h pending` : ''}
           {current.end_date ? ` · ends ${formatDay(current.end_date)}` : ''}
-          {current.report_submitted ? ' · report in' : ''}{current.evaluation ? ` · evaluated ${current.evaluation}/5` : ''}
+          {current.report_submitted ? ' · report in' : ''}
+          {current.report_eligible !== null ? ` · report accepted (${current.report_eligible ? 'eligible' : 'not eligible'})` : ''}
           {current.promissory ? ` · promissory ${current.promissory}` : ''}
           {current.stipend ? ` · stipend ${STIPEND_LABEL[current.stipend] ?? current.stipend}` : ''}
         </p>
@@ -463,21 +464,22 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
             title="File a promissory note for the student with a sample PDF (only after the term has ended). Their supervisor then reviews it.">
             <FileSignature className="h-3.5 w-3.5" /> File promissory note</button>
           <button onClick={() => run('approve-promissory')} disabled={busy} className={BTN}
-            title="As the supervisor: approve the pending note, recording its lacking hours and a makeup deadline a week after the term ends.">
+            title="As the supervisor: approve the pending note, recording its lacking hours (added to the next term if the student renews).">
             <ThumbsUp className="h-3.5 w-3.5" /> Approve note</button>
           <button onClick={() => run('reject-promissory')} disabled={busy} className={BTN} title="As the supervisor: reject the pending note.">
             <ThumbsDown className="h-3.5 w-3.5" /> Reject note</button>
           <button onClick={() => run('close-term')} disabled={busy} className={BTN} title="Record Qualified or Deficient now (this term only).">
             <Gavel className="h-3.5 w-3.5" /> Close term now</button>
-          <button onClick={() => run('makeup-overdue')} disabled={busy} className={BTN} title="An approved promissory note's makeup deadline becomes yesterday.">
-            <AlarmClock className="h-3.5 w-3.5" /> Make makeup overdue</button>
           <button onClick={() => run('term-report')} disabled={busy} className={BTN}>
             <FileText className="h-3.5 w-3.5" /> Submit end-of-term report</button>
           <span className="flex items-center gap-1">
-            <select value={rating} onChange={(e) => setRating(Number(e.target.value))} className={SMALL} aria-label="Evaluation rating">
-              {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}/5</option>)}
+            <select value={eligible ? 'yes' : 'no'} onChange={(e) => setEligible(e.target.value === 'yes')} className={SMALL} aria-label="Renewal mark">
+              <option value="yes">Eligible</option>
+              <option value="no">Not eligible</option>
             </select>
-            <button onClick={() => run('evaluation', { rating })} disabled={busy} className={BTN}><Star className="h-3.5 w-3.5" /> Evaluate</button>
+            <button onClick={() => run('review-report', { eligible })} disabled={busy} className={BTN}
+              title="As the supervisor: accept the end-of-term report and mark the student eligible or not for renewal.">
+              <ClipboardCheck className="h-3.5 w-3.5" /> Accept report</button>
           </span>
           <button onClick={() => run('renewal')} disabled={busy} className={BTN} title="Submit a renewal for the next term with a sample COR, even if renewal is closed.">
             <RefreshCw className="h-3.5 w-3.5" /> Submit renewal</button>

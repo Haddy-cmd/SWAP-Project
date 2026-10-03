@@ -18,6 +18,7 @@ class TermReportService
 {
     public const MSG_NO_ASSIGNMENT = 'You have no active assignment.';
     public const MSG_LOCKED = 'Your end-of-term report can no longer be edited because your stipend has been released.';
+    public const MSG_ACCEPTED = 'Your end-of-term report was accepted by your supervisor and can no longer be edited.';
 
     /** @return array{assignment: ?Assignment, report: ?TermReport, editable: bool} */
     public function forUser(User $user): array
@@ -30,7 +31,7 @@ class TermReportService
         return [
             'assignment' => $assignment,
             'report' => $assignment?->termReport,
-            'editable' => $assignment !== null && !self::isLocked($assignment),
+            'editable' => $assignment !== null && !self::isLocked($assignment) && !$assignment->termReport?->reviewed_at,
         ];
     }
 
@@ -44,6 +45,9 @@ class TermReportService
         if (self::isLocked($assignment)) {
             throw new UnprocessableEntityHttpException(self::MSG_LOCKED);
         }
+        if ($report?->reviewed_at) {
+            throw new UnprocessableEntityHttpException(self::MSG_ACCEPTED);
+        }
 
         $old = $report?->only(['content', 'accomplishments', 'challenges']);
         $report ??= new TermReport(['assignment_id' => $assignment->id, 'user_id' => $user->id]);
@@ -56,6 +60,9 @@ class TermReportService
 
         AuditLog::record($old ? 'term_report_updated' : 'term_report_submitted', $report, $old,
             $report->only(['assignment_id', 'content', 'accomplishments', 'challenges']), $user->id);
+        if (!$old) {
+            TermReportReviewService::notifySubmitted($assignment, $user);
+        }
 
         return $report;
     }
@@ -80,6 +87,11 @@ class TermReportService
             'challenges' => $report->challenges,
             'submitted_at' => $report->submitted_at?->toISOString(),
             'updated_at' => $report->updated_at?->toISOString(),
+            // The supervisor's acceptance and renewal mark (null until accepted).
+            'reviewed_at' => $report->reviewed_at?->toISOString(),
+            'reviewer' => $report->reviewed_by ? ($report->reviewer?->name) : null,
+            'renewal_eligible' => $report->reviewed_at ? (bool) $report->renewal_eligible : null,
+            'review_remarks' => $report->review_remarks,
         ] : null;
     }
 }

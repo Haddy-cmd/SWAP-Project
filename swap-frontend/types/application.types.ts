@@ -85,22 +85,17 @@ export interface RenewalReadiness {
   deficient_hours: number | null
   payment: 'paid' | 'not_required' | 'owed' | 'promissory' | 'unpaid'
   promissory_note_id: number | null
-  makeup_deadline: string | null
-  makeup_overdue: boolean
+  // Completed hours need the report accepted as eligible; short hours renew on the note + report.
+  hours_met: boolean
   report_submitted: boolean
-  evaluation: TermEvaluation | null
-  passing_rating: number
+  report: {
+    submitted: boolean
+    accepted: boolean
+    renewal_eligible: boolean | null
+    reviewer: string | null
+    remarks: string | null
+  }
   ready: boolean
   // The first unmet requirement — the approval is refused with this message.
   blocker: string | null
-}
-
-/** Hand-mirrored from TermEvaluation::toPayload. */
-export interface TermEvaluation {
-  rating: number
-  rating_label: string | null
-  remarks: string
-  passed: boolean
-  evaluator: string | null
-  updated_at: string | null
 }

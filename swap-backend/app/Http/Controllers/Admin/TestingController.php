@@ -19,7 +19,7 @@ class TestingController extends Controller
 {
     public const ACTIONS = [
         'hours', 'complete-hours', 'reset-hours', 'verify-hours', 'clock-in', 'auto-clock-out', 'end-term', 'file-promissory',
-        'approve-promissory', 'reject-promissory', 'close-term', 'makeup-overdue', 'term-report', 'evaluation', 'renewal',
+        'approve-promissory', 'reject-promissory', 'close-term', 'term-report', 'review-report', 'renewal',
         'reset-term', 'release-stub', 'pay-out', 'reset-stipend',
     ];
 
@@ -133,7 +133,7 @@ class TestingController extends Controller
             'approve-promissory' => (function () use ($recipient, $admin) {
                 $note = $this->testing->reviewNote($recipient, $admin, true);
 
-                return "Promissory note approved by the supervisor: {$note->lacking_hours} lacking hours, makeup due {$note->makeup_deadline?->toDateString()}.";
+                return "Promissory note approved by the supervisor: {$note->lacking_hours} lacking hours, added to the next term if the student renews.";
             })(),
             'reject-promissory' => ($this->testing->reviewNote($recipient, $admin, false) ? 'Promissory note rejected by the supervisor.' : ''),
             'release-stub' => (function () use ($recipient, $admin) {
@@ -152,13 +152,15 @@ class TestingController extends Controller
             'end-term' => ($this->testing->endTerm($recipient, $admin) ? 'Term ended yesterday. Promissory notes and term-end rules now apply.' : ''),
             'file-promissory' => ($this->testing->fileNote($recipient, $admin) ? 'Promissory note filed. Their supervisor can review it now.' : ''),
             'close-term' => 'Term closed: ' . ($this->testing->closeTerm($recipient, $admin)->term_status ?? 'in progress') . '.',
-            'makeup-overdue' => ($this->testing->makeupOverdue($recipient, $admin) ? 'The makeup deadline is now overdue.' : ''),
             'term-report' => ($this->testing->submitTermReport($recipient, $admin) ? 'End-of-term report submitted.' : ''),
-            'evaluation' => (function () use ($request, $recipient, $admin) {
-                $data = $request->validate(['rating' => ['required', 'integer', 'between:1,5']]);
-                $this->testing->evaluate($recipient, (int) $data['rating'], $admin);
+            'review-report' => (function () use ($request, $recipient, $admin) {
+                $data = $request->validate(['eligible' => ['required', 'boolean']]);
+                $eligible = (bool) $data['eligible'];
+                $this->testing->reviewReport($recipient, $eligible, $admin);
 
-                return "Evaluated {$data['rating']}/5.";
+                return $eligible
+                    ? 'End-of-term report accepted by the supervisor: eligible for renewal.'
+                    : 'End-of-term report accepted by the supervisor: not eligible for renewal.';
             })(),
             'renewal' => (function () use ($recipient, $admin) {
                 $app = $this->testing->submitRenewal($recipient, $admin);

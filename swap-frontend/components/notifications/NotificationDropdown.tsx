@@ -13,9 +13,11 @@ import type { Notification } from '@/types/notification.types'
 interface NotificationDropdownProps {
   notifications: Notification[]
   onClose: () => void
+  /** Announcements open in a popup instead of a page. */
+  onAnnouncement: (n: Notification) => void
 }
 
-export function NotificationDropdown({ notifications, onClose }: NotificationDropdownProps) {
+export function NotificationDropdown({ notifications, onClose, onAnnouncement }: NotificationDropdownProps) {
   const queryClient = useQueryClient()
   const router = useRouter()
   const role = useAuthStore((s) => s.user?.role)
@@ -30,10 +32,15 @@ export function NotificationDropdown({ notifications, onClose }: NotificationDro
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   })
 
-  // Same behaviour as the notifications page: mark read, then jump to the
-  // related transaction (and close the dropdown).
+  // Same behaviour as the notifications page: mark read, then show an announcement
+  // in a popup, or jump to the related transaction (and close the dropdown).
   const open = (n: Notification) => {
     if (!n.is_read) markOne.mutate(n.id)
+    if (n.data.type === 'announcement') {
+      onClose()
+      onAnnouncement(n)
+      return
+    }
     const href = notificationLink(n, role)
     if (href) {
       onClose()

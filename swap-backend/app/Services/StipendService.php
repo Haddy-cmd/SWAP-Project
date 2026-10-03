@@ -104,7 +104,6 @@ class StipendService
                         ?? $note->deficient_hours
                         ?? max(0, (float) $a->required_hours - (float) ($a->verified_sum ?? 0))),
                     'lacking_hours' => (float) $note->lacking_hours,
-                    'makeup_deadline' => $note->makeup_deadline?->toDateString(),
                 ] + self::readiness($a);
             })
             ->filter()

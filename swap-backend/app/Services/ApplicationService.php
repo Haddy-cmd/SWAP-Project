@@ -303,7 +303,7 @@ class ApplicationService
         ApplicationTransitions::assertCanDecide($application, $decision);
 
         // Approving a renewal waits for the renewed term: paid or covered by a note,
-        // report in, evaluated and passed, no overdue makeup (RenewalReadinessService).
+        // report in, and when the hours were met the report accepted as eligible (RenewalReadinessService).
         if ($decision === 'approved' && $application->type === 'renewal') {
             $this->renewalReadiness->assertReady($application);
         }

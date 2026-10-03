@@ -34,7 +34,7 @@ class TermReportController extends Controller
 
         return response()->json([
             'data' => TermReportService::toArray($report),
-            'message' => 'End-of-term report saved. You can edit it until your stipend is released.',
+            'message' => 'End-of-term report saved. You can edit it until your supervisor accepts it or your stipend is released.',
         ]);
     }
 }

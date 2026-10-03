@@ -6,6 +6,7 @@ use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\PromissoryNote;
+use App\Models\SemesterPeriod;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -20,10 +21,13 @@ use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
  * Promissory notes for recipients who fell short of their required hours after
  * the semester end. The student uploads the note, a governing supervisor
  * approves it (recording the lacking hours), and the approval lets the admin
- * release the stipend despite the shortfall.
+ * release the stipend despite the shortfall. There is no makeup deadline: if the
+ * student renews, the lacking hours are added to the next term's requirement
+ * (RenewalReadinessService::carryHours).
  *
- * Policy: the makeup deadline is fixed at exactly 1 week after the semester
- * end — server-computed, never client input.
+ * Window: from the day after the term ends until renewal for the next semester closes
+ * (the first semester period starting after the term; closed = its renewal was opened,
+ * then closed — semester_periods.renewal_closed_at).
  */
 class PromissoryService
 {
@@ -47,6 +51,9 @@ class PromissoryService
         }
         if (Carbon::now(self::TIMEZONE)->lt($semesterEnd->copy()->endOfDay())) {
             throw new UnprocessableEntityHttpException('Promissory notes can only be submitted after the semester ends.');
+        }
+        if ($closed = $this->windowClosed($assignment, $semesterEnd)) {
+            throw new UnprocessableEntityHttpException($closed);
         }
 
         $verified = (float) $assignment->verified_hours;
@@ -127,7 +134,6 @@ class PromissoryService
                 $note->update([
                     'status' => PromissoryNote::STATUS_APPROVED,
                     'lacking_hours' => $data['lacking_hours'],
-                    'makeup_deadline' => $semesterEnd->copy()->addDays(7)->toDateString(),
                     'review_remarks' => $data['review_remarks'] ?? null,
                     'reviewed_by' => $supervisor->id,
                     'reviewed_at' => now(),
@@ -151,7 +157,6 @@ class PromissoryService
             'promissory_id' => $note->id,
             'decision' => $updated->status,
             'lacking_hours' => $updated->lacking_hours,
-            'makeup_deadline' => $updated->makeup_deadline?->toDateString(),
             'review_remarks' => $updated->review_remarks,
         ]);
 
@@ -192,6 +197,9 @@ class PromissoryService
         if (Carbon::now(self::TIMEZONE)->lt($semesterEnd->copy()->endOfDay())) {
             return ['can_submit' => false, 'reason' => 'Available only after the semester ends.', 'assignment_id' => $assignment->id, 'lacking_hours' => null];
         }
+        if ($closed = $this->windowClosed($assignment, $semesterEnd)) {
+            return ['can_submit' => false, 'reason' => $closed, 'assignment_id' => $assignment->id, 'lacking_hours' => null];
+        }
 
         $verified = (float) $assignment->verified_hours;
         $required = (float) $assignment->required_hours;
@@ -209,7 +217,38 @@ class PromissoryService
             return ['can_submit' => false, 'reason' => 'A promissory note is already pending review.', 'assignment_id' => $assignment->id, 'lacking_hours' => round($required - $verified, 2)];
         }
 
-        return ['can_submit' => true, 'reason' => null, 'assignment_id' => $assignment->id, 'lacking_hours' => round($required - $verified, 2)];
+        return [
+            'can_submit' => true, 'reason' => null, 'assignment_id' => $assignment->id, 'lacking_hours' => round($required - $verified, 2),
+            'window_note' => $this->windowNote($semesterEnd),
+        ];
+    }
+
+    /** The semester after a term: the first semester period that starts after it ends. */
+    public function nextPeriod(Carbon $semesterEnd): ?SemesterPeriod
+    {
+        return SemesterPeriod::where('start_date', '>', $semesterEnd->toDateString())->orderBy('start_date')->first();
+    }
+
+    /** Why notes for this term can't be filed any more (renewal for the next semester closed), or null. */
+    public function windowClosed(Assignment $assignment, Carbon $semesterEnd): ?string
+    {
+        $next = $this->nextPeriod($semesterEnd);
+        if (!$next || $next->renewal_open || !$next->renewal_closed_at) {
+            return null;
+        }
+
+        return "Promissory notes for {$assignment->semester} {$assignment->academic_year} closed when renewal for {$next->label()} closed on "
+            . $next->renewal_closed_at->timezone(self::TIMEZONE)->format('M j, Y') . '.';
+    }
+
+    /** How long the window stays open, for the Stipend page. */
+    public function windowNote(Carbon $semesterEnd): string
+    {
+        $next = $this->nextPeriod($semesterEnd);
+
+        return $next
+            ? "You can submit until renewal for {$next->label()} closes."
+            : 'You can submit until renewal for the next semester closes.';
     }
 
     /**

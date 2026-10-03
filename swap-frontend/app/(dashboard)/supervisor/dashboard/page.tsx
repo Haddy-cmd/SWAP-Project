@@ -29,7 +29,7 @@ type StudentRow = {
   verified_hours?: number
   required_hours?: number
   pace?: Pace
-  evaluation_due?: boolean
+  report_to_review?: boolean
 }
 
 export default function SupervisorDashboard() {
@@ -75,8 +75,8 @@ export default function SupervisorDashboard() {
     .filter((s) => isBehind(s.pace))
     .sort((a, b) => (b.pace?.deficit_hours ?? 0) - (a.pace?.deficit_hours ?? 0))
 
-  // Near (or past) the term's end without the supervisor's evaluation — renewal needs it.
-  const evaluationsDue = students.filter((s) => s.evaluation_due)
+  // End-of-term reports submitted and waiting for the supervisor to accept them (renewal needs it).
+  const reportsToReview = students.filter((s) => s.report_to_review)
 
   const nameOf = (s: StudentRow) => String(s.user?.name ?? s.name ?? '—')
   const idOf = (s: StudentRow) => String(s.user_id ?? s.id ?? '')
@@ -110,24 +110,24 @@ export default function SupervisorDashboard() {
         ))}
       </div>
 
-      {evaluationsDue.length > 0 && (
+      {reportsToReview.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-gold-200 bg-gold-50 px-5 py-4">
           <Star className="h-5 w-5 flex-shrink-0 text-gold-600" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-ink-900">
-              {evaluationsDue.length} evaluation{evaluationsDue.length === 1 ? '' : 's'} due
+              {reportsToReview.length} end-of-term report{reportsToReview.length === 1 ? '' : 's'} to review
             </p>
             <p className="text-xs text-ink-600">
-              The term is ending. Rate each student&apos;s service on their page; the DSA needs it to approve their renewal.
+              Accept each report and mark the student eligible or not for renewal; the DSA needs it to approve their renewal.
             </p>
             <p className="mt-1.5 flex flex-wrap gap-1.5">
-              {evaluationsDue.slice(0, 6).map((s) => (
+              {reportsToReview.slice(0, 6).map((s) => (
                 <Link key={idOf(s)} href={`/supervisor/students/${idOf(s)}`}
                   className="rounded-full bg-white px-2.5 py-0.5 text-xs font-semibold text-brand-700 ring-1 ring-gold-200 hover:bg-gold-100">
                   {nameOf(s)}
                 </Link>
               ))}
-              {evaluationsDue.length > 6 && <span className="text-xs text-ink-500">+{evaluationsDue.length - 6} more</span>}
+              {reportsToReview.length > 6 && <span className="text-xs text-ink-500">+{reportsToReview.length - 6} more</span>}
             </p>
           </div>
         </div>

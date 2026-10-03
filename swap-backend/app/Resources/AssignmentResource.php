@@ -39,10 +39,15 @@ class AssignmentResource extends JsonResource
             'term_status_reason' => $this->term_status_reason,
             'term_status_at' => $this->term_status_at?->toISOString(),
             'term_badge' => $this->termBadge(),
-            // The supervisor's end-of-term evaluation, where the list loads it.
-            // (when(), not whenLoaded(): a loaded-but-missing evaluation must still say "due".)
-            'evaluation' => $this->when($this->resource->relationLoaded('evaluation'), fn () => $this->evaluation?->toPayload()),
-            'evaluation_due' => $this->when($this->resource->relationLoaded('evaluation'), fn () => \App\Services\TermEvaluationService::isDue($this->resource, $this->evaluation !== null)),
+            // The end-of-term report's state, where the list loads it: submitted, then
+            // accepted by the supervisor with an eligible / not eligible for renewal mark.
+            'term_report' => $this->when($this->resource->relationLoaded('termReport'), fn () => $this->termReport ? [
+                'submitted_at' => $this->termReport->submitted_at?->toISOString(),
+                'reviewed_at' => $this->termReport->reviewed_at?->toISOString(),
+                'renewal_eligible' => $this->termReport->reviewed_at ? (bool) $this->termReport->renewal_eligible : null,
+            ] : null),
+            'report_to_review' => $this->when($this->resource->relationLoaded('termReport'),
+                fn () => $this->termReport?->submitted_at !== null && $this->termReport?->reviewed_at === null),
             'pending_logs_count' => (int) ($this->pending_logs_count ?? 0),
             'created_at' => $this->created_at->toISOString(),
             'user' => $this->whenLoaded('user', fn () => new UserResource($this->user)),

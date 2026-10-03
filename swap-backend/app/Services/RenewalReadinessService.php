@@ -6,8 +6,6 @@ use App\Models\Application;
 use App\Models\Assignment;
 use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
-use App\Models\TermEvaluation;
-use Illuminate\Support\Carbon;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 /**
@@ -15,10 +13,11 @@ use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
  *   0. the renewal carries the recipient's updated COR, and there is an earlier
  *      placement to renew;
  *   1. the renewed term is paid, or covered by an approved promissory note;
- *   2. if covered but not yet paid, the end-of-term report is in (the stub can't
- *      be released without it, and it can't be written once the term rolls over);
- *   3. the supervisor evaluated the term and it passed (3+ of 5);
- *   4. no approved note's makeup deadline has passed with hours still short.
+ *   2. the end-of-term report is in;
+ *   3. hours completed: the supervisor accepted the report and marked the student
+ *      eligible for renewal. Hours short: the approved note and the report are enough —
+ *      the lacking hours are added to the next term (carryHours) — unless the supervisor
+ *      accepted the report and marked the student not eligible.
  * Submitting a renewal stays open early; only the approval waits for these.
  */
 class RenewalReadinessService
@@ -43,19 +42,14 @@ class RenewalReadinessService
         return "This recipient has not submitted their end-of-term narrative report for {$term} yet.";
     }
 
-    public static function msgNotEvaluated(string $term): string
+    public static function msgNotAccepted(string $term): string
     {
-        return "The supervisor has not evaluated this recipient for {$term} yet.";
+        return "The supervisor hasn't accepted the end-of-term report for {$term} yet.";
     }
 
-    public static function msgFailed(string $term, int $rating): string
+    public static function msgNotEligible(string $term): string
     {
-        return "This recipient did not pass the supervisor evaluation for {$term} (rating {$rating}/5).";
-    }
-
-    public static function msgMakeupOverdue(string $term, Carbon $due): string
-    {
-        return "This recipient's makeup hours for {$term} were due {$due->format('M j, Y')} and are not complete.";
+        return "The supervisor marked this recipient not eligible for renewal for {$term}.";
     }
 
     /** The term a renewal application renews: the student's latest other assignment. */
@@ -112,7 +106,7 @@ class RenewalReadinessService
         if (!$previous) {
             return null;
         }
-        $previous->loadMissing(['termReport', 'evaluation.evaluator']);
+        $previous->loadMissing(['termReport.reviewer']);
         $corAttached = self::hasCor($application);
 
         $term = "{$previous->semester} {$previous->academic_year}";
@@ -141,22 +135,21 @@ class RenewalReadinessService
             default => 'unpaid',
         };
 
-        $reportIn = $previous->termReport?->submitted_at !== null;
-        $evaluation = $previous->evaluation;
-
-        $makeupDue = $note?->makeup_deadline
-            ? Carbon::parse($note->makeup_deadline->toDateString(), 'Asia/Manila')->endOfDay()
-            : null;
-        $makeupOverdue = $makeupDue !== null && !$met && Carbon::now('Asia/Manila')->gt($makeupDue);
+        $report = $previous->termReport;
+        $reportIn = $report?->submitted_at !== null;
+        $accepted = $report?->reviewed_at !== null;
+        // Completed (or no requirement): the supervisor's acceptance decides. Short: the
+        // approved note (checked as payment above) and the report are enough.
+        $hoursMet = $required <= 0 || $met;
 
         $blocker = match (true) {
             !$corAttached => self::MSG_NO_COR,
             $payment === 'owed' => self::msgOwed($term),
             $payment === 'unpaid' => self::msgUnpaid($term),
-            $payment === 'promissory' && !$reportIn => self::msgNoReport($term),
-            $evaluation === null => self::msgNotEvaluated($term),
-            !$evaluation->passed => self::msgFailed($term, $evaluation->rating),
-            $makeupOverdue => self::msgMakeupOverdue($term, $makeupDue),
+            !$reportIn => self::msgNoReport($term),
+            $hoursMet && !$accepted => self::msgNotAccepted($term),
+            // A "not eligible" mark blocks anyone the supervisor marked, short or not.
+            $accepted && !$report->renewal_eligible => self::msgNotEligible($term),
             default => null,
         };
 
@@ -171,11 +164,16 @@ class RenewalReadinessService
                 : ($met ? null : $this->termStatus->shortfall($previous)),
             'payment' => $payment,
             'promissory_note_id' => $note?->id,
-            'makeup_deadline' => $note?->makeup_deadline?->toDateString(),
-            'makeup_overdue' => $makeupOverdue,
+            'hours_met' => $hoursMet,
             'report_submitted' => $reportIn,
-            'evaluation' => $evaluation?->toPayload(),
-            'passing_rating' => TermEvaluation::PASSING_RATING,
+            // The supervisor's acceptance of the end-of-term report (needed when hours were met).
+            'report' => [
+                'submitted' => $reportIn,
+                'accepted' => $accepted,
+                'renewal_eligible' => $accepted ? (bool) $report->renewal_eligible : null,
+                'reviewer' => $report?->reviewer?->name,
+                'remarks' => $report?->review_remarks,
+            ],
             'ready' => $blocker === null,
             'blocker' => $blocker,
         ];

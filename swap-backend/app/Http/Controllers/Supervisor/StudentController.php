@@ -39,7 +39,7 @@ class StudentController extends Controller
     {
         // Preload the hour sums the resource needs (rendered, verified + pending drive pace),
         // so a roster of N students costs a constant number of queries rather than 3N.
-        $assignments = Assignment::with(['user.profile', 'office', 'evaluation'])
+        $assignments = Assignment::with(['user.profile', 'office', 'termReport'])
             ->withCount(['timeLogs as pending_logs_count' => fn ($q) => $q->where('status', 'pending_verification')])
             ->withSum(['timeLogs as rendered_sum' => fn ($q) => $q->whereNotNull('time_out')], 'duration_hours')
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
@@ -79,7 +79,7 @@ class StudentController extends Controller
 
     public function summary(Request $request, int $studentId): JsonResponse
     {
-        $assignment = Assignment::with(['user.profile', 'office', 'supervisor', 'termReport', 'evaluation.evaluator'])
+        $assignment = Assignment::with(['user.profile', 'office', 'supervisor', 'termReport.reviewer'])
             ->where('user_id', $studentId)
             ->visibleToSupervisor($request->user())
             ->where('status', 'active')
@@ -117,9 +117,10 @@ class StudentController extends Controller
                 'pace' => $assignment->paceStatus(),
             ],
             'term' => $this->termPayload($assignment),
-            // The end-of-term evaluation card (GET/PUT /supervisor/assignments/{id}/evaluation).
+            // The report review (PUT /supervisor/assignments/{id}/term-report/review). A student
+            // short on hours renews on an approved promissory note + the submitted report.
             'assignment_id' => $assignment->id,
-            'evaluation' => $assignment->evaluation?->toPayload(),
+            'hours_met' => (float) $assignment->required_hours <= 0 || (float) $assignment->verified_hours >= (float) $assignment->required_hours,
         ]);
     }
 

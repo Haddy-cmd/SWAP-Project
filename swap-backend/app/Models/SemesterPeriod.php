@@ -18,6 +18,7 @@ class SemesterPeriod extends Model
         'start_date',
         'end_date',
         'renewal_open',
+        'renewal_closed_at',
         'closed_at',
         'created_by',
     ];
@@ -36,6 +37,7 @@ class SemesterPeriod extends Model
             'start_date' => 'date',
             'end_date' => 'date',
             'renewal_open' => 'boolean',
+            'renewal_closed_at' => 'datetime',
             'closed_at' => 'datetime',
         ];
     }

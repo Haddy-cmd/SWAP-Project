@@ -7,7 +7,7 @@ use App\Models\Assignment;
 use App\Models\PromissoryNote;
 use App\Models\SemesterPeriod;
 use App\Models\StipendHistory;
-use App\Models\TermEvaluation;
+use App\Models\TermReport;
 use App\Models\TimeLog;
 use App\Models\User;
 use App\Notifications\ApplicationApprovedNotification;
@@ -25,8 +25,9 @@ use Tests\TestCase;
 /**
  * Semester renewal: a recipient submits an updated COR (early is fine), the admin
  * approves (no interview) and the assignment rolls into the new term. Approval
- * waits for the renewed term: paid or covered by an approved promissory note,
- * report in, evaluated and passed, and no overdue makeup.
+ * waits for the renewed term: paid or covered by an approved promissory note and the
+ * end-of-term report in; with the hours completed, the supervisor accepted the report and
+ * marked the student eligible for renewal.
  */
 class RenewalTest extends TestCase
 {
@@ -97,22 +98,21 @@ class RenewalTest extends TestCase
         ]);
     }
 
-    private function evaluate(Assignment $assignment, int $rating): void
+    /** The supervisor accepts the end-of-term report (submitting it first if needed). */
+    private function accept(Assignment $assignment, bool $eligible = true): void
     {
-        TermEvaluation::create([
-            'assignment_id' => $assignment->id, 'evaluator_id' => $assignment->supervisor_id,
-            'rating' => $rating, 'remarks' => 'Reliable and punctual.', 'passed' => $rating >= TermEvaluation::PASSING_RATING,
-        ]);
+        $report = TermReport::where('assignment_id', $assignment->id)->first() ?? $this->submitTermReport($assignment);
+        $report->forceFill(['reviewed_at' => now(), 'reviewed_by' => $assignment->supervisor_id, 'renewal_eligible' => $eligible])->save();
     }
 
-    private function approvedNote(Assignment $assignment, string $deadline): PromissoryNote
+    private function approvedNote(Assignment $assignment): PromissoryNote
     {
         return PromissoryNote::create([
             'user_id' => $assignment->user_id, 'assignment_id' => $assignment->id,
             'academic_year' => '2024-2025', 'semester' => '1st Semester', 'reason' => 'Exam weeks.',
             'file_path' => 'promissory/x.pdf', 'file_name' => 'x.pdf', 'mime_type' => 'application/pdf', 'file_size' => 100,
             'verified_hours_snapshot' => 4, 'lacking_hours' => 236, 'deficient_hours' => 236,
-            'status' => PromissoryNote::STATUS_APPROVED, 'makeup_deadline' => $deadline,
+            'status' => PromissoryNote::STATUS_APPROVED,
         ]);
     }
 
@@ -128,7 +128,7 @@ class RenewalTest extends TestCase
         Notification::fake();
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
         $this->pay($previous);
-        $this->evaluate($previous, 4);
+        $this->accept($previous);
         $renewal = $this->renewalFor($recipient);
         Sanctum::actingAs($this->makeUser('admin'));
 
@@ -157,7 +157,7 @@ class RenewalTest extends TestCase
     public function test_approval_waits_while_the_previous_term_is_owed_a_stipend(): void
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
-        $this->evaluate($previous, 4);
+        $this->accept($previous);
         $renewal = $this->renewalFor($recipient);
         Sanctum::actingAs($this->makeUser('admin'));
 
@@ -172,7 +172,6 @@ class RenewalTest extends TestCase
     public function test_a_short_term_without_a_promissory_note_blocks_approval(): void
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: false);
-        $this->evaluate($previous, 5);
         Sanctum::actingAs($this->makeUser('admin'));
 
         $this->decide($this->renewalFor($recipient), 'approved')
@@ -180,31 +179,38 @@ class RenewalTest extends TestCase
         $this->assertSame('active', $previous->fresh()->status);
     }
 
-    public function test_evaluation_is_required_and_must_pass(): void
+    public function test_completed_hours_need_the_report_accepted_and_marked_eligible(): void
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
         $this->pay($previous);
         $renewal = $this->renewalFor($recipient);
         Sanctum::actingAs($this->makeUser('admin'));
 
-        $this->decide($renewal, 'approved')->assertStatus(409)->assertJsonPath('message', Gate::msgNotEvaluated(self::TERM));
+        $this->decide($renewal, 'approved')->assertStatus(409)->assertJsonPath('message', Gate::msgNoReport(self::TERM));
+        $this->submitTermReport($previous);
+        $this->decide($renewal, 'approved')->assertStatus(409)->assertJsonPath('message', Gate::msgNotAccepted(self::TERM));
 
-        $this->evaluate($previous, 2);
-        $this->decide($renewal, 'approved')->assertStatus(409)->assertJsonPath('message', Gate::msgFailed(self::TERM, 2));
+        $this->accept($previous, eligible: false);
+        $this->decide($renewal, 'approved')->assertStatus(409)->assertJsonPath('message', Gate::msgNotEligible(self::TERM));
 
         // The admin's review shows the same record.
         $this->getJson("/api/admin/applications/{$renewal->id}")->assertOk()
             ->assertJsonPath('data.renewal_readiness.payment', 'paid')
-            ->assertJsonPath('data.renewal_readiness.evaluation.rating', 2)
+            ->assertJsonPath('data.renewal_readiness.hours_met', true)
+            ->assertJsonPath('data.renewal_readiness.report.accepted', true)
+            ->assertJsonPath('data.renewal_readiness.report.renewal_eligible', false)
             ->assertJsonPath('data.renewal_readiness.ready', false)
-            ->assertJsonPath('data.renewal_readiness.blocker', Gate::msgFailed(self::TERM, 2));
+            ->assertJsonPath('data.renewal_readiness.blocker', Gate::msgNotEligible(self::TERM));
+
+        $this->accept($previous, eligible: true);
+        $this->decide($renewal, 'approved')->assertOk();
     }
 
-    public function test_once_paid_and_evaluated_approval_rolls_the_assignment_over(): void
+    public function test_once_paid_and_accepted_approval_rolls_the_assignment_over(): void
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
         $this->pay($previous);
-        $this->evaluate($previous, 3);
+        $this->accept($previous);
         $oldLogs = TimeLog::where('assignment_id', $previous->id)->count();
         $renewal = $this->renewalFor($recipient);
         Sanctum::actingAs($this->makeUser('admin'));
@@ -241,15 +247,19 @@ class RenewalTest extends TestCase
     public function test_a_promissory_term_needs_its_report_then_rolls_over_and_stays_payable(): void
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: false);
-        $this->approvedNote($previous, Carbon::now('Asia/Manila')->addDays(6)->toDateString());
-        $this->evaluate($previous, 4);
+        $this->approvedNote($previous);
         $renewal = $this->renewalFor($recipient);
         Sanctum::actingAs($this->makeUser('admin'));
 
         // Covered by the note but unpaid: the end-of-term report must be in first.
         $this->decide($renewal, 'approved')->assertStatus(409)->assertJsonPath('message', Gate::msgNoReport(self::TERM));
 
+        // Short on hours: the note and the submitted report are enough — no acceptance needed.
         $this->submitTermReport($previous);
+        $this->getJson("/api/admin/applications/{$renewal->id}")->assertOk()
+            ->assertJsonPath('data.renewal_readiness.hours_met', false)
+            ->assertJsonPath('data.renewal_readiness.report.accepted', false)
+            ->assertJsonPath('data.renewal_readiness.ready', true);
         $this->decide($renewal, 'approved')->assertOk();
 
         $this->assertSame('completed', $previous->fresh()->status);
@@ -263,9 +273,8 @@ class RenewalTest extends TestCase
     {
         // 240 required, 4 verified, covered by an approved note; 6 makeup hours done before approval.
         [$recipient, $previous] = $this->recipientWithTerm(metHours: false);
-        $this->approvedNote($previous, Carbon::now('Asia/Manila')->addDays(6)->toDateString());
+        $this->approvedNote($previous);
         $this->makeClosedLog($previous, 6);
-        $this->evaluate($previous, 4);
         $this->submitTermReport($previous);
         $renewal = $this->renewalFor($recipient);
         Sanctum::actingAs($admin = $this->makeUser('admin'));
@@ -292,7 +301,7 @@ class RenewalTest extends TestCase
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
         $this->pay($previous);
-        $this->evaluate($previous, 4);
+        $this->accept($previous);
         Sanctum::actingAs($this->makeUser('admin'));
         $this->decide($this->renewalFor($recipient), 'approved')->assertOk();
 
@@ -302,25 +311,25 @@ class RenewalTest extends TestCase
         $this->assertNull($next->carried_from_assignment_id);
     }
 
-    public function test_an_overdue_makeup_blocks_approval(): void
+    public function test_a_short_student_marked_not_eligible_is_blocked_too(): void
     {
+        // No makeup deadline any more: an old note doesn't block; an explicit "not eligible" does.
         [$recipient, $previous] = $this->recipientWithTerm(metHours: false);
-        $due = Carbon::now('Asia/Manila')->subDay();
-        $this->approvedNote($previous, $due->toDateString());
+        $this->approvedNote($previous);
         $this->pay($previous);
-        $this->evaluate($previous, 5);
+        $this->accept($previous, eligible: false);
         Sanctum::actingAs($this->makeUser('admin'));
 
         $this->decide($this->renewalFor($recipient), 'approved')
-            ->assertStatus(409)->assertJsonPath('message', Gate::msgMakeupOverdue(self::TERM, $due));
+            ->assertStatus(409)->assertJsonPath('message', Gate::msgNotEligible(self::TERM));
     }
 
     public function test_a_renewal_without_its_cor_or_an_earlier_placement_is_not_approved(): void
     {
-        // Even with the term paid and evaluated, a renewal that never came with a COR stays blocked.
+        // Even with the term paid and the report accepted, a renewal that never came with a COR stays blocked.
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
         $this->pay($previous);
-        $this->evaluate($previous, 5);
+        $this->accept($previous);
         $renewal = $this->renewalFor($recipient, withCor: false);
         Sanctum::actingAs($this->makeUser('admin'));
 

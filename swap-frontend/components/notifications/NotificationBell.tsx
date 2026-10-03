@@ -4,9 +4,12 @@ import { useRef, useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
 import { useNotifications } from '@/lib/hooks/useNotifications'
 import { NotificationDropdown } from './NotificationDropdown'
+import { AnnouncementModal } from './AnnouncementModal'
+import type { Notification } from '@/types/notification.types'
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false)
+  const [announcement, setAnnouncement] = useState<Notification | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const { data } = useNotifications()
   const notifications = data?.data ?? []
@@ -41,8 +44,10 @@ export function NotificationBell() {
         <NotificationDropdown
           notifications={notifications}
           onClose={() => setOpen(false)}
+          onAnnouncement={setAnnouncement}
         />
       )}
+      {announcement && <AnnouncementModal notification={announcement} onClose={() => setAnnouncement(null)} />}
     </div>
   )
 }

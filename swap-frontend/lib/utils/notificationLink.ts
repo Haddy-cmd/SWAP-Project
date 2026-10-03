@@ -30,8 +30,12 @@ export function notificationLink(n: Notification, role?: string | null): string 
       return role === 'admin' ? '/admin/concerns' : '/help'
     case 'term': // the term was judged deficient / re-qualified → promissory note + stipend
       return '/recipient/stipend'
-    case 'announcement': // the full text is on the Notifications page
-      return '/notifications'
+    case 'promissory': // a note submitted (supervisor) / reviewed (student)
+      return role === 'supervisor' ? '/supervisor/promissory' : '/recipient/stipend'
+    case 'term_report': // a report submitted (supervisor) / accepted (student)
+      return role === 'supervisor' ? '/supervisor/students' : '/recipient/hours'
+    case 'announcement': // opens in a popup (AnnouncementModal), not a page
+      return null
     default:
       return null
   }

@@ -1,6 +1,5 @@
 import { CheckCircle2, CircleAlert, CircleDashed } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import { formatDay } from '@/lib/utils/semester'
 import type { RenewalReadiness } from '@/types/application.types'
 
 const PAYMENT: Record<RenewalReadiness['payment'], string> = {
@@ -17,7 +16,7 @@ const PAYMENT: Record<RenewalReadiness['payment'], string> = {
  * is refused with the same first blocker.
  */
 export function RenewalReadinessPanel({ readiness }: { readiness: RenewalReadiness }) {
-  const ev = readiness.evaluation
+  const report = readiness.report
   const paidOk = readiness.payment === 'paid' || readiness.payment === 'not_required' || readiness.payment === 'promissory'
   const items: { ok: boolean | null; label: string; detail?: string }[] = [
     { ok: readiness.cor_attached, label: readiness.cor_attached ? 'Updated COR attached' : 'No updated COR attached' },
@@ -28,19 +27,20 @@ export function RenewalReadinessPanel({ readiness }: { readiness: RenewalReadine
         : `Term not closed yet${readiness.deficient_hours ? ` · ${readiness.deficient_hours} hrs short so far` : ''}`,
     },
     { ok: paidOk, label: PAYMENT[readiness.payment] },
-    ...(readiness.payment === 'promissory'
-      ? [{ ok: readiness.report_submitted, label: readiness.report_submitted ? 'End-of-term report submitted' : 'End-of-term report missing' }]
-      : []),
-    {
-      ok: ev ? ev.passed : false,
-      label: ev ? `Evaluation ${ev.rating}/5 · ${ev.rating_label}${ev.passed ? '' : ` (needs ${readiness.passing_rating}+)`}` : 'Not evaluated by the supervisor yet',
-      detail: ev?.remarks ? `“${ev.remarks}”${ev.evaluator ? ` — ${ev.evaluator}` : ''}` : undefined,
-    },
+    { ok: report.submitted, label: report.submitted ? 'End-of-term report submitted' : 'End-of-term report missing' },
+    // Completed hours: the supervisor must accept the report as eligible. Short hours: the
+    // approved note + report are enough, but a "not eligible" mark still blocks.
+    ...(readiness.hours_met || report.accepted
+      ? [{
+          ok: report.accepted ? report.renewal_eligible === true : false,
+          label: report.accepted
+            ? `Report accepted · ${report.renewal_eligible ? 'Eligible for renewal' : 'Not eligible for renewal'}`
+            : 'Report not accepted by the supervisor yet',
+          detail: report.remarks ? `“${report.remarks}”${report.reviewer ? ` — ${report.reviewer}` : ''}` : undefined,
+        }]
+      : [{ ok: null, label: 'Short on hours: the approved promissory note and the report are enough' }]),
     ...(readiness.carry_hours > 0
-      ? [{ ok: null, label: `On approval, ${readiness.carry_hours} unfinished makeup hours are added to the next term` }]
-      : []),
-    ...(readiness.makeup_deadline
-      ? [{ ok: !readiness.makeup_overdue, label: `Makeup due ${formatDay(readiness.makeup_deadline)}${readiness.makeup_overdue ? ' — overdue' : ''}` }]
+      ? [{ ok: null, label: `On approval, ${readiness.carry_hours} lacking hours are added to the next term` }]
       : []),
   ]
 

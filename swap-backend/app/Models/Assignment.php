@@ -86,12 +86,6 @@ class Assignment extends Model
         return max(0, (int) $this->required_hours - (int) $this->carried_over_hours);
     }
 
-    /** The supervisor's end-of-term evaluation (TermEvaluationService). */
-    public function evaluation(): HasOne
-    {
-        return $this->hasOne(TermEvaluation::class);
-    }
-
     public function promissoryNotes(): HasMany
     {
         return $this->hasMany(PromissoryNote::class);

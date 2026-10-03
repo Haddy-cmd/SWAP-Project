@@ -85,14 +85,13 @@ export interface StipendRecord {
   void_reason: string | null
   has_slip: boolean
   remarks: string | null
-  // Released through an approved promissory note: the term's shortfall and the
-  // makeup the note promised, recorded at release (printed on the stub).
+  // Released through an approved promissory note: the term's shortfall, recorded at
+  // release (printed on the stub).
   via_promissory?: boolean
   promissory_note_id?: number | null
   required_hours?: number | null
   deficient_hours?: number | null
   lacking_hours?: number | null
-  makeup_deadline?: string | null
   created_at: string
   recipient?: import('./auth.types').User
   certifier?: { id: number; name: string } | null
@@ -146,7 +145,6 @@ export interface EligibleStipend {
   // The term's shortfall the note covers (null for a normal release).
   deficient_hours?: number | null
   lacking_hours?: number | null
-  makeup_deadline?: string | null
   // Release also needs these (StipendClaimService refuses without them).
   assignment_id?: number
   has_signature: boolean

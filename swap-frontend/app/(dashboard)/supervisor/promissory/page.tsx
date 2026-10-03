@@ -99,15 +99,12 @@ export default function SupervisorPromissoryPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-bold text-ink-900">{n.student?.name ?? `User #${n.user_id}`}</p>
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
-                      {n.status === 'approved' && n.overdue && (
-                        <span className="rounded-full bg-danger-50 px-2.5 py-0.5 text-xs font-medium text-danger-700">Deadline passed</span>
-                      )}
                     </div>
                     <p className="mt-0.5 text-xs text-ink-500">{n.academic_year} · {n.semester} · submitted {formatDate(n.created_at)}</p>
                     {n.reason && <p className="mt-1 text-sm text-ink-800">{n.reason}</p>}
                     <p className="mt-1 text-xs text-ink-500">
                       Lacking: <span className="font-semibold text-brand-700">{n.lacking_hours ?? '—'} hrs</span>
-                      {n.makeup_deadline && <> · render ASAP by <span className="font-semibold">{formatDate(n.makeup_deadline)}</span></>}
+                      {n.status === 'approved' && <> · added to the student&apos;s next semester if they renew</>}
                     </p>
                     {n.review_remarks && <p className="mt-1 text-xs italic text-ink-500">“{n.review_remarks}”</p>}
                   </div>

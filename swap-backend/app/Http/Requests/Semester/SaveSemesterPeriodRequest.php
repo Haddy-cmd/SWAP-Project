@@ -18,6 +18,12 @@ class SaveSemesterPeriodRequest extends FormRequest
 {
     public const MSG_RENEWAL_ENDED = "Renewal can only be opened for a semester that hasn't ended.";
 
+    /** Only one semester has renewal open at a time; the open one must be closed first. */
+    public static function msgRenewalTaken(string $label): string
+    {
+        return "Close renewal for {$label} first — only one semester can have renewal open at a time.";
+    }
+
     public function authorize(): bool
     {
         return true; // route is behind role:admin
@@ -90,6 +96,15 @@ class SaveSemesterPeriodRequest extends FormRequest
             // Renewal targets a term recipients will serve in, not one that is over.
             if ($this->boolean('renewal_open') && $end < SemesterPeriodService::today()->toDateString()) {
                 $validator->errors()->add('renewal_open', self::MSG_RENEWAL_ENDED);
+            }
+
+            if ($this->boolean('renewal_open')) {
+                $open = SemesterPeriod::where('renewal_open', true)
+                    ->when($this->route('id'), fn ($q, $id) => $q->where('id', '!=', $id))
+                    ->first();
+                if ($open) {
+                    $validator->errors()->add('renewal_open', self::msgRenewalTaken($open->label()));
+                }
             }
         });
     }

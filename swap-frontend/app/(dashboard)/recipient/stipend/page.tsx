@@ -134,7 +134,7 @@ export default function StipendPage() {
                     {s.via_promissory && (
                       <p className="mt-1.5">
                         <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
-                          Promissory · deficient {s.deficient_hours ?? '—'} hrs{s.makeup_deadline ? ` · makeup due ${formatDate(s.makeup_deadline)}` : ''}
+                          Promissory · deficient {s.deficient_hours ?? '—'} hrs
                         </span>
                       </p>
                     )}
@@ -181,7 +181,8 @@ export default function StipendPage() {
         {submission?.can_submit ? (
           <div className="mt-3 space-y-3 rounded-xl border border-ink-200 bg-ink-50 p-4">
             <p className="text-xs text-ink-500">
-              Lacking: <span className="font-semibold text-brand-700">{submission.lacking_hours} hrs</span> — to be rendered ASAP (deadline: 1 week after semester end).
+              Lacking: <span className="font-semibold text-brand-700">{submission.lacking_hours} hrs</span> — if you renew, they are added to your
+              next semester&apos;s required hours.{submission.window_note ? ` ${submission.window_note}` : ''}
             </p>
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ink-300 bg-white px-3 py-2.5 text-sm text-ink-500 hover:bg-ink-50">
               <Upload className="h-4 w-4" />
@@ -220,8 +221,7 @@ export default function StipendPage() {
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
                     <p className="mt-1 text-xs text-ink-500">
                       Lacking {n.lacking_hours ?? '—'} hrs
-                      {n.makeup_deadline && <> · render ASAP by {formatDate(n.makeup_deadline)}</>}
-                      {n.status === 'approved' && n.overdue && <span className="font-semibold text-danger-700"> · deadline passed</span>}
+                      {n.status === 'approved' && <> · added to your next semester if you renew</>}
                     </p>
                     {n.review_remarks && <p className="text-xs italic text-ink-500">“{n.review_remarks}”</p>}
                   </div>

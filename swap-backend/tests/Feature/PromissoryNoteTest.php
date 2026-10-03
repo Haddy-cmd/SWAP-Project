@@ -163,18 +163,9 @@ class PromissoryNoteTest extends TestCase
         );
         $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))->assertStatus(422);
 
-        // Ended yesterday: the note is accepted, and the deadline is the period end + 7 days.
+        // Ended yesterday: the note is accepted.
         $period->update(['end_date' => Carbon::now('Asia/Manila')->subDay()->toDateString()]);
-        $id = $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
-            ->assertStatus(201)->json('data.id');
-
-        Sanctum::actingAs($supervisor);
-        $this->postJson("/api/supervisor/promissory/{$id}/review", ['action' => 'approve', 'lacking_hours' => 195])
-            ->assertStatus(200);
-        $this->assertEquals(
-            Carbon::now('Asia/Manila')->subDay()->addDays(7)->toDateString(),
-            PromissoryNote::find($id)->makeup_deadline->toDateString()
-        );
+        $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))->assertStatus(201);
     }
 
     public function test_submit_with_completed_hours_is_rejected(): void
@@ -203,7 +194,7 @@ class PromissoryNoteTest extends TestCase
         $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))->assertStatus(422);
     }
 
-    public function test_approve_sets_lacking_hours_and_a_plus_7_day_deadline(): void
+    public function test_approve_sets_lacking_hours_and_no_makeup_deadline(): void
     {
         Notification::fake();
         $supervisor = $this->makeUser('supervisor');
@@ -221,9 +212,10 @@ class PromissoryNoteTest extends TestCase
             'lacking_hours' => 195,
         ])->assertStatus(200)->assertJsonPath('data.status', 'approved');
 
+        // No makeup deadline: if the student renews, the lacking hours go to the next term.
         $note = PromissoryNote::find($id);
-        $expectedDeadline = Carbon::parse($assignment->end_date->toDateString(), 'Asia/Manila')->addDays(7)->toDateString();
-        $this->assertEquals($expectedDeadline, $note->makeup_deadline->toDateString());
+        $this->assertEquals(195.0, (float) $note->lacking_hours);
+        $this->assertNull($note->makeup_deadline);
         $this->assertEquals($supervisor->id, $note->reviewed_by);
         $this->assertNotNull($note->reviewed_at);
 
@@ -342,7 +334,7 @@ class PromissoryNoteTest extends TestCase
         $this->assertEquals(200.0, (float) $stub->required_hours);
         $this->assertEquals(195.0, (float) $stub->deficient_hours);
         $this->assertEquals(195.0, (float) $stub->lacking_hours);
-        $this->assertSame(PromissoryNote::find($id)->makeup_deadline->toDateString(), $stub->makeup_deadline->toDateString());
+        $this->assertNull($stub->makeup_deadline);
         $this->assertEquals(195.0, (float) PromissoryNote::find($id)->deficient_hours);
 
         // …and printed on every part of the stub.
@@ -449,5 +441,49 @@ class PromissoryNoteTest extends TestCase
         Sanctum::actingAs($this->makeUser('admin'));
         $this->getJson('/api/admin/promissory')->assertStatus(200)
             ->assertJsonFragment(['assignment_id' => $assignment->id]);
+    }
+
+    public function test_notes_stay_open_until_renewal_for_the_next_semester_closes(): void
+    {
+        Storage::fake('public');
+        $supervisor = $this->makeUser('supervisor');
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->pastAssignment($recipient, $supervisor); // ended yesterday
+        $next = SemesterPeriod::create([
+            'academic_year' => '2024-2025', 'semester' => '2nd Semester',
+            'start_date' => Carbon::now('Asia/Manila')->addWeek()->toDateString(),
+            'end_date' => Carbon::now('Asia/Manila')->addMonths(5)->toDateString(),
+        ]);
+        Sanctum::actingAs($recipient);
+
+        // Renewal not opened yet, then open: notes can be filed, and the page says until when.
+        $this->getJson('/api/recipient/promissory')->assertOk()
+            ->assertJsonPath('data.submission.can_submit', true)
+            ->assertJsonPath('data.submission.window_note', 'You can submit until renewal for 2nd Semester 2024-2025 closes.');
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->putJson("/api/admin/semester-periods/{$next->id}", [
+            'academic_year' => '2024-2025', 'semester' => '2nd Semester', 'renewal_open' => true,
+            'start_date' => $next->start_date->toDateString(), 'end_date' => $next->end_date->toDateString(),
+        ])->assertOk();
+        Sanctum::actingAs($recipient);
+        $this->getJson('/api/recipient/promissory')->assertJsonPath('data.submission.can_submit', true);
+
+        // Renewal closed: the window is over.
+        $admin = $this->makeUser('admin');
+        Sanctum::actingAs($admin);
+        $this->putJson("/api/admin/semester-periods/{$next->id}", [
+            'academic_year' => '2024-2025', 'semester' => '2nd Semester', 'renewal_open' => false,
+            'start_date' => $next->start_date->toDateString(), 'end_date' => $next->end_date->toDateString(),
+        ])->assertOk();
+        $this->assertNotNull($next->fresh()->renewal_closed_at);
+
+        $closed = 'Promissory notes for 1st Semester 2024-2025 closed when renewal for 2nd Semester 2024-2025 closed on '
+            . Carbon::now('Asia/Manila')->format('M j, Y') . '.';
+        Sanctum::actingAs($recipient);
+        $this->getJson('/api/recipient/promissory')->assertOk()
+            ->assertJsonPath('data.submission.can_submit', false)
+            ->assertJsonPath('data.submission.reason', $closed);
+        $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
+            ->assertStatus(422)->assertJsonPath('message', $closed);
     }
 }

@@ -40,7 +40,7 @@ class ApplicationResource extends JsonResource
                 ];
             }),
             // For admins reviewing a renewal: what approval still needs (paid/covered,
-            // report, evaluation, makeup) — the same check the approval enforces. Only on a
+            // end-of-term report accepted and eligible) — the same check the approval enforces. Only on a
             // single application (show/decide), never per row of a list.
             'renewal_readiness' => $this->when(
                 ($this->type ?? 'new') === 'renewal' && $request->user()?->role === 'admin' && $request->route('id') !== null,

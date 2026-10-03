@@ -41,7 +41,7 @@ class TermReportTest extends TestCase
         $this->putJson('/api/recipient/term-report', $this->report())
             ->assertOk()
             ->assertJsonPath('data.assignment_id', $assignment->id)
-            ->assertJsonPath('message', 'End-of-term report saved. You can edit it until your stipend is released.');
+            ->assertJsonPath('message', 'End-of-term report saved. You can edit it until your supervisor accepts it or your stipend is released.');
         $submittedAt = $assignment->termReport()->first()->submitted_at;
 
         $this->putJson('/api/recipient/term-report', $this->report(['challenges' => 'Slow printer.']))

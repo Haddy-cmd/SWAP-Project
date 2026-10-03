@@ -13,8 +13,9 @@ const TEXTAREA =
   'w-full rounded-xl border border-ink-300 bg-ink-50 px-4 py-2.5 text-sm text-ink-900 placeholder-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20'
 
 /**
- * The recipient's end-of-term narrative report (Hours page). One per term,
- * editable until the stipend is released; the release is refused without it.
+ * The recipient's end-of-term narrative report (Hours page). One per term, editable
+ * until the supervisor accepts it or the stipend is released; the release is refused
+ * without it. Once accepted it shows the supervisor's renewal mark.
  */
 export function TermReportCard() {
   const qc = useQueryClient()
@@ -56,9 +57,14 @@ export function TermReportCard() {
           <div className="flex items-center gap-2">
             <NotebookPen className="h-4 w-4 text-brand-700" />
             <h2 className="font-semibold text-ink-900">End-of-Term Report</h2>
-            {report ? (
+            {report?.reviewed_at ? (
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                report.renewal_eligible ? 'bg-success-50 text-success-700' : 'bg-danger-50 text-danger-700'}`}>
+                <CheckCircle2 className="h-3 w-3" /> Accepted · {report.renewal_eligible ? 'Eligible for renewal' : 'Not eligible for renewal'}
+              </span>
+            ) : report ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-success-50 px-2 py-0.5 text-xs font-medium text-success-700">
-                <CheckCircle2 className="h-3 w-3" /> Submitted
+                <CheckCircle2 className="h-3 w-3" /> Submitted · waiting for your supervisor
               </span>
             ) : (
               <span className="rounded-full bg-warning-50 px-2 py-0.5 text-xs font-medium text-warning-700">Required for your stipend</span>
@@ -66,7 +72,7 @@ export function TermReportCard() {
           </div>
           <p className="mt-1 text-sm text-ink-500">
             One narrative report for {[meta.semester, meta.academic_year].filter(Boolean).join(', ') || 'this term'}: what you did, what you accomplished, what was hard.
-            Your supervisor can read it, and your stipend cannot be released until it is submitted.
+            Your supervisor accepts it and marks whether you are eligible for renewal; your stipend cannot be released until it is submitted.
           </p>
         </div>
         {report && meta.editable && !editing && (
@@ -111,8 +117,20 @@ export function TermReportCard() {
         <p className="mt-4 flex items-center gap-2 text-sm text-ink-500"><Lock className="h-4 w-4" /> Your stipend for this term has already been released.</p>
       )}
 
+      {report?.reviewed_at && (
+        <div className="mt-3 rounded-xl bg-ink-50 px-4 py-3 text-sm">
+          <p className="text-ink-700">
+            Accepted by {report.reviewer ?? 'your supervisor'} on {formatDateTime(report.reviewed_at)} ·{' '}
+            <b className={report.renewal_eligible ? 'text-success-700' : 'text-danger-700'}>
+              {report.renewal_eligible ? 'eligible for renewal' : 'not eligible for renewal'}
+            </b>
+          </p>
+          {report.review_remarks && <p className="mt-1 italic text-ink-600">&ldquo;{report.review_remarks}&rdquo;</p>}
+        </div>
+      )}
       {!meta.editable && report && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-350"><Lock className="h-3.5 w-3.5" /> Locked: your stipend for this term has been released.</p>
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-350"><Lock className="h-3.5 w-3.5" />
+          {report.reviewed_at ? ' Locked: your supervisor accepted it.' : ' Locked: your stipend for this term has been released.'}</p>
       )}
       {saved && <p className="mt-3 text-xs font-medium text-success-700">{saved}</p>}
     </div>

@@ -80,6 +80,10 @@ export default function AdminSemestersPage() {
   const datesLocked = !!editingPeriod?.locked?.dates
   const ready = /^\d{4}-\d{4}$/.test(form.academic_year) && !!form.start_date && !!form.end_date
   const openRenewal = periods.find((p) => p.renewal_open)
+  // Same rule as SaveSemesterPeriodRequest::msgRenewalTaken: one semester at a time.
+  const renewalTaken = (id: number | 'new' | null) =>
+    openRenewal && openRenewal.id !== id ? `Close renewal for ${openRenewal.label} first — only one semester can have renewal open at a time.` : null
+  const formRenewalBlocked = renewalTaken(editing)
 
   const formCard = (
     <div className="rounded-2xl border border-brand-200 bg-white p-5 shadow-sm">
@@ -127,14 +131,14 @@ export default function AdminSemestersPage() {
         </div>
       )}
 
-      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 bg-ink-50 p-3">
+      <label className={`mt-4 flex items-start gap-3 rounded-xl border border-ink-200 bg-ink-50 p-3 ${formRenewalBlocked && !form.renewal_open ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}>
         <input type="checkbox" checked={form.renewal_open} onChange={(e) => set('renewal_open', e.target.checked)}
+          disabled={!!formRenewalBlocked && !form.renewal_open}
           className="mt-0.5 h-4 w-4 accent-brand-700" />
         <span>
           <span className="block text-sm font-semibold text-ink-900">Open renewal for this semester</span>
           <span className="block text-xs text-ink-500">
-            Returning recipients can submit their updated COR for this term. Only one semester can be open at a time
-            {openRenewal && openRenewal.id !== editing ? `, so this closes renewal for ${openRenewal.label}` : ''}.
+            {formRenewalBlocked ?? 'Returning recipients can submit their updated COR for this term. Only one semester can have renewal open at a time.'}
           </span>
         </span>
       </label>
@@ -222,8 +226,10 @@ export default function AdminSemestersPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {p.phase !== 'ended' && (
-                        <button onClick={() => { setNote(null); toggleRenewal.mutate(p) }} disabled={toggleRenewal.isPending}
-                          className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:opacity-50">
+                        <button onClick={() => { setNote(null); toggleRenewal.mutate(p) }}
+                          disabled={toggleRenewal.isPending || (!p.renewal_open && !!renewalTaken(p.id))}
+                          title={!p.renewal_open ? renewalTaken(p.id) ?? undefined : undefined}
+                          className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50">
                           {p.renewal_open ? 'Close renewal' : 'Open renewal'}
                         </button>
                       )}

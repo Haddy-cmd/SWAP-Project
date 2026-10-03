@@ -5,9 +5,8 @@ namespace App\Http\Requests\Stipend;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * A governing supervisor approves or rejects a promissory note. Approval records
- * the lacking hours to render ASAP; the makeup deadline is NOT input — policy
- * fixes it at exactly 1 week after the semester end (server-computed).
+ * A governing supervisor approves or rejects a promissory note. Approval records the
+ * lacking hours; if the student renews, they are added to the next term's requirement.
  */
 class ReviewPromissoryRequest extends FormRequest
 {

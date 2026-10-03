@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { notificationsApi } from '@/lib/api/notifications.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { notificationLink } from '@/lib/utils/notificationLink'
+import { AnnouncementModal } from './AnnouncementModal'
 import type { Notification } from '@/types/notification.types'
 
 interface NotificationListProps {
@@ -18,6 +19,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
   const router = useRouter()
   const role = useAuthStore((s) => s.user?.role)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
+  const [announcement, setAnnouncement] = useState<Notification | null>(null)
 
   // Same behaviour as before: clicking an unread item marks it read; there's no
   // "mark unread" on the backend, so read items are inert.
@@ -35,9 +37,11 @@ export function NotificationList({ notifications }: NotificationListProps) {
   const hasUnread = unread > 0
   const list = filter === 'unread' ? notifications.filter((n) => !n.is_read) : notifications
 
-  // Clicking marks an unread item read, then navigates to the related transaction.
+  // Clicking marks an unread item read, then opens an announcement in a popup or
+  // navigates to the related transaction.
   const open = (n: Notification) => {
     if (!n.is_read) markRead.mutate(n.id)
+    if (n.data.type === 'announcement') return setAnnouncement(n)
     const href = notificationLink(n, role)
     if (href) router.push(href)
   }
@@ -95,7 +99,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
         <div>
           {list.map((n) => {
             const isUnread = !n.is_read
-            const clickable = isUnread || notificationLink(n, role) !== null
+            const clickable = isUnread || n.data.type === 'announcement' || notificationLink(n, role) !== null
             return (
               <div
                 key={n.id}
@@ -117,6 +121,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
           })}
         </div>
       )}
+      {announcement && <AnnouncementModal notification={announcement} onClose={() => setAnnouncement(null)} />}
     </div>
   )
 }

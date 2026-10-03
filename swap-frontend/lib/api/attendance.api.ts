@@ -65,11 +65,11 @@ export const attendanceApi = {
     apiClient.get<{ data: TimeLog[] }>('/supervisor/students/clocked-in').then((r) => r.data.data),
 
   getStudentSummary: (studentId: number) =>
-    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; carried_over_hours?: number; pace?: Pace }; term_report?: TermReport | null; term?: import('@/types/assignment.types').StudentTerm; assignment_id?: number; evaluation?: import('@/types/application.types').TermEvaluation | null }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; carried_over_hours?: number; pace?: Pace }; term_report?: TermReport | null; term?: import('@/types/assignment.types').StudentTerm; assignment_id?: number; hours_met?: boolean }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
 
-  // The supervisor's end-of-term evaluation of a placement (1–5, 3+ passes).
-  saveEvaluation: (assignmentId: number, data: { rating: number; remarks: string }) =>
-    apiClient.put<{ data: import('@/types/application.types').TermEvaluation; message: string }>(`/supervisor/assignments/${assignmentId}/evaluation`, data).then((r) => r.data),
+  // The supervisor accepts the end-of-term report, marking the student eligible or not for renewal.
+  reviewTermReport: (assignmentId: number, data: { renewal_eligible: boolean; remarks: string | null }) =>
+    apiClient.put<{ data: TermReport; message: string }>(`/supervisor/assignments/${assignmentId}/term-report/review`, data).then((r) => r.data),
 
   // The recipient's end-of-term narrative report (required before the stipend is released).
   getTermReport: () =>

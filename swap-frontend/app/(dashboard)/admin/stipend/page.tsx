@@ -210,7 +210,7 @@ export default function AdminStipendPage() {
                       <p className="mt-1 flex flex-wrap gap-1.5">
                         {e.via_promissory && (
                           <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
-                            Promissory · deficient {e.deficient_hours ?? e.lacking_hours} hrs{e.makeup_deadline ? ` · makeup due ${e.makeup_deadline}` : ''}
+                            Promissory · deficient {e.deficient_hours ?? e.lacking_hours} hrs
                           </span>
                         )}
                         {!e.has_signature && (
@@ -300,8 +300,7 @@ export default function AdminStipendPage() {
                       {r.status === 'void' && r.void_reason && <p className="mt-0.5 text-[11px] text-danger-700">{r.void_reason}</p>}
                       {r.via_promissory && (
                         <p className="mt-1">
-                          <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800"
-                            title={r.makeup_deadline ? `Makeup due ${r.makeup_deadline}` : undefined}>
+                          <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
                             Promissory · deficient {r.deficient_hours ?? '—'} hrs
                           </span>
                         </p>

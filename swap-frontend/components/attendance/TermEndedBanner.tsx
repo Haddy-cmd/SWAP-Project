@@ -31,7 +31,7 @@ export function TermEndedBanner({ assignment }: { assignment: Assignment }) {
 
   const badge = assignment.term_badge
   const { Icon, text } = badge === 'promissory_approved'
-    ? { Icon: FileCheck2, text: 'Your promissory note is approved. Render the makeup hours before the deadline.' }
+    ? { Icon: FileCheck2, text: "Your promissory note is approved. If you renew, the lacking hours are added to your next semester's required hours." }
     : badge === 'promissory_pending'
       ? { Icon: FileClock, text: 'Your promissory note is waiting for your supervisor’s review.' }
       : { Icon: CircleAlert, text: 'Submit a promissory note on the Stipend page.' }

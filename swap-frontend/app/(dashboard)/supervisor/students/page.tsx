@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2, FileText, X, TrendingDown } from 'lucide-react'
+import { Users, Sparkles, Target, Search, LayoutGrid, List, Building2, FileText, X, TrendingDown, Menu, ClipboardCheck, UserRound, FolderOpen } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
@@ -13,6 +13,7 @@ import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 import { UNKNOWN_PACE, isBehind, paceDetail, type Pace } from '@/lib/utils/pace'
 import { cn } from '@/lib/utils/cn'
 import { TERM_FILTERS, TermBadge, matchesTermFilter, type TermFilter } from '@/components/shared/TermBadge'
+import { TermReportReviewModal } from '@/components/supervisor/TermReportReview'
 import type { TermBadgeValue } from '@/types/assignment.types'
 
 /** Shown when verified hours have fallen behind what the elapsed term expects. */
@@ -39,7 +40,9 @@ type Row = {
   pace: Pace
   term: TermBadgeValue
   deficientHours: number | null
-  evaluationDue: boolean
+  /** End-of-term report: submitted and waiting for acceptance, and the mark once accepted. */
+  reportToReview: boolean
+  reportEligible: boolean | null
 }
 type Selected = { userId: number; name: string; required: number }
 
@@ -50,16 +53,30 @@ function Avatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }
   )
 }
 
-function PendingBadges({ row }: { row: Row }) {
+/** The end-of-term report's state: waiting for acceptance (opens it), or the renewal mark. */
+function ReportBadge({ row, onOpen }: { row: Row; onOpen: () => void }) {
+  if (row.reportToReview) {
+    return (
+      <button onClick={onOpen}
+        className="rounded-full bg-gold-50 px-2.5 py-0.5 text-[11px] font-semibold text-warning-800 ring-1 ring-gold-200 hover:bg-gold-100">
+        Report to review
+      </button>
+    )
+  }
+  if (row.reportEligible === null) return null
+  return (
+    <span className={cn('rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+      row.reportEligible ? 'bg-success-50 text-success-700' : 'bg-danger-50 text-danger-700')}>
+      {row.reportEligible ? 'Eligible for renewal' : 'Not eligible for renewal'}
+    </span>
+  )
+}
+
+function PendingBadges({ row, onReport }: { row: Row; onReport: () => void }) {
   return (
     <div className="flex flex-shrink-0 flex-col items-end gap-1">
       {row.term !== 'in_progress' && <TermBadge badge={row.term} deficientHours={row.deficientHours} />}
-      {row.evaluationDue && (
-        <Link href={`/supervisor/students/${row.userId}`}
-          className="rounded-full bg-gold-50 px-2.5 py-0.5 text-[11px] font-semibold text-warning-800 ring-1 ring-gold-200 hover:bg-gold-100">
-          Evaluation due
-        </Link>
-      )}
+      <ReportBadge row={row} onOpen={onReport} />
       <BehindBadge pace={row.pace} />
       {row.pendingLogs > 0 && (
         <span className="rounded-full bg-warning-50 px-2.5 py-0.5 text-xs font-semibold text-warning-800">
@@ -171,35 +188,77 @@ function StudentDocumentsModal({ student, onClose }: { student: Selected; onClos
   )
 }
 
-function Actions({ row, onBonus, onHours, onDocs }: { row: Row; onBonus: () => void; onHours: () => void; onDocs: () => void }) {
+/** One menu button per student with every action (End-term report opens in a popup). */
+function ActionsMenu({ row, onReport, onBonus, onHours, onDocs }: {
+  row: Row
+  onReport: () => void
+  onBonus: () => void
+  onHours: () => void
+  onDocs: () => void
+}) {
+  const [at, setAt] = useState<{ top: number; right: number } | null>(null)
+  const button = useRef<HTMLButtonElement>(null)
+
+  // Fixed position, so the list's scroll container never clips the menu; closes on scroll.
+  useEffect(() => {
+    if (!at) return
+    const close = () => setAt(null)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [at])
+
+  const toggle = () => {
+    if (at) return setAt(null)
+    const r = button.current!.getBoundingClientRect()
+    setAt({ top: r.bottom + 6, right: window.innerWidth - r.right })
+  }
+  const pick = (fn: () => void) => () => { setAt(null); fn() }
+  const ITEM = 'flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-ink-800 hover:bg-ink-50'
+
   return (
-    <div className="flex flex-shrink-0 gap-2">
-      <button onClick={onBonus} className="flex items-center gap-1 rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-900 transition-colors">
-        <Sparkles className="h-3.5 w-3.5" />
-        Bonus
+    <>
+      <button ref={button} onClick={toggle} aria-haspopup="menu" aria-expanded={!!at} aria-label={`Actions for ${row.name}`}
+        className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-700 hover:bg-ink-50">
+        <Menu className="h-4 w-4" />
+        {row.reportToReview && <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-gold-500 ring-2 ring-white" />}
       </button>
-      <button onClick={onHours} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 transition-colors">
-        <Target className="h-3.5 w-3.5" />
-        Hours
-      </button>
-      <button onClick={onDocs} className="flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-violet-600 hover:bg-violet-100 transition-colors">
-        <FileText className="h-3.5 w-3.5" />
-        Docs
-      </button>
-      <Link href={`/supervisor/students/${row.userId}`} className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 transition-colors">
-        View
-      </Link>
-    </div>
+      {at && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setAt(null)} />
+          <div role="menu" style={{ top: at.top, right: at.right }}
+            className="fixed z-50 w-56 overflow-hidden rounded-xl border border-ink-200 bg-white py-1 shadow-lg">
+            <button role="menuitem" onClick={pick(onReport)} className={ITEM}>
+              <ClipboardCheck className="h-4 w-4 text-brand-700" /> End-term report
+              {row.reportToReview && <span className="ml-auto rounded-full bg-gold-50 px-1.5 text-[10px] font-bold text-warning-800">To review</span>}
+            </button>
+            <button role="menuitem" onClick={pick(onBonus)} className={ITEM}><Sparkles className="h-4 w-4 text-brand-700" /> Bonus hours</button>
+            <button role="menuitem" onClick={pick(onHours)} className={ITEM}><Target className="h-4 w-4 text-brand-700" /> Required hours</button>
+            <button role="menuitem" onClick={pick(onDocs)} className={ITEM}><FolderOpen className="h-4 w-4 text-violet-600" /> Documents</button>
+            <Link role="menuitem" href={`/supervisor/students/${row.userId}`} onClick={() => setAt(null)} className={ITEM}>
+              <UserRound className="h-4 w-4 text-brand-700" /> View profile
+            </Link>
+          </div>
+        </>
+      )}
+    </>
   )
 }
 
 export default function SupervisorStudentsPage() {
   const queryClient = useQueryClient()
-  const [view, setView] = useState<'cards' | 'list'>('cards') // card view is the default
+  const [view, setView] = useState<'cards' | 'list'>('list') // list view is the default
   const [search, setSearch] = useState('')
   const [bonusFor, setBonusFor] = useState<Selected | null>(null)
   const [docsFor, setDocsFor] = useState<Selected | null>(null)
   const [hoursFor, setHoursFor] = useState<Selected | null>(null)
+  const [reportFor, setReportFor] = useState<Selected | null>(null)
   const [termFilter, setTermFilter] = useState<TermFilter>('all')
 
   const { data, isLoading } = useQuery({
@@ -223,7 +282,8 @@ export default function SupervisorStudentsPage() {
       pace: (s.pace as Pace | undefined) ?? UNKNOWN_PACE,
       term: (s.term_badge as TermBadgeValue | undefined) ?? 'in_progress',
       deficientHours: s.deficient_hours != null ? Number(s.deficient_hours) : null,
-      evaluationDue: Boolean(s.evaluation_due),
+      reportToReview: Boolean(s.report_to_review),
+      reportEligible: ((s.term_report as { renewal_eligible?: boolean | null } | null | undefined)?.renewal_eligible) ?? null,
     }
   })
 
@@ -250,6 +310,12 @@ export default function SupervisorStudentsPage() {
 
   const openBonus = (r: Row) => setBonusFor({ userId: r.userId, name: r.name, required: r.required })
   const openHours = (r: Row) => setHoursFor({ userId: r.userId, name: r.name, required: r.required })
+  const openReport = (r: Row) => setReportFor({ userId: r.userId, name: r.name, required: r.required })
+  const actions = (r: Row) => (
+    <ActionsMenu row={r} onReport={() => openReport(r)} onBonus={() => openBonus(r)} onHours={() => openHours(r)}
+      onDocs={() => setDocsFor({ userId: r.userId, name: r.name, required: r.required })} />
+  )
+  const reportsToReview = rows.filter((r) => r.reportToReview).length
 
   return (
     <div className="space-y-6">
@@ -257,7 +323,7 @@ export default function SupervisorStudentsPage() {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-ink-900">My Students</h1>
-          <p className="mt-1 text-sm text-ink-500">SWAP recipients assigned to you — grant bonus hours or adjust required hours directly.</p>
+          <p className="mt-1 text-sm text-ink-500">SWAP recipients assigned to you — review end-of-term reports, grant bonus hours or adjust required hours from each student&apos;s menu.</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative flex-1 lg:w-64 lg:flex-none">
@@ -295,6 +361,11 @@ export default function SupervisorStudentsPage() {
           <span className="rounded-full border border-ink-200 bg-white px-3 py-1 text-xs font-semibold text-ink-900">{rows.length} students</span>
           {toReview > 0 && (
             <span className="rounded-full border border-warning-200 bg-warning-50 px-3 py-1 text-xs font-semibold text-warning-800">{toReview} logs to review</span>
+          )}
+          {reportsToReview > 0 && (
+            <span className="rounded-full border border-gold-200 bg-gold-50 px-3 py-1 text-xs font-semibold text-warning-800">
+              {reportsToReview} end-of-term report{reportsToReview === 1 ? '' : 's'} to review
+            </span>
           )}
           {behindCount > 0 && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-warning-200 bg-gold-50 px-3 py-1 text-xs font-semibold text-warning-700">
@@ -336,7 +407,7 @@ export default function SupervisorStudentsPage() {
                     <p className="truncate text-xs text-ink-350">{r.email}</p>
                   </div>
                 </div>
-                <PendingBadges row={r} />
+                <PendingBadges row={r} onReport={() => openReport(r)} />
               </div>
               <div className="mt-3 border-t border-ink-100 pt-3">
                 <p className="flex items-center gap-1.5 text-sm text-ink-500">
@@ -345,9 +416,7 @@ export default function SupervisorStudentsPage() {
                 </p>
                 <div className="mt-3"><Progress row={r} /></div>
               </div>
-              <div className="mt-4 flex justify-end">
-                <Actions row={r} onBonus={() => openBonus(r)} onHours={() => openHours(r)} onDocs={() => setDocsFor({ userId: r.userId, name: r.name, required: r.required })} />
-              </div>
+              <div className="mt-4 flex justify-end">{actions(r)}</div>
             </div>
           ))}
         </div>
@@ -377,6 +446,7 @@ export default function SupervisorStudentsPage() {
                               <span className="rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-semibold text-warning-800">{r.pendingLogs} to review</span>
                             )}
                             {r.term !== 'in_progress' && <TermBadge badge={r.term} deficientHours={r.deficientHours} />}
+                            <ReportBadge row={r} onOpen={() => openReport(r)} />
                             <BehindBadge pace={r.pace} />
                           </div>
                           <p className="truncate text-xs text-ink-350">{r.email}</p>
@@ -393,9 +463,7 @@ export default function SupervisorStudentsPage() {
                       )}
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex justify-end">
-                        <Actions row={r} onBonus={() => openBonus(r)} onHours={() => openHours(r)} onDocs={() => setDocsFor({ userId: r.userId, name: r.name, required: r.required })} />
-                      </div>
+                      <div className="flex justify-end">{actions(r)}</div>
                     </td>
                   </tr>
                 ))}
@@ -416,6 +484,9 @@ export default function SupervisorStudentsPage() {
       )}
       {docsFor && (
         <StudentDocumentsModal student={docsFor} onClose={() => setDocsFor(null)} />
+      )}
+      {reportFor && (
+        <TermReportReviewModal studentId={reportFor.userId} studentName={reportFor.name} onClose={() => setReportFor(null)} />
       )}
       {hoursFor && (
         <RequiredHoursModal

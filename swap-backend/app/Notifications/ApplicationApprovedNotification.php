@@ -43,7 +43,7 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
             if (!empty($this->data['required_hours'])) {
                 $carried = (int) ($this->data['carried_hours'] ?? 0);
                 $mail->line("Required hours for the term: {$this->data['required_hours']}"
-                    . ($carried > 0 ? " (including {$carried} unfinished makeup hours carried over from last term)." : '.'));
+                    . ($carried > 0 ? " (including {$carried} lacking hours carried over from last term)." : '.'));
             }
 
             return $mail
