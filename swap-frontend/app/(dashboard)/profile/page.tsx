@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { strongPassword } from '@/lib/utils/password'
 import { PasswordGuide } from '@/components/auth/PasswordGuide'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronRight, ShieldCheck, Mail, Phone, Building2, CalendarDays, LogOut,
   Save, KeyRound, Lock, Bell, CheckCircle2, FileCheck, Clock, Camera, Loader2,
@@ -75,6 +75,7 @@ function activityIcon(type: string) {
 
 export default function ProfilePage() {
   const { user, token, setAuth } = useAuthStore()
+  const queryClient = useQueryClient()
   const { logout, isLoggingOut } = useAuth()
   const [tab, setTab] = useState<'profile' | 'security' | 'activity'>('profile')
   const [profileMsg, setProfileMsg] = useState<string | null>(null)
@@ -90,6 +91,9 @@ export default function ProfilePage() {
     mutationFn: (file: File) => authApi.uploadPhoto(file),
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
+      queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setPhotoMsg(null)
       setCropFile(null)
     },
@@ -111,6 +115,9 @@ export default function ProfilePage() {
     mutationFn: () => authApi.removePhoto(),
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
+      queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setPhotoMsg(null)
     },
     onError: (err: ApiError) => setPhotoMsg(err.message ?? 'Could not remove photo.'),
@@ -120,6 +127,7 @@ export default function ProfilePage() {
     mutationFn: (file: File) => authApi.uploadSignature(file),
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
+      queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setSigMsg(null)
       setShowPad(false)
     },
@@ -130,6 +138,7 @@ export default function ProfilePage() {
     mutationFn: () => authApi.removeSignature(),
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
+      queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setSigMsg(null)
     },
     onError: (err: ApiError) => setSigMsg(err.message ?? 'Could not remove signature.'),
@@ -177,6 +186,9 @@ export default function ProfilePage() {
       }),
     onSuccess: (updated) => {
       setAuth(updated, useAuthStore.getState().token ?? '')
+      queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setProfileMsg('Profile updated successfully.')
     },
     onError: (err: ApiError) => setProfileMsg(err.message ?? 'Update failed.'),

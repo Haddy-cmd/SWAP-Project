@@ -88,7 +88,7 @@ export default function RecipientDashboard() {
   })
 
   const { data: assignment } = useQuery({
-    queryKey: ['my-assignment'],
+    queryKey: ['recipient-assignment'],
     queryFn: () => attendanceApi.getMyAssignment(),
   })
 

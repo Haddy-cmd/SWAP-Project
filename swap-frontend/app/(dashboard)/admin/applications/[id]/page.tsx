@@ -75,7 +75,10 @@ export default function AdminApplicationDetailPage() {
 
   const markReview = useMutation({
     mutationFn: () => applicationsApi.adminMarkUnderReview(Number(id)),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-application', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
+    },
   })
 
   const scheduleInterview = useMutation({
@@ -89,6 +92,7 @@ export default function AdminApplicationDetailPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
       setInterviewDay('')
       setSlotMinute(null)
       setScheduleError(null)

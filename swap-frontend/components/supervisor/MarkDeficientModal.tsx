@@ -27,6 +27,7 @@ export function MarkDeficientModal({ studentId, studentName, term, shortfall, on
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['student-summary'] })
       qc.invalidateQueries({ queryKey: ['supervisor-students'] })
+      qc.invalidateQueries({ queryKey: ['term-report'] })
       onClose()
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not mark the term deficient.'),

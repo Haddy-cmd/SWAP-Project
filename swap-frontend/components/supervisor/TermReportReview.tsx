@@ -40,6 +40,8 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
       setSaved(res.message)
       qc.invalidateQueries({ queryKey: ['student-summary'] })
       qc.invalidateQueries({ queryKey: ['supervisor-students'] })
+      qc.invalidateQueries({ queryKey: ['term-report'] })
+      qc.invalidateQueries({ queryKey: ['student-logs'] })
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not accept the report.'),
   })

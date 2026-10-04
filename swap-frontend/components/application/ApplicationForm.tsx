@@ -62,6 +62,7 @@ export function ApplicationForm() {
     },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ['applications'] })
+      queryClient.invalidateQueries({ queryKey: ['application-status'] })
       router.push(`/applicant/application/${res.id}`)
     },
     onError: (err: ApiError) => {

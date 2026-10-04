@@ -475,6 +475,8 @@ export default function AttendancePage() {
           onSubmitted={() => {
             setNarrativeOpen(false)
             queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
+            queryClient.invalidateQueries({ queryKey: ['my-logs'] })
+            queryClient.invalidateQueries({ queryKey: ['hours-summary'] })
             timeOut.mutate()
           }}
         />

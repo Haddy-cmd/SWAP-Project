@@ -565,7 +565,7 @@ export default function AdminOfficesPage() {
       await applyLogo(office.id, logo)
       return office
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); setShowNew(false) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); queryClient.invalidateQueries({ queryKey: ['admin-offices-list'] }); setShowNew(false) },
   })
 
   const update = useMutation({
@@ -574,7 +574,7 @@ export default function AdminOfficesPage() {
       await applyLogo(data.id!, logo)
       return office
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); setEditing(null) },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); queryClient.invalidateQueries({ queryKey: ['admin-offices-list'] }); setEditing(null) },
   })
 
   const officeQr = useMutation({

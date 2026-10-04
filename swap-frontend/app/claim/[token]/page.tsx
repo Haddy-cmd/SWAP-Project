@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, CheckCircle, HandCoins, KeyRound, Loader2 } from 'lucide-react'
 import { claimApi } from '@/lib/api/stipend.api'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
@@ -25,6 +25,7 @@ const MSG_NOT_SET = 'The Banking Office PIN has not been set up yet. Please cont
  */
 export default function ClaimReleasePage() {
   const { token } = useParams<{ token: string }>()
+  const queryClient = useQueryClient()
   const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<ClaimReleaseResult | null>(null)
@@ -38,7 +39,12 @@ export default function ClaimReleasePage() {
 
   const release = useMutation({
     mutationFn: () => claimApi.release(token, { pin }),
-    onSuccess: (res) => { setDone(res.data); setPin(''); setError(null) },
+    onSuccess: (res) => {
+      setDone(res.data); setPin(''); setError(null)
+      queryClient.invalidateQueries({ queryKey: ['claim-verify', token] })
+      queryClient.invalidateQueries({ queryKey: ['stipend-history'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-stipend'] })
+    },
     onError: (e: ApiRequestError) => {
       setPin('')
       setError(e.errors?.pin?.[0] ?? e.message ?? 'Could not record the payout.')

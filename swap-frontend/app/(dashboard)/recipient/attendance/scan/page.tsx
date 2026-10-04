@@ -46,6 +46,8 @@ export default function ScanAttendancePage() {
       setPendingToken(null)
       setScanned(true)
       queryClient.invalidateQueries({ queryKey: ['hours-summary'] })
+      queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
+      queryClient.invalidateQueries({ queryKey: ['my-logs'] })
     },
     onError: (err: { message?: string }) => {
       setResult({ type: 'error', text: err.message ?? 'Time-in failed. Try again.' })

@@ -39,7 +39,9 @@ export function TermReportCard() {
       challenges: form.challenges.trim() || null,
     }),
     onSuccess: (res) => {
-      qc.setQueryData(['term-report'], { data: res.data, meta })
+      qc.invalidateQueries({ queryKey: ['term-report'] })
+      qc.invalidateQueries({ queryKey: ['student-summary'] })
+      qc.invalidateQueries({ queryKey: ['supervisor-students'] })
       setEditing(false); setError(null); setSaved(res.message ?? 'Saved.')
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not save your report.'),

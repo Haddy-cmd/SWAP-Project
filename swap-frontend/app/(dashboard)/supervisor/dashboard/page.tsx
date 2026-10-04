@@ -50,6 +50,7 @@ export default function SupervisorDashboard() {
   const { data: pendingLogs = [] } = useQuery({
     queryKey: ['supervisor-pending-logs'],
     queryFn: () => attendanceApi.getPendingVerifications(),
+    refetchInterval: 30_000,
   })
 
   const verify = useMutation({
@@ -57,6 +58,9 @@ export default function SupervisorDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['supervisor-pending-logs'] })
       queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
+      queryClient.invalidateQueries({ queryKey: ['verifications'] })
+      queryClient.invalidateQueries({ queryKey: ['student-logs'] })
+      queryClient.invalidateQueries({ queryKey: ['student-summary'] })
     },
   })
 

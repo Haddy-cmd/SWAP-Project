@@ -33,6 +33,13 @@ export default function StipendPage() {
   const { data: history = [], isLoading } = useQuery({
     queryKey: ['stipend-history'],
     queryFn: () => stipendApi.getHistory(),
+    // The Banking Office records the payout on a different device by scanning
+    // the stub's QR — poll while a claimable stub exists so the list flips to
+    // "Received" without a manual refresh.
+    refetchInterval: (query) => {
+      const items = query.state.data ?? []
+      return items.some((s) => s.status === 'certified') ? 30_000 : false
+    },
   })
 
   const { data: promissory } = useQuery({
