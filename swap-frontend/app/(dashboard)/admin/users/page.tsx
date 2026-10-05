@@ -9,6 +9,7 @@ import { adminApi } from '@/lib/api/admin.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { formatDate } from '@/lib/utils/formatDate'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 // Soft avatar palettes (bg / fg), mirrored from the mockup.
 const AV: [string, string][] = [
@@ -195,22 +196,45 @@ export default function AdminUsersPage() {
     placeholderData: keepPreviousData,
   })
 
+  const { notify, notifyError, confirm } = useFeedback()
   const toggle = useMutation({
-    mutationFn: ({ id, is_active }: { id: number; is_active: boolean }) => adminApi.updateUser(id, { is_active }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+    mutationFn: ({ id, is_active }: { id: number; is_active: boolean; name: string }) => adminApi.updateUser(id, { is_active }),
+    onSuccess: (_r, v) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      notify(v.is_active
+        ? { title: 'Account activated', detail: `${v.name} can sign in again.` }
+        : { title: 'Account deactivated', detail: `${v.name} is signed out and can't sign in until reactivated.` })
+    },
+    onError: (e) => notifyError(e, 'Could not change the account'),
   })
 
   const remove = useMutation({
-    mutationFn: (id: number) => adminApi.deleteUser(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
-    onError: (e: unknown) => {
-      const err = e as { response?: { data?: { message?: string } } }
-      alert(err.response?.data?.message ?? 'Failed to delete user.')
+    mutationFn: ({ id }: { id: number; name: string }) => adminApi.deleteUser(id),
+    onSuccess: (_r, v) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] })
+      notify({ title: 'Account deleted', detail: `${v.name}'s account was removed.` })
     },
+    onError: (e) => notifyError(e, 'Could not delete the account'),
   })
 
-  const confirmDelete = (id: number, name: string) => {
-    if (window.confirm(`Delete ${name}'s account? This cannot be undone.`)) remove.mutate(id)
+  const confirmDelete = async (id: number, name: string) => {
+    const ok = await confirm({
+      title: `Delete ${name}'s account?`,
+      body: 'They lose access right away. This cannot be undone.',
+      confirmLabel: 'Delete account',
+      tone: 'danger',
+    })
+    if (ok) remove.mutate({ id, name })
+  }
+
+  const toggleActive = async (id: number, name: string, active: boolean) => {
+    if (active && !(await confirm({
+      title: `Deactivate ${name}?`,
+      body: 'They are signed out everywhere and can\'t sign in until an admin reactivates the account.',
+      confirmLabel: 'Deactivate',
+      tone: 'danger',
+    }))) return
+    toggle.mutate({ id, is_active: !active, name })
   }
 
   const users = data?.data ?? []
@@ -369,7 +393,7 @@ export default function AdminUsersPage() {
                         <span className="text-xs font-medium text-ink-350">Protected</span>
                       ) : (
                         <button
-                          onClick={() => toggle.mutate({ id: user.id, is_active: !active })}
+                          onClick={() => toggleActive(user.id, user.name, active)}
                           disabled={toggle.isPending}
                           className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-ink-200 bg-white px-3 text-xs font-semibold transition-colors hover:bg-ink-50 disabled:opacity-50"
                           style={{ color: active ? '#B45309' : '#145643' }}

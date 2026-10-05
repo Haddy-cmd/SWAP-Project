@@ -8,9 +8,11 @@ import { X, LogOut } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import type { ApiError } from '@/types/api.types'
 
+// Same rules as StoreNarrativeRequest: the Task Description is required (it prints on
+// the duty slip); the specific activities and challenges are optional.
 const schema = z.object({
-  content: z.string().min(10, 'Please write at least 10 characters'),
-  activities_done: z.string().min(10, 'Please write at least 10 characters'),
+  content: z.string().trim().min(10, 'Please write at least 10 characters'),
+  activities_done: z.string().optional(),
   challenges: z.string().optional(),
 })
 type FormData = z.infer<typeof schema>
@@ -20,19 +22,15 @@ const TEXTAREA =
 
 interface NarrativeModalProps {
   logId: number
-  /** Called once the narrative is saved — the caller then proceeds to clock out. */
+  /** Called once the note is saved — the caller then proceeds to clock out. */
   onSubmitted: () => void
   onClose: () => void
   /** External (clock-out) pending state, to keep the button busy through both steps. */
   clockingOut?: boolean
-  /**
-   * The session note is optional (the end-of-term report is what payout needs):
-   * when given, a Skip button clocks out without saving a note.
-   */
-  onSkip?: () => void
 }
 
-export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut, onSkip }: NarrativeModalProps) {
+/** The clock-out note. Clocking out waits for its Task Description (AttendanceService::MSG_TASK_REQUIRED). */
+export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut }: NarrativeModalProps) {
   const {
     register,
     handleSubmit,
@@ -41,7 +39,12 @@ export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut, onSki
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
   const submit = useMutation({
-    mutationFn: (data: FormData) => attendanceApi.submitNarrative(logId, data),
+    mutationFn: (data: FormData) =>
+      attendanceApi.submitNarrative(logId, {
+        content: data.content.trim(),
+        activities_done: data.activities_done?.trim() || null,
+        challenges: data.challenges?.trim() || null,
+      }),
     onSuccess: () => onSubmitted(),
     onError: (err: ApiError) => {
       if (err.errors) {
@@ -61,12 +64,8 @@ export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut, onSki
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="font-semibold text-ink-900">{onSkip ? 'Add a short note (optional)' : 'Narrative Report'}</h2>
-            <p className="text-sm text-ink-500">
-              {onSkip
-                ? 'Tell your supervisor what you worked on, or skip it. Either way you’ll be clocked out.'
-                : 'Describe your work, then you’ll be clocked out.'}
-            </p>
+            <h2 className="font-semibold text-ink-900">Task Description</h2>
+            <p className="text-sm text-ink-500">Required before you clock out. It prints on your duty slip.</p>
           </div>
           <button onClick={onClose} className="text-ink-350 hover:text-danger-600 transition-colors" aria-label="Close">
             <X className="h-5 w-5" />
@@ -75,13 +74,15 @@ export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut, onSki
 
         <form onSubmit={handleSubmit((d) => submit.mutate(d))} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">Summary of work done today</label>
-            <textarea {...register('content')} rows={3} placeholder="Briefly describe your work session…" className={TEXTAREA} />
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">Task Description</label>
+            <textarea {...register('content')} rows={3} placeholder="What did you work on today? e.g., Encoded the office inventory…" className={TEXTAREA} />
             {errors.content && <p className="mt-1 text-xs text-danger-600">{errors.content.message}</p>}
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink-900">Specific activities done</label>
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">
+              Specific activities done <span className="font-normal text-ink-350">(optional)</span>
+            </label>
             <textarea {...register('activities_done')} rows={3} placeholder="List specific tasks, e.g., filing documents, encoding data…" className={TEXTAREA} />
             {errors.activities_done && <p className="mt-1 text-xs text-danger-600">{errors.activities_done.message}</p>}
           </div>
@@ -102,23 +103,13 @@ export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut, onSki
             >
               Cancel
             </button>
-            {onSkip && (
-              <button
-                type="button"
-                onClick={onSkip}
-                disabled={busy}
-                className="rounded-xl border border-danger-200 px-5 py-2.5 text-sm font-semibold text-danger-700 hover:bg-danger-50 disabled:opacity-50 transition-colors"
-              >
-                Skip &amp; Clock Out
-              </button>
-            )}
             <button
               type="submit"
               disabled={busy}
               className="flex items-center gap-2 rounded-xl bg-danger-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-danger-700 disabled:opacity-60 transition-colors"
             >
               <LogOut className="h-4 w-4" />
-              {busy ? 'Submitting…' : onSkip ? 'Save Note & Clock Out' : 'Submit & Clock Out'}
+              {busy ? 'Submitting…' : 'Save & Clock Out'}
             </button>
           </div>
         </form>

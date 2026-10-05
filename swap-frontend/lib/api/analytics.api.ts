@@ -1,10 +1,15 @@
 import apiClient from './axios'
-import type { AdminOverview, AdminPeriod } from '@/types/analytics.types'
+import type { AdminOverview, AdminPeriod, ProgramInsights } from '@/types/analytics.types'
 import type { ApiResponse } from '@/types/api.types'
 
 export const analyticsApi = {
   getAdminOverview: (academicYear: string, semester: string) =>
     apiClient.get<ApiResponse<AdminOverview>>('/admin/analytics/overview', {
+      params: { academic_year: academicYear, semester },
+    }).then((r) => r.data.data),
+
+  getInsights: (academicYear: string, semester: string) =>
+    apiClient.get<ApiResponse<ProgramInsights>>('/admin/analytics/insights', {
       params: { academic_year: academicYear, semester },
     }).then((r) => r.data.data),
 

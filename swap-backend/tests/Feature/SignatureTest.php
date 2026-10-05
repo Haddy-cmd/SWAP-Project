@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\StipendHistory;
+use App\Models\StipendSignature;
 use App\Models\User;
 use App\Notifications\SignatureRequiredNotification;
+use App\Services\StipendClaimService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -327,5 +329,82 @@ class SignatureTest extends TestCase
         // Second run: the unread reminder suppresses the duplicate.
         $this->artisan('remind:missing-signatures')->assertSuccessful();
         $this->assertEquals(1, $missing->notifications()->count());
+    }
+
+    public function test_profile_flags_a_signature_whose_file_was_lost(): void
+    {
+        $recipient = $this->makeUser('recipient', ['signature_image_path' => null]);
+        Sanctum::actingAs($recipient);
+
+        $this->getJson('/api/profile')->assertStatus(200)->assertJsonPath('data.signature_missing', false);
+
+        $this->postJson('/api/profile/signature', ['signature' => UploadedFile::fake()->image('me.png')])->assertStatus(200);
+        $this->getJson('/api/profile')->assertJsonPath('data.signature_missing', false);
+
+        // e.g. saved on the server's own disk, which the host wiped on restart
+        Storage::disk('public')->delete($recipient->fresh()->signature_image_path);
+        $this->getJson('/api/profile')->assertStatus(200)
+            ->assertJsonPath('data.signature_missing', true)
+            ->assertJsonPath('data.signature_url', fn ($url) => is_string($url));
+    }
+
+    public function test_release_refuses_a_recipient_whose_signature_file_was_lost(): void
+    {
+        $supervisor = $this->makeUser('supervisor');
+        $recipient = $this->makeUser('recipient');
+        $this->payableAssignment($recipient, $supervisor);
+        Storage::disk('public')->delete($recipient->signature_image_path);
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
+            ->assertStatus(422)
+            ->assertJsonPath('message', StipendClaimService::MSG_SIGNATURE_LOST);
+
+        $token = $this->postJson('/api/admin/stipend/unlock', ['password' => self::PW])->json('data.unlock_token');
+        $this->postJson('/api/admin/stipend/release-bulk', [
+            'unlock_token' => $token,
+            'items' => [['user_id' => $recipient->id, 'academic_year' => '2024-2025', 'semester' => '1st Semester']],
+        ])->assertStatus(200)
+            ->assertJsonPath('data.released', [])
+            ->assertJsonPath('data.skipped.0.reason', StipendClaimService::MSG_SIGNATURE_LOST);
+        $this->assertDatabaseCount('stipend_history', 0);
+    }
+
+    public function test_redrawing_puts_the_ink_back_on_a_stub_whose_copy_was_lost(): void
+    {
+        $supervisor = $this->makeUser('supervisor');
+        $recipient = $this->makeUser('recipient');
+        $this->payableAssignment($recipient, $supervisor);
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
+        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
+        $this->bankingOfficeRelease($stipend)->assertStatus(200);
+
+        $ink = StipendSignature::where('stipend_history_id', $stipend->id)->where('signatory_role', 'beneficiary')->first();
+        $this->assertSame('drawn', $ink->method);
+        $this->assertNotNull($stipend->fresh()->slip_path);
+
+        // Storage lost the stub's copy and the specimen itself.
+        Storage::disk('public')->delete([$ink->signature_image_path, $recipient->signature_image_path]);
+
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/profile/signature', ['signature' => UploadedFile::fake()->image('again.png')])
+            ->assertStatus(200)
+            ->assertJsonPath('message', 'Digital signature saved. It will appear on newly released claim stubs. It was also put back on 1 claim stub whose signature image had been lost.');
+
+        Storage::disk('public')->assertExists($ink->fresh()->signature_image_path);
+        $this->assertNull($stipend->fresh()->slip_path, 'the next download re-renders the stub with ink');
+        $this->assertDatabaseHas('audit_logs', ['action' => 'stipend_signature_restored', 'auditable_id' => $stipend->id]);
+        // A signer who never drew is left alone.
+        $this->assertDatabaseHas('stipend_signatures', [
+            'stipend_history_id' => $stipend->id, 'signatory_role' => 'supervisor', 'method' => 'authenticated', 'signature_image_path' => null,
+        ]);
+
+        // The download renders a fresh stub; a second drawing finds nothing lost.
+        $this->get("/api/recipient/stipend/{$stipend->id}/slip")->assertStatus(200);
+        $this->assertNotNull($stipend->fresh()->slip_path);
+        $this->postJson('/api/profile/signature', ['signature' => UploadedFile::fake()->image('third.png')])
+            ->assertJsonPath('message', 'Digital signature saved. It will appear on newly released claim stubs.');
     }
 }

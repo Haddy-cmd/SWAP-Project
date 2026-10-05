@@ -8,6 +8,7 @@ import { promissoryApi } from '@/lib/api/promissory.api'
 import { formatDate } from '@/lib/utils/formatDate'
 import type { StipendRecord, StipendStatus } from '@/types/analytics.types'
 import type { PromissoryStatus } from '@/types/promissory.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
 
@@ -52,11 +53,13 @@ export default function StipendPage() {
   const [doc, setDoc] = useState<File | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
+  const { notify } = useFeedback()
   const submitPromissory = useMutation({
     mutationFn: () => promissoryApi.submit(submission!.assignment_id!, doc!),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['promissory-mine'] })
       setDoc(null); setSubmitError(null)
+      notify({ title: 'Promissory note submitted', detail: 'It was sent to your supervisor for review. You\'ll be notified of the decision.' })
     },
     onError: (e: { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }) =>
       setSubmitError(Object.values(e.response?.data?.errors ?? {}).flat()[0] ?? e.response?.data?.message ?? 'Could not submit.'),

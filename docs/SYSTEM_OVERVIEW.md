@@ -6,7 +6,7 @@
 > caught people. Read the "Traps" section before changing anything — several of them are
 > non-obvious and have each cost a debugging session.
 
-> Last verified against the repository: **2026-10-03** (end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
+> Last verified against the repository: **2026-10-05** (reports & analytics per role; Task Description required at clock-out, report reminders, floating shift timer, office map confirmation; 2026-10-03: end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
 
 ---
 
@@ -23,8 +23,9 @@ Marawi's student assistantship programme, run by the **Division / Office of Stud
    and becomes a **recipient**.
 4. The recipient **clocks in and out** by scanning their office's QR code, with **GPS geofence
    verification** and an optional **proof-of-presence selfie**.
-5. At clock-out they may add an optional **session note**; once per term they submit an
-   **end-of-term narrative report** (required for payout).
+5. At clock-out they write the session's **Task Description** (required; it prints on the duty
+   slip and the semester report); once per term they submit an **end-of-term narrative report**
+   (required for payout), with email/bell/dashboard reminders when the hours are met or the term ends.
 6. The supervisor **verifies** the logged hours.
 7. Verified hours drive **stipend release** and progress reporting (duty slips, weekly/monthly/
    semester reports).
@@ -183,6 +184,16 @@ Conventions:
 
 ---
 
+**Feedback & confirmations** (`components/feedback/FeedbackProvider.tsx`, mounted once in
+`app/layout.tsx`, rendered into `<body>`): `useFeedback()` gives `notify({ tone, title, detail })`
+(a centered pop-out; success/info close after 3 s, errors stay until OK), `notifyError(err, title)`
+(the backend's message via `lib/utils/apiError.ts` `errorText`) and `confirm({ title, body, details,
+confirmLabel, tone }) → Promise<boolean>` (the shared "Are you sure?" dialog). Rule: every important
+mutation reports through `notify` / `notifyError`; risky ones (money, status, access, irreversible)
+`confirm` first. Field validation errors stay inline. `lib/utils/rejectConfirm.ts` builds the
+application/renewal reject dialog (renewal warnings from `renewal_readiness`). Without the provider
+(a component rendered alone in a test) `confirm` resolves true and `notify` is a no-op.
+
 ## 5. Domain model
 
 Core tables (46 migrations total; the first 37 are the original `2024_01_01_*` series, plus
@@ -200,7 +211,7 @@ four `2026_09_20_*` and five `2026_09_21_*` / `2026_09_23_*` additions).
 | `SemesterPeriod` | The DSA calendar: one row per `academic_year` + `semester` (unique), `start_date`/`end_date` (no two periods overlap — checked in `SaveSemesterPeriodRequest`), `renewal_open` (at most one row — opening a second is refused; `SemesterPeriodService::renewalTarget()`), `renewal_closed_at` (stamped when renewal is closed; it also closes the term before's promissory window), `closed_at` (stamped by `semester:close`). `SemesterPeriodService::forTerm()` loads the whole calendar once per request |
 | `TermEvaluation` | **Retired** (2026-10-03): the old 1–5 evaluations stay in `term_evaluations` (and in System Testing's snapshots) but nothing reads or writes them; the report acceptance replaced them |
 | `TimeLog` | One attendance session. `status`: `open → pending_verification → verified \| rejected`. GPS + accuracy + `location_flagged` + selfie path |
-| `NarrativeReport` | Optional per-session note at clock-out |
+| `NarrativeReport` | The per-session note: `content` = **Task Description** (required at the recipient's own clock-out, printed on the duty slips), `activities_done` and `challenges` optional |
 | `TermReport` | End-of-term narrative report, one per assignment; required before the stipend is released. The supervisor accepts it with `renewal_eligible` (+ `reviewed_at/by`, `review_remarks`); editable until accepted or the stipend is released |
 | `Verification` | Supervisor's accept/reject of logged hours |
 | `StipendHistory` | Claim stub lifecycle (plain `varchar(20)`, **not** a Postgres enum): `pending → certified → claimed`, with `void` terminal (pre-claim only). New rows are created already `certified` (release == certify, Option C). `released` survives only as a legacy read value for pre-2026-09-21 rows. Columns: `control_number` (`SWAP-STP-{studentID}-{YYYY}{SEM}`, e.g. `SWAP-STP-202512345-2627S2`, `-R2`… on re-issue, unique; built with `DutySlipControl::studentRef/termCode` like the duty slip), `claim_token` (64-char, single-use, nulled on receipt/void), `certified_by/at`, `claimed_at`, `receipt_signed_at`, `releasing_officer_name`, `slip_path`, `voided_at`, `void_reason`, plus the promissory record set at release: `via_promissory`, `promissory_note_id`, `required_hours`, `deficient_hours`, `lacking_hours` (`makeup_deadline` only on stubs released before 2026-10-03) |
@@ -255,14 +266,26 @@ All comparisons in **Asia/Manila**.
 - Auto clock-out has a **10-minute grace period** outside the premises, and can be switched off
   per office (`offices.auto_clock_out`; the endpoint then refuses with 422 "Automatic clock-out is
   turned off for this office.").
-- The per-session note is **optional** at clock-out (all entry points offer Skip).
+- The recipient's own QR clock-out (`AttendanceService::timeOut`) needs the session's Task
+  Description: 422 `MSG_TASK_REQUIRED` "Write your task description before clocking out." (no
+  Skip on any entry point). Automatic clock-outs (leaving the geofence, the 12-hour sweep, System
+  Testing) don't, and the note can be added to such a log later from the Hours page. While clocked
+  in, a draggable `FloatingShiftTimer` (recipient layout) shows the running time on every recipient
+  page but Attendance; its position is kept in `localStorage`.
 - **Selfie:** required unless *any* supervisor governing the assignment has
   `require_clock_in_selfie = false`. Enforced server-side in `timeInGeofence()`.
 - One open log per user (DB-enforced, migration `…034_enforce_one_open_log_per_user`).
 - **Signature specimen:** no longer a clock-in gate. The release refuses a recipient without a
-  `signature_image_path` (it signs the stub and receipt). The UI nudges via
-  `MissingSignatureBanner` → Profile; a weekly `remind:missing-signatures` cron sends the mail +
-  in-app ping.
+  `signature_image_path` (it signs the stub and receipt), and one whose file is gone from storage
+  (`App\Support\StoredFile::missing`, checked once per release: `MSG_SIGNATURE_LOST` "This
+  recipient's saved signature can't be found in storage. Ask them to draw it again on their
+  Profile."). `GET /profile` adds `signature_missing` for the signed-in user, so the Profile page
+  asks for a new drawing instead of showing a broken image. Saving a new specimen runs
+  `StipendClaimService::restoreLostInk`: this user's `drawn` rows on certified/claimed stubs whose
+  copy is gone take the new drawing, the stored PDF is dropped (re-rendered on download), audit
+  `stipend_signature_restored`. The UI nudges via `MissingSignatureBanner` → Profile; a weekly
+  `remind:missing-signatures` cron sends the mail + in-app ping. `SessionSync` re-reads
+  `GET /profile` on load and when the tab is returned to (at most once a minute).
 
 ### Stipend claim stub (`StipendClaimService`, Option C — release == certify)
 - Eligibility (`StipendService`): an `active` or `completed` (rolled over by a renewal; `suspended`
@@ -345,6 +368,12 @@ All comparisons in **Asia/Manila**.
   supervisor can `markDeficient` a current placement that is short (reason ≥ 10 chars); a mark made
   during the term is re-measured when the term ends. Renewal rollover records the old term's
   verdict (no notification).
+- **Report reminders** (`TermReportReminderService`): while the report isn't in, the student gets
+  one email + bell `term_report_due` when the verified hours meet the requirement
+  (`TermStatusService::afterHoursChanged`, run after every verification, verified bonus hours and
+  required-hours change) and one when the term closes (`semester:close`, current placements, terms
+  ended within 14 days); stamped in `assignments.report_due_hours_at` / `report_due_ended_at`, audit
+  `term_report_reminder`. The recipient dashboard shows the same warning (`TermReportDueBanner`).
 - **Report acceptance** (`TermReportReviewService`): a governing supervisor accepts the submitted
   end-of-term report and marks the student eligible / not eligible for renewal, with optional
   remarks, while the placement is `active` (`PUT /supervisor/assignments/{id}/term-report/review`;
@@ -360,7 +389,18 @@ All comparisons in **Asia/Manila**.
   met, the report accepted (else "The supervisor hasn't accepted the end-of-term report for {term}
   yet."); and, if accepted, not marked not eligible (else "The supervisor marked this recipient not
   eligible for renewal for {term}." — this one applies to short students too). `check()` feeds `renewal_readiness` on
-  `ApplicationResource` (admins only). Submitting early is allowed; rejecting is never blocked.
+  `ApplicationResource` (admins only), with `term_end_date` and `stipend_status` for the reject
+  confirmation. Submitting early is allowed; rejecting is never blocked.
+- **Rejecting a renewal** (`ApplicationService::returnToApplicant`, in the same DB transaction as the
+  decision; the decision emails go out after commit): the recipient's active placements become
+  `completed` (still payable), the role goes back to `applicant`, audit `returned_to_applicant`. The
+  admin confirms first and is warned about a term still running, a stub not claimed, a stipend not
+  released or a missing report. The student may apply again while `applications_open` is on — even
+  for the same semester: the one-application-per-semester rule is the partial unique index
+  `applications_one_per_term_unique` (migration `2026_10_05_000003`) and
+  `ApplicationRepository::findForUserAndPeriod`, both ignoring rejected renewals. The "already
+  approved, wait for placement" block looks only at the latest application (`findByUser` is newest
+  first, then by id), so a former recipient's first approval doesn't block them.
   On rollover, a promissory-covered term's lacking hours (`RenewalReadinessService::carryHours`)
   are added to the new assignment: `required_hours = base + carry`, recorded as `carried_over_hours` /
   `carried_from_assignment_id` (`Assignment::baseRequiredHours()` strips it again on the next rollover).
@@ -412,6 +452,31 @@ All comparisons in **Asia/Manila**.
   removed; `App\Support\DutySlipControl` now only holds the shared `studentRef()` / `termCode()`
   that the claim stub's control number also uses.
 
+### Reports & analytics per role
+All read from data already recorded, per term, leaving out soft-deleted users.
+- **Admin → Analytics → Program insights** (`ProgramInsightsService`, `GET /admin/analytics/insights`):
+  term results (verdicts, deficient hours, promissory notes, hours carried over), renewals (counts,
+  why waiting ones are blocked — `RenewalReadinessService::check()` per waiting renewal — and the
+  renewal rate against the previous semester period's recipients), stipend (released / claimed /
+  awaiting amounts, via promissory, average days from `certified_at` to `claimed_at`, stubs ready for
+  14+ days), attendance integrity per office (flagged, automatic clock-outs, rejected, logs with no
+  task description), supervisor workload (pending per assigned supervisor, oldest, average verify
+  time per verifier), the new-application funnel by college, and office use. **Reports → Term
+  Results** (`ReportService` type `term-results`): one row per placement with verdict, promissory,
+  end-of-term report, stipend and renewal.
+- **Supervisor → Reports:** the roster adds Term Status, End-of-Term Report, Promissory Note, Last
+  Clock-in, Days on Duty and Flagged Logs (+ a "Reports to Accept" tile); **Insights**
+  (`ReportService::supervisorInsights`, `GET /supervisor/reports/insights`): the verification queue,
+  their own 30-day verify time, average session, students with no clock-in for 7+ days, automatic
+  clock-outs per student.
+- **Recipient** (`RecipientProgressService`, `GET /recipient/progress`): pace (`paceStatus`), a forecast
+  (hours/week needed to the term end, recent 28-day average, projected finish), an hours breakdown
+  with rejected-log reasons, and a stipend/renewal checklist (hours or promissory, signature incl. a
+  lost file, end-of-term report and its mark, stub). Past terms also show the stub amount and claim date.
+- **Applicant:** `ApplicationResource.status_history` (submitted + every status change in the audit
+  log; the applicant's own and single applications only) dates the timeline on the dashboard and the
+  application page.
+
 ---
 
 ## 7. API surface
@@ -428,9 +493,9 @@ Base path `/api`. Auth via `Authorization: Bearer <sanctum token>`.
 | `qr-codes/*` | **none (public)** | 2 | Legacy dead endpoints — see §13 security note |
 | `chatbot/query` | public, **unthrottled** | 1 | gap — see AUDIT R4 |
 | `applicant/*` | `role:applicant` | 5 | submit application, upload documents |
-| `recipient/*` | `role:recipient` | 19 | attendance (logs default to the current term), hours, past terms (`assignments/history`), session notes, end-of-term report, stipend history + claim-slip download, promissory index/store/file, renewal, duty slip |
-| `supervisor/*` | `role:supervisor` | 22 | students (+ `mark-deficient`), end-of-term report acceptance (`assignments/{id}/term-report/review`), verifications, roster reports, office QR, **settings**, promissory index/review/file |
-| `admin/*` | `role:admin` | 59 | applications, interviews, offices, assignments (`?term=` verdict filter), **semester periods**, users, stipend (index/eligible/**unlock/release/release-bulk/void/banking-office-pin**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics, audit logs |
+| `recipient/*` | `role:recipient` | 20 | attendance (logs default to the current term), hours, past terms (`assignments/history`), session notes, end-of-term report, stipend history + claim-slip download, promissory index/store/file, renewal, duty slip |
+| `supervisor/*` | `role:supervisor` | 23 | students (+ `mark-deficient`), end-of-term report acceptance (`assignments/{id}/term-report/review`), verifications, roster reports, office QR, **settings**, promissory index/review/file |
+| `admin/*` | `role:admin` | 70 | applications, interviews, offices, assignments (`?term=` verdict filter), **semester periods**, users, stipend (index/eligible/**unlock/release/release-bulk/void/banking-office-pin**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics, audit logs |
 | `profile/*`, `notifications/*`, `concerns`, `chatbot`, `settings` | authenticated | ~15 | shared + signature specimen upload/delete (`POST/DELETE /profile/signature`); `GET/POST /concerns` + `POST /concerns/{id}/messages` back the SWAP Assistant's Ask the DSA tab as a running thread (the old `/help` route just opens it); each concern's messages live in `concern_messages` |
 
 Response shape is consistently `{ "data": …, "message": … }`, with Laravel's standard
@@ -485,12 +550,15 @@ fail to render without it). Frontend `.env.local`: `NEXT_PUBLIC_API_URL=http://l
 - **Frontend → Vercel** (`themeColor #10331F`, ambient `dsa-seal-watermark.webp` backdrop,
   print CSS for duty slips; note the larger `dsa-logo.png` ~310 kB).
 - `render.yaml` hardcodes `MAIL_MAILER=log`; real mail requires dashboard env overrides.
-- Uploads use Laravel's **public disk** (`config('filesystems.documents_disk', 'public')`) and
-  need `php artisan storage:link`. **On Render's free tier the filesystem is ephemeral** — uploaded
-  documents, avatars, office logos, **signature specimens, promissory documents and rendered
-  claim-stub PDFs** do not survive a redeploy (a missing stub is regenerated on download, but
-  specimens and promissory files are lost — and clock-in is gated on the specimen). Moving to
-  S3-compatible storage is a known outstanding improvement (§11.1).
+- Uploads go to `config('filesystems.documents_disk')`: the local **public disk** by default, and
+  Cloudflare **R2** in production (`DOCUMENTS_DISK=r2` + `R2_*`; the `r2` disk turns off the AWS
+  SDK's default checksums, which R2 can reject). **Render's free filesystem is ephemeral** — anything
+  on the local disk (documents, avatars, office logos, signature specimens, promissory documents,
+  claim-stub PDFs) is gone after a restart or redeploy while the database still points to it.
+  **Admin → System Testing → File storage** (`GET /admin/storage-check`, `StorageCheckService`)
+  shows the disk in use, writes/reads/deletes a probe file, compares `APP_URL` (which builds the
+  signature/photo links) with the request host, and lists accounts whose signature or photo is
+  missing (up to 300 files checked).
 
 ### Mail (Brevo)
 
@@ -632,7 +700,8 @@ deficiency stored and printed on the stub), `RenewalTest` (the approval gate in 
 dates, hours reset), `SemesterPeriodTest`, `TermStatusTest` (`semester:close`, re-qualify,
 manual mark, badges), `TermReportReviewTest`, `TermHistoryTest` (log scope, past terms, average
 completion), `RbacTest`, `ResourceAccessTest`,
-`SignatureTest` (specimen upload/serve policy, drawn-vs-typed stub), `StipendClaimTest`
+`SignatureTest` (specimen upload/serve policy, drawn-vs-typed stub, lost file: profile flag,
+release refusal, ink restored on redraw), `StorageCheckTest`, `StipendClaimTest`
 (certify co-sign, step-up/unlock, single-use verify, receipt + notifications, `503` GD path,
 bulk skip-duplicates), `SupervisorReportTest`, `VerificationTest`.
 
@@ -645,10 +714,10 @@ microseconds (`setTime($h, 0, 0, 0)`) or comparisons against DB-truncated timest
 
 Offered as starting points, not as instructions. Each is real and currently unaddressed.
 
-1. **Ephemeral uploads in production — worse than documented.** Render's free tier loses the
-   public disk on redeploy. Beyond documents/avatars/logos this now covers **signature
-   specimens (clock-in gate breaks), promissory documents, and rendered claim stubs**.
-   Move to S3/R2 via a configured filesystem disk.
+1. **Uploads saved before R2 are gone.** Production now uses R2 (`DOCUMENTS_DISK=r2`), but files
+   saved while uploads still went to Render's wiped disk can't be recovered. Lost signatures are
+   reported (Profile, release refusal, File storage check) and a new drawing restores stub ink;
+   lost documents, photos and promissory files still have to be uploaded again by hand.
 2. **No async queue.** `QUEUE_CONNECTION=sync` puts email and notification latency on the request
    path and turns provider outages into 500s. `DEPLOYMENT.md §1` describes the worker setup.
 3. **Frontend types are hand-mirrored** from `app/Resources/`. They drift silently

@@ -42,6 +42,7 @@ use App\Http\Controllers\Shared\LandingPhotoController as PublicLandingPhotoCont
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\SemesterPeriodController;
 use App\Http\Controllers\Admin\TestingController;
+use App\Http\Controllers\Admin\StorageCheckController;
 use App\Http\Controllers\Admin\StipendController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -122,6 +123,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/narratives', [NarrativeController::class, 'store'])->withoutMiddleware('role:recipient');
         Route::get('/narratives/{logId}', [NarrativeController::class, 'show']);
         Route::get('/hours/summary', [HoursController::class, 'summary']);
+        Route::get('/progress', [HoursController::class, 'progress']);
         Route::get('/assignments/history', [AttendanceController::class, 'history']);
         Route::get('/term-report', [TermReportController::class, 'show']);
         Route::put('/term-report', [TermReportController::class, 'update']);
@@ -150,6 +152,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/students/{id}/mark-deficient', [StudentController::class, 'markDeficient']);
         Route::put('/assignments/{id}/term-report/review', [SupervisorTermReportController::class, 'review'])->whereNumber('id');
         Route::get('/reports/roster', [ReportController::class, 'supervisorRoster']);
+        Route::get('/reports/insights', [ReportController::class, 'supervisorInsights']);
         Route::get('/reports/roster/export', [ReportController::class, 'exportSupervisorRoster']);
         Route::get('/verifications/pending', [VerificationController::class, 'pending']);
         Route::get('/verifications/reviewed', [VerificationController::class, 'reviewed']);
@@ -209,6 +212,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/promissory/{id}/file', [AdminPromissoryController::class, 'file']);
 
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
+        Route::get('/analytics/insights', [AnalyticsController::class, 'insights']);
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
         Route::get('/reports/preview', [ReportController::class, 'previewAdminReport']);
@@ -224,6 +228,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/testing/earlier/{id}', [TestingController::class, 'cleanUpEarlierTest'])->whereNumber('id');
         Route::post('/testing/recipients/{id}/{action}', [TestingController::class, 'action']);
         Route::delete('/testing', [TestingController::class, 'releaseAll']);
+        // File storage check (any time, switch on or off): where uploads go and what's missing.
+        Route::get('/storage-check', [StorageCheckController::class, 'show']);
         Route::get('/semester-periods', [SemesterPeriodController::class, 'index']);
         Route::get('/semester-periods/current', [SemesterPeriodController::class, 'current']);
         Route::post('/semester-periods', [SemesterPeriodController::class, 'store']);

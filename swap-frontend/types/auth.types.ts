@@ -12,6 +12,8 @@ export interface User {
   created_at: string
   avatar_url?: string | null
   signature_url?: string | null
+  /** GET /profile only: a signature is on record but its file is gone from storage, so it must be drawn again. */
+  signature_missing?: boolean
   position_title?: string | null
   /** Supervisors and admins: their employee ID (digits). */
   employee_id?: string | null

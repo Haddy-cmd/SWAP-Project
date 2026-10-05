@@ -9,10 +9,13 @@ import { ArrowLeft, Send } from 'lucide-react'
 import Link from 'next/link'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import type { ApiError } from '@/types/api.types'
+import type { TimeLog } from '@/types/attendance.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
+// Same rules as StoreNarrativeRequest: the Task Description is required, the rest optional.
 const schema = z.object({
-  content: z.string().min(10, 'Please write at least 10 characters'),
-  activities_done: z.string().min(10, 'Please write at least 10 characters'),
+  content: z.string().trim().min(10, 'Please write at least 10 characters'),
+  activities_done: z.string().optional(),
   challenges: z.string().optional(),
 })
 
@@ -39,14 +42,23 @@ export default function NarrativePage() {
     setError,
   } = useForm<FormData>({ resolver: zodResolver(schema) })
 
+  const { notify } = useFeedback()
   const submit = useMutation({
-    mutationFn: (data: FormData) => attendanceApi.submitNarrative(Number(logId), data),
+    mutationFn: (data: FormData) =>
+      attendanceApi.submitNarrative(Number(logId), {
+        content: data.content.trim(),
+        activities_done: data.activities_done?.trim() || null,
+        challenges: data.challenges?.trim() || null,
+      }),
     onSuccess: () => {
+      const open = queryClient.getQueryData<TimeLog | null>(['attendance-current'])?.id === Number(logId)
+      notify({ title: 'Task description saved', detail: open ? 'You can clock out now.' : 'It now prints on your duty slip.' })
       queryClient.invalidateQueries({ queryKey: ['narrative', logId] })
-      // Refresh the open log so the attendance page knows the narrative is in and clock-out is unlocked.
+      // Refresh the open log so the attendance page knows the note is in and clock-out is unlocked.
       queryClient.invalidateQueries({ queryKey: ['attendance-current'] })
-      // Send the recipient to attendance to clock out now that the narrative is submitted.
-      router.push('/recipient/attendance')
+      queryClient.invalidateQueries({ queryKey: ['my-logs'] })
+      // The open session goes on to clock out; an earlier one (e.g. auto clock-out) back to Hours.
+      router.push(open ? '/recipient/attendance' : '/recipient/hours')
     },
     onError: (err: ApiError) => {
       if (err.errors) {
@@ -62,18 +74,20 @@ export default function NarrativePage() {
   if (existing) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold text-ink-900">Narrative Report</h1>
+        <h1 className="text-2xl font-bold text-ink-900">Task Description</h1>
         <div className="rounded-2xl border border-success-600 bg-success-50 p-6">
-          <p className="mb-4 font-semibold text-success-600">Report already submitted</p>
+          <p className="mb-4 font-semibold text-success-600">Already submitted</p>
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="font-medium text-ink-900">Summary</dt>
+              <dt className="font-medium text-ink-900">Task Description</dt>
               <dd className="mt-1 text-ink-500">{existing.content}</dd>
             </div>
-            <div>
-              <dt className="font-medium text-ink-900">Activities Done</dt>
-              <dd className="mt-1 text-ink-500">{existing.activities_done}</dd>
-            </div>
+            {existing.activities_done && (
+              <div>
+                <dt className="font-medium text-ink-900">Specific activities done</dt>
+                <dd className="mt-1 text-ink-500">{existing.activities_done}</dd>
+              </div>
+            )}
             {existing.challenges && (
               <div>
                 <dt className="font-medium text-ink-900">Challenges</dt>
@@ -104,8 +118,8 @@ export default function NarrativePage() {
           Back
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-ink-900">Submit Narrative Report</h1>
-          <p className="text-sm text-ink-500">Required before clocking out</p>
+          <h1 className="text-2xl font-bold text-ink-900">Task Description</h1>
+          <p className="text-sm text-ink-500">Required before clocking out. It prints on your duty slip.</p>
         </div>
       </div>
 
@@ -113,12 +127,12 @@ export default function NarrativePage() {
         <form onSubmit={handleSubmit((d) => submit.mutate(d))} className="space-y-5">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink-900">
-              Summary of work done today
+              Task Description
             </label>
             <textarea
               {...register('content')}
               rows={4}
-              placeholder="Briefly describe your work session…"
+              placeholder="What did you work on? e.g., Encoded the office inventory…"
               className={TEXTAREA}
             />
             {errors.content && (
@@ -128,7 +142,7 @@ export default function NarrativePage() {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink-900">
-              Specific activities done
+              Specific activities done <span className="font-normal text-ink-350">(optional)</span>
             </label>
             <textarea
               {...register('activities_done')}
@@ -159,7 +173,7 @@ export default function NarrativePage() {
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60 transition-colors"
           >
             <Send className="h-4 w-4" />
-            {submit.isPending ? 'Submitting…' : 'Submit Narrative'}
+            {submit.isPending ? 'Submitting…' : 'Save Task Description'}
           </button>
         </form>
       </div>

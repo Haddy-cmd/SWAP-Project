@@ -113,6 +113,21 @@ Files added for this path:
 3. DB credentials wire automatically from the database via `render.yaml`. The web service runs
    `migrate --force` + config/route caching on boot through [`start.sh`](./swap-backend/start.sh).
 
+### File storage (Cloudflare R2)
+Render's free disk is wiped on every restart and redeploy, so uploads kept there (signatures, profile
+photos, application documents, promissory files, selfies, claim stubs) disappear while the database
+still points to them — a signature then shows as a broken image and the stub prints no ink.
+1. Cloudflare → R2 → create a bucket, then **Manage R2 API tokens** → create a token with
+   **Object Read & Write** on that bucket.
+2. On **swap-backend** set `DOCUMENTS_DISK=r2`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+   `R2_BUCKET` and `R2_ENDPOINT` (`https://<account-id>.r2.cloudflarestorage.com`). The bucket stays
+   private — the API streams every file after checking who is asking.
+3. Make sure `APP_URL` is the backend's **https** address: signature and photo links are built from it.
+4. After the redeploy, open **Admin → System Testing → File storage → Check storage**. It shows the disk in
+   use, saves and reads back a test file, checks `APP_URL`, and lists the accounts whose signature or
+   photo is on record but gone. Files saved before R2 can't be recovered: those people draw their signature
+   (or upload their photo) again. A redrawn signature is also put back on the claim stubs that lost it.
+
 > **Queue:** `render.yaml` uses `QUEUE_CONNECTION=sync` (notifications send inline) to stay on the
 > free tier. For async delivery, add a `worker` service running the `queue:work` command from §1 and
 > switch to `QUEUE_CONNECTION=database`. **Mail:** set `MAIL_*` (§3) to turn on emails.

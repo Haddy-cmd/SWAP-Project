@@ -32,6 +32,7 @@ class AttendanceService
     public const MAX_SESSION_HOURS = 12;
 
     public const MSG_AUTO_CLOCK_OUT_OFF = 'Automatic clock-out is turned off for this office.';
+    public const MSG_TASK_REQUIRED = 'Write your task description before clocking out.';
 
     /** Clock-in is only allowed Monday–Saturday, 6:00 AM to 5:30 PM (Asia/Manila). */
     private const CLOCK_IN_TIMEZONE = 'Asia/Manila';
@@ -167,8 +168,12 @@ class AttendanceService
             );
         }
 
-        // A per-session note is optional; the end-of-term report (TermReport) is
-        // what payout requires.
+        // The recipient's own clock-out needs the session's Task Description (it prints
+        // on the duty slip). Automatic clock-outs don't; the note can be added later.
+        if (!$log->hasNarrative()) {
+            throw new UnprocessableEntityHttpException(self::MSG_TASK_REQUIRED);
+        }
+
         return $this->finalizeClockOut($log, $user, 'manual', $latitude, $longitude, null, $accuracy);
     }
 
@@ -279,7 +284,7 @@ class AttendanceService
     {
         $stipends = \App\Models\StipendHistory::where('user_id', $user->id)
             ->orderByDesc('id')
-            ->get(['academic_year', 'semester', 'status', 'via_promissory'])
+            ->get(['academic_year', 'semester', 'status', 'via_promissory', 'amount', 'claimed_at'])
             ->groupBy(fn ($s) => "{$s->academic_year}|{$s->semester}");
 
         return Assignment::with('office')
@@ -312,6 +317,8 @@ class AttendanceService
                     'deficient_hours' => $a->deficient_hours !== null ? (float) $a->deficient_hours : null,
                     'stipend_status' => $stipend?->status,
                     'stipend_via_promissory' => (bool) $stipend?->via_promissory,
+                    'stipend_amount' => $stipend && $stipend->status !== 'void' ? (float) $stipend->amount : null,
+                    'stipend_claimed_at' => $stipend?->claimed_at?->toISOString(),
                 ];
             })
             ->all();

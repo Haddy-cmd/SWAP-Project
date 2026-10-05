@@ -19,6 +19,8 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
         return ['mail', 'database'];
     }
 
+    public const MSG_BACK_TO_APPLICANT = 'Your account is now an applicant account. You can apply again as a new applicant while the application period is open.';
+
     private function isRenewal(): bool
     {
         return ($this->data['type'] ?? 'new') === 'renewal';
@@ -39,8 +41,9 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
                 ->greeting("Dear {$notifiable->name},")
                 ->line("We regret to inform you that your SWAP renewal for {$this->term()} has not been approved at this time.")
                 ->line("Remarks: {$remarks}")
+                ->line(self::MSG_BACK_TO_APPLICANT)
                 ->line('If you have questions, please contact the DSA Office.')
-                ->action('View My Renewal', \App\Support\Frontend::url('/recipient/renewal'))
+                ->action('Go to My Portal', \App\Support\Frontend::url('/applicant/dashboard'))
                 ->line('Thank you for your service in the SWAP program.');
         }
 
@@ -59,7 +62,7 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
         return [
             'title' => $this->isRenewal() ? 'Renewal Not Approved' : 'Application Not Approved',
             'message' => $this->isRenewal()
-                ? "Your SWAP renewal for {$this->term()} has been reviewed. Please check your renewal for details."
+                ? "Your SWAP renewal for {$this->term()} was not approved. " . self::MSG_BACK_TO_APPLICANT
                 : 'Your SWAP application has been reviewed. Please check your application for details.',
             'type' => 'application',
             'application_id' => $this->data['application_id'] ?? null,

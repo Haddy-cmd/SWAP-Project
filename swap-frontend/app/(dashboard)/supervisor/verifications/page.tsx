@@ -11,6 +11,7 @@ import { attendanceApi } from '@/lib/api/attendance.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { needsReview, blocksBulkVerify, reviewReason } from '@/lib/utils/attendanceReview'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { TimeLog } from '@/types/attendance.types'
 
 const PALETTE: [string, string][] = [
@@ -23,7 +24,8 @@ const timeRange = (l: TimeLog) => {
   const a = fmtTime(l.time_in), b = fmtTime(l.time_out)
   return b ? `${a} – ${b}` : a || '—'
 }
-const narrativeOf = (l: TimeLog) => l.narrative_report?.content || l.narrative_report?.activities_done || 'No session note (optional).'
+// The Task Description (required at clock-out); older notes may only have activities.
+const narrativeOf = (l: TimeLog) => l.narrative_report?.content || l.narrative_report?.activities_done || 'No task description.'
 const hoursOf = (l: TimeLog) => (Number(l.duration_hours) || 0).toFixed(2)
 
 const REVIEWED_META: Record<string, { label: string; color: string; bg: string; Icon: typeof CheckCircle2 }> = {
@@ -39,7 +41,7 @@ export default function VerificationsPage() {
   const [sel, setSel] = useState<Record<number, true>>({})
   const [modalId, setModalId] = useState<number | null>(null)
   const [rejecting, setRejecting] = useState<{ id: number; reason: string } | null>(null)
-  const [toast, setToast] = useState<string | null>(null)
+  const { notify, notifyError, confirm } = useFeedback()
 
   const pendingQ = useQuery({ queryKey: ['verifications', 'pending'], queryFn: () => attendanceApi.getPendingVerifications() })
   const reviewedQ = useQuery({ queryKey: ['verifications', 'reviewed'], queryFn: () => attendanceApi.getReviewedVerifications() })
@@ -48,7 +50,11 @@ export default function VerificationsPage() {
   const reviewedAll = useMemo(() => reviewedQ.data ?? [], [reviewedQ.data])
   const isLoading = tab === 'reviewed' ? reviewedQ.isLoading : pendingQ.isLoading
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast((t) => (t === msg ? null : t)), 2600) }
+  // "Amina Roster · Oct 3, 2026 · 4.00h", for the pop-outs.
+  const describe = (id: number) => {
+    const l = pendingAll.find((x) => x.id === id)
+    return l ? `${l.user?.name ?? 'Student'} · ${fmtDate(l.time_in)} · ${hoursOf(l)}h` : null
+  }
   const afterMutation = () => {
     qc.invalidateQueries({ queryKey: ['verifications'] })
     qc.invalidateQueries({ queryKey: ['supervisor-students'] })
@@ -60,8 +66,9 @@ export default function VerificationsPage() {
       setSel((s) => { const n = { ...s }; delete n[id]; return n })
       advanceModalPast(id)
       afterMutation()
-      showToast('Log verified · hours credited')
+      notify({ title: 'Hours verified', detail: describe(id) })
     },
+    onError: (e) => notifyError(e, 'Could not verify the hours'),
   })
   const reject = useMutation({
     mutationFn: (p: { id: number; feedback: string }) => attendanceApi.verifyLog(p.id, { action: 'rejected', feedback: p.feedback }),
@@ -70,13 +77,32 @@ export default function VerificationsPage() {
       setRejecting(null)
       advanceModalPast(p.id)
       afterMutation()
-      showToast('Log rejected · student will be notified')
+      notify({ title: 'Hours rejected', detail: [describe(p.id), 'The student is notified with your reason.'].filter(Boolean).join('\n') })
     },
+    onError: (e) => notifyError(e, 'Could not reject the hours'),
   })
   const bulkVerify = useMutation({
     mutationFn: (ids: number[]) => attendanceApi.verifyLogsBulk(ids),
-    onSuccess: (res) => { setSel({}); afterMutation(); showToast(res.message ?? 'Selected logs verified') },
+    onSuccess: (res) => {
+      setSel({})
+      afterMutation()
+      const { verified = 0, skipped = 0 } = res.meta ?? {}
+      notify({
+        title: `${verified} log${verified === 1 ? '' : 's'} verified`,
+        detail: skipped ? `${skipped} skipped — already decided or needing an individual review.` : 'The hours are credited to each student.',
+      })
+    },
+    onError: (e) => notifyError(e, 'Could not verify the selected logs'),
   })
+  // Many students' hours at once: ask first.
+  const confirmBulk = async (ids: number[], hours: number) => {
+    const ok = await confirm({
+      title: `Verify ${ids.length} log${ids.length === 1 ? '' : 's'}?`,
+      body: `${hours.toFixed(2)} hours will be credited to the students. Verified hours can't be changed back from this page.`,
+      confirmLabel: 'Verify all',
+    })
+    if (ok) bulkVerify.mutate(ids)
+  }
 
   // ── derived ────────────────────────────────────────────────────────────────
   const q = query.trim().toLowerCase()
@@ -262,10 +288,10 @@ export default function VerificationsPage() {
                 <span className="text-[13px] font-bold tabular-nums text-brand-700">{hoursOf(l)}</span>
 
                 {/* narrative */}
-                <button onClick={() => setModalId(l.id)} className="min-w-0 text-left" title="Read full narrative">
+                <button onClick={() => setModalId(l.id)} className="min-w-0 text-left" title="Read the task description">
                   <div className="truncate text-[12.5px] leading-snug text-ink-600">{narrativeOf(l)}</div>
                   <div className="mt-0.5 flex items-center gap-1 text-[11.5px] font-semibold text-gold-600">
-                    <ExternalLink className="h-3.5 w-3.5" /> Read narrative
+                    <ExternalLink className="h-3.5 w-3.5" /> Read task description
                   </div>
                 </button>
 
@@ -309,7 +335,7 @@ export default function VerificationsPage() {
             <strong className="text-ink-25">{selIds.length} {selIds.length === 1 ? 'log' : 'logs'} selected</strong> · {selHrs.toFixed(2)} hrs
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={() => bulkVerify.mutate(selIds)} disabled={bulkVerify.isPending}
+            <button onClick={() => confirmBulk(selIds, selHrs)} disabled={bulkVerify.isPending}
               className="flex h-[38px] items-center gap-2 rounded-[10px] bg-gold-300 px-[18px] text-[13px] font-bold text-brand-950 disabled:opacity-60">
               {bulkVerify.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-[17px] w-[17px]" />} Verify selected
             </button>
@@ -356,12 +382,6 @@ export default function VerificationsPage() {
         </div>
       )}
 
-      {/* toast */}
-      {toast && (
-        <div className="fixed right-7 top-[78px] z-[70] flex items-center gap-2.5 rounded-xl bg-success-800 px-[18px] py-3 text-[13px] font-semibold text-success-50 shadow-[0_16px_36px_rgba(20,50,25,.3)]">
-          <CheckCircle2 className="h-[18px] w-[18px]" /> {toast}
-        </div>
-      )}
     </div>
   )
 }
@@ -437,8 +457,13 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
 
         {/* narrative */}
         <div className="px-6 pb-1.5 pt-5">
-          <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-gold-600">Narrative Report</div>
-          <p className="m-0 font-serif text-[16.5px] leading-[1.65] text-ink-800">{narrativeOf(log)}</p>
+          <div className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-gold-600">Task Description</div>
+          <p className="m-0 whitespace-pre-line font-serif text-[16.5px] leading-[1.65] text-ink-800">{narrativeOf(log)}</p>
+          {log.narrative_report?.content && log.narrative_report.activities_done && (
+            <p className="mt-3 rounded-lg bg-ink-50 px-3.5 py-2.5 text-[13.5px] text-ink-600">
+              <span className="font-semibold text-ink-500">Specific activities: </span>{log.narrative_report.activities_done}
+            </p>
+          )}
           {log.narrative_report?.challenges && (
             <p className="mt-3 rounded-lg bg-ink-50 px-3.5 py-2.5 text-[13.5px] text-ink-600">
               <span className="font-semibold text-ink-500">Challenges: </span>{log.narrative_report.challenges}

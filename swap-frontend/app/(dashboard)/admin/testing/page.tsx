@@ -1,19 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FlaskConical, UserRound, Clock, CalendarX, Gavel, FileText, ClipboardCheck, RefreshCw, RotateCcw, Search, UserPlus,
   UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser, Banknote, BadgeCheck, ThumbsUp, ThumbsDown,
-  Ticket, Wallet, History,
+  Ticket, Wallet, History, HardDrive, CheckCircle2, AlertTriangle,
 } from 'lucide-react'
 import { testingApi } from '@/lib/api/testing.api'
+import { errorText } from '@/lib/utils/apiError'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { TermBadge } from '@/components/shared/TermBadge'
 import { formatDay } from '@/lib/utils/semester'
 import type { ApiRequestError } from '@/lib/api/axios'
-import { TESTING_OFF_MESSAGE, type EarlierTest, type TestingAccount, type TestingAction, type TestingStatus } from '@/types/testing.types'
+import { TESTING_OFF_MESSAGE, type EarlierTest, type StorageCheck, type TestingAccount, type TestingAction, type TestingStatus } from '@/types/testing.types'
 
-const errorText = (e: ApiRequestError, fallback: string) => Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? fallback
 
 type Note = { text: string; error?: boolean } | null
 type WithStatus = { data: TestingStatus; message: string }
@@ -30,6 +31,8 @@ export default function SystemTestingPage() {
   const [note, setNote] = useState<Note>(null)
   const [confirmAll, setConfirmAll] = useState(false)
   const [confirmOff, setConfirmOff] = useState(false)
+  // A tool page: results stay in its note line; failures pop out like everywhere else.
+  const { notifyError } = useFeedback()
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['testing-status'], queryFn: testingApi.status, retry: false })
 
@@ -50,12 +53,12 @@ export default function SystemTestingPage() {
   const toggle = useMutation({
     mutationFn: (on: boolean) => testingApi.setEnabled(on),
     onSuccess: (res) => { setConfirmOff(false); applied(res) },
-    onError: (e: ApiRequestError) => { setConfirmOff(false); setNote({ text: errorText(e, 'Could not change the switch.'), error: true }) },
+    onError: (e: ApiRequestError) => { setConfirmOff(false); notifyError(e, 'Could not change the switch') },
   })
   const releaseAll = useMutation({
     mutationFn: () => testingApi.releaseAll(),
     onSuccess: (res) => { setConfirmAll(false); applied(res) },
-    onError: (e: ApiRequestError) => { setConfirmAll(false); setNote({ text: errorText(e, 'Could not restore the accounts.'), error: true }) },
+    onError: (e: ApiRequestError) => { setConfirmAll(false); notifyError(e, 'Could not restore the accounts') },
   })
 
   if (isLoading) return <div className="h-64 animate-pulse rounded-2xl bg-ink-200" />
@@ -129,6 +132,8 @@ export default function SystemTestingPage() {
       <ExistingPicker enabled={on} onAdded={applied} />
 
       <EarlierTests onCleaned={applied} />
+
+      <FileStorage />
 
       {note && <p className={`text-sm font-medium ${note.error ? 'text-danger-700' : 'text-success-700'}`}>{note.text}</p>}
 
@@ -301,6 +306,76 @@ function RemoveFromTesting({ account, onRemoved }: { account: TestingAccount; on
   )
 }
 
+/**
+ * Where uploads (signatures, photos, documents) are kept and whether they're still there —
+ * the reasons a signature shows as a broken image on live. Works with the switch off.
+ */
+function FileStorage() {
+  const check = useMutation({ mutationFn: () => testingApi.storageCheck() })
+  const r: StorageCheck | undefined = check.data
+
+  return (
+    <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-ink-900"><HardDrive className="h-4 w-4 text-brand-700" /> File storage</p>
+          <p className="mt-1 max-w-3xl text-xs text-ink-500">
+            Checks where uploaded signatures, photos and documents are kept, saves and reads back a test file, and lists accounts whose
+            signature or photo is on record but no longer in storage.
+          </p>
+        </div>
+        <button onClick={() => check.mutate()} disabled={check.isPending} className={BTN}>
+          <RefreshCw className={`h-3.5 w-3.5 ${check.isPending ? 'animate-spin' : ''}`} /> {check.isPending ? 'Checking…' : 'Check storage'}
+        </button>
+      </div>
+
+      {check.isError && <p className="mt-3 text-sm font-medium text-danger-700">{errorText(check.error as ApiRequestError, 'Could not check the storage.')}</p>}
+
+      {r && (
+        <ul className="mt-4 space-y-2 text-sm">
+          <StorageRow ok={!r.disk.warning} title="Where files are kept"
+            text={r.disk.warning ?? `${r.disk.durable ? 'Cloud storage' : 'This computer'} (${r.disk.name}${r.disk.driver ? `, ${r.disk.driver}` : ''}).`} />
+          <StorageRow ok={r.probe.ok} title="Save and read a test file"
+            text={r.probe.ok ? 'A test file was saved, read back and deleted.' : `Failed to ${r.probe.step}: ${r.probe.error}`} />
+          <StorageRow ok={!r.links.warning} title="Image links" text={r.links.warning ?? `Signatures and photos load from ${r.links.app_url}.`} />
+          <StorageRow ok={r.missing.files.length === 0 && r.missing.unchecked === 0} title="Missing files"
+            text={[
+              r.missing.files.length
+                ? `${r.missing.files.length} ${r.missing.files.length === 1 ? 'file is' : 'files are'} on record but not in storage. Ask these people to draw their signature again (or upload their photo again) on their Profile.`
+                : 'Every signature and photo on record is in storage.',
+              r.missing.unchecked ? `${r.missing.unchecked} couldn't be checked.` : '',
+              r.missing.checked < r.missing.total ? `Checked the first ${r.missing.checked} of ${r.missing.total} files.` : '',
+            ].filter(Boolean).join(' ')}>
+            {r.missing.files.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {r.missing.files.map((f) => (
+                  <li key={`${f.user_id}-${f.file}`} className="text-xs text-ink-700">
+                    <b>{f.name}</b> · {f.role} · {f.file === 'signature' ? 'Signature' : 'Photo'}
+                    <span className="ml-1 font-mono text-ink-500">{f.email}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </StorageRow>
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function StorageRow({ ok, title, text, children }: { ok: boolean; title: string; text: string; children?: ReactNode }) {
+  return (
+    <li className={`flex gap-2 rounded-xl border px-3 py-2 ${ok ? 'border-success-200 bg-success-50/50' : 'border-amber-200 bg-amber-50'}`}>
+      {ok ? <CheckCircle2 className="mt-0.5 h-4 w-4 flex-none text-success-600" /> : <AlertTriangle className="mt-0.5 h-4 w-4 flex-none text-amber-700" />}
+      <div className="min-w-0">
+        <p className="font-semibold text-ink-900">{title}</p>
+        <p className={`text-xs ${ok ? 'text-ink-600' : 'text-amber-900'}`}>{text}</p>
+        {children}
+      </div>
+    </li>
+  )
+}
+
 /** Accounts tested before restore points existed: what's left over, and a one-time cleanup. */
 function EarlierTests({ onCleaned }: { onCleaned: (res: WithStatus) => void }) {
   const { data: accounts = [] } = useQuery({ queryKey: ['testing-earlier'], queryFn: testingApi.earlierTests })
@@ -372,11 +447,12 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
   const [msg, setMsg] = useState<Note>(null)
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmStipend, setConfirmStipend] = useState(false)
+  const { notifyError } = useFeedback()
 
   const act = useMutation({
     mutationFn: (v: { action: TestingAction; data?: Record<string, unknown> }) => testingApi.act(r.id, v.action, v.data),
     onSuccess: (res) => { setMsg({ text: res.message }); onChanged() },
-    onError: (e: ApiRequestError) => setMsg({ text: errorText(e, 'That shortcut failed.'), error: true }),
+    onError: (e: ApiRequestError) => notifyError(e, 'That shortcut failed'),
   })
   const run = (action: TestingAction, data?: Record<string, unknown>) => { setMsg(null); act.mutate({ action, data }) }
   const busy = act.isPending || !enabled

@@ -137,7 +137,7 @@ export default function ScanPage() {
         if (current.has_narrative) {
           await clockOut(current.id)
         } else {
-          // Offer the optional note before clocking out.
+          // The Task Description is required before clocking out.
           setKind('out')
           setOpenLogId(current.id)
           setNarrativeOpen(true)
@@ -201,21 +201,15 @@ export default function ScanPage() {
             </div>
             <h1 className="mt-5 text-lg font-bold text-ink-900">Clock out</h1>
             <p className="mt-2 text-sm text-ink-500">
-              You&apos;re clocked in. Add a short note about your session if you like, or clock out now.
+              You&apos;re clocked in. Write your task description to clock out — it prints on your duty slip.
             </p>
             <div className="mt-6 flex flex-col items-center gap-2">
               <button
-                onClick={() => openLogId && clockOut(openLogId)}
+                onClick={() => setNarrativeOpen(true)}
                 className="inline-flex items-center gap-2 rounded-xl bg-danger-600 px-6 py-3 text-sm font-semibold text-white hover:bg-danger-700 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
-                Clock out now
-              </button>
-              <button
-                onClick={() => setNarrativeOpen(true)}
-                className="text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
-              >
-                Add a note first
+                Write task description &amp; clock out
               </button>
             </div>
           </>
@@ -271,16 +265,12 @@ export default function ScanPage() {
         )}
       </div>
 
-      {/* Optional session note before clocking out an open session. */}
+      {/* The Task Description is required before clocking out an open session. */}
       {narrativeOpen && openLogId && (
         <NarrativeModal
           logId={openLogId}
           clockingOut={phase === 'working'}
           onClose={() => setNarrativeOpen(false)}
-          onSkip={() => {
-            setNarrativeOpen(false)
-            clockOut(openLogId)
-          }}
           onSubmitted={() => {
             setNarrativeOpen(false)
             clockOut(openLogId)

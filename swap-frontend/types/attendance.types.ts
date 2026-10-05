@@ -79,8 +79,9 @@ export interface HoursSummary {
 export interface NarrativeReport {
   id: number
   time_log_id: number
+  /** The Task Description: required to clock out, printed on the duty slip. */
   content: string
-  activities_done: string
+  activities_done: string | null
   challenges: string | null
   submitted_at: string
   created_at: string
@@ -95,12 +96,42 @@ export interface Verification {
 }
 
 export interface StoreNarrativeData {
+  /** Task Description (required, 10+ characters). */
   content: string
-  activities_done: string
-  challenges?: string
+  activities_done?: string | null
+  challenges?: string | null
 }
 
 export interface VerifyLogData {
   action: 'verified' | 'rejected'
   feedback?: string
+}
+
+/** Recipient → pace, forecast, hours breakdown and checklist (RecipientProgressService::forUser). */
+export interface RecipientProgress {
+  term: string
+  end_date: string | null
+  /** Same rule supervisors see (Assignment::paceStatus). */
+  pace: { status: 'on_track' | 'behind' | 'complete' | 'not_started'; percent: number; expected_hours: number | null; deficit_hours: number | null }
+  forecast: {
+    /** Required − verified − pending (pending usually gets verified). */
+    outstanding_hours: number
+    weeks_left: number | null
+    hours_per_week_needed: number | null
+    /** Hours rendered over the last 28 days, per week. */
+    recent_weekly_average: number
+    projected_finish: string | null
+    on_time: boolean | null
+  }
+  breakdown: {
+    verified_hours: number
+    pending_hours: number
+    rejected_hours: number
+    bonus_hours: number
+    days_on_duty: number
+    avg_session_hours: number | null
+    rejected_logs: { id: number; date: string; hours: number; reason: string | null }[]
+  }
+  /** What the stipend and the renewal still need, in the order the system checks them. */
+  checklist: { key: 'hours' | 'signature' | 'report' | 'stipend'; state: 'done' | 'todo' | 'waiting' | 'blocked'; label: string; link: string | null }[]
 }

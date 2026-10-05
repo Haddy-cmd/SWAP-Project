@@ -13,6 +13,7 @@ import { QrDisplay } from '@/components/attendance/QrDisplay'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatHours } from '@/lib/utils/formatHours'
 import type { Office } from '@/types/assignment.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 const OfficeMapPicker = dynamic(() => import('@/components/admin/OfficeMapPicker'), {
   ssr: false,
@@ -398,9 +399,13 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
     queryFn: () => adminApi.getUsers({ role: 'supervisor' }),
   })
 
+  const { notify, notifyError, confirm } = useFeedback()
+  const supervisorName = (id: number) => (allSupervisors?.data ?? []).find((s) => s.id === id)?.name ?? 'The supervisor'
   const assign = useMutation({
     mutationFn: (supervisorId: number) => assignmentsApi.assignSupervisorToOffice(office.id, supervisorId),
-    onSuccess: () => {
+    onError: (e) => notifyError(e, 'Could not add the supervisor'),
+    onSuccess: (_r, supervisorId) => {
+      notify({ title: 'Supervisor added', detail: `${supervisorName(supervisorId)} now supervises ${office.name}.` })
       setPickSupervisor('')
       queryClient.invalidateQueries({ queryKey: ['office-supervisors', office.id] })
       queryClient.invalidateQueries({ queryKey: ['all-supervisors'] })
@@ -410,7 +415,9 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
 
   const remove = useMutation({
     mutationFn: (supervisorId: number) => assignmentsApi.removeSupervisorFromOffice(office.id, supervisorId),
-    onSuccess: () => {
+    onError: (e) => notifyError(e, 'Could not remove the supervisor'),
+    onSuccess: (_r, supervisorId) => {
+      notify({ title: 'Supervisor removed', detail: `${supervisorName(supervisorId)} no longer supervises ${office.name}.` })
       queryClient.invalidateQueries({ queryKey: ['office-supervisors', office.id] })
       queryClient.invalidateQueries({ queryKey: ['all-supervisors'] })
       queryClient.invalidateQueries({ queryKey: ['admin-offices'] })
@@ -455,7 +462,15 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
                     <p className="text-xs text-ink-500">{s.employee_id ? `EMP ${s.employee_id} · ` : ''}{s.email}</p>
                   </div>
                   <button
-                    onClick={() => remove.mutate(s.id)}
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Remove ${s.name} from ${office.name}?`,
+                        body: 'They stop seeing this office\'s students, so they can\'t verify their hours or review their reports.',
+                        confirmLabel: 'Remove',
+                        tone: 'danger',
+                      })
+                      if (ok) remove.mutate(s.id)
+                    }}
                     disabled={remove.isPending}
                     className="rounded-lg border border-ink-200 px-2.5 py-1 text-xs font-medium text-danger-700 hover:bg-danger-50 disabled:opacity-50 transition-colors"
                   >
@@ -539,6 +554,7 @@ export default function AdminOfficesPage() {
   const [editing, setEditing] = useState<Office | null>(null)
   const [qrView, setQrView] = useState<{ name: string; token: string } | null>(null)
   const [viewOffice, setViewOffice] = useState<Office | null>(null)
+  const { notify, notifyError } = useFeedback()
 
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<FilterKey>('All')
@@ -565,7 +581,13 @@ export default function AdminOfficesPage() {
       await applyLogo(office.id, logo)
       return office
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); queryClient.invalidateQueries({ queryKey: ['admin-offices-list'] }); setShowNew(false) },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-offices'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-offices-list'] })
+      setShowNew(false)
+      notify({ title: 'Office created' })
+    },
+    onError: (e) => notifyError(e, 'Could not create the office'),
   })
 
   const update = useMutation({
@@ -574,12 +596,21 @@ export default function AdminOfficesPage() {
       await applyLogo(data.id!, logo)
       return office
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['admin-offices'] }); queryClient.invalidateQueries({ queryKey: ['admin-offices-list'] }); setEditing(null) },
+    onSuccess: (_office, { data }) => {
+      const at = (v: unknown) => (v == null || v === '' ? null : Number(v).toFixed(6))
+      const moved = !!editing && (at(editing.latitude) !== at(data.latitude) || at(editing.longitude) !== at(data.longitude))
+      queryClient.invalidateQueries({ queryKey: ['admin-offices'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-offices-list'] })
+      setEditing(null)
+      notify(moved ? { title: 'Office updated', detail: 'The office location was moved.' } : { title: 'Office updated' })
+    },
+    onError: (e) => notifyError(e, 'Could not save the office'),
   })
 
   const officeQr = useMutation({
     mutationFn: (office: Office) => assignmentsApi.generateOfficeQr(office.id).then((r) => ({ name: office.name, token: r.data.qr_code })),
     onSuccess: (res) => setQrView(res),
+    onError: (e) => notifyError(e, 'Could not generate the office QR'),
   })
 
   const offices = data?.data ?? []
@@ -617,6 +648,7 @@ export default function AdminOfficesPage() {
           Add Office
         </button>
       </div>
+
 
       {/* Toolbar */}
       <div className="flex flex-wrap gap-3">

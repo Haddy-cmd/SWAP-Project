@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -21,6 +21,7 @@ import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import { avatarSrc } from '@/lib/utils/avatar'
 import { AvatarCropper } from '@/components/shared/AvatarCropper'
 import { SignaturePad } from '@/components/shared/SignaturePad'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { UserRole } from '@/types/auth.types'
 import type { ApiError } from '@/types/api.types'
 
@@ -82,7 +83,12 @@ export default function ProfilePage() {
   const [pwMsg, setPwMsg] = useState<string | null>(null)
   const [photoMsg, setPhotoMsg] = useState<string | null>(null)
   const [sigMsg, setSigMsg] = useState<string | null>(null)
+  // Saves pop out; errors stay next to the form they belong to.
+  const { notify, confirm } = useFeedback()
   const [showPad, setShowPad] = useState(false)
+  // The saved image failed to load in this browser; reset whenever a new one is saved.
+  const [sigBroken, setSigBroken] = useState(false)
+  useEffect(() => setSigBroken(false), [user?.signature_url])
   const [showPw, setShowPw] = useState(false)
   const [cropFile, setCropFile] = useState<File | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -96,6 +102,7 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setPhotoMsg(null)
       setCropFile(null)
+      notify({ title: 'Profile photo updated' })
     },
     onError: (err: ApiError) => setPhotoMsg(err.message ?? 'Photo upload failed.'),
   })
@@ -119,6 +126,7 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setPhotoMsg(null)
+      notify({ title: 'Profile photo removed' })
     },
     onError: (err: ApiError) => setPhotoMsg(err.message ?? 'Could not remove photo.'),
   })
@@ -130,6 +138,7 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setSigMsg(null)
       setShowPad(false)
+      notify({ title: 'Signature saved', detail: 'It signs your claim stubs and receipts from now on.' })
     },
     onError: (err: ApiError) => setSigMsg(err.message ?? 'Signature upload failed.'),
   })
@@ -140,6 +149,7 @@ export default function ProfilePage() {
       setAuth(updated, useAuthStore.getState().token ?? '')
       queryClient.invalidateQueries({ queryKey: ['student-summary'] })
       setSigMsg(null)
+      notify({ title: 'Signature removed' })
     },
     onError: (err: ApiError) => setSigMsg(err.message ?? 'Could not remove signature.'),
   })
@@ -189,14 +199,14 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
       queryClient.invalidateQueries({ queryKey: ['admin-users'] })
       queryClient.invalidateQueries({ queryKey: ['student-summary'] })
-      setProfileMsg('Profile updated successfully.')
+      notify({ title: 'Profile updated' })
     },
     onError: (err: ApiError) => setProfileMsg(err.message ?? 'Update failed.'),
   })
 
   const updatePassword = useMutation({
     mutationFn: (data: PasswordForm) => authApi.updatePassword(data),
-    onSuccess: () => { setPwMsg('Password changed successfully.'); resetPw() },
+    onSuccess: () => { notify({ title: 'Password changed', detail: 'Use your new password the next time you sign in.' }); resetPw() },
     onError: (err: ApiError) => setPwMsg(err.message ?? 'Change failed.'),
   })
 
@@ -421,11 +431,19 @@ export default function ProfilePage() {
 
                   {sigMsg && <div className="mb-4 rounded-lg bg-danger-50 px-4 py-2.5 text-sm text-danger-700">{sigMsg}</div>}
 
-                  {user.signature_url ? (
+                  {user.signature_url && (user.signature_missing || sigBroken) ? (
+                    // On record but the file is gone (GET /profile checks storage) or won't load: ask for a new drawing.
+                    <p className="mb-3 rounded-lg bg-danger-50 px-4 py-2.5 text-[13px] font-semibold text-danger-700">
+                      {user.signature_missing
+                        ? "Your saved signature can't be found in storage. Please draw it again."
+                        : "Your saved signature couldn't be loaded. If it still doesn't show after refreshing the page, draw it again."}
+                    </p>
+                  ) : user.signature_url ? (
                     <div>
                       <div className="rounded-xl border border-ink-200 bg-white p-4">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={avatarSrc(user.signature_url, token) ?? ''} alt="Your signature specimen"
+                          onError={() => setSigBroken(true)}
                           className="h-20 w-auto max-w-full" />
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -433,7 +451,18 @@ export default function ProfilePage() {
                           className="rounded-xl border border-ink-200 px-4 py-2.5 text-[13px] font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
                           {showPad ? 'Close pad' : 'Redraw'}
                         </button>
-                        <button onClick={() => { setSigMsg(null); removeSignature.mutate() }} disabled={removeSignature.isPending}
+                        <button onClick={async () => {
+                            setSigMsg(null)
+                            const ok = await confirm({
+                              title: 'Remove your signature?',
+                              body: role === 'recipient'
+                                ? 'Your stipend can\'t be released until you save a new one.'
+                                : 'New claim stubs will show your printed name instead of your signature.',
+                              confirmLabel: 'Remove',
+                              tone: 'danger',
+                            })
+                            if (ok) removeSignature.mutate()
+                          }} disabled={removeSignature.isPending}
                           className="rounded-xl px-4 py-2.5 text-[13px] font-semibold text-ink-400 hover:text-danger-700 disabled:opacity-60 transition-colors">
                           {removeSignature.isPending ? 'Removing…' : 'Remove'}
                         </button>
@@ -447,7 +476,7 @@ export default function ProfilePage() {
                     </p>
                   )}
 
-                  {(!user.signature_url || showPad) && (
+                  {(!user.signature_url || showPad || user.signature_missing || sigBroken) && (
                     <div className="mt-3">
                       <SignaturePad busy={uploadSignature.isPending}
                         onSave={(file) => { setSigMsg(null); uploadSignature.mutate(file) }} />

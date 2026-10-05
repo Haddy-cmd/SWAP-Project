@@ -81,3 +81,19 @@ export type TestingAction =
   | 'hours' | 'complete-hours' | 'reset-hours' | 'verify-hours' | 'clock-in' | 'auto-clock-out'
   | 'end-term' | 'file-promissory' | 'approve-promissory' | 'reject-promissory' | 'close-term'
   | 'term-report' | 'review-report' | 'renewal' | 'reset-term' | 'release-stub' | 'pay-out' | 'reset-stipend'
+
+/** Admin → System Testing → File storage (StorageCheckService::run). */
+export interface StorageCheck {
+  disk: { name: string; driver: string | null; durable: boolean; warning: string | null }
+  /** Write → read → delete of a small file; `step` and `error` say what failed. */
+  probe: { ok: boolean; step: 'write' | 'read' | 'delete' | null; error: string | null }
+  /** Signature/photo links are built from APP_URL; a warning means they point elsewhere. */
+  links: { app_url: string; request_host: string; warning: string | null }
+  /** Accounts whose signature or photo is on record but not in storage (at most 300 files checked). */
+  missing: {
+    checked: number
+    total: number
+    unchecked: number
+    files: { user_id: number; name: string; email: string; role: string; file: 'signature' | 'photo' }[]
+  }
+}

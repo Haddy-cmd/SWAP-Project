@@ -6,6 +6,7 @@ import { Users, Clock, UserCheck, TrendingUp, FileText, Coins, ArrowRight, Arrow
 import Link from 'next/link'
 import { analyticsApi } from '@/lib/api/analytics.api'
 import { CurrentSemesterCard } from '@/components/admin/CurrentSemesterCard'
+import { WeeklyHoursTrendChart } from '@/components/charts/WeeklyHoursTrendChart'
 
 const FALLBACK_YEAR = '2024-2025'
 const FALLBACK_SEM = '1st Semester'
@@ -18,6 +19,13 @@ const peso = (n: number) =>
   '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const periodKey = (year: string, sem: string) => `${year}__${sem}`
+
+// Applicants-by-college segments, bottom to top.
+const OUTCOMES = [
+  { key: 'approved', label: 'Approved', color: '#1F5B3A' },
+  { key: 'pending', label: 'In review', color: '#D4AE22' },
+  { key: 'rejected', label: 'Rejected', color: '#A31A1E' },
+] as const
 
 export default function AdminDashboard() {
   const { data: periods = [] } = useQuery({
@@ -64,6 +72,10 @@ export default function AdminDashboard() {
   const colleges = overview?.applicants_by_college ?? []
   const maxCollege = Math.max(1, ...colleges.map((c) => c.applicant_count))
   const totalApplicants = colleges.reduce((sum, c) => sum + c.applicant_count, 0)
+
+  // Weekly verified vs pending hours of the selected term.
+  const weekly = overview?.weekly_hours ?? []
+  const weeklyVerified = weekly.reduce((sum, w) => sum + w.verified, 0)
 
   const pendingApps = overview?.pending_applications ?? 0
   const stipendPending = overview?.stipend_summary?.total_pending ?? 0
@@ -145,7 +157,9 @@ export default function AdminDashboard() {
                   <div key={o.office_name} className="flex items-center gap-2 text-[12.5px] text-ink-600">
                     <span className="h-[9px] w-[9px] flex-shrink-0 rounded-full" style={{ backgroundColor: OFFICE_COLORS[i % OFFICE_COLORS.length] }} />
                     <span className="truncate">{o.office_name}</span>
-                    <span className="ml-auto flex-shrink-0 text-ink-400">{pct}%</span>
+                    <span className="ml-auto flex-shrink-0 tabular-nums text-ink-400">
+                      <b className="font-semibold text-ink-700">{o.recipient_count}</b> · {pct}%
+                    </span>
                   </div>
                 )
               })}
@@ -160,7 +174,14 @@ export default function AdminDashboard() {
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <div className="text-[15px] font-bold text-ink-950">Applicants by College</div>
-                <div className="mt-0.5 text-[12.5px] text-ink-500">Applications this semester</div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-ink-500">
+                  Applications this semester
+                  {OUTCOMES.map((o) => (
+                    <span key={o.key} className="flex items-center gap-1 text-[11.5px]">
+                      <span className="h-2 w-2 rounded-sm" style={{ background: o.color }} />{o.label}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <span className="rounded-lg bg-ink-100 px-3 py-1.5 text-xs font-semibold text-ink-500">{totalApplicants} total</span>
@@ -177,13 +198,18 @@ export default function AdminDashboard() {
                 {colleges.map((c) => {
                   const zero = c.applicant_count === 0
                   const height = zero ? 4 : 25 + (c.applicant_count / maxCollege) * 65
+                  // Older API responses without the split show as one "in review" block.
+                  const split = { approved: c.approved ?? 0, rejected: c.rejected ?? 0, pending: c.pending ?? c.applicant_count }
+                  const title = `${c.college}: ${split.approved} approved, ${split.pending} in review, ${split.rejected} rejected`
                   return (
-                    <div key={c.college} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                    <div key={c.college} className="flex h-full flex-1 flex-col items-center justify-end gap-2" title={title}>
                       <span className="text-xs font-bold" style={{ color: zero ? '#ADB5A8' : '#56625A' }}>{c.applicant_count}</span>
-                      <div
-                        className="w-full max-w-[50px] rounded-t-[7px]"
-                        style={{ height: `${height}%`, background: zero ? '#DCE0CF' : 'linear-gradient(180deg,#2A7148,#1F5B3A)' }}
-                      />
+                      <div className="flex w-full max-w-[50px] flex-col-reverse overflow-hidden rounded-t-[7px]"
+                        style={{ height: `${height}%`, background: zero ? '#DCE0CF' : undefined }}>
+                        {!zero && OUTCOMES.map((o) => split[o.key] > 0 && (
+                          <div key={o.key} style={{ height: `${(split[o.key] / c.applicant_count) * 100}%`, background: o.color }} />
+                        ))}
+                      </div>
                       <span className="truncate text-[11.5px] text-ink-400">{c.college}</span>
                     </div>
                   )
@@ -206,6 +232,20 @@ export default function AdminDashboard() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Weekly service hours of the selected term */}
+      <div className="rounded-[14px] border border-ink-200 bg-white p-6">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+          <div>
+            <div className="text-[15px] font-bold text-ink-950">Weekly Service Hours</div>
+            <div className="mt-0.5 text-[12.5px] text-ink-500">Verified and pending hours per week · AY {year} · {sem}</div>
+          </div>
+          {weekly.length > 0 && (
+            <span className="rounded-lg bg-success-50 px-3 py-1.5 text-xs font-semibold text-success-800">{Math.round(weeklyVerified)}h verified</span>
+          )}
+        </div>
+        {isLoading ? <div className="h-[300px] animate-pulse rounded-xl bg-ink-100" /> : <WeeklyHoursTrendChart data={weekly} />}
       </div>
 
       {/* Needs Attention */}
@@ -238,7 +278,7 @@ export default function AdminDashboard() {
               <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-warning-100"><Coins className="h-5 w-5 text-warning-600" /></span>
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="text-[13.5px] font-bold text-warning-800">Stipend</div>
-                <div className="text-xs text-warning-700">{peso(stipendPending)} awaiting release</div>
+                <div className="text-xs text-warning-700">{peso(stipendPending)} released, waiting to be claimed</div>
               </div>
               <ArrowRight className="h-4 w-4 flex-none text-warning-800" />
             </Link>
@@ -247,7 +287,7 @@ export default function AdminDashboard() {
               <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-success-100"><Coins className="h-5 w-5 text-success-600" /></span>
               <div className="leading-tight">
                 <div className="text-[13.5px] font-bold text-success-800">Stipend</div>
-                <div className="text-xs text-success-700">Nothing pending release</div>
+                <div className="text-xs text-success-700">Nothing waiting to be claimed</div>
               </div>
             </div>
           )}

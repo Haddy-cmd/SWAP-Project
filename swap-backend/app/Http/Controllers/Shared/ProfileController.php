@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\AuditLog;
 use App\Resources\UserResource;
+use App\Services\StipendClaimService;
 use App\Support\PasswordPolicy;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
@@ -19,8 +20,12 @@ class ProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
+        $user = $request->user()->load('profile');
+
+        // Own profile only (one storage lookup): a specimen on record whose file was
+        // lost, so the page asks for a new drawing instead of showing a broken image.
         return response()->json([
-            'data' => new UserResource($request->user()->load('profile')),
+            'data' => (new UserResource($user))->resolve($request) + ['signature_missing' => $user->signatureFileMissing()],
         ]);
     }
 
@@ -121,7 +126,7 @@ class ProfileController extends Controller
      * certification for admins, mentor co-sign for supervisors. Same storage
      * discipline as the avatar: one object per user, old file removed.
      */
-    public function updateSignature(Request $request): JsonResponse
+    public function updateSignature(Request $request, StipendClaimService $claims): JsonResponse
     {
         $request->validate([
             'signature' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
@@ -152,9 +157,17 @@ class ProfileController extends Controller
         }
         AuditLog::record('signature_updated', $user, ['signature_image_path' => $old], ['signature_image_path' => $path]);
 
+        // Stubs this user signed whose ink file was lost take the new drawing.
+        $restored = $claims->restoreLostInk($user);
+
         return response()->json([
             'data' => new UserResource($user->fresh('profile')),
-            'message' => 'Digital signature saved. It will appear on newly released claim stubs.',
+            'message' => 'Digital signature saved. It will appear on newly released claim stubs.'
+                . match ($restored) {
+                    0 => '',
+                    1 => ' It was also put back on 1 claim stub whose signature image had been lost.',
+                    default => " It was also put back on {$restored} claim stubs whose signature image had been lost.",
+                },
         ]);
     }
 

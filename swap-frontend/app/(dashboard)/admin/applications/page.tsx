@@ -16,6 +16,8 @@ import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { rejectConfirm } from '@/lib/utils/rejectConfirm'
 import type { ApplicationStatus } from '@/types/application.types'
 
 const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
@@ -48,7 +50,6 @@ const STAT_CARDS: {
   { status: 'rejected', label: 'Rejected', iconBg: '#FEF3F2', iconFg: '#E2483B', Icon: XCircle },
 ]
 
-type Toast = { text: string; bg: string; border: string; color: string; Icon: ComponentType<{ className?: string }> }
 
 // New applications vs. renewals from returning recipients.
 type TypeFilter = 'all' | 'new' | 'renewal'
@@ -74,7 +75,7 @@ export default function AdminApplicationsPage() {
   const [mode, setMode] = useState<'in_person' | 'online'>('in_person')
   const [location, setLocation] = useState(DSA_OFFICE)
   const [remarks, setRemarks] = useState('')
-  const [toast, setToast] = useState<Toast | null>(null)
+  const { notify, notifyError, confirm } = useFeedback()
   const [rescheduling, setRescheduling] = useState(false)
   const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
@@ -128,7 +129,6 @@ export default function AdminApplicationsPage() {
     setMode('in_person')
     setLocation(DSA_OFFICE)
     setRemarks('')
-    setToast(null)
     setRescheduling(false)
   }, [activeId])
 
@@ -140,10 +140,7 @@ export default function AdminApplicationsPage() {
   // ── mutations (identical endpoints/payloads to the detail page) ───────────
   // The backend refuses with a message (a window rule, a missing link, a state
   // conflict) — show it verbatim instead of failing silently.
-  const showError = (err: { message?: string; errors?: Record<string, string[]> }) => {
-    const first = err.errors && Object.values(err.errors)[0]?.[0]
-    setToast({ text: first || err.message || 'Something went wrong. Please try again.', bg: '#FEF3F2', border: '#FBCBC6', color: '#B42318', Icon: XCircle })
-  }
+  const showError = (err: unknown) => notifyError(err, 'That didn\'t go through')
 
   // Online interviews carry their join link in meeting_link (required by the
   // backend); the "Meeting Link" field shares the venue input on this page.
@@ -156,7 +153,7 @@ export default function AdminApplicationsPage() {
     mutationFn: () => applicationsApi.adminMarkUnderReview(activeId!),
     onSuccess: () => {
       refresh()
-      setToast({ text: 'Moved to Under Review. You can now schedule an interview.', bg: '#FDF8E4', border: '#F7E39A', color: '#7A5C0C', Icon: Clock })
+      notify({ title: 'Moved to Under Review', detail: 'You can now schedule an interview.' })
     },
     onError: showError,
   })
@@ -166,7 +163,7 @@ export default function AdminApplicationsPage() {
     onSuccess: () => {
       refresh()
       setInterviewDate('')
-      setToast({ text: 'Interview scheduled. The applicant has been notified.', bg: '#F6F2FB', border: '#E0D5EF', color: '#5A3E86', Icon: CalendarCheck })
+      notify({ title: 'Interview scheduled', detail: 'The applicant has been notified.' })
     },
     onError: showError,
   })
@@ -177,7 +174,7 @@ export default function AdminApplicationsPage() {
       refresh()
       setInterviewDate('')
       setRescheduling(false)
-      setToast({ text: 'Interview rescheduled. The applicant has been notified.', bg: '#F6F2FB', border: '#E0D5EF', color: '#5A3E86', Icon: CalendarCheck })
+      notify({ title: 'Interview rescheduled', detail: 'The applicant has been notified of the new time.' })
     },
     onError: showError,
   })
@@ -186,7 +183,7 @@ export default function AdminApplicationsPage() {
     mutationFn: () => applicationsApi.adminMarkInterviewNoShow(activeId!),
     onSuccess: () => {
       refresh()
-      setToast({ text: 'Marked as no-show. You can reschedule or reject with remarks.', bg: '#FDF8E4', border: '#F7E39A', color: '#7A5C0C', Icon: AlertTriangle })
+      notify({ tone: 'info', title: 'Marked as a no-show', detail: 'You can reschedule the interview or reject with remarks.' })
     },
     onError: showError,
   })
@@ -194,19 +191,36 @@ export default function AdminApplicationsPage() {
   const decide = useMutation({
     mutationFn: (decision: 'approved' | 'rejected') =>
       applicationsApi.adminDecideApplication(activeId!, { decision, remarks }),
-    onSuccess: (_data, decision) => {
+    onSuccess: (data, decision) => {
       // Keep the decided applicant in view so the admin sees the confirmation,
       // even though it leaves the active queue.
       setSelectedId(activeId)
       refresh()
-      setToast(
-        decision === 'approved'
-          ? { text: 'Approved — moved to the Assignments queue.', bg: '#EFF8F4', border: '#B4E1CF', color: '#145643', Icon: CheckCircle }
-          : { text: 'Application rejected. The applicant has been notified.', bg: '#FEF3F2', border: '#FBCBC6', color: '#B42318', Icon: XCircle },
-      )
+      notify(decision === 'approved'
+        ? data.type === 'renewal'
+          ? { title: 'Renewal approved', detail: 'The new term\'s placement was created and the recipient has been notified.' }
+          : { title: 'Application approved', detail: 'Moved to the Assignments queue. The applicant has been notified.' }
+        : data.type === 'renewal'
+          ? { title: 'Renewal rejected', detail: 'The recipient is back in the applicant portal and has been notified.' }
+          : { title: 'Application rejected', detail: 'The applicant has been notified with your remarks.' })
     },
     onError: showError,
   })
+
+  // Rejecting is final (and sends a recipient back to the applicant portal): ask first.
+  const confirmAndReject = async () => {
+    if (await confirm(rejectConfirm(selected))) decide.mutate('rejected')
+  }
+
+  const confirmNoShow = async () => {
+    const ok = await confirm({
+      title: 'Mark the interview as a no-show?',
+      body: `${selected?.user?.name ?? 'The applicant'} didn't attend. You can reschedule afterwards, or reject with remarks.`,
+      confirmLabel: 'Mark no-show',
+      tone: 'danger',
+    })
+    if (ok) markNoShow.mutate()
+  }
 
   // Venue ↔ meeting-link swap when the mode changes (both schedule forms).
   const changeMode = (next: 'in_person' | 'online') => {
@@ -608,7 +622,7 @@ export default function AdminApplicationsPage() {
                     <div className="mt-3.5 flex flex-wrap gap-2">
                       {iv.status !== 'no_show' && (
                         <button
-                          onClick={() => markNoShow.mutate()}
+                          onClick={confirmNoShow}
                           disabled={markNoShow.isPending}
                           className="flex h-9 items-center gap-1.5 rounded-lg border border-gold-200 bg-gold-50 px-3 text-[12.5px] font-semibold text-gold-700 disabled:opacity-50"
                         >
@@ -689,7 +703,7 @@ export default function AdminApplicationsPage() {
                         </button>
                       )}
                       <button
-                        onClick={() => decide.mutate('rejected')}
+                        onClick={confirmAndReject}
                         disabled={decide.isPending || !remarks.trim()}
                         className={`flex h-12 items-center justify-center gap-2 rounded-xl border border-danger-200 bg-danger-50 text-sm font-semibold text-danger-700 disabled:opacity-50 ${status === 'interview_scheduled' || isRenewal ? 'px-5' : 'flex-1'}`}
                       >
@@ -723,18 +737,13 @@ export default function AdminApplicationsPage() {
                   </div>
                 )}
 
-                {/* toast */}
-                {toast && (
-                  <div className="mt-3.5 flex items-center gap-2.5 rounded-[11px] border px-3.5 py-3 text-[12.5px] font-semibold" style={{ background: toast.bg, borderColor: toast.border, color: toast.color }}>
-                    <toast.Icon className="h-[18px] w-[18px]" /> {toast.text}
-                  </div>
-                )}
               </div>
             </div>
           )}
         </div>
       </div>
       {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
+
     </div>
   )
 }

@@ -5,20 +5,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, Eye, EyeOff, ExternalLink, ImagePlus, Loader2, Save, Trash2 } from 'lucide-react'
 import { landingApi } from '@/lib/api/landing.api'
 import type { LandingPhoto } from '@/types/landing.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { errorText } from '@/lib/utils/apiError'
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
 
-type ApiErr = { message?: string; errors?: Record<string, string[]> }
-const errorText = (e: unknown, fallback: string) => {
-  const err = e as ApiErr
-  return (err.errors && Object.values(err.errors)[0]?.[0]) || err.message || fallback
-}
 
 /** Admin → Landing Page: the photos in the public home page carousel. */
 export default function AdminLandingPage() {
   const queryClient = useQueryClient()
-  const [notice, setNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  const { notify, notifyError, confirm } = useFeedback()
 
   const { data, isLoading } = useQuery({ queryKey: ['landing-photos'], queryFn: landingApi.list })
   const photos = useMemo(() => data?.data ?? [], [data])
@@ -26,24 +23,24 @@ export default function AdminLandingPage() {
   const shown = photos.filter((p) => p.is_active).length
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['landing-photos'] })
-  const fail = (fallback: string) => (e: unknown) => setNotice({ tone: 'error', text: errorText(e, fallback) })
+  const fail = (title: string) => (e: unknown) => notifyError(e, title)
 
   const update = useMutation({
     mutationFn: ({ id, data }: { id: number; data: { caption?: string; is_active?: boolean } }) => landingApi.update(id, data),
-    onSuccess: (r) => { refresh(); setNotice({ tone: 'ok', text: r.message ?? 'Photo updated.' }) },
-    onError: fail('Could not update the photo.'),
+    onSuccess: (r) => { refresh(); notify({ title: 'Photo updated', detail: r.message ?? null }) },
+    onError: fail('Could not update the photo'),
   })
 
   const reorder = useMutation({
     mutationFn: landingApi.reorder,
-    onSuccess: (r) => { queryClient.setQueryData(['landing-photos'], { data: r.data, meta: { max_photos: max } }); setNotice({ tone: 'ok', text: r.message }) },
-    onError: fail('Could not save the new order.'),
+    onSuccess: (r) => { queryClient.setQueryData(['landing-photos'], { data: r.data, meta: { max_photos: max } }); notify({ title: 'Order saved', detail: r.message }) },
+    onError: fail('Could not save the new order'),
   })
 
   const remove = useMutation({
     mutationFn: landingApi.remove,
-    onSuccess: (r) => { refresh(); setNotice({ tone: 'ok', text: r.message }) },
-    onError: fail('Could not delete the photo.'),
+    onSuccess: (r) => { refresh(); notify({ title: 'Photo deleted', detail: r.message }) },
+    onError: fail('Could not delete the photo'),
   })
 
   const move = (index: number, delta: -1 | 1) => {
@@ -79,18 +76,10 @@ export default function AdminLandingPage() {
       <UploadCard
         full={photos.length >= max}
         max={max}
-        onUploaded={(message) => { refresh(); setNotice({ tone: 'ok', text: message }) }}
-        onError={(text) => setNotice({ tone: 'error', text })}
+        onUploaded={(message) => { refresh(); notify({ title: 'Photo uploaded', detail: message }) }}
+        onError={(text) => notify({ tone: 'error', title: 'Could not upload the photo', detail: text })}
       />
 
-      {notice && (
-        <p
-          role="status"
-          className={`rounded-xl px-4 py-2.5 text-sm font-medium ${notice.tone === 'ok' ? 'bg-success-50 text-success-800' : 'bg-danger-50 text-danger-700'}`}
-        >
-          {notice.text}
-        </p>
-      )}
 
       <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-ink-100 px-5 py-3.5">
@@ -118,7 +107,8 @@ export default function AdminLandingPage() {
                 onSaveCaption={(caption) => update.mutate({ id: photo.id, data: { caption } })}
                 onToggle={() => update.mutate({ id: photo.id, data: { is_active: !photo.is_active } })}
                 onDelete={() => {
-                  if (window.confirm(`Delete “${photo.caption}” from the carousel? This cannot be undone.`)) remove.mutate(photo.id)
+                  void confirm({ title: 'Delete this photo?', body: `“${photo.caption}” is removed from the landing carousel. This cannot be undone.`, confirmLabel: 'Delete photo', tone: 'danger' })
+                    .then((ok) => ok && remove.mutate(photo.id))
                 }}
               />
             ))}

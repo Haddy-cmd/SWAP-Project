@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Users, Clock, TrendingUp, Calendar, ChevronDown, CalendarDays, Coins, GraduationCap } from 'lucide-react'
+import { FileText, Users, Clock, TrendingUp, Calendar, ChevronDown, CalendarDays, GraduationCap } from 'lucide-react'
 import { analyticsApi } from '@/lib/api/analytics.api'
 import { MonthlyApplicationsChart } from '@/components/charts/MonthlyApplicationsChart'
-import { StipendSummaryChart } from '@/components/charts/StipendSummaryChart'
+import { ProgramInsights } from '@/components/admin/ProgramInsights'
 import { ApplicantsByCollegeChart } from '@/components/charts/ApplicantsByCollegeChart'
 
 const SEMESTERS = ['1st Semester', '2nd Semester', 'Summer']
@@ -14,9 +14,6 @@ const OFFICE_COLORS = ['#1F5B3A', '#D4AE22', '#A31A1E', '#2F5D8A', '#1F8163', '#
 // Teal-led so the recipients-by-college bars read distinctly from the green-led
 // applicants chart.
 const RECIPIENT_COLORS = ['#1F8163', '#D4AE22', '#2F5D8A', '#A31A1E', '#6B4E9A', '#1F5B3A', '#8C968F']
-
-const peso = (n: number) =>
-  '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const CARD = 'rounded-[15px] border border-ink-200 bg-white p-6 shadow-[0_2px_8px_rgba(19,36,26,0.04)]'
 const SELECT = 'h-[42px] cursor-pointer appearance-none rounded-[11px] border border-ink-200 bg-white text-[13.5px] font-semibold text-ink-900 shadow-[0_2px_6px_rgba(19,36,26,0.05)] hover:bg-ink-50 focus:border-brand-700 focus:outline-none'
@@ -87,9 +84,6 @@ export default function AdminAnalyticsPage() {
     approved: m.approved,
     rejected: m.rejected,
   }))
-  const stipendSummary = overview?.stipend_summary ?? { total_released: 0, total_pending: 0 }
-  const hasStipend = stipendSummary.total_released > 0 || stipendSummary.total_pending > 0
-  const stipend = [{ month: 'This Semester', released: stipendSummary.total_released, pending: stipendSummary.total_pending }]
 
   // Applicants and active recipients, broken down by the student's college (the
   // backend aggregates both from student profiles). The chart uses a generic `value` key.
@@ -269,21 +263,10 @@ export default function AdminAnalyticsPage() {
           )}
         </div>
 
-        {/* Stipend Disbursement (full width) */}
-        <div className={`${CARD} lg:col-span-4`}>
-          <div className="mb-3 text-[14px] font-bold text-ink-950">Stipend Disbursement</div>
-          {isLoading ? (
-            <div className="h-[200px] animate-pulse rounded-xl bg-ink-100" />
-          ) : !hasStipend ? (
-            <div className="flex items-center gap-3 rounded-[11px] border border-dashed border-ink-300 bg-ink-50 p-4">
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-ink-100 text-gold-600"><Coins className="h-5 w-5" /></span>
-              <p className="text-[12.5px] leading-snug text-ink-600">No disbursement yet — {peso(1000)} / recipient is released after verified hours.</p>
-            </div>
-          ) : (
-            <StipendSummaryChart data={stipend} />
-          )}
-        </div>
       </div>
+
+      {/* Term results, renewals, stipend, integrity, workload, funnel, offices */}
+      <ProgramInsights academicYear={activeYear} semester={semester} />
     </div>
   )
 }

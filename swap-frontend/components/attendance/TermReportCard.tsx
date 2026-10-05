@@ -6,6 +6,7 @@ import { NotebookPen, CheckCircle2, Lock } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import type { ApiRequestError } from '@/lib/api/axios'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { TermReport } from '@/types/attendance.types'
 
 const MIN_CHARS = 100
@@ -26,7 +27,7 @@ export function TermReportCard() {
   const [form, setForm] = useState({ content: '', accomplishments: '', challenges: '' })
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState<string | null>(null)
+  const { notify } = useFeedback()
 
   useEffect(() => {
     if (report) setForm({ content: report.content, accomplishments: report.accomplishments ?? '', challenges: report.challenges ?? '' })
@@ -42,7 +43,8 @@ export function TermReportCard() {
       qc.invalidateQueries({ queryKey: ['term-report'] })
       qc.invalidateQueries({ queryKey: ['student-summary'] })
       qc.invalidateQueries({ queryKey: ['supervisor-students'] })
-      setEditing(false); setError(null); setSaved(res.message ?? 'Saved.')
+      setEditing(false); setError(null)
+      notify({ title: 'End-of-term report saved', detail: res.message ?? null })
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not save your report.'),
   })
@@ -78,7 +80,7 @@ export function TermReportCard() {
           </p>
         </div>
         {report && meta.editable && !editing && (
-          <button onClick={() => { setSaved(null); setEditing(true) }}
+          <button onClick={() => setEditing(true)}
             className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50">Edit</button>
         )}
       </div>
@@ -134,7 +136,6 @@ export function TermReportCard() {
         <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-350"><Lock className="h-3.5 w-3.5" />
           {report.reviewed_at ? ' Locked: your supervisor accepted it.' : ' Locked: your stipend for this term has been released.'}</p>
       )}
-      {saved && <p className="mt-3 text-xs font-medium text-success-700">{saved}</p>}
     </div>
   )
 }

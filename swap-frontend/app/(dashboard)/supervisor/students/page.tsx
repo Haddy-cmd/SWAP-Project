@@ -10,6 +10,7 @@ import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/
 import { supervisorApi, type StudentDocument } from '@/lib/api/supervisor.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { UNKNOWN_PACE, isBehind, paceDetail, type Pace } from '@/lib/utils/pace'
 import { cn } from '@/lib/utils/cn'
 import { TERM_FILTERS, TermBadge, matchesTermFilter, type TermFilter } from '@/components/shared/TermBadge'
@@ -299,13 +300,23 @@ export default function SupervisorStudentsPage() {
     queryClient.invalidateQueries({ queryKey: ['student-summary'] })
     queryClient.invalidateQueries({ queryKey: ['student-logs'] })
   }
+  const { notify } = useFeedback()
+  // Errors stay inside the hours dialogs; a save closes the dialog and pops out.
   const addBonus = useMutation({
     mutationFn: (v: { hours: number; date: string; reason: string }) => attendanceApi.addManualHours(bonusFor!.userId, v),
-    onSuccess: () => { setBonusFor(null); invalidate() },
+    onSuccess: (_r, v) => {
+      notify({ title: 'Bonus hours added', detail: `${formatHours(v.hours)} for ${bonusFor?.name ?? 'the student'} — verified and credited.` })
+      setBonusFor(null)
+      invalidate()
+    },
   })
   const setRequired = useMutation({
     mutationFn: (h: number) => attendanceApi.updateRequiredHours(hoursFor!.userId, h),
-    onSuccess: () => { setHoursFor(null); invalidate() },
+    onSuccess: (_r, h) => {
+      notify({ title: 'Required hours updated', detail: `${hoursFor?.name ?? 'The student'} now needs ${h} hours this term.` })
+      setHoursFor(null)
+      invalidate()
+    },
   })
 
   const openBonus = (r: Row) => setBonusFor({ userId: r.userId, name: r.name, required: r.required })

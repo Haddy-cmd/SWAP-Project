@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Services\AnalyticsService;
+use App\Services\ProgramInsightsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -25,6 +26,17 @@ class AnalyticsController extends Controller
         );
 
         return response()->json(['data' => $overview]);
+    }
+
+    /** Program insights for one term: results, renewals, money, integrity, workload, funnel, offices. */
+    public function insights(Request $request, ProgramInsightsService $insights): JsonResponse
+    {
+        $data = $request->validate([
+            'academic_year' => ['required', 'string'],
+            'semester' => ['required', 'string'],
+        ]);
+
+        return response()->json(['data' => $insights->forTerm($data['academic_year'], $data['semester'])]);
     }
 
     public function periods(): JsonResponse

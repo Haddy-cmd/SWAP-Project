@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { FileText, X } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { TermReportBody } from '@/components/attendance/TermReportCard'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { cn } from '@/lib/utils/cn'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import type { ApiRequestError } from '@/lib/api/axios'
@@ -26,7 +27,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
   const [remarks, setRemarks] = useState(report?.review_remarks ?? '')
   const [editing, setEditing] = useState(!report?.reviewed_at)
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState<string | null>(null)
+  const { notify } = useFeedback()
 
   useEffect(() => {
     setEligible(report?.renewal_eligible ?? null)
@@ -37,7 +38,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
   const save = useMutation({
     mutationFn: () => attendanceApi.reviewTermReport(assignmentId, { renewal_eligible: eligible!, remarks: remarks.trim() || null }),
     onSuccess: (res) => {
-      setSaved(res.message)
+      notify({ title: eligible ? 'Report accepted · Eligible for renewal' : 'Report accepted · Not eligible for renewal', detail: `${res.message} The student is notified.` })
       qc.invalidateQueries({ queryKey: ['student-summary'] })
       qc.invalidateQueries({ queryKey: ['supervisor-students'] })
       qc.invalidateQueries({ queryKey: ['term-report'] })
@@ -75,7 +76,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
               {report.review_remarks && <p className="mt-2 text-sm italic text-ink-600">&ldquo;{report.review_remarks}&rdquo;</p>}
               <p className="mt-1 text-[11.5px] text-ink-400">{formatDateTime(report.reviewed_at)}{report.reviewer ? ` · ${report.reviewer}` : ''}</p>
             </div>
-            <button onClick={() => { setSaved(null); setEditing(true) }}
+            <button onClick={() => setEditing(true)}
               className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50">Change</button>
           </div>
         ) : (
@@ -84,7 +85,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
             <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Renewal">
               {([[true, 'Eligible for renewal'], [false, 'Not eligible for renewal']] as const).map(([value, label]) => (
                 <button key={label} role="radio" aria-checked={eligible === value}
-                  onClick={() => { setEligible(value); setError(null); setSaved(null) }}
+                  onClick={() => { setEligible(value); setError(null) }}
                   className={cn('rounded-xl border px-3 py-2 text-xs font-semibold transition-colors',
                     eligible === value
                       ? value ? 'border-success-600 bg-success-50 text-success-800' : 'border-danger-600 bg-danger-50 text-danger-700'
@@ -95,7 +96,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
             </div>
             <label className="mt-3 block">
               <span className="text-xs font-semibold text-ink-700">Remarks <span className="font-normal text-ink-400">(optional)</span></span>
-              <textarea value={remarks} onChange={(e) => { setRemarks(e.target.value); setError(null); setSaved(null) }} rows={2} maxLength={2000}
+              <textarea value={remarks} onChange={(e) => { setRemarks(e.target.value); setError(null) }} rows={2} maxLength={2000}
                 placeholder="Anything the student or the DSA should know"
                 className="mt-1 w-full rounded-xl border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
             </label>
@@ -111,7 +112,6 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
             </div>
           </>
         )}
-        {saved && <p className="mt-2 text-sm font-medium text-success-700">{saved}</p>}
       </div>
     </div>
   )

@@ -7,6 +7,7 @@ import { semestersApi } from '@/lib/api/semesters.api'
 import { PHASE_STYLE, daysLeftText, periodRange } from '@/lib/utils/semester'
 import { SEMESTERS, type SemesterPeriod, type SemesterPeriodInput } from '@/types/semester.types'
 import type { ApiRequestError } from '@/lib/api/axios'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 const EMPTY: SemesterPeriodInput = { academic_year: '', semester: '1st Semester', start_date: '', end_date: '', renewal_open: false }
 
@@ -26,7 +27,7 @@ export default function AdminSemestersPage() {
   const [errors, setErrors] = useState<Record<string, string[]>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
-  const [note, setNote] = useState<{ text: string; error?: boolean } | null>(null)
+  const { notify, notifyError, confirm } = useFeedback()
 
   const { data: periods = [], isLoading } = useQuery({
     queryKey: ['semester-periods'],
@@ -45,7 +46,7 @@ export default function AdminSemestersPage() {
     mutationFn: () => (editing === 'new' || editing === null
       ? semestersApi.create(form)
       : semestersApi.update(editing, form)),
-    onSuccess: (res) => { refresh(); close(); setNote({ text: res.message }) },
+    onSuccess: (res) => { refresh(); close(); notify({ title: 'Semester saved', detail: res.message }) },
     onError: (e: ApiRequestError) => {
       setErrors(e.errors ?? {})
       setFormError(Object.keys(e.errors ?? {}).length ? null : (e.message ?? 'Could not save the semester.'))
@@ -57,15 +58,17 @@ export default function AdminSemestersPage() {
     mutationFn: (p: SemesterPeriod) => semestersApi.update(p.id, { ...toInput(p), renewal_open: !p.renewal_open }),
     onSuccess: (res) => {
       refresh()
-      setNote({ text: res.data.renewal_open ? `Renewal is now open for ${res.data.label}.` : `Renewal is now closed for ${res.data.label}.` })
+      notify(res.data.renewal_open
+        ? { title: 'Renewal opened', detail: `Recipients can now submit their renewal for ${res.data.label}.` }
+        : { title: 'Renewal closed', detail: `Renewal for ${res.data.label} is closed.` })
     },
-    onError: (e: ApiRequestError) => setNote({ text: Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not change renewal.', error: true }),
+    onError: (e: ApiRequestError) => notifyError(e, 'Could not change renewal'),
   })
 
   const remove = useMutation({
     mutationFn: (id: number) => semestersApi.remove(id),
-    onSuccess: (res) => { refresh(); setDeletingId(null); setNote({ text: res.message }) },
-    onError: (e: ApiRequestError) => { setDeletingId(null); setNote({ text: e.message ?? 'Could not delete the semester.', error: true }) },
+    onSuccess: (res) => { refresh(); setDeletingId(null); notify({ title: 'Semester deleted', detail: res.message }) },
+    onError: (e: ApiRequestError) => { setDeletingId(null); notifyError(e, 'Could not delete the semester') },
   })
 
   const set = <K extends keyof SemesterPeriodInput>(key: K, value: SemesterPeriodInput[K]) => {
@@ -168,7 +171,7 @@ export default function AdminSemestersPage() {
           </p>
         </div>
         {editing === null && (
-          <button onClick={() => { setNote(null); setForm(EMPTY); setEditing('new') }}
+          <button onClick={() => { setForm(EMPTY); setEditing('new') }}
             className="flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600">
             <Plus className="h-4 w-4" /> Add semester
           </button>
@@ -183,7 +186,6 @@ export default function AdminSemestersPage() {
             <CalendarRange className="h-4 w-4 text-brand-700" />
             <h2 className="font-semibold text-ink-900">All semesters</h2>
           </div>
-          {note && <p className={`mt-1 text-xs font-medium ${note.error ? 'text-danger-700' : 'text-success-700'}`}>{note.text}</p>}
         </div>
 
         {isLoading ? (
@@ -226,14 +228,23 @@ export default function AdminSemestersPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       {p.phase !== 'ended' && (
-                        <button onClick={() => { setNote(null); toggleRenewal.mutate(p) }}
+                        <button onClick={async () => {
+                          // Closing ends submissions, and with them the promissory window of the term before.
+                          if (p.renewal_open && !(await confirm({
+                            title: `Close renewal for ${p.label}?`,
+                            body: 'Recipients can no longer submit a renewal for it, and promissory notes for the term before it close too.',
+                            confirmLabel: 'Close renewal',
+                            tone: 'danger',
+                          }))) return
+                          toggleRenewal.mutate(p)
+                        }}
                           disabled={toggleRenewal.isPending || (!p.renewal_open && !!renewalTaken(p.id))}
                           title={!p.renewal_open ? renewalTaken(p.id) ?? undefined : undefined}
                           className="rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:opacity-50">
                           {p.renewal_open ? 'Close renewal' : 'Open renewal'}
                         </button>
                       )}
-                      <button onClick={() => { setNote(null); setErrors({}); setFormError(null); setForm(toInput(p)); setEditing(p.id) }}
+                      <button onClick={() => { setErrors({}); setFormError(null); setForm(toInput(p)); setEditing(p.id) }}
                         title="Edit" aria-label={`Edit ${p.label}`}
                         className="rounded-lg border border-ink-200 p-1.5 text-ink-600 hover:bg-ink-50">
                         <Pencil className="h-3.5 w-3.5" />
@@ -246,7 +257,7 @@ export default function AdminSemestersPage() {
                           <Lock className="h-3.5 w-3.5" />
                         </span>
                       ) : deletingId !== p.id && (
-                        <button onClick={() => { setNote(null); setDeletingId(p.id) }} title="Delete" aria-label={`Delete ${p.label}`}
+                        <button onClick={() => setDeletingId(p.id)} title="Delete" aria-label={`Delete ${p.label}`}
                           className="rounded-lg border border-ink-200 p-1.5 text-danger-700 hover:bg-danger-50">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

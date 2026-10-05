@@ -8,6 +8,8 @@ import { UserAvatar } from '@/components/shared/UserAvatar'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatHours, formatPercent, toPercent } from '@/lib/utils/formatHours'
 import { TermEndedBanner } from '@/components/attendance/TermEndedBanner'
+import { TermReportDueBanner } from '@/components/attendance/TermReportDueBanner'
+import { PaceForecastCard, PayoutChecklistCard } from '@/components/recipient/ProgressCards'
 
 const ACTIONS = [
   { href: '/recipient/attendance', icon: Clock, label: 'Time In / Out', sub: 'Scan your QR code' },
@@ -167,6 +169,8 @@ export default function RecipientDashboard() {
 
       {/* The current term has ended: Qualified, or Deficient and what to do */}
       {assignment && <TermEndedBanner assignment={assignment} />}
+      {/* Hours met or term ended, and the end-of-term report isn't in yet */}
+      {assignment && <TermReportDueBanner assignment={assignment} hoursMet={done} />}
 
       {/* ── Main grid ── */}
       <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -258,6 +262,12 @@ export default function RecipientDashboard() {
             )
           )}
         </div>
+      </div>
+
+      {/* Pace & forecast, and what the stipend and renewal still need */}
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <PaceForecastCard />
+        <PayoutChecklistCard />
       </div>
     </div>
   )

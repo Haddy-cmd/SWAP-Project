@@ -281,7 +281,7 @@ class StudentController extends Controller
         $old = $assignment->only(['required_hours']);
         $assignment->update(['required_hours' => $data['required_hours']]);
         AuditLog::record('updated', $assignment, $old, $assignment->only(['required_hours']));
-        $this->termStatus->refresh($assignment);
+        $this->termStatus->afterHoursChanged($assignment);
 
         return response()->json(['message' => 'Required hours updated.', 'data' => ['required_hours' => $assignment->required_hours]]);
     }
@@ -320,7 +320,7 @@ class StudentController extends Controller
             $old,
             $assignment->only(['required_hours', 'pending_required_hours'])
         );
-        $this->termStatus->refresh($assignment);
+        $this->termStatus->afterHoursChanged($assignment);
 
         return response()->json(['message' => $message, 'data' => ['required_hours' => $assignment->required_hours]]);
     }

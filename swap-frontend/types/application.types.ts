@@ -25,6 +25,8 @@ export interface Application {
   renewal_readiness?: RenewalReadiness | null
   remarks: string | null
   reviewed_at: string | null
+  /** When each status was reached (the applicant's own applications and single applications only). */
+  status_history?: { status: string; at: string }[]
   created_at: string
   updated_at: string
   documents?: ApplicationDocument[]
@@ -98,4 +100,7 @@ export interface RenewalReadiness {
   ready: boolean
   // The first unmet requirement — the approval is refused with this message.
   blocker: string | null
+  // For the reject confirmation: the renewed term's last day, and its live stub's status (null = none).
+  term_end_date: string | null
+  stipend_status: 'pending' | 'certified' | 'claimed' | 'released' | null
 }

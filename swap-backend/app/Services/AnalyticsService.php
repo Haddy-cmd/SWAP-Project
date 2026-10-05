@@ -95,13 +95,19 @@ class AnalyticsService
             ->where('academic_year', $academicYear)
             ->where('semester', $semester)
             ->join('student_profiles', 'student_profiles.user_id', '=', 'applications.user_id')
-            ->selectRaw('student_profiles.college as college, COUNT(*) as applicant_count')
+            ->selectRaw("student_profiles.college as college, COUNT(*) as applicant_count,
+                SUM(CASE WHEN applications.status = 'approved' THEN 1 ELSE 0 END) as approved,
+                SUM(CASE WHEN applications.status = 'rejected' THEN 1 ELSE 0 END) as rejected")
             ->groupBy('student_profiles.college')
             ->orderByDesc('applicant_count')
             ->get()
             ->map(fn ($row) => [
                 'college' => $row->college,
                 'applicant_count' => (int) $row->applicant_count,
+                // Split for the dashboard's stacked bars; the rest are still in review.
+                'approved' => (int) $row->approved,
+                'rejected' => (int) $row->rejected,
+                'pending' => (int) $row->applicant_count - (int) $row->approved - (int) $row->rejected,
             ])
             ->toArray();
 

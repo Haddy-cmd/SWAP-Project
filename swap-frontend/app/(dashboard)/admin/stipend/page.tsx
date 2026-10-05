@@ -8,6 +8,9 @@ import { adminApi } from '@/lib/api/admin.api'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { StipendRecord, EligibleStipend, StipendStatus } from '@/types/analytics.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
+
+const pesoAmount = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
 
@@ -30,7 +33,6 @@ export default function AdminStipendPage() {
   const [page, setPage] = useState(1)
   const [recordSearch, setRecordSearch] = useState('')
   const [voiding, setVoiding] = useState<{ id: number; reason: string } | null>(null)
-  const [error, setError] = useState<string | null>(null)
   // Page gate: the unlock token lives in memory only — never persisted.
   const [unlockToken, setUnlockToken] = useState<string | null>(null)
   const [unlockPw, setUnlockPw] = useState('')
@@ -39,7 +41,7 @@ export default function AdminStipendPage() {
   const [selected, setSelected] = useState<string[]>([])
   const [bulkAmount, setBulkAmount] = useState('')
   const [bulkRemarks, setBulkRemarks] = useState('')
-  const [bulkResult, setBulkResult] = useState<{ released: number; skipped: { user_id: number; reason: string }[] } | null>(null)
+  const { notify, notifyError, confirm } = useFeedback()
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // No data (or page) before the password gate — queries stay disabled until unlock.
@@ -81,7 +83,7 @@ export default function AdminStipendPage() {
   function mutationError(e: ApiError, fallback: string) {
     const tokenErr = e.response?.data?.errors?.unlock_token?.[0]
     if (tokenErr) { gateExpired(tokenErr); return }
-    setError(e.response?.data?.errors?.password?.[0] ?? e.response?.data?.message ?? fallback)
+    notifyError(e, fallback)
   }
 
   const invalidate = () => {
@@ -99,7 +101,10 @@ export default function AdminStipendPage() {
 
   const unlock = useMutation({
     mutationFn: () => adminApi.unlockStipend(unlockPw),
-    onSuccess: (d) => { setUnlockToken(d.unlock_token); setUnlockPw(''); setUnlockError(null) },
+    onSuccess: (d) => {
+      setUnlockToken(d.unlock_token); setUnlockPw(''); setUnlockError(null)
+      notify({ title: 'Stipend actions unlocked', detail: 'The page locks again after 15 minutes of inactivity.' })
+    },
     onError: (e: ApiError) =>
       setUnlockError(e.response?.data?.errors?.password?.[0] ?? e.response?.data?.message ?? 'Could not unlock.'),
   })
@@ -118,16 +123,41 @@ export default function AdminStipendPage() {
     onSuccess: (res) => {
       invalidate()
       setSelected([]); setBulkAmount(''); setBulkRemarks('')
-      setBulkResult({ released: res.data.released.length, skipped: res.data.skipped })
+      const released = res.data.released.length
+      const nameOf = (id: number) => eligible.find((e) => e.user_id === id)?.name ?? `User #${id}`
+      notify({
+        tone: released ? 'success' : 'error',
+        title: released ? `${released} claim stub${released === 1 ? '' : 's'} released` : 'Nothing was released',
+        detail: [
+          released ? 'Each recipient is notified that their stub is ready to claim at the Banking Office.' : '',
+          ...res.data.skipped.map((sk: { user_id: number; reason: string }) => `Skipped ${nameOf(sk.user_id)}: ${sk.reason}`),
+        ].filter(Boolean).join('\n'),
+      })
     },
-    onError: (e: ApiError) => mutationError(e, 'Could not release the selected stubs.'),
+    onError: (e: ApiError) => mutationError(e, 'Could not release the selected stubs'),
   })
+
+  // Money leaves with this: say how much, to how many, before releasing.
+  const confirmRelease = async () => {
+    const items = eligible.filter((e) => selected.includes(keyOf(e)))
+    const total = items.reduce((sum, e) => sum + (bulkAmount ? Number(bulkAmount) : e.suggested_amount), 0)
+    const ok = await confirm({
+      title: `Release ${items.length} claim stub${items.length === 1 ? '' : 's'}?`,
+      body: `${pesoAmount(total)} in total. Each recipient is notified to claim it at the Banking Office.`,
+      details: items.length <= 6 ? items.map((e) => `${e.name} · ${pesoAmount(bulkAmount ? Number(bulkAmount) : e.suggested_amount)}`) : undefined,
+      confirmLabel: 'Release',
+    })
+    if (ok) releaseBulk.mutate()
+  }
 
   const voidStipend = useMutation({
     mutationFn: (v: { id: number; reason: string }) =>
       adminApi.voidStipend(v.id, v.reason, { unlock_token: unlockToken ?? '' }),
-    onSuccess: () => { invalidate(); setVoiding(null) },
-    onError: (e: ApiError) => mutationError(e, 'Could not void the stub.'),
+    onSuccess: () => {
+      invalidate(); setVoiding(null)
+      notify({ title: 'Claim stub voided', detail: 'It can no longer be claimed. The recipient can be released a new stub.' })
+    },
+    onError: (e: ApiError) => mutationError(e, 'Could not void the stub'),
   })
 
   const records = data?.data ?? []
@@ -181,7 +211,7 @@ export default function AdminStipendPage() {
         <div className="rounded-2xl border border-success-200 bg-success-50 p-5 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <input type="checkbox" checked={ready.length > 0 && selected.length === ready.length} disabled={!ready.length}
-              onChange={(e) => { setBulkResult(null); setSelected(e.target.checked ? ready.map(keyOf) : []) }}
+              onChange={(e) => setSelected(e.target.checked ? ready.map(keyOf) : [])}
               className="h-4 w-4 accent-brand-700" aria-label="Select all eligible" />
             <CheckCircle className="h-4 w-4 text-brand-700" />
             <h2 className="font-semibold text-success-800">Eligible for Release</h2>
@@ -199,7 +229,7 @@ export default function AdminStipendPage() {
               return (
                 <div key={key} className={`flex items-center gap-3 rounded-xl border border-success-200 bg-white px-4 py-3 ${blocked ? 'opacity-70' : ''}`}>
                   <input type="checkbox" checked={checked} disabled={!!blocked} title={blocked ?? undefined}
-                    onChange={() => { setBulkResult(null); setSelected((s) => checked ? s.filter((k) => k !== key) : [...s, key]) }}
+                    onChange={() => setSelected((s) => checked ? s.filter((k) => k !== key) : [...s, key])}
                     className="h-4 w-4 flex-shrink-0 accent-brand-700 disabled:cursor-not-allowed" aria-label={`Select ${e.name}`} />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-ink-900">
@@ -233,21 +263,12 @@ export default function AdminStipendPage() {
                 placeholder="Amount each (default per-student)" className="w-52 rounded-lg border border-success-200 bg-white px-3 py-2 text-xs focus:outline-none" />
               <input value={bulkRemarks} onChange={(e) => setBulkRemarks(e.target.value)}
                 placeholder="Remarks (optional)" className="min-w-52 flex-1 rounded-lg border border-success-200 bg-white px-3 py-2 text-xs focus:outline-none" />
-              <button onClick={() => { setError(null); setBulkResult(null); releaseBulk.mutate() }} disabled={releaseBulk.isPending}
+              <button onClick={confirmRelease} disabled={releaseBulk.isPending}
                 className="flex items-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
                 <Send className="h-3.5 w-3.5" /> {releaseBulk.isPending ? 'Releasing…' : `Release ${selected.length} selected`}
               </button>
             </div>
           )}
-          {bulkResult && (
-            <p className="mt-2 text-xs font-medium text-success-800">
-              Released {bulkResult.released} stub(s).
-              {bulkResult.skipped.length > 0 && (
-                <> Skipped {bulkResult.skipped.length}: {bulkResult.skipped.map((s) => `User #${s.user_id} (${s.reason})`).join('; ')}</>
-              )}
-            </p>
-          )}
-          {error && <p className="mt-2 text-xs font-medium text-danger-700">{error}</p>}
         </div>
       ) : (
         <div className="rounded-2xl border border-success-200 bg-success-50 p-5 shadow-sm">
@@ -312,7 +333,17 @@ export default function AdminStipendPage() {
                           <div className="flex items-center gap-1.5">
                             <input autoFocus value={voiding.reason} onChange={e => setVoiding(v => v && ({ ...v, reason: e.target.value }))}
                               placeholder="Reason" className="w-32 rounded-lg border border-ink-200 px-2 py-1 text-xs focus:outline-none" />
-                            <button onClick={() => voiding.reason && voidStipend.mutate(voiding)} disabled={voidStipend.isPending || !voiding.reason}
+                            <button onClick={async () => {
+                                if (!voiding.reason) return
+                                const ok = await confirm({
+                                  title: 'Void this claim stub?',
+                                  body: `${r.recipient?.name ?? 'The recipient'} · ${r.control_number ?? 'no control number'} · ${pesoAmount(Number(r.amount))}. It can no longer be claimed at the Banking Office.`,
+                                  details: [`Reason: ${voiding.reason}`],
+                                  confirmLabel: 'Void stub',
+                                  tone: 'danger',
+                                })
+                                if (ok) voidStipend.mutate(voiding)
+                              }} disabled={voidStipend.isPending || !voiding.reason}
                               className="rounded-lg bg-danger-700 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50">Void</button>
                             <button onClick={() => setVoiding(null)} className="text-xs text-ink-350">✕</button>
                           </div>
@@ -350,7 +381,7 @@ function BankingOfficePinCard({ unlockToken, onGateExpired }: { unlockToken: str
   const [pin, setPin] = useState('')
   const [pinConfirmation, setPinConfirmation] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState<string | null>(null)
+  const { notify } = useFeedback()
 
   const { data: status } = useQuery({
     queryKey: ['admin-banking-office-pin'],
@@ -368,7 +399,7 @@ function BankingOfficePinCard({ unlockToken, onGateExpired }: { unlockToken: str
     onSuccess: (res) => {
       queryClient.setQueryData(['admin-banking-office-pin'], res.data)
       reset()
-      setSaved(res.message ?? 'Releasing officer saved.')
+      notify({ title: 'Banking Office details saved', detail: res.message ?? null })
     },
     onError: (e: ApiError) => {
       const errors = e.response?.data?.errors
@@ -411,7 +442,7 @@ function BankingOfficePinCard({ unlockToken, onGateExpired }: { unlockToken: str
         </div>
         {/* Wait for the status so the label never says "Set" over an existing setup. */}
         {!editing && status && (
-          <button onClick={() => { setSaved(null); setError(null); setOfficerName(status.officer_name ?? ''); setEditing(true) }}
+          <button onClick={() => { setError(null); setOfficerName(status.officer_name ?? ''); setEditing(true) }}
             className="flex-shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50">
             {status.is_set ? 'Change officer or PIN' : 'Set up'}
           </button>
@@ -442,7 +473,6 @@ function BankingOfficePinCard({ unlockToken, onGateExpired }: { unlockToken: str
         </div>
       )}
       {error && <p className="mt-2 text-xs font-medium text-danger-700">{error}</p>}
-      {saved && <p className="mt-2 text-xs font-medium text-success-700">{saved}</p>}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { Inbox, Send } from 'lucide-react'
 import { concernsApi } from '@/lib/api/concerns.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import type { ApiRequestError } from '@/lib/api/axios'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { CONCERN_STATUS_META, type Concern, type ConcernStatus } from '@/types/concern.types'
 
 const TABS: { key: ConcernStatus | 'all'; label: string }[] = [
@@ -74,13 +75,18 @@ function ConcernCard({ concern: c }: { concern: Concern }) {
   const qc = useQueryClient()
   const [reply, setReply] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const { notify } = useFeedback()
 
   const update = useMutation({
     mutationFn: (v: { status: ConcernStatus; response?: string }) => concernsApi.update(c.id, v),
-    onSuccess: (res) => {
+    onSuccess: (res, v) => {
       qc.invalidateQueries({ queryKey: ['admin-concerns'] })
-      setReply(''); setError(null); setNotice(res.message ?? 'Saved.')
+      setReply(''); setError(null)
+      notify({
+        title: v.response ? (v.status === 'resolved' ? 'Reply sent · concern resolved' : 'Reply sent')
+          : v.status === 'resolved' ? 'Concern resolved' : v.status === 'open' ? 'Concern reopened' : 'Marked in progress',
+        detail: v.response ? `${c.user?.name ?? 'The user'} is notified.` : res.message ?? null,
+      })
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not save.'),
   })
@@ -126,27 +132,26 @@ function ConcernCard({ concern: c }: { concern: Concern }) {
           placeholder={thread.some((m) => m.from_staff) ? 'Reply in this thread…' : 'Write a reply to the user…'}
           className="w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
         {error && <p className="text-xs font-medium text-danger-700">{error}</p>}
-        {notice && <p className="text-xs font-medium text-success-700">{notice}</p>}
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => { setNotice(null); update.mutate({ status: 'resolved', response: text || undefined }) }}
+          <button onClick={() => update.mutate({ status: 'resolved', response: text || undefined })}
             disabled={update.isPending || (!text && !c.response)}
             className="flex items-center gap-1.5 rounded-lg bg-brand-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
             <Send className="h-3.5 w-3.5" /> {text ? 'Reply & resolve' : 'Mark resolved'}
           </button>
           {text && (
-            <button onClick={() => { setNotice(null); update.mutate({ status: 'in_progress', response: text }) }} disabled={update.isPending}
+            <button onClick={() => update.mutate({ status: 'in_progress', response: text })} disabled={update.isPending}
               className="rounded-lg border border-ink-200 px-3.5 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-50">
               Reply, keep open
             </button>
           )}
           {c.status === 'open' && !text && (
-            <button onClick={() => { setNotice(null); update.mutate({ status: 'in_progress' }) }} disabled={update.isPending}
+            <button onClick={() => update.mutate({ status: 'in_progress' })} disabled={update.isPending}
               className="rounded-lg border border-ink-200 px-3.5 py-2 text-xs font-semibold text-ink-500 hover:bg-ink-50 disabled:opacity-50">
               Mark in progress
             </button>
           )}
           {c.status === 'resolved' && !text && (
-            <button onClick={() => { setNotice(null); update.mutate({ status: 'open' }) }} disabled={update.isPending}
+            <button onClick={() => update.mutate({ status: 'open' })} disabled={update.isPending}
               className="rounded-lg border border-ink-200 px-3.5 py-2 text-xs font-semibold text-ink-500 hover:bg-ink-50 disabled:opacity-50">
               Reopen
             </button>

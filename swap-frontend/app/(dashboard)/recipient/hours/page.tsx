@@ -8,6 +8,7 @@ import { TimeLogCard } from '@/components/attendance/TimeLogCard'
 import { WeeklyHoursTrendChart } from '@/components/charts/WeeklyHoursTrendChart'
 import { TermReportCard } from '@/components/attendance/TermReportCard'
 import { PastTermsCard } from '@/components/attendance/PastTermsCard'
+import { HoursBreakdownCard } from '@/components/recipient/ProgressCards'
 import type { TimeLog } from '@/types/attendance.types'
 
 // Monday of the week containing d.
@@ -71,6 +72,8 @@ export default function HoursPage() {
           <HoursProgress summary={summary} />
         </div>
       )}
+
+      <HoursBreakdownCard />
 
       <TermReportCard />
 

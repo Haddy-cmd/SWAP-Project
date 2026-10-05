@@ -7,6 +7,7 @@ import { concernsApi } from '@/lib/api/concerns.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { useUIStore } from '@/lib/store/uiStore'
 import type { ApiRequestError } from '@/lib/api/axios'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { CONCERN_STATUS_META, type Concern } from '@/types/concern.types'
 
 /**
@@ -19,7 +20,7 @@ export function DsaConcernsPanel() {
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState<string | null>(null)
+  const { notify } = useFeedback()
   const draft = useUIStore((s) => s.dsaDraft)
   const setDsaDraft = useUIStore((s) => s.setDsaDraft)
 
@@ -28,7 +29,6 @@ export function DsaConcernsPanel() {
     if (!draft) return
     setSubject(draft.subject)
     setMessage(draft.message)
-    setSent(null)
     setError(null)
     setDsaDraft(null)
   }, [draft, setDsaDraft])
@@ -40,7 +40,7 @@ export function DsaConcernsPanel() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['my-concerns'] })
       setSubject(''); setMessage(''); setError(null)
-      setSent(res.message ?? 'Your concern has been submitted.')
+      notify({ title: 'Concern sent to the DSA', detail: res.message ?? "You'll be notified when they reply." })
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not send your concern.'),
   })
@@ -57,8 +57,7 @@ export function DsaConcernsPanel() {
           <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} maxLength={2000} aria-label="Message"
             placeholder="Describe what happened and what you need…" className={INPUT} />
           {error && <p className="text-xs text-danger-700">{error}</p>}
-          {sent && <p className="text-xs font-medium text-success-700">{sent}</p>}
-          <button onClick={() => { setError(null); setSent(null); submit.mutate() }}
+          <button onClick={() => { setError(null); submit.mutate() }}
             disabled={submit.isPending || !subject.trim() || message.trim().length < 10}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
             <Send className="h-4 w-4" /> {submit.isPending ? 'Sending…' : 'Send to the DSA Office'}

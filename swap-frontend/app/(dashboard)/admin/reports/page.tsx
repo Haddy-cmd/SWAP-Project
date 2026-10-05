@@ -5,12 +5,13 @@ import { useQuery, useMutation, keepPreviousData } from '@tanstack/react-query'
 import type { LucideIcon } from 'lucide-react'
 import {
   FileText, Users, Banknote, Building2, Table2, Download, Check, ChevronDown,
-  CheckCircle2, Eye, Printer, Loader2, Grid3x3, BarChart3,
+  Eye, Printer, Loader2, Grid3x3, BarChart3, Gavel,
 } from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 import { useAuthStore } from '@/lib/store/authStore'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
-type TypeKey = 'applications' | 'recipients' | 'stipend' | 'offices'
+type TypeKey = 'applications' | 'recipients' | 'stipend' | 'offices' | 'term-results'
 type Format = 'PDF' | 'CSV'
 
 const TYPES: { key: TypeKey; name: string; desc: string; Icon: LucideIcon }[] = [
@@ -18,6 +19,7 @@ const TYPES: { key: TypeKey; name: string; desc: string; Icon: LucideIcon }[] = 
   { key: 'recipients', name: 'Recipients & Hours', desc: 'Service hours per recipient', Icon: Users },
   { key: 'stipend', name: 'Stipend Disbursement', desc: 'Payments released per period', Icon: Banknote },
   { key: 'offices', name: 'Office Assignment', desc: 'Recipient-to-office placements', Icon: Building2 },
+  { key: 'term-results', name: 'Term Results', desc: 'Verdict, promissory, report, stipend and renewal per recipient', Icon: Gavel },
 ]
 const YEARS = ['2024-2025', '2025-2026', '2026-2027']
 const SEMESTERS = ['1st Semester', '2nd Semester', 'Summer']
@@ -26,6 +28,8 @@ const STATUS_STYLE: Record<string, [string, string]> = {
   Approved: ['#145643', '#EFF8F4'], Active: ['#145643', '#EFF8F4'], Released: ['#145643', '#EFF8F4'],
   Submitted: ['#2F5D8A', '#F3F7FB'], 'Under Review': ['#B45309', '#FFFBEB'], Pending: ['#B45309', '#FFFBEB'],
   'Interview Scheduled': ['#5A3E86', '#EFE9F7'], Rejected: ['#B42318', '#FEF3F2'],
+  // Term Results verdicts.
+  Qualified: ['#145643', '#EFF8F4'], Deficient: ['#B42318', '#FEF3F2'], 'In Progress': ['#2F5D8A', '#F3F7FB'],
 }
 const colLetter = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : 'A' + String.fromCharCode(65 + (i - 26)))
 const cellText = (v: string | number | null) => (v === null || v === undefined ? '' : String(v))
@@ -37,7 +41,7 @@ export default function AdminReportsPage() {
   const [semester, setSemester] = useState('1st Semester')
   const [format, setFormat] = useState<Format>('PDF')
   const [sheetTab, setSheetTab] = useState<'data' | 'charts'>('data')
-  const [toast, setToast] = useState<string | null>(null)
+  const { notify, notifyError } = useFeedback()
 
   const { data: preview, isFetching } = useQuery({
     queryKey: ['report-preview', type, year, semester],
@@ -48,7 +52,8 @@ export default function AdminReportsPage() {
   const headers = preview?.headers ?? []
   const rows = preview?.rows ?? []
   const stats = preview?.stats ?? []
-  const statusIdx = headers.indexOf('Status')
+  // The column shown as a coloured badge: Status, or a term's Verdict.
+  const statusIdx = headers.includes('Status') ? headers.indexOf('Status') : headers.indexOf('Verdict')
   const chart = useMemo(() => computeChart(type, rows, headers), [type, rows, headers])
 
   const csv = useMutation({
@@ -59,12 +64,12 @@ export default function AdminReportsPage() {
       a.href = url
       a.download = `${type}-${year}-${semester.replace(/\s+/g, '')}.csv`
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
-      setToast(`${a.download} downloaded — check your downloads folder.`)
+      notify({ title: 'Report downloaded', detail: `${a.download} — check your downloads folder.` })
     },
+    onError: (e) => notifyError(e, 'Could not generate the report'),
   })
 
   const download = () => {
-    setToast(null)
     if (format === 'PDF') window.print()
     else csv.mutate()
   }
@@ -87,7 +92,7 @@ export default function AdminReportsPage() {
               {TYPES.map((t) => {
                 const on = type === t.key
                 return (
-                  <button key={t.key} onClick={() => { setType(t.key); setToast(null) }}
+                  <button key={t.key} onClick={() => setType(t.key)}
                     className="flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-left transition-colors"
                     style={{ border: on ? '1.5px solid #1F5B3A' : '1px solid #DCE0CF', background: on ? '#E3EEE5' : '#F7F6EE' }}>
                     <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px] text-brand-700" style={{ background: on ? '#FFFFFF' : '#ECEFE2' }}>
@@ -110,16 +115,16 @@ export default function AdminReportsPage() {
           <div>
             <p className="mb-3 text-xs font-bold uppercase tracking-[0.06em] text-ink-400">2 · Period</p>
             <div className="space-y-3">
-              <Dropdown label="Academic Year" value={year} options={YEARS} onChange={(v) => { setYear(v); setToast(null) }} />
-              <Dropdown label="Semester" value={semester} options={SEMESTERS} onChange={(v) => { setSemester(v); setToast(null) }} />
+              <Dropdown label="Academic Year" value={year} options={YEARS} onChange={setYear} />
+              <Dropdown label="Semester" value={semester} options={SEMESTERS} onChange={setSemester} />
             </div>
           </div>
 
           <div>
             <p className="mb-3 text-xs font-bold uppercase tracking-[0.06em] text-ink-400">3 · Export Format</p>
             <div className="grid grid-cols-2 gap-2.5">
-              <FormatCard on={format === 'PDF'} Icon={FileText} name="PDF" desc="Formatted document" onClick={() => { setFormat('PDF'); setToast(null) }} />
-              <FormatCard on={format === 'CSV'} Icon={Table2} name="CSV" desc="Opens in Excel" onClick={() => { setFormat('CSV'); setToast(null) }} />
+              <FormatCard on={format === 'PDF'} Icon={FileText} name="PDF" desc="Formatted document" onClick={() => setFormat('PDF')} />
+              <FormatCard on={format === 'CSV'} Icon={Table2} name="CSV" desc="Opens in Excel" onClick={() => setFormat('CSV')} />
             </div>
           </div>
 
@@ -130,11 +135,6 @@ export default function AdminReportsPage() {
             Download {format}
           </button>
 
-          {toast && (
-            <div className="flex items-start gap-2 rounded-xl border border-success-200 bg-success-50 px-3.5 py-3 text-[12.5px] font-semibold leading-snug text-success-800">
-              <CheckCircle2 className="mt-0.5 h-[18px] w-[18px] flex-none text-success-600" /> {toast}
-            </div>
-          )}
         </div>
 
         {/* ── PREVIEW ──────────────────────────────────────────────── */}

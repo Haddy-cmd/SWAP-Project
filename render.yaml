@@ -73,6 +73,20 @@ services:
         sync: false
       - key: ADMIN_PASSWORD
         sync: false
+      # Uploads (signatures, photos, documents, stubs) — the free disk is wiped on every
+      # restart, so keep them in Cloudflare R2: DOCUMENTS_DISK=r2 plus the bucket's S3 keys
+      # (DEPLOYMENT.md §5, "File storage"). Admin → System Testing → File storage checks it.
+      - key: DOCUMENTS_DISK
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      # https://<account-id>.r2.cloudflarestorage.com
+      - key: R2_ENDPOINT
+        sync: false
 
   # ---- Scheduler (Laravel cron) ----
   # Runs `schedule:run` every minute so the jobs in routes/console.php fire.

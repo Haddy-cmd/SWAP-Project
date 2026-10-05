@@ -12,6 +12,7 @@ import {
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { ManualHoursModal, RequiredHoursModal } from '@/components/attendance/HoursModals'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { TimeLog } from '@/types/attendance.types'
 
 type Tab = 'all' | 'verified' | 'pending' | 'rejected'
@@ -64,22 +65,49 @@ export default function StudentLogsPage() {
     qc.invalidateQueries({ queryKey: ['supervisor-students'] })
   }
 
+  const { notify, notifyError, confirm } = useFeedback()
+  const logLabel = (id: number) => {
+    const l = (logsData?.data ?? []).find((x) => x.id === id)
+    return l ? `${format(new Date(l.time_in), 'MMM d, yyyy')} · ${(Number(l.duration_hours) || 0).toFixed(2)}h` : null
+  }
   const verify = useMutation({
     mutationFn: (p: { id: number; action: 'verified' | 'rejected'; feedback?: string }) =>
       attendanceApi.verifyLog(p.id, { action: p.action, feedback: p.feedback }),
-    onSuccess: () => { setRejecting(null); invalidate() },
+    onSuccess: (_r, p) => {
+      notify(p.action === 'verified'
+        ? { title: 'Hours verified', detail: logLabel(p.id) }
+        : { title: 'Hours rejected', detail: [logLabel(p.id), 'The student is notified with your reason.'].filter(Boolean).join('\n') })
+      setRejecting(null)
+      invalidate()
+    },
+    onError: (e, p) => notifyError(e, p.action === 'verified' ? 'Could not verify the hours' : 'Could not reject the hours'),
   })
+  // Errors stay inside the hours dialogs; a save closes the dialog and pops out.
   const addBonus = useMutation({
     mutationFn: (v: { hours: number; date: string; reason: string }) => attendanceApi.addManualHours(Number(studentId), v),
-    onSuccess: () => { setModal(null); invalidate() },
+    onSuccess: (_r, v) => {
+      notify({ title: 'Bonus hours added', detail: `${v.hours}h on ${v.date} — verified and credited.` })
+      setModal(null)
+      invalidate()
+    },
   })
   const setRequired = useMutation({
     mutationFn: (hours: number) => attendanceApi.updateRequiredHours(Number(studentId), hours),
-    onSuccess: () => { setModal(null); invalidate() },
+    onSuccess: (_r, hours) => {
+      notify({ title: 'Required hours updated', detail: `This term now needs ${hours} hours.` })
+      setModal(null)
+      invalidate()
+    },
   })
   const decideRequired = useMutation({
     mutationFn: (action: 'approve' | 'reject') => attendanceApi.decideRequiredHours(Number(studentId), action),
-    onSuccess: invalidate,
+    onSuccess: (_r, action) => {
+      notify(action === 'approve'
+        ? { title: 'Change approved', detail: 'The new required hours apply to this term.' }
+        : { title: 'Change rejected', detail: 'The required hours stay as they were.' })
+      invalidate()
+    },
+    onError: (e) => notifyError(e, 'Could not decide the required-hours change'),
   })
 
   const logs = logsData?.data ?? []
@@ -159,11 +187,15 @@ export default function StudentLogsPage() {
             Admin requested changing required hours from <b>{required}h</b> to <b>{pendingRequired}h</b>.
           </p>
           <div className="flex flex-shrink-0 gap-2">
-            <button onClick={() => decideRequired.mutate('approve')} disabled={decideRequired.isPending}
+            <button onClick={async () => {
+                if (await confirm({ title: 'Approve the new required hours?', body: `This term's requirement changes from ${required}h to ${pendingRequired}h.`, confirmLabel: 'Approve' })) decideRequired.mutate('approve')
+              }} disabled={decideRequired.isPending}
               className="flex items-center gap-1.5 rounded-lg bg-success-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">
               <CheckCircle className="h-3.5 w-3.5" /> Approve
             </button>
-            <button onClick={() => decideRequired.mutate('reject')} disabled={decideRequired.isPending}
+            <button onClick={async () => {
+                if (await confirm({ title: 'Reject the requested change?', body: `The requirement stays at ${required}h. The admin's request is dropped.`, confirmLabel: 'Reject', tone: 'danger' })) decideRequired.mutate('reject')
+              }} disabled={decideRequired.isPending}
               className="flex items-center gap-1.5 rounded-lg border border-ink-200 px-4 py-2 text-xs font-semibold text-danger-700 disabled:opacity-50">
               <XCircle className="h-3.5 w-3.5" /> Reject
             </button>
@@ -272,7 +304,7 @@ export default function StudentLogsPage() {
                       <button onClick={() => setExpanded((e) => { const n = { ...e }; if (n[l.id]) delete n[l.id]; else n[l.id] = true; return n })}
                         className="flex w-full items-center gap-2.5 border-t border-ink-100 bg-ink-50 px-[18px] py-2.5 text-left">
                         <FileText className="h-[18px] w-[18px] text-brand-700" />
-                        <span className="flex-1 text-[12.5px] font-semibold text-ink-600">{isOpen ? 'Hide narrative report' : 'View narrative report'}</span>
+                        <span className="flex-1 text-[12.5px] font-semibold text-ink-600">{isOpen ? 'Hide task description' : 'View task description'}</span>
                         <ChevronDown className={`h-5 w-5 text-ink-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                       </button>
                       {isOpen && (
@@ -297,8 +329,13 @@ export default function StudentLogsPage() {
                               </div>
                             </div>
                           )}
-                          <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-gold-600">Narrative Report</div>
+                          <div className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-gold-600">Task Description</div>
                           <p className="whitespace-pre-line font-serif text-[15.5px] leading-[1.65] text-ink-800">{narrative}</p>
+                          {l.narrative_report?.content && l.narrative_report.activities_done && (
+                            <p className="mt-3 rounded-lg bg-ink-50 px-3.5 py-2.5 text-[13px] text-ink-600">
+                              <b className="text-ink-500">Specific activities: </b>{l.narrative_report.activities_done}
+                            </p>
+                          )}
                           {l.narrative_report?.challenges && (
                             <p className="mt-3 rounded-lg bg-ink-50 px-3.5 py-2.5 text-[13px] text-ink-600">
                               <b className="text-ink-500">Challenges: </b>{l.narrative_report.challenges}
@@ -317,7 +354,7 @@ export default function StudentLogsPage() {
 
                   {showNoNarrative && (
                     <div className="flex items-center gap-2 border-t border-ink-100 bg-gold-50 px-[18px] py-2.5 text-[12.5px] text-gold-700">
-                      <Info className="h-[17px] w-[17px]" /> No session note for this log (notes are optional).
+                      <Info className="h-[17px] w-[17px]" /> No task description for this log (e.g. an automatic clock-out; the student can still add one).
                     </div>
                   )}
 

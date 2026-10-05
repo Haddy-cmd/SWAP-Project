@@ -5,10 +5,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   LogIn, LogOut, CheckCircle2, AlertTriangle, FileText, MapPin, MapPinOff,
-  QrCode, ScanLine, Clock, Hourglass, Moon, X, Timer,
+  QrCode, ScanLine, Clock, Hourglass, Moon, Timer,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { SelfieCapture } from '@/components/attendance/SelfieCapture'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { getCurrentPosition, getBestPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
@@ -44,7 +45,7 @@ const SESSION_STATUS: Record<string, { label: string; color: string; bg: string 
 export default function AttendancePage() {
   const queryClient = useQueryClient()
   const [openLogId, setOpenLogId] = useState<number | null>(null)
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const { notify, notifyError } = useFeedback()
   const [qrToken, setQrToken] = useState('')
   const [geoWarning, setGeoWarning] = useState<string | null>(null)
   const [narrativeOpen, setNarrativeOpen] = useState(false)
@@ -57,13 +58,6 @@ export default function AttendancePage() {
     const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [])
-
-  // Successes auto-dismiss; errors stay until replaced or closed.
-  useEffect(() => {
-    if (message?.type !== 'success') return
-    const id = setTimeout(() => setMessage(null), 4500)
-    return () => clearTimeout(id)
-  }, [message])
 
   const { data: summary } = useQuery({
     queryKey: ['hours-summary'],
@@ -118,15 +112,15 @@ export default function AttendancePage() {
       setOpenLogId(res.data.id)
       setSelfieOpen(false)
       const premises = res.data.location_flagged
-        ? ' Your location couldn’t be fully verified (weak GPS).'
-        : ' You’re inside the office premises.'
-      setMessage({ type: 'success', text: `Time-in recorded at ${formatDateTime(res.data.time_in)}.${premises}` })
+        ? 'Your location couldn’t be fully verified (weak GPS).'
+        : 'You’re inside the office premises.'
+      notify({ title: 'Clocked in', detail: `${formatDateTime(res.data.time_in)}${res.data.office?.name ? ` · ${res.data.office.name}` : ''}\n${premises}` })
       invalidate()
       setQrToken('')
     },
     onError: (err: { message?: string }) => {
       setSelfieOpen(false)
-      setMessage({ type: 'error', text: err.message ?? 'Time-in failed. Please try again.' })
+      notifyError(err, 'Could not clock you in')
     },
   })
 
@@ -145,12 +139,13 @@ export default function AttendancePage() {
       setOpenLogId(null)
       setGeoWarning(null)
       outsideSinceRef.current = null
-      setMessage({ type: 'success', text: `Session logged — pending verification (out at ${formatDateTime(res.data.time_out!)})` })
+      const hours = Number(res.data.duration_hours) || 0
+      notify({ title: 'Clocked out', detail: `${hours ? `${hours.toFixed(2)}h logged · ` : ''}out at ${formatDateTime(res.data.time_out!)}\nYour supervisor will verify the hours.` })
       invalidate()
       setQrToken('')
     },
     onError: (err: { message?: string }) => {
-      setMessage({ type: 'error', text: err.message ?? 'Time-out failed.' })
+      notifyError(err, 'Could not clock you out')
     },
   })
 
@@ -163,12 +158,12 @@ export default function AttendancePage() {
       setOpenLogId(null)
       setGeoWarning(null)
       outsideSinceRef.current = null
-      setMessage({ type: 'error', text: 'You left the office premises and were automatically clocked out.' })
+      notify({ tone: 'info', title: 'Clocked out automatically', detail: 'You left the office premises. Add your task description from the Hours page.' })
       invalidate()
     },
   })
 
-  // Clock out: if a note is already in, go straight out; otherwise offer the optional note first.
+  // Clock out: if the Task Description is already in, go straight out; otherwise ask for it first.
   const handleClockOut = () => {
     if (currentLog?.has_narrative) {
       timeOut.mutate()
@@ -326,8 +321,8 @@ export default function AttendancePage() {
               <p className="mb-3.5 flex items-center gap-2 text-xs text-ink-500">
                 <FileText className="h-3.5 w-3.5 flex-none" />
                 {currentLog?.has_narrative
-                  ? 'Session note saved — ready to clock out.'
-                  : 'You can add a short note about your session when you clock out (optional).'}
+                  ? 'Task description saved — ready to clock out.'
+                  : 'You’ll write your task description when you clock out. It prints on your duty slip.'}
               </p>
             )}
 
@@ -434,19 +429,6 @@ export default function AttendancePage() {
         )}
       </div>
 
-      {/* toast */}
-      {message && (
-        <div className="fixed right-7 top-[78px] z-[70] flex max-w-sm items-start gap-2.5 rounded-xl px-4 py-3 text-[13px] font-semibold shadow-[0_16px_36px_rgba(20,50,25,.25)]"
-          style={message.type === 'success'
-            ? { background: '#145643', color: '#EFF8F4' }
-            : { background: '#2A7148', color: '#F1F6F1' }}>
-          {message.type === 'success'
-            ? <CheckCircle2 className="mt-px h-[18px] w-[18px] flex-none" />
-            : <AlertTriangle className="mt-px h-[18px] w-[18px] flex-none" />}
-          <span className="flex-1">{message.text}</span>
-          <button onClick={() => setMessage(null)} className="opacity-70 hover:opacity-100"><X className="h-4 w-4" /></button>
-        </div>
-      )}
 
       {/* Proof-of-presence selfie before clocking in. */}
       {selfieOpen && (
@@ -462,16 +444,12 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* The optional session note pops up at clock-out time, then proceeds to clock out. */}
+      {/* The Task Description is asked for at clock-out time, then proceeds to clock out. */}
       {narrativeOpen && openLogId && (
         <NarrativeModal
           logId={openLogId}
           clockingOut={timeOut.isPending}
           onClose={() => setNarrativeOpen(false)}
-          onSkip={() => {
-            setNarrativeOpen(false)
-            timeOut.mutate()
-          }}
           onSubmitted={() => {
             setNarrativeOpen(false)
             queryClient.invalidateQueries({ queryKey: ['attendance-current'] })

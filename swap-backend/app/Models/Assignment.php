@@ -51,6 +51,9 @@ class Assignment extends Model
             'pending_required_hours' => 'integer',
             'deficient_hours' => 'decimal:2',
             'term_status_at' => 'datetime',
+            // End-of-term report reminders sent (TermReportReminderService).
+            'report_due_hours_at' => 'datetime',
+            'report_due_ended_at' => 'datetime',
         ];
     }
 

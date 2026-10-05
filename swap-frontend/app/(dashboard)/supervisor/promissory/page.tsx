@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { FileText, CheckCircle, XCircle, Clock, Download, Loader2 } from 'lucide-react'
 import { promissoryApi } from '@/lib/api/promissory.api'
 import { formatDate } from '@/lib/utils/formatDate'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { PromissoryNote, PromissoryStatus } from '@/types/promissory.types'
 
 const TABS: { key: string; label: string }[] = [
@@ -36,6 +37,7 @@ export default function SupervisorPromissoryPage() {
   })
   const notes = data?.data ?? []
 
+  const { notify } = useFeedback()
   const review = useMutation({
     mutationFn: () => promissoryApi.review(reviewing!.id, {
       action,
@@ -43,6 +45,10 @@ export default function SupervisorPromissoryPage() {
       review_remarks: remarks || undefined,
     }),
     onSuccess: () => {
+      const who = reviewing?.student?.name ?? 'The student'
+      notify(action === 'approve'
+        ? { title: 'Promissory note approved', detail: `${who} · ${lacking} lacking hours recorded, added to their next semester if they renew. They're notified.` }
+        : { title: 'Promissory note rejected', detail: `${who} is notified with your reason.` })
       qc.invalidateQueries({ queryKey: ['supervisor-promissory'] })
       setReviewing(null); setLacking(''); setRemarks(''); setError(null)
     },
@@ -132,7 +138,7 @@ export default function SupervisorPromissoryPage() {
                 {reviewing?.id === n.id && (
                   <div className="mt-4 space-y-3 rounded-xl border border-ink-200 bg-ink-50 p-4">
                     <p className="text-xs font-semibold text-ink-900">
-                      {action === 'approve' ? 'Approve — record the lacking hours to render ASAP' : 'Reject — remarks required'}
+                      {action === 'approve' ? 'Approve — record the lacking hours (added to the next semester if they renew)' : 'Reject — remarks required'}
                     </p>
                     {action === 'approve' && (
                       <input value={lacking} onChange={(e) => setLacking(e.target.value)} type="number" min="0" step="0.25"

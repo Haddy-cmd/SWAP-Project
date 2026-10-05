@@ -79,6 +79,8 @@ export type Row = {
   bonusHours: number
   /** '' (nothing completed) | 'Verified' | 'Unverified' — drives the supervisor-ink rule. */
   status: '' | 'Verified' | 'Unverified'
+  /** The day's Task Descriptions (clock-out notes, in time order), then bonus-hour reasons. */
+  tasks: string[]
 }
 
 export type DutySlipMode = 'week' | 'semester'
@@ -148,6 +150,11 @@ export function buildRow(date: Date, dayLogs: TimeLog[]): Row {
   const status: Row['status'] = completed.length
     ? (completed.every((l) => l.status === 'verified') ? 'Verified' : 'Unverified')
     : ''
+  const byTimeIn = (a: TimeLog, b: TimeLog) => (parse(a.time_in)?.getTime() ?? 0) - (parse(b.time_in)?.getTime() ?? 0)
+  const tasks = [
+    ...[...regular].sort(byTimeIn).map((l) => l.narrative_report?.content?.trim() ?? ''),
+    ...bonus.map((l) => (l.manual_reason?.trim() ? `Bonus hours: ${l.manual_reason.trim()}` : '')),
+  ].filter(Boolean)
   return {
     dateStr: iso(date),
     date,
@@ -159,6 +166,7 @@ export function buildRow(date: Date, dayLogs: TimeLog[]): Row {
     regularHours: sumHours(regular),
     bonusHours: sumHours(bonus),
     status,
+    tasks,
   }
 }
 
@@ -473,7 +481,10 @@ function RowGroup({ r }: { r: Row }) {
         <Cell v={hrs(r.regularHours + r.bonusHours)} className="font-semibold" />
       </tr>
       <tr>
-        <td colSpan={8} className="border border-black px-2 py-1.5 text-left">Task Description:</td>
+        <td colSpan={8} className="border border-black px-2 py-1.5 text-left">
+          <span className="font-semibold">Task Description:</span>
+          {r.tasks.length > 0 && <span className="ml-1 whitespace-pre-line">{r.tasks.join('; ')}</span>}
+        </td>
       </tr>
     </>
   )

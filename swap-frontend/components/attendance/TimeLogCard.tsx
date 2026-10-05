@@ -42,19 +42,19 @@ export function TimeLogCard({ log, showNarrativeLink = true }: TimeLogCardProps)
       )}
 
       <div className="mt-3 flex items-center gap-3">
-        {!log.has_narrative && log.status === 'open' && showNarrativeLink && (
+        {!log.has_narrative && !log.is_manual && log.status !== 'rejected' && showNarrativeLink && (
           <Link
             href={`/recipient/narrative/${log.id}`}
             className="flex items-center gap-1.5 rounded-lg bg-brand-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 transition-colors"
           >
             <FileText className="h-3.5 w-3.5" />
-            Submit Narrative
+            Add task description
           </Link>
         )}
         {log.has_narrative && (
           <span className="flex items-center gap-1 text-xs text-success-600 font-medium">
             <FileText className="h-3.5 w-3.5" />
-            Narrative submitted
+            Task description saved
           </span>
         )}
       </div>

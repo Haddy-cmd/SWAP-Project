@@ -15,6 +15,7 @@ use App\Notifications\PromissorySubmittedNotification;
 use App\Notifications\SignatureRequiredNotification;
 use App\Notifications\StipendAvailableNotification;
 use App\Notifications\StipendReleasedNotification;
+use App\Notifications\TermReportDueNotification;
 use App\Notifications\TermReportReviewedNotification;
 use App\Notifications\TermReportSubmittedNotification;
 use App\Notifications\TermStatusNotification;
@@ -60,6 +61,7 @@ class SendApplicationNotificationJob implements ShouldQueue
             'term_status' => new TermStatusNotification($this->data),
             'term_report_reviewed' => new TermReportReviewedNotification($this->data),
             'term_report_submitted' => new TermReportSubmittedNotification($this->data),
+            'term_report_due' => new TermReportDueNotification($this->data),
             default => null,
         };
 

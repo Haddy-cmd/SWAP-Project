@@ -22,6 +22,10 @@ export interface AdminOverview {
 export interface ApplicantsByCollege {
   college: string
   applicant_count: number
+  /** How the college's applications stand (pending = still in review). */
+  approved?: number
+  rejected?: number
+  pending?: number
 }
 
 export interface RecipientsByCollege {
@@ -149,4 +153,63 @@ export interface EligibleStipend {
   assignment_id?: number
   has_signature: boolean
   narrative_submitted: boolean
+}
+
+/** Admin → Analytics → Program insights for one term (ProgramInsightsService::forTerm). */
+export interface ProgramInsights {
+  term_results: {
+    placements: number
+    qualified: number
+    deficient: number
+    in_progress: number
+    deficient_hours: number
+    promissory: { filed: number; approved: number; rejected: number; pending: number }
+    /** Lacking hours added to the next term's requirement on renewal. */
+    carried_hours: number
+  }
+  renewals: {
+    submitted: number
+    approved: number
+    rejected: number
+    waiting: number
+    /** Why waiting renewals can't be approved yet (the approval's own check). */
+    waiting_reasons: { reason: string; count: number }[]
+    previous_term: string | null
+    previous_recipients: number | null
+    /** Approved renewals ÷ recipients of the previous semester period, in %. */
+    renewal_rate: number | null
+  }
+  stipend: {
+    stubs: number
+    released_amount: number
+    claimed_amount: number
+    awaiting_amount: number
+    claimed: number
+    awaiting: number
+    via_promissory: number
+    avg_days_to_claim: number | null
+    unclaimed_after_days: number
+    unclaimed: { stipend_id: number; name: string; control_number: string | null; amount: number; days: number }[]
+  }
+  integrity: { office: string; logs: number; flagged: number; auto_clock_outs: number; rejected: number; missing_task: number }[]
+  workload: {
+    supervisor_id: number
+    name: string
+    pending: number
+    pending_hours: number
+    oldest_pending_days: number | null
+    verified: number
+    avg_verify_hours: number | null
+  }[]
+  funnel: {
+    submitted: number
+    interviewed: number
+    approved: number
+    rejected: number
+    waiting: number
+    no_shows: number
+    avg_days_to_decision: number | null
+    by_college: { college: string; total: number; approved: number; rejected: number }[]
+  }
+  offices: { office: string; capacity: number; filled: number; verified_hours: number; avg_completion: number | null }[]
 }

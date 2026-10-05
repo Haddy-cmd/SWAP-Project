@@ -137,7 +137,8 @@ export function SemesterServiceReport({ logs, identity, term }: {
             </tr>
             <tr>
               <td className="border border-black px-2 py-1 font-semibold">Page No.</td>
-              <td className="border border-black px-2 py-1">Page 1 of 1</td>
+              {/* The task list can run past one page; each printed page is numbered in its footer. */}
+              <td className="border border-black px-2 py-1">Page 1</td>
             </tr>
             <tr>
               <td className="border border-black px-2 py-1 font-semibold">Control No.</td>
@@ -236,8 +237,33 @@ export function SemesterServiceReport({ logs, identity, term }: {
               )}
             </table>
 
+            {/* Task descriptions — each duty day's clock-out notes, as on the weekly slips */}
+            <p className="mt-4 text-[11px] font-bold tracking-wide">III. TASK DESCRIPTIONS</p>
+            <table className="mt-1 w-full border-collapse text-[11px]">
+              <thead>
+                <tr>
+                  <th className="w-[16%] border border-black px-1 py-1 text-center">DATE</th>
+                  <th className="border border-black px-2 py-1 text-left">TASK DESCRIPTION</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.days.filter((r) => r.regularHours + r.bonusHours > 0).length === 0 ? (
+                  <tr>
+                    <td colSpan={2} className="border border-black px-2 py-4 text-center text-ink-500">No duty recorded yet this semester.</td>
+                  </tr>
+                ) : (
+                  data.days.filter((r) => r.regularHours + r.bonusHours > 0).map((r) => (
+                    <tr key={r.dateStr} className="break-inside-avoid">
+                      <td className="border border-black px-1 py-1 text-center align-top">{fmtDay(r.date)}</td>
+                      <td className="whitespace-pre-line border border-black px-2 py-1 text-left">{r.tasks.length ? r.tasks.join('; ') : '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+
             {/* Certification */}
-            <p className="mt-4 text-[11px] font-bold tracking-wide">III. CERTIFICATION</p>
+            <p className="mt-4 text-[11px] font-bold tracking-wide">IV. CERTIFICATION</p>
             <p className="mt-1 text-justify text-[12px] leading-relaxed">
               This is to certify that <b className="uppercase">{identity.name || '________________'}</b>
               {identity.courseYear ? `, ${identity.courseYear},` : ','} a beneficiary of the Student Welfare
@@ -258,6 +284,7 @@ export function SemesterServiceReport({ logs, identity, term }: {
       </div>
 
       <SlipPrintStyles orientation="portrait" />
+      <style>{`@media print { @page { @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 9px; } } }`}</style>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { History } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatHours } from '@/lib/utils/formatHours'
+import { formatDate } from '@/lib/utils/formatDate'
 import { TermBadge } from '@/components/shared/TermBadge'
 import type { TermHistoryItem } from '@/types/assignment.types'
 
@@ -42,6 +43,8 @@ export function PastTermsCard() {
               <p className="text-xs text-ink-500">
                 {t.office ?? '—'} · {formatHours(t.verified_hours)} verified of {t.required_hours}h
                 {t.stipend_status ? ` · ${STIPEND[t.stipend_status] ?? t.stipend_status}` : ''}
+                {t.stipend_amount != null ? ` · ₱${t.stipend_amount.toLocaleString('en-PH')}` : ''}
+                {t.stipend_claimed_at ? ` on ${formatDate(t.stipend_claimed_at)}` : ''}
               </p>
             </div>
             <TermBadge badge={t.term_badge} deficientHours={t.deficient_hours} />

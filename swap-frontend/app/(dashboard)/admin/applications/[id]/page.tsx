@@ -11,6 +11,8 @@ import { ApplicationTimeline } from '@/components/application/ApplicationTimelin
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { rejectConfirm } from '@/lib/utils/rejectConfirm'
 import {
   manilaToday, manilaNowMinutes, manilaToISO, minutesToLabel,
   slotsFor, slotViolation, windowFor, type InterviewMode,
@@ -73,9 +75,12 @@ export default function AdminApplicationDetailPage() {
     enabled: !!id,
   })
 
+  const { notify, notifyError, confirm } = useFeedback()
   const markReview = useMutation({
     mutationFn: () => applicationsApi.adminMarkUnderReview(Number(id)),
+    onError: (e) => notifyError(e, 'Could not move it to Under Review'),
     onSuccess: () => {
+      notify({ title: 'Moved to Under Review', detail: 'You can now schedule an interview.' })
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
       queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
     },
@@ -97,6 +102,7 @@ export default function AdminApplicationDetailPage() {
       setSlotMinute(null)
       setScheduleError(null)
       setModeNotice(null)
+      notify({ title: 'Interview scheduled', detail: 'The applicant has been notified.' })
     },
     onError: (err: { message?: string; errors?: Record<string, string[]> }) => {
       const first = err.errors && Object.values(err.errors)[0]?.[0]
@@ -107,7 +113,11 @@ export default function AdminApplicationDetailPage() {
   const decide = useMutation({
     mutationFn: (decision: 'approved' | 'rejected') =>
       applicationsApi.adminDecideApplication(Number(id), { decision, remarks }),
-    onSuccess: () => {
+    onSuccess: (data, decision) => {
+      notify(decision === 'approved'
+        ? { title: data.type === 'renewal' ? 'Renewal approved' : 'Application approved', detail: 'The applicant has been notified.' }
+        : { title: data.type === 'renewal' ? 'Renewal rejected' : 'Application rejected',
+            detail: data.type === 'renewal' ? 'The recipient is back in the applicant portal and has been notified.' : 'The applicant has been notified with your remarks.' })
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
       queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
       router.push('/admin/applications')
@@ -322,7 +332,7 @@ export default function AdminApplicationDetailPage() {
                   Approve
                 </button>
                 )}
-                <button onClick={() => decide.mutate('rejected')} disabled={decide.isPending || !remarks.trim()}
+                <button onClick={async () => { if (await confirm(rejectConfirm(application))) decide.mutate('rejected') }} disabled={decide.isPending || !remarks.trim()}
                   className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-danger-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-danger-700 disabled:opacity-50 transition-colors">
                   <XCircle className="h-4 w-4" />
                   Reject

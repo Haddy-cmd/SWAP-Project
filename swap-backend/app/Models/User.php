@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\StoredFile;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -123,6 +124,15 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->signature_image_path
             ? rtrim(config('app.url'), '/') . '/api/users/' . $this->id . '/signature?v=' . substr(md5($this->signature_image_path), 0, 8)
             : null;
+    }
+
+    /**
+     * A specimen is on record but its file is gone from storage. A storage error
+     * counts as not missing, so an outage never blocks anyone.
+     */
+    public function signatureFileMissing(): bool
+    {
+        return StoredFile::missing($this->signature_image_path) === true;
     }
 
     public function timeLogs(): HasMany

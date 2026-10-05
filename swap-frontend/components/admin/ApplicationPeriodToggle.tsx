@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Lock, Unlock } from 'lucide-react'
 import { settingsApi } from '@/lib/api/settings.api'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 /** Admin switch that opens or closes the student application period. */
 export function ApplicationPeriodToggle() {
@@ -13,13 +14,24 @@ export function ApplicationPeriodToggle() {
     queryFn: () => settingsApi.getSettings(),
   })
 
+  const { notify, notifyError, confirm } = useFeedback()
   const update = useMutation({
     mutationFn: (open: boolean) => settingsApi.updateSettings({ applications_open: open }),
-    onSuccess: () => {
+    onSuccess: (_r, open) => {
       queryClient.invalidateQueries({ queryKey: ['admin-settings'] })
       queryClient.invalidateQueries({ queryKey: ['application-status'] })
+      notify(open
+        ? { title: 'Applications are now open', detail: 'Students can submit new applications.' }
+        : { title: 'Applications are now closed', detail: 'Students see the "not yet open" notice.' })
     },
+    onError: (e) => notifyError(e, 'Could not change the application period'),
   })
+  const flip = async (open: boolean) => {
+    const ok = await confirm(open
+      ? { title: 'Open the application period?', body: 'Students (and former recipients) can submit new applications right away.', confirmLabel: 'Open applications' }
+      : { title: 'Close the application period?', body: 'New applications are refused until you open it again. Applications already submitted are not affected.', confirmLabel: 'Close applications', tone: 'danger' })
+    if (ok) update.mutate(open)
+  }
 
   const open = settings?.applications_open ?? false
 
@@ -52,7 +64,7 @@ export function ApplicationPeriodToggle() {
         role="switch"
         aria-checked={open}
         disabled={update.isPending}
-        onClick={() => update.mutate(!open)}
+        onClick={() => flip(!open)}
         className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
           open ? 'bg-success-600' : 'bg-ink-300'
         }`}

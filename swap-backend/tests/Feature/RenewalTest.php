@@ -385,14 +385,46 @@ class RenewalTest extends TestCase
             ->assertJsonPath('data.renewal_readiness.cor_attached', true);
     }
 
-    public function test_rejecting_a_renewal_is_never_blocked(): void
+    public function test_rejecting_a_renewal_returns_the_recipient_to_the_applicant_portal(): void
     {
+        Notification::fake();
+        // Never blocked: this term is still owed its stipend and the report isn't in.
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
+        // The application that first placed them stays approved on record.
+        Application::create(['user_id' => $recipient->id, 'academic_year' => '2024-2025', 'semester' => '1st Semester', 'status' => 'approved', 'type' => 'new']);
         $renewal = $this->renewalFor($recipient);
-        Sanctum::actingAs($this->makeUser('admin'));
+        $admin = $this->makeUser('admin');
+        Sanctum::actingAs($admin);
+
+        // The confirmation's facts: the term's end and its (missing) stub.
+        $this->getJson("/api/admin/applications/{$renewal->id}")->assertOk()
+            ->assertJsonPath('data.renewal_readiness.term_end_date', Carbon::now('Asia/Manila')->subDay()->toDateString())
+            ->assertJsonPath('data.renewal_readiness.stipend_status', null);
 
         $this->decide($renewal, 'rejected')->assertOk()->assertJsonPath('data.status', 'rejected');
-        $this->assertSame('active', $previous->fresh()->status);
+
+        $this->assertSame('applicant', $recipient->fresh()->role);
+        $this->assertSame('completed', $previous->fresh()->status, 'the placement is closed, and stays payable');
+        $this->assertDatabaseHas('audit_logs', ['action' => 'returned_to_applicant', 'auditable_id' => $recipient->id, 'user_id' => $admin->id]);
+        Notification::assertSentTo($recipient, ApplicationRejectedNotification::class, fn ($n) =>
+            $n->toArray($recipient)['message'] === 'Your SWAP renewal for 2nd Semester 2024-2025 was not approved. ' . ApplicationRejectedNotification::MSG_BACK_TO_APPLICANT
+            && in_array(ApplicationRejectedNotification::MSG_BACK_TO_APPLICANT, $n->toMail($recipient)->introLines, true));
+
+        // Recipient features are closed to them now; the applicant ones are open.
+        Sanctum::actingAs($recipient->fresh());
+        $this->getJson('/api/recipient/hours/summary')->assertForbidden();
+        $this->getJson('/api/applicant/applications')->assertOk()->assertJsonCount(2, 'data');
+
+        // Applying waits for the application period…
+        \App\Models\Setting::put('applications_open', '0');
+        $this->postJson('/api/applicant/applications')->assertForbidden();
+
+        // …then works — for the same semester the renewal was for — once, as usual.
+        \App\Models\Setting::put('applications_open', '1');
+        $this->postJson('/api/applicant/applications')->assertCreated()
+            ->assertJsonPath('data.type', 'new')
+            ->assertJsonPath('data.semester', '2nd Semester');
+        $this->postJson('/api/applicant/applications')->assertStatus(409);
     }
 
     public function test_submitting_a_renewal_follows_the_window_and_one_per_term(): void

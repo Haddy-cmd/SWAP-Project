@@ -15,6 +15,9 @@ export const attendanceApi = {
     apiClient.get<PaginatedResponse<TimeLog>>('/recipient/attendance/logs', { params }).then((r) => r.data),
 
   // Earlier terms with their hours, verdict and stipend (Hours page → Past terms).
+  getProgress: () =>
+    apiClient.get<{ data: import('@/types/attendance.types').RecipientProgress | null }>('/recipient/progress').then((r) => r.data.data),
+
   getTermHistory: () =>
     apiClient.get<{ data: import('@/types/assignment.types').TermHistoryItem[] }>('/recipient/assignments/history').then((r) => r.data.data),
 

@@ -21,14 +21,21 @@ class ApplicationRepository implements ApplicationRepositoryInterface
         return Application::with(['documents', 'interview'])
             ->where('user_id', $userId)
             ->orderByDesc('created_at')
+            ->orderByDesc('id') // newest first even within the same second
             ->get();
     }
 
+    /**
+     * The student's application for a semester. A rejected renewal doesn't count: its
+     * recipient went back to being an applicant and may apply again (the
+     * applications_one_per_term_unique index makes the same exception).
+     */
     public function findForUserAndPeriod(int $userId, string $academicYear, string $semester): ?Application
     {
         return Application::where('user_id', $userId)
             ->where('academic_year', $academicYear)
             ->where('semester', $semester)
+            ->where(fn ($q) => $q->where('type', '!=', 'renewal')->orWhere('status', '!=', 'rejected'))
             ->first();
     }
 

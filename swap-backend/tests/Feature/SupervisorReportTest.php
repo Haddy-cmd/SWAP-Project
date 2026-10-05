@@ -204,4 +204,61 @@ class SupervisorReportTest extends TestCase
         $this->assertSame('behind', $pace['status']);
         $this->assertSame(0.0, $pace['percent']);
     }
+
+    public function test_roster_adds_verdict_report_promissory_and_attendance_columns(): void
+    {
+        $office = $this->makeOffice();
+        $supervisor = $this->makeUser('supervisor', ['office_id' => $office->id]);
+        $student = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($student, $supervisor, $office, ['required_hours' => 200]);
+        // Two logs on one day (one flagged), one the day before, one rejected (not a duty day).
+        $this->makeClosedLog($assignment, 2, 'verified', daysAgo: 3)->update(['location_flagged' => true]);
+        $this->makeClosedLog($assignment, 1, 'verified', daysAgo: 3);
+        $this->makeClosedLog($assignment, 2, 'pending_verification', daysAgo: 4);
+        $this->makeClosedLog($assignment, 1, 'rejected', daysAgo: 5);
+        $this->submitTermReport($assignment);
+
+        Sanctum::actingAs($supervisor);
+        $res = $this->getJson('/api/supervisor/reports/roster')->assertOk();
+
+        $headers = $res->json('data.headers');
+        $row = array_combine($headers, $res->json('data.rows.0'));
+        $this->assertSame('In Progress', $row['Term Status']);
+        $this->assertSame('Submitted', $row['End-of-Term Report']);
+        $this->assertSame('', $row['Promissory Note']);
+        $this->assertSame(now()->subDays(3)->timezone('Asia/Manila')->format('M j, Y'), $row['Last Clock-in']);
+        $this->assertSame(2, $row['Days on Duty']);
+        $this->assertSame(1, $row['Flagged Logs']);
+        $this->assertSame('1', collect($res->json('data.stats'))->firstWhere('label', 'Reports to Accept')['value']);
+    }
+
+    public function test_insights_cover_the_queue_turnaround_and_inactive_students(): void
+    {
+        $office = $this->makeOffice();
+        $supervisor = $this->makeUser('supervisor', ['office_id' => $office->id]);
+        $active = $this->makeUser('recipient', ['name' => 'Active Student']);
+        $idle = $this->makeUser('recipient', ['name' => 'Idle Student']);
+        $never = $this->makeUser('recipient', ['name' => 'Never Student']);
+        $activeTerm = $this->makeAssignment($active, $supervisor, $office);
+        $idleTerm = $this->makeAssignment($idle, $supervisor, $office);
+        $this->makeAssignment($never, $supervisor, $office);
+        // Someone else's student never shows up here.
+        $this->makeAssignment($this->makeUser('recipient'), $this->makeUser('supervisor'), $this->makeOffice());
+
+        $pending = $this->makeClosedLog($activeTerm, 2, 'pending_verification', daysAgo: 1);
+        $pending->update(['time_in' => now()->subDays(2)->subHours(3), 'time_out' => now()->subDays(2)->subHour(), 'clocked_out_reason' => 'auto']);
+        $done = $this->makeClosedLog($idleTerm, 4, 'verified', daysAgo: 10);
+        $in = now()->subDays(10)->subHours(5);
+        $done->update(['time_in' => $in, 'time_out' => $in->copy()->addHours(4), 'verified_by' => $supervisor->id, 'verified_at' => $in->copy()->addHours(4 + 3)]);
+
+        Sanctum::actingAs($supervisor);
+        $data = $this->getJson('/api/supervisor/reports/insights')->assertOk()->json('data');
+
+        $this->assertSame([3, 1, 2.0, 2, 1, 3.0, 3.0], [$data['students'], $data['pending'], (float) $data['pending_hours'],
+            $data['oldest_pending_days'], $data['my_verified_30d'], (float) $data['my_avg_verify_hours'], (float) $data['avg_session_hours']]);
+        // Idle last came 10 days ago; Never hasn't clocked in at all. Active came 2 days ago.
+        $this->assertSame(['Never Student', 'Idle Student'], array_column($data['inactive'], 'name'));
+        $this->assertSame([null, 10], array_column($data['inactive'], 'days'));
+        $this->assertSame([['student_id' => $active->id, 'name' => 'Active Student', 'count' => 1]], $data['auto_clock_outs']);
+    }
 }

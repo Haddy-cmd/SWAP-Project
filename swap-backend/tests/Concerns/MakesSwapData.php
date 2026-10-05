@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\QrCodeService;
 use App\Support\BankingOfficePin;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 trait MakesSwapData
 {
@@ -40,20 +41,29 @@ trait MakesSwapData
     {
         $this->seq++;
 
-        return User::create(array_merge([
+        $user = User::create(array_merge([
             'name' => ucfirst($role)." User {$this->seq}",
             'email' => "{$role}{$this->seq}_".uniqid().'@test.msu-marawi.edu.ph',
             'password' => 'Password@123',
             'role' => $role,
             'is_active' => true,
-            // Clock-in requires a specimen (presence-checked, never read): recipients
-            // carry a stub path by default. Pass explicit null to simulate one who
-            // never saved a signature.
+            // Clock-in requires a specimen and release checks its file: recipients
+            // carry one by default (written below on the faked disk). Pass explicit
+            // null to simulate one who never saved a signature.
             'signature_image_path' => $role === 'recipient' ? 'signatures/test.png' : null,
             // Releases require the director's title: test admins carry one by
             // default; pass explicit null to simulate a title-less admin.
             'position_title' => $role === 'admin' ? 'Test Director' : null,
         ], $attrs));
+
+        if ($user->signature_image_path === 'signatures/test.png') {
+            $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
+            if (!$disk->exists('signatures/test.png')) {
+                $disk->put('signatures/test.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='));
+            }
+        }
+
+        return $user;
     }
 
     protected function makeOffice(array $attrs = []): Office

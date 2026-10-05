@@ -8,6 +8,7 @@ import { DocumentUpload } from './DocumentUpload'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { settingsApi } from '@/lib/api/settings.api'
 import type { ApiError } from '@/types/api.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 // Same text as ApplicationService::MSG_NO_TERM.
 const NO_TERM_MESSAGE = 'Applications open once the DSA sets up the current semester. Please check back later.'
@@ -30,6 +31,7 @@ export function ApplicationForm() {
   })
   const term = status?.term ?? null
 
+  const { notify, confirm } = useFeedback()
   const mutation = useMutation({
     mutationFn: async () => {
       const application = await applicationsApi.submitApplication()
@@ -61,6 +63,7 @@ export function ApplicationForm() {
       return application
     },
     onSuccess: (res) => {
+      notify({ title: 'Application submitted', detail: "The DSA Office will review it. You'll be notified by email at each step." })
       queryClient.invalidateQueries({ queryKey: ['applications'] })
       queryClient.invalidateQueries({ queryKey: ['application-status'] })
       router.push(`/applicant/application/${res.id}`)
@@ -90,10 +93,16 @@ export function ApplicationForm() {
   }
 
 
-  function onSubmit() {
+  async function onSubmit() {
     if (!validateDocs()) return
     setServerError(null)
-    mutation.mutate()
+    // One application per semester: make sure before it goes in.
+    const ok = await confirm({
+      title: term ? `Submit your application for ${term.semester} ${term.academic_year}?` : 'Submit your application?',
+      body: "Your documents go to the DSA Office for review. You can't replace them after submitting.",
+      confirmLabel: 'Submit application',
+    })
+    if (ok) mutation.mutate()
   }
 
   return (

@@ -20,11 +20,16 @@ function areaRole(pathname: string): UserRole | undefined {
   return Object.entries(AREAS).find(([prefix]) => pathname.startsWith(prefix))?.[1]
 }
 
+/** Re-reading the account on returning to the tab happens at most this often. */
+const REFRESH_EVERY_MS = 60_000
+
 /**
  * Keeps this tab's sign-in current, rendered once by the dashboard shell:
- *  - on load, re-reads the account from the API, which refills an empty store and
- *    rewrites a stale swap_role cookie (an applicant placed since they signed in is now
- *    a recipient), then moves to the right dashboard if the page belongs to another role;
+ *  - on load, and again when the tab is returned to (at most once a minute), re-reads
+ *    the account from the API. That refills an empty store, rewrites a stale swap_role
+ *    cookie (an applicant placed since they signed in is now a recipient) and picks up
+ *    a signature or photo changed elsewhere without a page refresh, then moves to the
+ *    right dashboard if the page belongs to another role;
  *  - follows changes made in other tabs: signed out there → login; switched account
  *    there → that account's dashboard.
  * A revoked or expired token surfaces as a 401, which the API client already handles.
@@ -32,6 +37,7 @@ function areaRole(pathname: string): UserRole | undefined {
 export function SessionSync() {
   const router = useRouter()
   const ran = useRef(false)
+  const lastRead = useRef(0)
 
   useEffect(() => {
     const goToOwnArea = (role: UserRole) => {
@@ -39,26 +45,45 @@ export function SessionSync() {
       if (area && area !== role) router.replace(getRoleDashboard(role))
     }
 
-    if (!ran.current) {
-      ran.current = true
+    const reread = () => {
       const token = useAuthStore.getState().token ?? Cookies.get('swap_token')
-      if (token) {
-        authApi.getProfile()
-          .then((user) => {
-            useAuthStore.getState().setAuth(user, token)
-            goToOwnArea(user.role)
-          })
-          .catch(() => { /* offline or a cold API: keep the stored session */ })
-      }
+      if (!token) return
+      lastRead.current = Date.now()
+      authApi.getProfile()
+        .then((user) => {
+          // Signed out or switched account while the request was out: keep what's there now.
+          const now = useAuthStore.getState().token ?? Cookies.get('swap_token')
+          if (now !== token) return
+          useAuthStore.getState().setAuth(user, token)
+          goToOwnArea(user.role)
+        })
+        .catch(() => { /* offline or a cold API: keep the stored session */ })
     }
 
-    return useAuthStore.subscribe((state, prev) => {
+    if (!ran.current) {
+      ran.current = true
+      reread()
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastRead.current >= REFRESH_EVERY_MS) reread()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
+    const unsubscribe = useAuthStore.subscribe((state, prev) => {
       if (prev.token && !state.token) {
         router.replace('/login')
       } else if (state.user && state.user.role !== prev.user?.role) {
         goToOwnArea(state.user.role)
       }
     })
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+      unsubscribe()
+    }
   }, [router])
 
   return null

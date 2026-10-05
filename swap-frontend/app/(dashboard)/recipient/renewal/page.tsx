@@ -8,6 +8,7 @@ import { attendanceApi } from '@/lib/api/attendance.api'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { DocumentUpload } from '@/components/application/DocumentUpload'
 import type { ApiError } from '@/types/api.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 export default function RenewalPage() {
   const queryClient = useQueryClient()
@@ -39,6 +40,7 @@ export default function RenewalPage() {
   // "Approved" means the new term's assignment exists, not just the application's status.
   const approved = existing?.status === 'approved' && !!myRenewal?.placed
 
+  const { notify, confirm } = useFeedback()
   const submit = useMutation({
     mutationFn: () => {
       const fd = new FormData()
@@ -48,6 +50,7 @@ export default function RenewalPage() {
     onSuccess: () => {
       setCor(null)
       queryClient.invalidateQueries({ queryKey: ['my-renewal'] })
+      notify({ title: 'Renewal submitted', detail: target ? `Your COR for ${target.semester} ${target.year} is with the DSA office. You'll be notified of the decision.` : null })
     },
     onError: (err: ApiError) => setError(err.message ?? 'Could not submit your renewal. Please try again.'),
   })
@@ -103,7 +106,7 @@ export default function RenewalPage() {
                   ? `Your renewal for ${target.year} — ${target.semester} is marked approved, but no assignment for that term exists yet. Please contact the DSA office.`
                   : existing.status === 'rejected'
                   ? (existing.remarks || 'Please coordinate with the DSA office for details.')
-                  : `Your updated COR for ${target.year} — ${target.semester} is with the DSA office. It is approved once your current term is settled and your supervisor has evaluated you. You'll be notified once it's decided.`}
+                  : `Your updated COR for ${target.year} — ${target.semester} is with the DSA office. It is approved once your current term is settled and your end-of-term report is in (and accepted, if you completed your hours). You'll be notified once it's decided.`}
               </p>
             </div>
           </div>
@@ -143,7 +146,15 @@ export default function RenewalPage() {
             {error && <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-600">{error}</p>}
 
             <button
-              onClick={() => { setError(null); submit.mutate() }}
+              onClick={async () => {
+                setError(null)
+                const ok = await confirm({
+                  title: target ? `Submit your renewal for ${target.semester} ${target.year}?` : 'Submit your renewal?',
+                  body: 'Your updated COR goes to the DSA office. You can\'t replace it after submitting.',
+                  confirmLabel: 'Submit renewal',
+                })
+                if (ok) submit.mutate()
+              }}
               disabled={!cor || submit.isPending}
               className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(22,69,43,.26)] hover:opacity-95 disabled:opacity-50 transition-opacity"
             >

@@ -293,7 +293,6 @@ class PromissoryNoteTest extends TestCase
         $this->submitTermReport($assignment);
 
         Sanctum::actingAs($recipient);
-        Storage::fake('public');
         $id = $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
             ->assertStatus(201)->json('data.id');
 
@@ -357,7 +356,6 @@ class PromissoryNoteTest extends TestCase
         $this->submitTermReport($assignment);
 
         Sanctum::actingAs($recipient);
-        Storage::fake('public');
         $id = $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
             ->assertStatus(201)->json('data.id');
         Sanctum::actingAs($supervisor);
@@ -385,7 +383,6 @@ class PromissoryNoteTest extends TestCase
         $this->submitTermReport($assignment);
 
         Sanctum::actingAs($recipient);
-        Storage::fake('public');
         $id = $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
             ->assertStatus(201)->json('data.id');
         Sanctum::actingAs($supervisor);

@@ -115,11 +115,13 @@ class RenewalReadinessService
         $met = $required > 0 && $verified >= $required;
         $payable = in_array($previous->status, StipendService::PAYABLE_STATUSES, true);
 
-        $paid = StipendHistory::where('user_id', $previous->user_id)
+        $stub = StipendHistory::where('user_id', $previous->user_id)
             ->where('academic_year', $previous->academic_year)
             ->where('semester', $previous->semester)
             ->whereIn('status', ['pending', 'certified', 'claimed', 'released'])
-            ->exists();
+            ->latest('id')
+            ->first(['id', 'status']);
+        $paid = $stub !== null;
 
         $note = PromissoryNote::where('assignment_id', $previous->id)
             ->where('status', PromissoryNote::STATUS_APPROVED)
@@ -176,6 +178,9 @@ class RenewalReadinessService
             ],
             'ready' => $blocker === null,
             'blocker' => $blocker,
+            // For the reject confirmation: is the term still running, and was its stub claimed?
+            'term_end_date' => $previous->effectiveEndDate()?->toDateString(),
+            'stipend_status' => $stub?->status,
         ];
     }
 }

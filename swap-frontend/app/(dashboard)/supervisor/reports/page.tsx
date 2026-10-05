@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { format } from 'date-fns'
-import { Download, Printer, FileSpreadsheet, Loader2, CheckCircle2, Users } from 'lucide-react'
+import { Download, Printer, FileSpreadsheet, Loader2, Users } from 'lucide-react'
 import { supervisorApi } from '@/lib/api/supervisor.api'
 import { useAuthStore } from '@/lib/store/authStore'
+import { SupervisorInsights } from '@/components/supervisor/SupervisorInsights'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 /** Colour the Pace column so a scan of the sheet shows who needs attention. */
 const PACE_CELL: Record<string, { color: string; bg: string }> = {
@@ -19,7 +20,7 @@ const PACE_COL = 11
 
 export default function SupervisorReportsPage() {
   const { user } = useAuthStore()
-  const [toast, setToast] = useState<string | null>(null)
+  const { notify, notifyError } = useFeedback()
   const genDate = format(new Date(), 'MMMM d, yyyy')
 
   const { data: report, isLoading } = useQuery({
@@ -35,13 +36,16 @@ export default function SupervisorReportsPage() {
       a.href = url
       a.download = `service-hours-summary-${format(new Date(), 'yyyyMMdd')}.csv`
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
-      setToast(`${a.download} downloaded — check your downloads folder.`)
+      notify({ title: 'CSV downloaded', detail: `${a.download} — check your downloads folder.` })
     },
-    onError: () => setToast('Could not generate the CSV. Please try again.'),
+    onError: (e) => notifyError(e, 'Could not generate the CSV'),
   })
 
   const rows = report?.rows ?? []
   const stats = report?.stats ?? []
+  // Right-align the columns whose every cell is a number (hours, %, days, counts).
+  const isNum = (c: unknown) => typeof c === 'number' || /^-?\d+(\.\d+)?%?$/.test(String(c ?? ''))
+  const numericCols = new Set((report?.headers ?? []).map((_, i) => i).filter((i) => rows.length > 0 && rows.every((r) => isNum(r[i]))))
 
   return (
     <div className="space-y-6">
@@ -64,7 +68,7 @@ export default function SupervisorReportsPage() {
             <Printer className="h-4 w-4" /> Print
           </button>
           <button
-            onClick={() => { setToast(null); csv.mutate() }}
+            onClick={() => csv.mutate()}
             disabled={csv.isPending || isLoading || !rows.length}
             className="flex items-center gap-2 rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-900 disabled:opacity-50 transition-colors"
           >
@@ -74,11 +78,8 @@ export default function SupervisorReportsPage() {
         </div>
       </div>
 
-      {toast && (
-        <div className="no-print flex items-center gap-2 rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm font-medium text-success-800">
-          <CheckCircle2 className="h-4 w-4 flex-shrink-0" /> {toast}
-        </div>
-      )}
+
+      <SupervisorInsights />
 
       {isLoading ? (
         <div className="h-[520px] animate-pulse rounded-2xl bg-ink-200" />
@@ -107,7 +108,7 @@ export default function SupervisorReportsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
               {stats.map((s) => (
                 <div key={s.label} className="rounded-[11px] border border-ink-200 bg-ink-50 px-4 py-3">
                   <div className="text-[10.5px] font-bold uppercase tracking-wide text-ink-400">{s.label}</div>
@@ -123,7 +124,7 @@ export default function SupervisorReportsPage() {
                   <tr>
                     {(report?.headers ?? []).map((h, i) => (
                       <th key={h}
-                        className={`whitespace-nowrap border-b-2 border-ink-300 px-2 py-2 text-[10.5px] font-bold uppercase tracking-wide text-ink-500 ${i >= 6 ? 'text-right' : 'text-left'}`}>
+                        className={`whitespace-nowrap border-b-2 border-ink-300 px-2 py-2 text-[10.5px] font-bold uppercase tracking-wide text-ink-500 ${numericCols.has(i) ? 'text-right' : 'text-left'}`}>
                         {h}
                       </th>
                     ))}
@@ -136,7 +137,7 @@ export default function SupervisorReportsPage() {
                         const pace = ci === PACE_COL ? PACE_CELL[String(c)] : undefined
                         return (
                           <td key={ci}
-                            className={`whitespace-nowrap border-b border-ink-100 px-2 py-2 text-[11.5px] text-ink-700 ${ci >= 6 ? 'text-right tabular-nums' : 'text-left'} ${ci === 0 ? 'font-semibold' : ''}`}>
+                            className={`whitespace-nowrap border-b border-ink-100 px-2 py-2 text-[11.5px] text-ink-700 ${numericCols.has(ci) ? 'text-right tabular-nums' : 'text-left'} ${ci === 0 ? 'font-semibold' : ''}`}>
                             {pace ? (
                               <span className="inline-block rounded-full px-2 py-0.5 text-[10.5px] font-bold"
                                 style={{ color: pace.color, background: pace.bg }}>

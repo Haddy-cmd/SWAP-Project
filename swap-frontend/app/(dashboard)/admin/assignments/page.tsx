@@ -14,6 +14,7 @@ import { UserAvatar } from '@/components/shared/UserAvatar'
 import { TERM_FILTERS, TermBadge, type TermFilter } from '@/components/shared/TermBadge'
 import type { Application } from '@/types/application.types'
 import type { Assignment } from '@/types/assignment.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 // Soft avatar palettes, mirrored from the mockup (bg / fg pairs).
 const AV: [string, string][] = [
@@ -45,7 +46,7 @@ export default function AdminAssignmentsPage() {
   const [search, setSearch] = useState('')
   const [assignedSearch, setAssignedSearch] = useState('')
   const [selectedAppId, setSelectedAppId] = useState<number | null>(null)
-  const [toast, setToast] = useState('')
+  const { notify } = useFeedback()
   const [editFor, setEditFor] = useState<Assignment | null>(null)
   const [bonusFor, setBonusFor] = useState<Assignment | null>(null)
   const [hoursFor, setHoursFor] = useState<Assignment | null>(null)
@@ -130,12 +131,13 @@ export default function AdminAssignmentsPage() {
     setRequiredHours('200')
     setStartDate(today())
     setEndDate('')
-    setToast('')
   }
 
+  // Errors stay inside the hours dialogs; a save closes the dialog and pops out.
   const addBonus = useMutation({
     mutationFn: (v: { hours: number; date: string; reason: string }) => assignmentsApi.addManualHours(bonusFor!.id, v),
-    onSuccess: () => {
+    onSuccess: (_r, v) => {
+      notify({ title: 'Bonus hours sent for approval', detail: `${v.hours}h for ${bonusFor?.user?.name ?? 'the recipient'} — the supervisor verifies them.` })
       setBonusFor(null)
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] })
     },
@@ -143,7 +145,8 @@ export default function AdminAssignmentsPage() {
 
   const setReq = useMutation({
     mutationFn: (hours: number) => assignmentsApi.requestRequiredHours(hoursFor!.id, hours),
-    onSuccess: () => {
+    onSuccess: (_r, hours) => {
+      notify({ title: 'Change requested', detail: `The supervisor approves or rejects the change to ${hours} required hours.` })
       setHoursFor(null)
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] })
     },
@@ -171,7 +174,7 @@ export default function AdminAssignmentsPage() {
       setSupervisorId('')
       setStartDate(today())
       setEndDate('')
-      setToast(`${name} assigned to ${oName}.`)
+      notify({ title: 'Recipient assigned', detail: `${name} is assigned to ${oName}. They're notified by email.` })
     },
   })
 
@@ -183,6 +186,7 @@ export default function AdminAssignmentsPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-assignments'] })
+      notify({ title: 'Placement updated', detail: `${editFor?.user?.name ?? 'The recipient'} has been notified of the change.` })
       setEditFor(null)
     },
   })
@@ -294,7 +298,7 @@ export default function AdminAssignmentsPage() {
                     return (
                       <button
                         key={o.id}
-                        onClick={() => { pickOffice(String(o.id), setOfficeId, setSupervisorId); setToast('') }}
+                        onClick={() => pickOffice(String(o.id), setOfficeId, setSupervisorId)}
                         className="flex items-center gap-3 rounded-[11px] px-3.5 py-3 text-left transition-colors"
                         style={{
                           background: on ? '#E3EEE5' : '#F7F6EE',
@@ -411,12 +415,6 @@ export default function AdminAssignmentsPage() {
                 {assign.isPending ? 'Assigning…' : 'Confirm Assignment'}
               </button>
 
-              {toast && (
-                <div className="flex items-center gap-2 rounded-[11px] border border-success-200 bg-success-50 px-3.5 py-3 text-[12.5px] font-semibold text-success-800">
-                  <CheckCircle2 className="h-[18px] w-[18px] flex-none text-success-600" />
-                  {toast}
-                </div>
-              )}
             </div>
           ) : (
             <div className="px-6 py-12 text-center">
@@ -425,12 +423,6 @@ export default function AdminAssignmentsPage() {
               </span>
               <p className="text-sm font-semibold text-ink-950">All caught up</p>
               <p className="mt-1 text-xs text-ink-400">Every approved applicant has been placed in an office.</p>
-              {toast && (
-                <div className="mt-4 flex items-center justify-center gap-2 rounded-[11px] border border-success-200 bg-success-50 px-3.5 py-3 text-[12.5px] font-semibold text-success-800">
-                  <CheckCircle2 className="h-[18px] w-[18px] flex-none text-success-600" />
-                  {toast}
-                </div>
-              )}
             </div>
           )}
         </div>

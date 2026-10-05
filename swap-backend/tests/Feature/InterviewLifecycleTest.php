@@ -38,6 +38,23 @@ class InterviewLifecycleTest extends TestCase
         return [$admin, $application->fresh()];
     }
 
+    public function test_the_applicant_timeline_carries_each_status_date(): void
+    {
+        [, $application] = $this->makeScheduledInterview();
+
+        Sanctum::actingAs($application->user);
+        $history = $this->getJson('/api/applicant/applications')->assertOk()->json('data.0.status_history');
+        $this->assertSame(['submitted', 'interview_scheduled'], array_column($history, 'status'));
+        $this->assertSame($application->created_at->toISOString(), $history[0]['at']);
+
+        $this->getJson("/api/applicant/applications/{$application->id}")->assertOk()
+            ->assertJsonPath('data.status_history.1.status', 'interview_scheduled');
+
+        // Not computed for every row of the admin list.
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->getJson('/api/admin/applications')->assertOk()->assertJsonMissingPath('data.0.status_history');
+    }
+
     public function test_reschedule_updates_time_and_logs_history(): void
     {
         [, $application] = $this->makeScheduledInterview();

@@ -8,6 +8,7 @@ import { claimApi } from '@/lib/api/stipend.api'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import type { ApiRequestError } from '@/lib/api/axios'
 import type { ClaimReleaseResult } from '@/types/analytics.types'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
 
@@ -29,6 +30,7 @@ export default function ClaimReleasePage() {
   const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<ClaimReleaseResult | null>(null)
+  const { notify, confirm } = useFeedback()
 
   const { data: claim, isLoading, isError, error: loadError } = useQuery({
     queryKey: ['claim-verify', token],
@@ -41,6 +43,7 @@ export default function ClaimReleasePage() {
     mutationFn: () => claimApi.release(token, { pin }),
     onSuccess: (res) => {
       setDone(res.data); setPin(''); setError(null)
+      notify({ title: 'Payout recorded', detail: `${claim?.recipient_name ?? 'The beneficiary'} · ${PHP.format(Number(claim?.amount ?? 0))}. The stub can't be used again.` })
       queryClient.invalidateQueries({ queryKey: ['claim-verify', token] })
       queryClient.invalidateQueries({ queryKey: ['stipend-history'] })
       queryClient.invalidateQueries({ queryKey: ['admin-stipend'] })
@@ -108,7 +111,17 @@ export default function ClaimReleasePage() {
 
             <form
               className="mt-4 space-y-3"
-              onSubmit={(e) => { e.preventDefault(); setError(null); release.mutate() }}
+              onSubmit={async (e) => {
+                e.preventDefault()
+                setError(null)
+                // Money is handed over with this: confirm the amount and the person first.
+                const ok = await confirm({
+                  title: `Release ${PHP.format(Number(claim.amount))}?`,
+                  body: `To ${claim.recipient_name ?? 'the beneficiary'}. Recording it marks the stub claimed; the same QR can never be paid again.`,
+                  confirmLabel: 'Record payout',
+                })
+                if (ok) release.mutate()
+              }}
             >
               {!claim.releasing_officer_name && (
                 <p role="alert" className="rounded-xl border border-warning-200 bg-warning-50 px-3 py-2 text-sm text-warning-800">{MSG_NOT_SET}</p>

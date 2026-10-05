@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QrCode, MapPin, Printer, Copy, Check, AlertCircle, Camera } from 'lucide-react'
 import { supervisorApi } from '@/lib/api/supervisor.api'
 import { QrDisplay } from '@/components/attendance/QrDisplay'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
@@ -40,14 +41,15 @@ function SelfieSettingCard() {
     queryFn: () => supervisorApi.getSettings(),
   })
 
-  const [notice, setNotice] = useState<string | null>(null)
+  const { notify, notifyError } = useFeedback()
 
   const save = useMutation({
     mutationFn: (value: boolean) => supervisorApi.updateSettings({ require_clock_in_selfie: value }),
-    onSuccess: (res) => {
-      setNotice(res.message)
+    onSuccess: (res, value) => {
+      notify({ title: value ? 'Clock-in selfie turned on' : 'Clock-in selfie turned off', detail: res.message })
       queryClient.invalidateQueries({ queryKey: ['supervisor-settings'] })
     },
+    onError: (e) => notifyError(e, 'Could not change the selfie setting'),
   })
 
   const enabled = data?.require_clock_in_selfie ?? true
@@ -70,7 +72,7 @@ function SelfieSettingCard() {
             role="switch"
             aria-checked={enabled}
             disabled={isLoading || save.isPending}
-            onClick={() => { setNotice(null); save.mutate(!enabled) }}
+            onClick={() => save.mutate(!enabled)}
             className={`mt-3 inline-flex h-7 w-12 flex-none items-center rounded-full transition-colors disabled:opacity-50 ${
               enabled ? 'bg-brand-700' : 'bg-ink-300'
             }`}
@@ -85,7 +87,6 @@ function SelfieSettingCard() {
             {isLoading ? 'Loading\u2026' : enabled ? 'On' : 'Off'}
           </span>
 
-          {notice && <p className="mt-2 text-xs font-medium text-success-600">{notice}</p>}
         </div>
       </div>
     </div>

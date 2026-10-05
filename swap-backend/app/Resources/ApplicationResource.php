@@ -46,6 +46,21 @@ class ApplicationResource extends JsonResource
                 ($this->type ?? 'new') === 'renewal' && $request->user()?->role === 'admin' && $request->route('id') !== null,
                 fn () => app(\App\Services\RenewalReadinessService::class)->check($this->resource),
             ),
+            // When each status was reached (submitted, then every status change recorded
+            // in the audit log), for the applicant's timeline. The applicant's own
+            // applications (a handful) and single applications only, never per admin list row.
+            'status_history' => $this->when(
+                $request->user()?->role === 'applicant' || $request->route('id') !== null,
+                fn () => collect([['status' => 'submitted', 'at' => $this->created_at->toISOString()]])
+                    ->concat(\App\Models\AuditLog::where('auditable_type', $this->resource::class)
+                        ->where('auditable_id', $this->id)
+                        ->where('action', 'updated')
+                        ->orderBy('created_at')->orderBy('id')
+                        ->get(['new_values', 'created_at'])
+                        ->filter(fn ($log) => isset($log->new_values['status']))
+                        ->map(fn ($log) => ['status' => $log->new_values['status'], 'at' => $log->created_at->toISOString()]))
+                    ->values(),
+            ),
             'remarks' => $this->remarks,
             'reviewed_at' => $this->reviewed_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),

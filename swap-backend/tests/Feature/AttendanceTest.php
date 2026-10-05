@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\TimeLog;
+use App\Services\AttendanceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -189,9 +190,10 @@ class AttendanceTest extends TestCase
     /**
      * P0 SACRED RULE: time-out must be blocked when no narrative exists.
      */
-    public function test_time_out_without_a_narrative_succeeds(): void
+    public function test_time_out_needs_a_task_description(): void
     {
-        // The per-session note is optional; the end-of-term report gates payout instead.
+        // The note's Task Description prints on the duty slip, so the recipient's own
+        // clock-out waits for it; the specific activities and challenges are optional.
         Queue::fake();
         $recipient = $this->makeUser('recipient');
         $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
@@ -199,12 +201,38 @@ class AttendanceTest extends TestCase
         $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(2));
 
         Sanctum::actingAs($recipient);
-        $this->postJson('/api/recipient/attendance/time-out', [
-            'log_id' => $log->id, 'qr_token' => $token,
-        ])->assertStatus(200)->assertJsonPath('data.status', 'pending_verification');
+        $this->postJson('/api/recipient/attendance/time-out', ['log_id' => $log->id, 'qr_token' => $token])
+            ->assertStatus(422)
+            ->assertJsonPath('message', AttendanceService::MSG_TASK_REQUIRED);
+        $this->assertSame('open', $log->fresh()->status);
 
-        $this->assertNotNull($log->fresh()->time_out);
+        // Too short / missing → named as the task description; activities may be left out.
+        $this->postJson('/api/recipient/narratives', ['time_log_id' => $log->id, 'content' => 'Filed'])
+            ->assertStatus(422)
+            ->assertJsonPath('errors.content.0', 'The task description field must be at least 10 characters.');
+        $this->postJson('/api/recipient/narratives', ['time_log_id' => $log->id, 'content' => 'Encoded the office inventory.'])
+            ->assertStatus(201)
+            ->assertJsonPath('data.activities_done', null);
+
+        $this->postJson('/api/recipient/attendance/time-out', ['log_id' => $log->id, 'qr_token' => $token])
+            ->assertStatus(200)->assertJsonPath('data.status', 'pending_verification');
+    }
+
+    public function test_a_task_description_can_be_added_after_an_automatic_clock_out(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie());
+        $log = $this->makeOpenLog($assignment, $recipient, now()->subHours(15));
+
+        // The 12-hour safety net closes it without a note…
+        $this->artisan('attendance:close-stale', ['--hours' => 12])->assertExitCode(0);
+        $this->assertSame('auto_stale', $log->fresh()->clocked_out_reason);
         $this->assertNull($log->fresh()->narrativeReport);
+
+        // …and the student can still describe the day for the slip.
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/narratives', ['time_log_id' => $log->id, 'content' => 'Assisted at the records section.'])
+            ->assertStatus(201);
     }
 
     public function test_time_out_with_narrative_succeeds_and_computes_duration(): void

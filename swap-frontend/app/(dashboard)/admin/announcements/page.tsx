@@ -6,6 +6,7 @@ import { Megaphone, Send, Mail, Users, Trash2 } from 'lucide-react'
 import { announcementsApi } from '@/lib/api/announcements.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import type { ApiRequestError } from '@/lib/api/axios'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 const MAX = 5000
 
@@ -22,9 +23,8 @@ export default function AdminAnnouncementsPage() {
   const [message, setMessage] = useState('')
   const [confirming, setConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [sent, setSent] = useState<string | null>(null)
+  const { notify, notifyError } = useFeedback()
   const [deletingId, setDeletingId] = useState<number | null>(null)
-  const [historyNote, setHistoryNote] = useState<{ text: string; error?: boolean } | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-announcements', page],
@@ -42,7 +42,7 @@ export default function AdminAnnouncementsPage() {
         (old) => old && { ...old, data: [res.data, ...old.data] })
       qc.invalidateQueries({ queryKey: ['admin-announcements'] })
       setTitle(''); setMessage(''); setConfirming(false); setError(null); setPage(1)
-      setSent(res.message ?? 'Announcement sent.')
+      notify({ title: 'Announcement sent', detail: res.message ?? null })
     },
     onError: (e: ApiRequestError) => {
       setConfirming(false)
@@ -57,11 +57,11 @@ export default function AdminAnnouncementsPage() {
         (old) => old && { ...old, data: old.data.filter((a) => a.id !== id) })
       qc.invalidateQueries({ queryKey: ['admin-announcements'] })
       setDeletingId(null)
-      setHistoryNote({ text: res.message })
+      notify({ title: 'Announcement deleted', detail: res.message })
     },
     onError: (e: ApiRequestError) => {
       setDeletingId(null)
-      setHistoryNote({ text: e.message ?? 'Could not delete the announcement.', error: true })
+      notifyError(e, 'Could not delete the announcement')
     },
   })
 
@@ -103,11 +103,10 @@ export default function AdminAnnouncementsPage() {
           </label>
 
           {error && <p className="text-sm text-danger-700">{error}</p>}
-          {sent && <p className="text-sm font-medium text-success-700">{sent}</p>}
           {audience === 0 && <p className="text-sm text-warning-700">There are no active recipients to send an announcement to yet.</p>}
 
           {!confirming ? (
-            <button onClick={() => { setError(null); setSent(null); setConfirming(true) }} disabled={!ready}
+            <button onClick={() => { setError(null); setConfirming(true) }} disabled={!ready}
               className="flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
               <Send className="h-4 w-4" /> Send announcement
             </button>
@@ -133,9 +132,6 @@ export default function AdminAnnouncementsPage() {
       <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
         <div className="border-b border-ink-100 px-5 py-4">
           <h2 className="font-semibold text-ink-900">Sent announcements</h2>
-          {historyNote && (
-            <p className={`mt-1 text-xs font-medium ${historyNote.error ? 'text-danger-700' : 'text-success-700'}`}>{historyNote.text}</p>
-          )}
         </div>
         {isLoading ? (
           <div className="space-y-3 p-5">{[1, 2].map((n) => <div key={n} className="h-16 animate-pulse rounded-xl bg-ink-200" />)}</div>
@@ -150,7 +146,7 @@ export default function AdminAnnouncementsPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-ink-350">{a.created_at ? formatDateTime(a.created_at) : ''}</span>
                     {deletingId !== a.id && (
-                      <button onClick={() => { setHistoryNote(null); setDeletingId(a.id) }} title="Delete" aria-label={`Delete ${a.title}`}
+                      <button onClick={() => setDeletingId(a.id)} title="Delete" aria-label={`Delete ${a.title}`}
                         className="rounded-lg border border-ink-200 p-1.5 text-danger-700 hover:bg-danger-50">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>

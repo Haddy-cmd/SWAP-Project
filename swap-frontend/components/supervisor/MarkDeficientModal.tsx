@@ -6,6 +6,7 @@ import { CircleAlert, X } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatHours } from '@/lib/utils/formatHours'
 import type { ApiRequestError } from '@/lib/api/axios'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 /**
  * A supervisor marks a student's current term deficient. The reason is required and
@@ -21,6 +22,7 @@ export function MarkDeficientModal({ studentId, studentName, term, shortfall, on
   const qc = useQueryClient()
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const { notify } = useFeedback()
 
   const mark = useMutation({
     mutationFn: () => attendanceApi.markDeficient(studentId, reason.trim()),
@@ -28,6 +30,7 @@ export function MarkDeficientModal({ studentId, studentName, term, shortfall, on
       qc.invalidateQueries({ queryKey: ['student-summary'] })
       qc.invalidateQueries({ queryKey: ['supervisor-students'] })
       qc.invalidateQueries({ queryKey: ['term-report'] })
+      notify({ title: 'Marked deficient', detail: `${studentName} · ${term} · ${formatHours(shortfall)} short. They're notified with your reason.` })
       onClose()
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not mark the term deficient.'),

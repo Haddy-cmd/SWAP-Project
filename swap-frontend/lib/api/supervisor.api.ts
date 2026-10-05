@@ -32,6 +32,22 @@ export interface RosterSummary {
   totals: { recipients: number; required: number; verified: number; pending: number; behind: number }
 }
 
+/** Supervisor → Reports → Insights (ReportService::supervisorInsights). */
+export interface SupervisorInsights {
+  students: number
+  pending: number
+  pending_hours: number
+  oldest_pending_days: number | null
+  /** Logs this supervisor verified in the last 30 days, and the average hours from clock-out to verification. */
+  my_verified_30d: number
+  my_avg_verify_hours: number | null
+  avg_session_hours: number | null
+  inactive_after_days: number
+  /** No clock-in for `inactive_after_days` days, or never (`days` null). */
+  inactive: { student_id: number; name: string; last_clock_in: string | null; days: number | null }[]
+  auto_clock_outs: { student_id: number; name: string; count: number }[]
+}
+
 export const supervisorApi = {
   // The signed attendance QR for the supervisor's assigned office.
   getOfficeQr: () =>
@@ -44,6 +60,9 @@ export const supervisorApi = {
   // End-of-semester roster summary — the sheet the supervisor hands to the DSA.
   getRosterSummary: () =>
     apiClient.get<ApiResponse<RosterSummary>>('/supervisor/reports/roster').then((r) => r.data.data),
+
+  getInsights: () =>
+    apiClient.get<ApiResponse<SupervisorInsights>>('/supervisor/reports/insights').then((r) => r.data.data),
 
   exportRosterCsv: () =>
     apiClient.get<Blob>('/supervisor/reports/roster/export', { responseType: 'blob' }).then((r) => r.data),

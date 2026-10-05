@@ -1,5 +1,5 @@
 import apiClient from './axios'
-import type { EarlierTest, TestingAction, TestingCandidate, TestingStatus } from '@/types/testing.types'
+import type { EarlierTest, StorageCheck, TestingAction, TestingCandidate, TestingStatus } from '@/types/testing.types'
 
 type WithStatus = { data: TestingStatus; message: string }
 
@@ -34,4 +34,7 @@ export const testingApi = {
     apiClient
       .post<WithStatus>(`/admin/testing/recipients/${recipientId}/${action}`, data)
       .then((r) => r.data),
+
+  // File storage check (any time): where uploads go, a live write/read, image links, lost files.
+  storageCheck: () => apiClient.get<{ data: StorageCheck }>('/admin/storage-check').then((r) => r.data.data),
 }

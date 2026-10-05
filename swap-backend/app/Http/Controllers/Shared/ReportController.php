@@ -37,7 +37,7 @@ class ReportController extends Controller
     public function previewAdminReport(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'in:applications,recipients,stipend,offices'],
+            'type' => ['required', 'string', 'in:applications,recipients,stipend,offices,term-results'],
             'academic_year' => ['required', 'string'],
             'semester' => ['required', 'string'],
         ]);
@@ -59,7 +59,7 @@ class ReportController extends Controller
     public function generateAdminReport(Request $request): StreamedResponse
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'in:applications,recipients,stipend,offices'],
+            'type' => ['required', 'string', 'in:applications,recipients,stipend,offices,term-results'],
             'academic_year' => ['required', 'string'],
             'semester' => ['required', 'string'],
         ]);
@@ -82,6 +82,12 @@ class ReportController extends Controller
         return response()->json([
             'data' => $this->reportService->supervisorRosterData($request->user()),
         ]);
+    }
+
+    /** Verification queue, own turnaround, inactive students and automatic clock-outs. */
+    public function supervisorInsights(Request $request): JsonResponse
+    {
+        return response()->json(['data' => $this->reportService->supervisorInsights($request->user())]);
     }
 
     /** The same roster as a CSV the supervisor can hand to the DSA. */

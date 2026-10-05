@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Repositories\Contracts\ApplicationRepositoryInterface;
 use App\Support\AfterCommit;
 use App\Support\ApplicationTransitions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
@@ -41,8 +42,11 @@ class ApplicationService
         $data = ['academic_year' => $term->academic_year, 'semester' => $term->semester];
 
         // Once an application is approved, the applicant is in the pipeline waiting for
-        // an office assignment and may not submit further applications.
-        if ($this->applicationRepository->findByUser($user->id)->contains('status', 'approved')) {
+        // an office assignment and may not submit further applications. Only the latest
+        // counts: a former recipient whose renewal was rejected still has the approved
+        // application that first placed them, and may apply again.
+        $latest = $this->applicationRepository->findByUser($user->id)->first();
+        if ($latest && $latest->status === 'approved' && $latest->type !== 'renewal') {
             throw new ConflictHttpException(
                 'Your application has already been approved. Please wait for the office assignment announcement.'
             );
@@ -308,31 +312,65 @@ class ApplicationService
             $this->renewalReadiness->assertReady($application);
         }
 
-        $old = $application->only(['status', 'remarks']);
+        // The status, the renewal rollover or the return to the applicant portal, and
+        // the audit entries land together or not at all.
+        return DB::transaction(function () use ($application, $decision, $remarks, $admin) {
+            $old = $application->only(['status', 'remarks']);
 
-        $updated = $this->applicationRepository->update($application, [
-            'status' => $decision,
-            'remarks' => $remarks,
-            'reviewed_by' => $admin->id,
-            'reviewed_at' => now(),
-        ]);
+            $updated = $this->applicationRepository->update($application, [
+                'status' => $decision,
+                'remarks' => $remarks,
+                'reviewed_by' => $admin->id,
+                'reviewed_at' => now(),
+            ]);
 
-        AuditLog::record('updated', $updated, $old, $updated->only(['status', 'remarks']));
+            AuditLog::record('updated', $updated, $old, $updated->only(['status', 'remarks']));
 
-        if ($decision === 'approved') {
-            // Approving a renewal immediately rolls the assignment into the new
-            // term — same office and supervisor, hours reset. Done before the
-            // announcement, so the renewal email can name the new placement.
-            if ($updated->type === 'renewal') {
-                $this->rolloverRenewal($updated, $admin);
+            if ($decision === 'approved') {
+                // Approving a renewal immediately rolls the assignment into the new
+                // term — same office and supervisor, hours reset. Done before the
+                // announcement, so the renewal email can name the new placement.
+                if ($updated->type === 'renewal') {
+                    $this->rolloverRenewal($updated, $admin);
+                }
+
+                DB::afterCommit(fn () => AfterCommit::quietly(fn () => event(new ApplicationApproved($updated)), 'Application approved notification', ['application_id' => $updated->id]));
+            } elseif ($decision === 'rejected') {
+                if ($updated->type === 'renewal') {
+                    $this->returnToApplicant($updated, $admin);
+                }
+
+                DB::afterCommit(fn () => AfterCommit::quietly(fn () => event(new ApplicationRejected($updated)), 'Application rejected notification', ['application_id' => $updated->id]));
             }
 
-            AfterCommit::quietly(fn () => event(new ApplicationApproved($updated)), 'Application approved notification', ['application_id' => $updated->id]);
-        } elseif ($decision === 'rejected') {
-            AfterCommit::quietly(fn () => event(new ApplicationRejected($updated)), 'Application rejected notification', ['application_id' => $updated->id]);
+            return $updated;
+        });
+    }
+
+    /**
+     * A rejected renewal ends the student's time as a recipient: their current placement
+     * is closed and the account goes back to the applicant portal, where they may apply
+     * again whenever the application period is open. Their past terms, stubs and hours
+     * stay on record (a completed placement can still be paid).
+     */
+    private function returnToApplicant(Application $renewal, User $admin): void
+    {
+        $user = User::find($renewal->user_id);
+        if (!$user || $user->role !== 'recipient') {
+            return;
         }
 
-        return $updated;
+        $closed = Assignment::where('user_id', $user->id)->where('status', 'active')->get();
+        foreach ($closed as $assignment) {
+            $assignment->update(['status' => 'completed']);
+        }
+        $user->update(['role' => 'applicant']);
+
+        AuditLog::record('returned_to_applicant', $user, ['role' => 'recipient'], [
+            'role' => 'applicant',
+            'renewal_application_id' => $renewal->id,
+            'closed_assignment_ids' => $closed->pluck('id')->all(),
+        ], $admin->id);
     }
 
     /** Create the next-term assignment for an approved renewal. */

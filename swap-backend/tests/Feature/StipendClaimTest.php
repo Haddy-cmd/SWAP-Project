@@ -271,7 +271,7 @@ class StipendClaimTest extends TestCase
     public function test_a_certified_stub_carries_the_banking_office_qr_until_it_is_claimed(): void
     {
         $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
-        // The fixture's specimen path is not a real file and no signer holds ink:
+        // No supervisor or admin holds ink, and the beneficiary signs only at payout:
         // the QR is the only image on the certified stub.
         [$recipient] = $this->recipientWithSupervisor();
 
@@ -287,8 +287,9 @@ class StipendClaimTest extends TestCase
 
         $this->bankingOfficeRelease($stipend)->assertStatus(200);
 
-        // Claimed: token cleared, so the re-rendered stub has no QR left to scan.
-        $this->assertSame([], $this->pdfImages($disk->get($stipend->fresh()->slip_path)));
+        // Claimed: token cleared, so the re-rendered stub has no QR left to scan — the
+        // only image left is the beneficiary's ink (the fixture's 1×1 specimen).
+        $this->assertSame(['1x1'], array_keys($this->pdfImages($disk->get($stipend->fresh()->slip_path))));
     }
 
     public function test_admin_sets_the_releasing_officer_and_pin_behind_the_step_up(): void

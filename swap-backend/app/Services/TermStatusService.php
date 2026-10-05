@@ -25,6 +25,8 @@ class TermStatusService
     public const MSG_ALREADY_DEFICIENT = 'This term is already marked deficient.';
     public const MSG_NOT_ACTIVE = 'Only a current placement can be marked deficient.';
 
+    public function __construct(private readonly TermReportReminderService $reminders) {}
+
     /**
      * The end-of-term verdict. Undecided → qualified/deficient; deficient → re-qualified
      * once the makeup is verified, and a mark made during the term is re-measured at
@@ -60,6 +62,10 @@ class TermStatusService
         if ($status === Assignment::TERM_DEFICIENT && $notify) {
             $this->notify($assignment, 'deficient');
         }
+        // The term is over: the end-of-term report is due (once, while it isn't in).
+        if ($notify) {
+            $this->reminders->termEnded($assignment);
+        }
 
         return $status;
     }
@@ -88,12 +94,22 @@ class TermStatusService
         return true;
     }
 
-    /** After a log on this placement is verified: re-qualify a completed makeup at once. */
+    /**
+     * After the hours on a placement change (a log verified, verified bonus hours, a
+     * new requirement): re-qualify a completed makeup at once, and once the hours are
+     * met remind the student to submit the end-of-term report.
+     */
+    public function afterHoursChanged(Assignment $assignment): void
+    {
+        $this->refresh($assignment);
+        $this->reminders->hoursMet($assignment);
+    }
+
     public function refreshById(int $assignmentId): void
     {
-        $assignment = Assignment::whereKey($assignmentId)->where('term_status', Assignment::TERM_DEFICIENT)->first();
+        $assignment = Assignment::find($assignmentId);
         if ($assignment) {
-            $this->refresh($assignment);
+            $this->afterHoursChanged($assignment);
         }
     }
 

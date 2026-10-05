@@ -24,7 +24,10 @@ export default function NewApplicationPage() {
     queryFn: () => settingsApi.getApplicationStatus(),
   })
 
-  const hasApproved = applications?.some((a) => a.status === 'approved') ?? false
+  // Waiting for an office assignment: the latest application is an approved new one (same rule
+  // as the API) — a former recipient's old approval doesn't count after a rejected renewal.
+  const latest = applications?.[0]
+  const hasApproved = !!latest && latest.status === 'approved' && latest.type !== 'renewal'
   const inProgress = applications?.find((a) => ['submitted', 'under_review', 'interview_scheduled'].includes(a.status))
 
   return (

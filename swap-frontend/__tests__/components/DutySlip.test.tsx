@@ -76,6 +76,19 @@ describe('buildRow', () => {
     expect(row.status).toBe('Verified') // the rejected log doesn't block verification
   })
 
+  it('collects the day\'s task descriptions: sessions in time order, then bonus reasons', () => {
+    const note = (content: string) => ({ narrative_report: { id: 1, time_log_id: 1, content, activities_done: null, challenges: null, submitted_at: '', created_at: '' } })
+    const row = buildRow(new Date('2024-09-02T00:00:00'), [
+      log('2024-09-02', '13:00', 3, note('Encoded the inventory')),
+      log('2024-09-02', '08:00', 2, { is_manual: true, manual_reason: 'Event duty' }),
+      log('2024-09-02', '08:30', 3, note('Filed the records')),
+      log('2024-09-02', '10:00', 1, { status: 'rejected', ...note('Rejected session') }),
+      log('2024-09-02', '15:00', 1), // an automatic clock-out with no note yet
+    ])
+
+    expect(row.tasks).toEqual(['Filed the records', 'Encoded the inventory', 'Bonus hours: Event duty'])
+  })
+
   it('marks a day with a pending log as Unverified', () => {
     const row = buildRow(new Date('2024-09-02T00:00:00'), [log('2024-09-02', '08:00', 4, { status: 'pending_verification' })])
     expect(row.status).toBe('Unverified')

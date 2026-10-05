@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Repositories\Contracts\StipendClaimRepositoryInterface;
 use App\Support\AfterCommit;
 use App\Support\DutySlipControl;
+use App\Support\StoredFile;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,6 +39,7 @@ class StipendClaimService
     public const MSG_ALREADY_LIVE = 'This recipient already has a live stipend for this period.';
     public const MSG_NOT_ELIGIBLE = 'This recipient is not eligible for a stipend for this period.';
     public const MSG_NO_SIGNATURE = 'This recipient has not saved a digital signature yet.';
+    public const MSG_SIGNATURE_LOST = "This recipient's saved signature can't be found in storage. Ask them to draw it again on their Profile.";
     public const MSG_NO_TERM_REPORT = 'This recipient has not submitted their end-of-term narrative report yet.';
 
     /**
@@ -87,12 +89,15 @@ class StipendClaimService
 
     /**
      * The stub carries the beneficiary's signature and closes the term, so both
-     * the specimen and the end-of-term report must exist before release.
+     * the specimen and the end-of-term report must exist before release. The
+     * specimen's file is checked too (one lookup, only at release): a file lost
+     * from storage would put an inkless stub in the student's hands.
      */
     private function missingRequirement(array $row): ?string
     {
         return match (true) {
             !($row['has_signature'] ?? false) => self::MSG_NO_SIGNATURE,
+            (bool) User::find((int) $row['user_id'])?->signatureFileMissing() => self::MSG_SIGNATURE_LOST,
             !($row['narrative_submitted'] ?? false) => self::MSG_NO_TERM_REPORT,
             default => null,
         };
@@ -398,6 +403,59 @@ class StipendClaimService
         }
 
         return $candidate;
+    }
+
+    /**
+     * After a user saves a new specimen: the stubs they signed whose ink file was lost
+     * from storage take the new specimen, and their stored PDF is dropped so the next
+     * download re-renders it with ink. Rows that never had a drawing are left alone.
+     * Never fails the save that called it. Returns how many stubs got their ink back.
+     */
+    public function restoreLostInk(User $user): int
+    {
+        if (!$user->signature_image_path) {
+            return 0;
+        }
+
+        $restored = [];
+        try {
+            $rows = StipendSignature::with('stipend')
+                ->where('user_id', $user->id)
+                ->where('method', StipendSignature::METHOD_DRAWN)
+                ->whereNotNull('signature_image_path')
+                ->whereHas('stipend', fn ($q) => $q->whereIn('status', [StipendHistory::STATUS_CERTIFIED, StipendHistory::STATUS_CLAIMED, 'released']))
+                ->get();
+
+            foreach ($rows as $row) {
+                if (StoredFile::missing($row->signature_image_path) !== true) {
+                    continue;
+                }
+                $before = $row->only(['signatory_role', 'signature_image_path']);
+                $copy = $this->snapshotSpecimen($user->signature_image_path, $row->stipend_history_id, $row->signatory_role);
+                $row->update(['signature_image_path' => $copy]);
+                $this->dropSlip($row->stipend);
+                AuditLog::record('stipend_signature_restored', $row->stipend, $before, $row->only(['signatory_role', 'signature_image_path']), $user->id);
+                $restored[$row->stipend_history_id] = true;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Restoring lost stub ink failed', ['user_id' => $user->id, 'error' => $e->getMessage()]);
+        }
+
+        return count($restored);
+    }
+
+    /** Forget a stub's stored PDF; the download (Recipient\StipendClaimController::slip) renders a fresh one. */
+    private function dropSlip(StipendHistory $stipend): void
+    {
+        if (!$stipend->slip_path) {
+            return;
+        }
+        try {
+            Storage::disk(config('filesystems.documents_disk', 'public'))->delete($stipend->slip_path);
+        } catch (\Throwable) {
+            // best effort: the cleared path alone makes the download re-render
+        }
+        $stipend->update(['slip_path' => null]);
     }
 
     /** Render + archive the slip PDF; non-fatal so a rendering hiccup never blocks the claim. */

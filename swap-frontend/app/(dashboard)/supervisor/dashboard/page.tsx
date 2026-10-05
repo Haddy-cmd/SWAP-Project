@@ -10,6 +10,7 @@ import { isBehind, paceDetail, type Pace } from '@/lib/utils/pace'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { LiveTimerChip } from '@/components/attendance/LiveTimerChip'
 import { formatHours } from '@/lib/utils/formatHours'
+import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 function Avatar({ name, avatarUrl, size = 'md' }: { name: string; avatarUrl?: string | null; size?: 'sm' | 'md' }) {
   const dim = size === 'sm' ? 'h-9 w-9 text-sm' : 'h-11 w-11 text-base'
@@ -53,9 +54,13 @@ export default function SupervisorDashboard() {
     refetchInterval: 30_000,
   })
 
+  const { notify, notifyError } = useFeedback()
   const verify = useMutation({
     mutationFn: (logId: number) => attendanceApi.verifyLog(logId, { action: 'verified', feedback: '' }),
-    onSuccess: () => {
+    onError: (e) => notifyError(e, 'Could not verify the hours'),
+    onSuccess: (_r, logId) => {
+      const l = pendingLogs.find((x) => x.id === logId)
+      notify({ title: 'Hours verified', detail: l ? `${l.user?.name ?? 'Recipient'} · ${formatHours(Number(l.duration_hours) || 0)}` : null })
       queryClient.invalidateQueries({ queryKey: ['supervisor-pending-logs'] })
       queryClient.invalidateQueries({ queryKey: ['supervisor-students'] })
       queryClient.invalidateQueries({ queryKey: ['verifications'] })
