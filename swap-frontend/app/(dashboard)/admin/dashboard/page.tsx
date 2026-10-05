@@ -15,9 +15,6 @@ const FALLBACK_SEM = '1st Semester'
 // Seal-derived series order: green, gold, maroon, blue, teal, violet, grey.
 const OFFICE_COLORS = ['#1F5B3A', '#D4AE22', '#A31A1E', '#2F5D8A', '#1F8163', '#6B4E9A', '#8C968F']
 
-const peso = (n: number) =>
-  '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
 const periodKey = (year: string, sem: string) => `${year}__${sem}`
 
 // Applicants-by-college segments, bottom to top.
@@ -78,7 +75,8 @@ export default function AdminDashboard() {
   const weeklyVerified = weekly.reduce((sum, w) => sum + w.verified, 0)
 
   const pendingApps = overview?.pending_applications ?? 0
-  const stipendPending = overview?.stipend_summary?.total_pending ?? 0
+  // Payable now, signature + end-of-term report in, not released yet.
+  const stipendReady = overview?.stipend_summary?.ready_to_release ?? 0
 
   return (
     <div className="space-y-[18px] text-ink-950">
@@ -273,12 +271,12 @@ export default function AdminDashboard() {
           )}
 
           {/* Stipend */}
-          {stipendPending > 0 ? (
+          {stipendReady > 0 ? (
             <Link href="/admin/stipend" className="flex items-center gap-3.5 rounded-xl border border-warning-200 bg-warning-50 px-4 py-4 transition-colors hover:bg-warning-100">
               <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-warning-100"><Coins className="h-5 w-5 text-warning-600" /></span>
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="text-[13.5px] font-bold text-warning-800">Stipend</div>
-                <div className="text-xs text-warning-700">{peso(stipendPending)} released, waiting to be claimed</div>
+                <div className="text-xs text-warning-700">{stipendReady} recipient{stipendReady === 1 ? '' : 's'} ready for release</div>
               </div>
               <ArrowRight className="h-4 w-4 flex-none text-warning-800" />
             </Link>
@@ -287,7 +285,7 @@ export default function AdminDashboard() {
               <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-success-100"><Coins className="h-5 w-5 text-success-600" /></span>
               <div className="leading-tight">
                 <div className="text-[13.5px] font-bold text-success-800">Stipend</div>
-                <div className="text-xs text-success-700">Nothing waiting to be claimed</div>
+                <div className="text-xs text-success-700">No one waiting for release</div>
               </div>
             </div>
           )}

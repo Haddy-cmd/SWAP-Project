@@ -60,7 +60,8 @@ class ProgramInsightsTest extends TestCase
         $this->addNarrative($this->makeClosedLog($a3, 1, 'rejected', daysAgo: 2));
         $this->makeClosedLog($a3, 2, 'verified', daysAgo: 1)->update(['is_manual' => true]);
 
-        // Stubs: one claimed 3 days after release, one waiting 20 days (via a note), one void.
+        // Stubs: a legacy one received at the Banking Office, a legacy ready-to-claim one
+        // (via a note), and a void one. A release is final, so both live ones count as released.
         StipendHistory::create(self::TERM + ['user_id' => $r1->id, 'amount' => 5000, 'status' => 'claimed', 'certified_at' => now()->subDays(4), 'claimed_at' => now()->subDays(1), 'control_number' => 'A-1']);
         StipendHistory::create(self::TERM + ['user_id' => $r2->id, 'amount' => 4000, 'status' => 'certified', 'certified_at' => now()->subDays(20), 'via_promissory' => true, 'control_number' => 'A-2']);
         StipendHistory::create(self::TERM + ['user_id' => $r3->id, 'amount' => 9999, 'status' => 'void', 'certified_at' => now()->subDays(30), 'control_number' => 'A-3']);
@@ -70,11 +71,8 @@ class ProgramInsightsTest extends TestCase
         $this->assertSame(['placements' => 3, 'qualified' => 1, 'deficient' => 1, 'in_progress' => 1, 'deficient_hours' => 6,
             'promissory' => ['filed' => 2, 'approved' => 1, 'rejected' => 0, 'pending' => 1], 'carried_hours' => 6], $data['term_results']);
 
-        $stipend = $data['stipend'];
-        $this->assertEquals([9000, 5000, 4000, 1, 1, 1, 3.0], [$stipend['released_amount'], $stipend['claimed_amount'], $stipend['awaiting_amount'],
-            $stipend['claimed'], $stipend['awaiting'], $stipend['via_promissory'], $stipend['avg_days_to_claim']]);
-        $this->assertCount(1, $stipend['unclaimed']);
-        $this->assertSame(['A-2', 20], [$stipend['unclaimed'][0]['control_number'], $stipend['unclaimed'][0]['days']]);
+        $this->assertEquals(['released' => 2, 'released_amount' => 9000, 'via_promissory' => 1, 'voided' => 1,
+            'ready_to_release' => 0, 'missing_requirements' => 0], $data['stipend']);
 
         $this->assertSame([['office' => 'Registrar', 'logs' => 4, 'flagged' => 1, 'auto_clock_outs' => 1, 'rejected' => 1, 'missing_task' => 1]], $data['integrity']);
 
@@ -168,10 +166,30 @@ class ProgramInsightsTest extends TestCase
 
         $this->assertSame('Term Results', $res->json('data.title'));
         $this->assertSame([
-            ['Ana Met', null, 'Library', 2, 2, 'Qualified', '', '', 'Accepted · Eligible', 'Claimed', 'Approved'],
+            ['Ana Met', null, 'Library', 2, 2, 'Qualified', '', '', 'Accepted · Eligible', 'Released', 'Approved'],
             ['Ben Short', null, 'Library', 10, 2, 'Deficient', 8, 'Approved', 'Missing', '—', '—'],
         ], $res->json('data.rows'));
         $this->assertSame(['1', '1', '1', '1'], array_column($res->json('data.stats'), 'value'));
+    }
+
+    public function test_stipend_insights_split_who_is_ready_for_release(): void
+    {
+        $supervisor = $this->makeUser('supervisor');
+        // Hours met with signature and end-of-term report: ready.
+        $ready = $this->makeAssignment($this->makeUser('recipient'), $supervisor, null, ['required_hours' => 2]);
+        $this->makeClosedLog($ready, 2);
+        $this->submitTermReport($ready);
+        // Hours met, report not in yet: still missing a requirement.
+        $this->makeClosedLog($this->makeAssignment($this->makeUser('recipient'), $supervisor, null, ['required_hours' => 2]), 2);
+        // Another term's payable recipient isn't counted here.
+        $other = $this->makeAssignment($this->makeUser('recipient'), $supervisor, null, ['required_hours' => 2, 'semester' => '2nd Semester']);
+        $this->makeClosedLog($other, 2);
+        $this->submitTermReport($other);
+        // Already released this term.
+        StipendHistory::create(self::TERM + ['user_id' => $this->makeUser('recipient')->id, 'amount' => 5000, 'status' => 'released', 'control_number' => 'R-1']);
+
+        $this->assertEquals(['released' => 1, 'released_amount' => 5000, 'via_promissory' => 0, 'voided' => 0,
+            'ready_to_release' => 1, 'missing_requirements' => 1], $this->insights()['stipend']);
     }
 
     public function test_the_overview_splits_applicants_by_college_by_outcome(): void

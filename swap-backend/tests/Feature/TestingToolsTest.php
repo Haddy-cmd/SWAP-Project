@@ -524,17 +524,18 @@ class TestingToolsTest extends TestCase
         $this->assertSame($supervisor->id, $note->reviewed_by);
         $this->act($student, 'approve-promissory')->assertStatus(422)->assertJsonPath('message', TestingService::MSG_NO_PENDING_NOTE);
 
-        // Stipend: the stub is released as the admin, then paid out as the Banking Office.
+        // Stipend: released as the admin — final, signed by all three, no Banking Office step.
         $this->act($student, 'term-report')->assertOk();
-        $this->act($student, 'release-stub')->assertOk();
+        $res = $this->act($student, 'release-stub')->assertOk();
         $stub = StipendHistory::where('user_id', $student->id)->firstOrFail();
-        $this->assertSame(StipendHistory::STATUS_CERTIFIED, $stub->status);
+        $res->assertJsonPath('message', "Stipend released ({$stub->control_number}) with the supervisor's, director's and student's signatures.");
+        $this->assertSame(StipendHistory::STATUS_RELEASED, $stub->status);
         $this->assertTrue((bool) $stub->via_promissory);
-        $this->act($student, 'pay-out')->assertOk()->assertJsonPath('message', "Paid out as the Banking Office: {$stub->control_number} is now received.");
-        $this->assertSame(StipendHistory::STATUS_CLAIMED, $stub->fresh()->status);
-        $this->assertSame(TestingService::TEST_RELEASING_OFFICER, $stub->fresh()->releasing_officer_name);
-        $this->act($student, 'pay-out')->assertStatus(422);
-        $this->assertSame('claimed', collect($this->getJson('/api/admin/testing')->json('data.accounts.0.assignments'))->first()['stipend']);
+        $this->assertNull($stub->claim_token);
+        $this->assertEqualsCanonicalizing(['supervisor', 'director', 'beneficiary'], $stub->signatures()->pluck('signatory_role')->all());
+        // The Banking Office payout action is gone.
+        $this->act($student, 'pay-out')->assertNotFound();
+        $this->assertSame('released', collect($this->getJson('/api/admin/testing')->json('data.accounts.0.assignments'))->first()['stipend']);
 
         // The restore walks it all back.
         $this->release($student)->assertOk();

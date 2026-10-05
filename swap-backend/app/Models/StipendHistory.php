@@ -13,12 +13,17 @@ class StipendHistory extends Model
 
     protected $table = 'stipend_history';
 
-    // Claim lifecycle. 'released' is the legacy one-shot status kept read-only for
-    // rows created before the claim workflow existed (see the 2026_09_21 migration).
+    // Lifecycle (2026-10-05): a release is final → `released`, or `void` with a reason.
+    // Legacy, read-only: `pending`/`certified` (claim stubs awaiting the Banking Office,
+    // migrated to released) and `claimed` (paid at the Banking Office before the change).
+    public const STATUS_RELEASED = 'released';
     public const STATUS_PENDING = 'pending';
     public const STATUS_CERTIFIED = 'certified';
     public const STATUS_CLAIMED = 'claimed';
     public const STATUS_VOID = 'void';
+
+    /** Statuses that count as paid / live for the period (the one-live-per-period index). */
+    public const LIVE_STATUSES = [self::STATUS_PENDING, self::STATUS_CERTIFIED, self::STATUS_CLAIMED, self::STATUS_RELEASED];
 
     protected $fillable = [
         'user_id',

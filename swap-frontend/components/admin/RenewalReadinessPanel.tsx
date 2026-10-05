@@ -64,6 +64,13 @@ export function RenewalReadinessPanel({ readiness }: { readiness: RenewalReadine
         readiness.ready ? 'bg-success-50 text-success-800' : 'bg-danger-50 text-danger-700')}>
         {readiness.ready ? 'Ready to approve.' : `Blocked: ${readiness.blocker}`}
       </p>
+      {/* A "not eligible" mark never clears by waiting: the admin rejects the renewal. */}
+      {report.renewal_eligible === false && (
+        <p className="mt-2 text-[12px] leading-relaxed text-danger-700">
+          Approval stays locked. Reject this renewal below to close their placement and return them to the
+          applicant portal (they keep their past terms and any stipend still owed).
+        </p>
+      )}
     </div>
   )
 }

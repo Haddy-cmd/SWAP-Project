@@ -8,11 +8,12 @@ import { formatDate } from '@/lib/utils/formatDate'
 import { TermBadge } from '@/components/shared/TermBadge'
 import type { TermHistoryItem } from '@/types/assignment.types'
 
+// A release is final; claimed/certified/pending are legacy stubs from before 2026-10-05.
 const STIPEND: Record<string, string> = {
+  released: 'Stipend released',
   claimed: 'Stipend received',
-  released: 'Stipend received',
-  certified: 'Stipend ready to claim',
-  pending: 'Stipend being prepared',
+  certified: 'Stipend released',
+  pending: 'Stipend released',
   void: 'Stipend stub voided',
 }
 
@@ -44,7 +45,7 @@ export function PastTermsCard() {
                 {t.office ?? '—'} · {formatHours(t.verified_hours)} verified of {t.required_hours}h
                 {t.stipend_status ? ` · ${STIPEND[t.stipend_status] ?? t.stipend_status}` : ''}
                 {t.stipend_amount != null ? ` · ₱${t.stipend_amount.toLocaleString('en-PH')}` : ''}
-                {t.stipend_claimed_at ? ` on ${formatDate(t.stipend_claimed_at)}` : ''}
+                {t.stipend_released_at ? ` on ${formatDate(t.stipend_released_at)}` : ''}
               </p>
             </div>
             <TermBadge badge={t.term_badge} deficientHours={t.deficient_hours} />

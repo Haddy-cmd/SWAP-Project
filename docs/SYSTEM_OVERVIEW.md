@@ -6,7 +6,7 @@
 > caught people. Read the "Traps" section before changing anything — several of them are
 > non-obvious and have each cost a debugging session.
 
-> Last verified against the repository: **2026-10-05** (reports & analytics per role; Task Description required at clock-out, report reminders, floating shift timer, office map confirmation; 2026-10-03: end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
+> Last verified against the repository: **2026-10-05** (approval makes the student a recipient before the office assignment; a renewal marked not eligible is rejected by the admin; stipend release is final — no claim QR, Banking Office scan/PIN or releasing officer; reports & analytics per role; Task Description required at clock-out, report reminders, floating shift timer, office map confirmation; 2026-10-03: end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
 
 ---
 
@@ -18,9 +18,9 @@ Marawi's student assistantship programme, run by the **Division / Office of Stud
 
 1. A student **applies** and uploads requirements (COR, grades, letter of intent, 2×2 photo).
 2. DSA staff **review** the application, **schedule an interview**, and **approve or reject**.
-3. An approved applicant (approval itself tells them they passed the interview) is
-   **assigned** to a host office with a **supervisor** and a required number of service hours,
-   and becomes a **recipient**.
+3. An approved applicant (approval itself tells them they passed the interview) becomes a
+   **recipient** right away (since 2026-10-05, so DSA announcements reach them while they wait),
+   then is **assigned** to a host office with a **supervisor** and a required number of service hours.
 4. The recipient **clocks in and out** by scanning their office's QR code, with **GPS geofence
    verification** and an optional **proof-of-presence selfie**.
 5. At clock-out they write the session's **Task Description** (required; it prints on the duty
@@ -29,13 +29,12 @@ Marawi's student assistantship programme, run by the **Division / Office of Stud
 6. The supervisor **verifies** the logged hours.
 7. Verified hours drive **stipend release** and progress reporting (duty slips, weekly/monthly/
    semester reports).
-8. An admin **releases (certifies) a digital claim stub** for an eligible recipient (hours met,
-   signature saved, end-of-term report submitted) — control number + single-use QR token +
-   server-rendered PDF, co-signed by the supervisor (SWAP Mentor) and the director. The stub
-   prints a **Banking Office QR**; the releasing officer scans it and enters the Banking Office
-   PIN, which records the payout under the officer's name the admin set with that PIN and closes
-   the claim. See
-   `docs/STIPEND_CLAIM_DESIGN.md` and §6.
+8. An admin **releases the stipend** for an eligible recipient (hours met, signature saved,
+   end-of-term report submitted). A release is **final** (since 2026-10-05): the stub is created
+   `released` with a control number and a server-rendered PDF signed by the supervisor (SWAP
+   Mentor), the director and the beneficiary (their saved signature). There is no QR, Banking
+   Office scan/PIN or releasing officer any more; a mistake is undone by voiding with a reason. See
+   §6 (`docs/STIPEND_CLAIM_DESIGN.md` is the superseded original design).
 9. A recipient short on hours after semester end may file a **promissory note** (with supporting
    document) until renewal for the next semester closes; a governing supervisor approves or
    rejects, which can restore stipend eligibility. There is no makeup deadline: the lacking hours
@@ -50,9 +49,8 @@ Marawi's student assistantship programme, run by the **Division / Office of Stud
     renewal open at a time.
     Hours are strictly per term; earlier terms are kept as history.
 
-Roles: `applicant`, `recipient`, `supervisor`, `admin`. There is no Banking Office role — the
-releasing officer uses the public, token-gated `/claim/{claimToken}` page (the stub's QR) with a
-shared PIN the admin sets on Admin → Stipend.
+Roles: `applicant`, `recipient`, `supervisor`, `admin`. There is no Banking Office role (the
+public `/claim/{claimToken}` scan page and its PIN were removed on 2026-10-05).
 
 ---
 
@@ -214,14 +212,14 @@ four `2026_09_20_*` and five `2026_09_21_*` / `2026_09_23_*` additions).
 | `NarrativeReport` | The per-session note: `content` = **Task Description** (required at the recipient's own clock-out, printed on the duty slips), `activities_done` and `challenges` optional |
 | `TermReport` | End-of-term narrative report, one per assignment; required before the stipend is released. The supervisor accepts it with `renewal_eligible` (+ `reviewed_at/by`, `review_remarks`); editable until accepted or the stipend is released |
 | `Verification` | Supervisor's accept/reject of logged hours |
-| `StipendHistory` | Claim stub lifecycle (plain `varchar(20)`, **not** a Postgres enum): `pending → certified → claimed`, with `void` terminal (pre-claim only). New rows are created already `certified` (release == certify, Option C). `released` survives only as a legacy read value for pre-2026-09-21 rows. Columns: `control_number` (`SWAP-STP-{studentID}-{YYYY}{SEM}`, e.g. `SWAP-STP-202512345-2627S2`, `-R2`… on re-issue, unique; built with `DutySlipControl::studentRef/termCode` like the duty slip), `claim_token` (64-char, single-use, nulled on receipt/void), `certified_by/at`, `claimed_at`, `receipt_signed_at`, `releasing_officer_name`, `slip_path`, `voided_at`, `void_reason`, plus the promissory record set at release: `via_promissory`, `promissory_note_id`, `required_hours`, `deficient_hours`, `lacking_hours` (`makeup_deadline` only on stubs released before 2026-10-03) |
+| `StipendHistory` | Stub status (plain `varchar(20)`, **not** a Postgres enum): new rows are `released` (final), `void` with a reason undoes one. Legacy, read-only: `claimed` (paid at the Banking Office before 2026-10-05; never voidable) and `certified`/`pending` (ready to claim; migrated to `released` by `2026_10_05_000004`). `StipendHistory::LIVE_STATUSES` = `pending, certified, claimed, released`. Columns: `control_number` (`SWAP-STP-{studentID}-{YYYY}{SEM}`, e.g. `SWAP-STP-202512345-2627S2`, `-R2`… on re-issue, unique; built with `DutySlipControl::studentRef/termCode` like the duty slip), `certified_by/at` and `released_by/at` (both the releasing admin / time), `slip_path`, `voided_at`, `void_reason`; history only, no longer written: `claim_token`, `claimed_at`, `receipt_signed_at`, `releasing_officer_name`; plus the promissory record set at release: `via_promissory`, `promissory_note_id`, `required_hours`, `deficient_hours`, `lacking_hours` (`makeup_deadline` only on stubs released before 2026-10-03) |
 | `StipendSignature` | One row per signatory on a stub: `supervisor` (SWAP Mentor) + `director` at release, `beneficiary` + `releasing_officer` at receipt. `method`: `drawn` (specimen image) vs `authenticated` (typed/action fallback) |
 | `PromissoryNote` | Post-semester shortfall pledge: `assignment_id`, `user_id`, `verified_hours_snapshot`, `deficient_hours` (required − verified at submit), `lacking_hours` (the makeup the supervisor approved), document (`file_path/name/mime/file_size`), `reason`, `status` (`pending → approved \| rejected`), `reviewed_by/at`, `review_remarks`, `makeup_deadline` (old rows only — no longer set; lacking hours carry into the next term on renewal). One pending note per assignment enforced in the service |
 | `StaffInvitation` | Token-based invite flow for supervisor/admin accounts (students self-register) |
-| `Setting` | Key/value app settings, e.g. `applications_open`, the Banking Office PIN + officer name. The old `semester_end_date` and `renewal_*` rows are no longer read (semester periods replaced them) |
+| `Setting` | Key/value app settings, e.g. `applications_open`. The Banking Office PIN + officer name rows (`ubo_release_*`) are no longer read (2026-10-05). The old `semester_end_date` and `renewal_*` rows are no longer read (semester periods replaced them) |
 | `AuditLog` | Polymorphic change trail |
 | `Concern`, `FaqKnowledgeBase` | Chatbot / help desk |
-| `Announcement` | Admin → Announcements history. Sending one creates a `database` notification for every active recipient and emails them in Bcc batches of 50 (`AnnouncementService`); `emailed_count` shows how many the email reached |
+| `Announcement` | Admin → Announcements history. Sending one creates a `database` notification for every active recipient (approved students still waiting for an office included) and emails them in Bcc batches of 50 (`AnnouncementService`); `emailed_count` shows how many the email reached |
 | `WeeklyReport`, `MonthlyReport`, `SemesterReport` | Generated by scheduled jobs |
 
 **Key relationship subtlety:** a supervisor's students are defined by
@@ -281,47 +279,48 @@ All comparisons in **Asia/Manila**.
   recipient's saved signature can't be found in storage. Ask them to draw it again on their
   Profile."). `GET /profile` adds `signature_missing` for the signed-in user, so the Profile page
   asks for a new drawing instead of showing a broken image. Saving a new specimen runs
-  `StipendClaimService::restoreLostInk`: this user's `drawn` rows on certified/claimed stubs whose
+  `StipendClaimService::restoreLostInk`: this user's `drawn` rows on released (or legacy certified/claimed) stubs whose
   copy is gone take the new drawing, the stored PDF is dropped (re-rendered on download), audit
   `stipend_signature_restored`. The UI nudges via `MissingSignatureBanner` → Profile; a weekly
   `remind:missing-signatures` cron sends the mail + in-app ping. `SessionSync` re-reads
   `GET /profile` on load and when the tab is returned to (at most once a minute).
 
-### Stipend claim stub (`StipendClaimService`, Option C — release == certify)
+### Stipend release (`StipendClaimService` — a release is final, since 2026-10-05)
 - Eligibility (`StipendService`): an `active` or `completed` (rolled over by a renewal; `suspended`
   is never paid) assignment with `verified_sum >= required_hours`, **or** a shortfall covered by an
   **approved** promissory note for the same user/year/semester; minus any live
-  (`pending|certified|claimed|released`) row. Payable as soon as the hours are met — the end of the
+  (`StipendHistory::LIVE_STATUSES`) row. Payable as soon as the hours are met — the end of the
   semester is not awaited. `void` frees the period. Default amount
   `₱5,000` (`DEFAULT_STIPEND_AMOUNT`, admin-overridable per release). Each eligible row also
   carries `has_signature` and `narrative_submitted`; release (single and bulk) refuses when either
   is false ("This recipient has not saved a digital signature yet." / "…has not submitted their
   end-of-term narrative report yet.").
-- Release creates the row already `certified` with `control_number SWAP-STP-{studentID}-{YYYY}{SEM}`
-  (`-R2…` suffix when a voided stub is re-issued; `U{userId}` when no student ID) + 64-char `claim_token`; auto co-signs `supervisor`
-  (assignment's supervisor, `drawn` if they saved a specimen else `authenticated`) and `director`
-  (per-release image wins, else the admin's specimen); refuses with 422 when the admin has no
-  `position_title`. Renders the PDF (non-fatal), audit-logs `released`, notifies `StipendAvailable`.
-  Bulk release takes up to 100 items and reports `{released[], skipped[{user_id, reason}]}`.
+- Release (`createReleasedStub`) creates the row `released` (`released_by/at` = `certified_by/at` =
+  the admin, now) with `control_number SWAP-STP-{studentID}-{YYYY}{SEM}` (`-R2…` suffix when a voided
+  stub is re-issued; `U{userId}` when no student ID); no claim token. It signs three rows:
+  `supervisor` (assignment's supervisor, `drawn` if they saved a specimen else `authenticated`),
+  `director` (per-release image wins, else the admin's specimen) and `beneficiary` (the recipient's
+  specimen copied to `stipend-signatures/{id}/beneficiary.{ext}`, remarks "Released by the DSA.").
+  Refuses with 422 when the admin has no `position_title`. Renders the PDF (non-fatal), audit-logs
+  `released`, and after commit fires `StipendReleased` → `StipendReleasedNotification` ("SWAP
+  Stipend Released", mail + bell; a mail failure never fails the release). Bulk release takes up to
+  100 items and reports `{released[], skipped[{user_id, reason}]}`.
 - Step-up: `password` XOR `unlock_token`. The token is opaque (sha256-cached), sliding 900 s,
   from `POST /admin/stipend/unlock` (throttled `6,1`).
-- Receipt is recorded by the **Banking Office**, not the student: the certified stub prints a QR
-  of `{FRONTEND_URL}/claim/{claimToken}`; the officer enters only the Banking Office PIN
-  (`POST /stipend/verify/{claimToken}/release`, public, `throttle:6,1`). The admin sets the one
-  releasing officer's name together with the PIN (`PUT /admin/stipend/banking-office-pin` behind
-  the step-up; settings `ubo_release_officer_name` + hashed `ubo_release_pin_hash`; a blank PIN keeps
-  the current one). `releaseAtBankingOffice` sets `claimed/claimed_at/receipt_signed_at`, stores
-  that admin-set name as `releasing_officer_name` (a snapshot: renaming later never rewrites old
-  stubs), adds `beneficiary` (specimen or typed fallback) + `releasing_officer`
-  rows, re-renders the PDF (no QR once claimed), audit-logs `claimed` (`via: banking_office`), fires
-  `StipendReleased` (= received). **Consumes the token (`claim_token=null`)** — the QR is
-  single-use and 404s afterwards. Wrong PIN → 422; PIN not set → 422. The old student
-  `confirm-receipt` route is gone.
-- Verify (`GET /stipend/verify/{claimToken}`, throttled `30,1`) returns only
-  `control_number/recipient_name/amount/year/semester/period/certified_at/status/releasing_officer_name` + `valid:true`;
-  unknown/claimed/void → `404 {valid:false}`.
-- Void is pre-claim only; claimed → 422 ("post a reversing entry instead"). Token nulled,
-  audit-logged.
+- No Banking Office step: the QR, the public `/stipend/verify/{claimToken}` (+ `/release`) routes,
+  the Banking Office PIN (`/admin/stipend/banking-office-pin`), the releasing officer and the
+  `stipend_available` mail were removed on 2026-10-05. The PDF prints no QR and no "Releasing
+  Officer" column; Part 1 is tagged "DSA COPY", Parts 2 and 3 carry the beneficiary's ink. The old
+  student `confirm-receipt` route is gone too.
+- Void (`POST /admin/stipend/{id}/void`, step-up, reason required): any released stub (legacy
+  `certified`/`pending` too) → `void` with `voided_at`/`void_reason`, audit `voided`, the PDF
+  re-renders printing VOID, and the recipient is eligible again. A legacy `claimed` stub → 422 "This
+  stub was received at the Banking Office and can't be voided."; an already void one → 422 "This
+  stub is already void."
+- Migration `2026_10_05_000004_release_ready_to_claim_stubs` turned every `certified`/`pending`
+  stub into `released` (`released_at = certified_at`, `released_by = certified_by`, token and
+  archived PDF cleared), added a `beneficiary` row (a copy of the recipient's specimen, else typed)
+  and an audit `released` row `{migrated: true}` (actor null). `down()` is a no-op.
 - `claim_token`/`slip_path`/`file_path` are never in list JSON (`has_slip` flag instead); the slip
   download regenerates a missing PDF (ephemeral-disk caveat, §8/§11.1).
 - A release through a promissory note (the eligible row's `via_promissory`) stores the note, the
@@ -391,11 +390,22 @@ All comparisons in **Asia/Manila**.
   eligible for renewal for {term}." — this one applies to short students too). `check()` feeds `renewal_readiness` on
   `ApplicationResource` (admins only), with `term_end_date` and `stipend_status` for the reject
   confirmation. Submitting early is allowed; rejecting is never blocked.
+- **Approving an application** (`ApplicationService::promoteToRecipient`, in the same DB transaction as
+  the decision): role `applicant` → `recipient` before any office, audit `promoted_to_recipient`, and
+  the approval email links to the recipient dashboard. The Assignments queue still lists them (it goes
+  by the approved application); `AssignmentService` still promotes any applicant it places. Until
+  placed, the recipient pages say there is no office assignment yet, renewal is refused ("Renewal is
+  only available to recipients with an existing assignment.") and `GET /recipient/renewals` looks only
+  at renewal applications. Migration `2026_10_05_000005` promoted the students approved earlier whose
+  latest application is approved (audit `promoted_to_recipient`, `migrated: true`, actor null).
+- **A renewal marked "not eligible"** by the supervisor stays locked for approval; the admin rejects it.
+  Both review pages say so under the blocker and start the remarks with "Your supervisor marked you
+  not eligible for renewal for {term}." (editable), so Reject is ready.
 - **Rejecting a renewal** (`ApplicationService::returnToApplicant`, in the same DB transaction as the
   decision; the decision emails go out after commit): the recipient's active placements become
   `completed` (still payable), the role goes back to `applicant`, audit `returned_to_applicant`. The
-  admin confirms first and is warned about a term still running, a stub not claimed, a stipend not
-  released or a missing report. The student may apply again while `applications_open` is on — even
+  admin confirms first and is warned about a term still running, a stipend not released or a
+  missing report (a released stipend is final and unaffected). The student may apply again while `applications_open` is on — even
   for the same semester: the one-application-per-semester rule is the partial unique index
   `applications_one_per_term_unique` (migration `2026_10_05_000003`) and
   `ApplicationRepository::findForUserAndPeriod`, both ignoring rejected renewals. The "already
@@ -425,8 +435,8 @@ All comparisons in **Asia/Manila**.
   the supervisor), renewal (sample COR), reset term. Other people's
   steps run through the real services as the right person: verify pending hours (VerificationService,
   as the placement's supervisor), approve/reject the note (PromissoryService::review, as the supervisor),
-  release claim stub (StipendClaimService::releaseClaimStub, as the admin), pay out
-  (releaseAtBankingOffice, officer "System Testing (Banking Office)"); reset stipend
+  release stipend (StipendClaimService::releaseClaimStub, as the admin — final, signed by the
+  supervisor, director and student; the old "pay out" action was removed 2026-10-05); reset stipend
   (the term's live stub and its signatures removed, so the student is eligible again under Admin →
   Stipend).
 - Restore: picking copies the student's whole record (`App\Support\AccountSnapshot` → `testing_snapshots`):
@@ -457,9 +467,9 @@ All read from data already recorded, per term, leaving out soft-deleted users.
 - **Admin → Analytics → Program insights** (`ProgramInsightsService`, `GET /admin/analytics/insights`):
   term results (verdicts, deficient hours, promissory notes, hours carried over), renewals (counts,
   why waiting ones are blocked — `RenewalReadinessService::check()` per waiting renewal — and the
-  renewal rate against the previous semester period's recipients), stipend (released / claimed /
-  awaiting amounts, via promissory, average days from `certified_at` to `claimed_at`, stubs ready for
-  14+ days), attendance integrity per office (flagged, automatic clock-outs, rejected, logs with no
+  renewal rate against the previous semester period's recipients), stipend (released count and
+  amount, via promissory, voided, and this term's payable recipients split into ready to release —
+  signature and report in — and missing a requirement), attendance integrity per office (flagged, automatic clock-outs, rejected, logs with no
   task description), supervisor workload (pending per assigned supervisor, oldest, average verify
   time per verifier), the new-application funnel by college, and office use. **Reports → Term
   Results** (`ReportService` type `term-results`): one row per placement with verdict, promissory,
@@ -488,14 +498,13 @@ Base path `/api`. Auth via `Authorization: Bearer <sanctum token>`.
 | `auth/*` | public | 6 | register, login, logout, forgot/reset password, resend verification |
 | `invitations/*` | public | 2 | show + accept a staff invitation |
 | `email/verify/{id}/{hash}` | signed | 1 | email verification |
-| `stipend/verify/{claimToken}` (+ `/release`) | public, token-gated; `throttle:30,1` / `6,1` | 2 | Banking Office claim check and payout recording with the PIN (single-use; 404 `{valid:false}` after claim/void) |
 | `documents/*/file`, `users/*/avatar`, `users/*/signature`, `attendance/*/photo` | in-controller auth | 4 | file serving that works in new tabs / `<img src>` (signature: self, admin, governing supervisor) |
 | `qr-codes/*` | **none (public)** | 2 | Legacy dead endpoints — see §13 security note |
 | `chatbot/query` | public, **unthrottled** | 1 | gap — see AUDIT R4 |
 | `applicant/*` | `role:applicant` | 5 | submit application, upload documents |
-| `recipient/*` | `role:recipient` | 20 | attendance (logs default to the current term), hours, past terms (`assignments/history`), session notes, end-of-term report, stipend history + claim-slip download, promissory index/store/file, renewal, duty slip |
+| `recipient/*` | `role:recipient` | 20 | attendance (logs default to the current term), hours, past terms (`assignments/history`, with `stipend_released_at`), session notes, end-of-term report, stipend history + stub download, promissory index/store/file, renewal, duty slip |
 | `supervisor/*` | `role:supervisor` | 23 | students (+ `mark-deficient`), end-of-term report acceptance (`assignments/{id}/term-report/review`), verifications, roster reports, office QR, **settings**, promissory index/review/file |
-| `admin/*` | `role:admin` | 70 | applications, interviews, offices, assignments (`?term=` verdict filter), **semester periods**, users, stipend (index/eligible/**unlock/release/release-bulk/void/banking-office-pin**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics, audit logs |
+| `admin/*` | `role:admin` | 68 | applications, interviews, offices, assignments (`?term=` verdict filter), **semester periods**, users, stipend (index/eligible/**unlock/release/release-bulk/void**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics, audit logs |
 | `profile/*`, `notifications/*`, `concerns`, `chatbot`, `settings` | authenticated | ~15 | shared + signature specimen upload/delete (`POST/DELETE /profile/signature`); `GET/POST /concerns` + `POST /concerns/{id}/messages` back the SWAP Assistant's Ask the DSA tab as a running thread (the old `/help` route just opens it); each concern's messages live in `concern_messages` |
 
 Response shape is consistently `{ "data": …, "message": … }`, with Laravel's standard
@@ -567,8 +576,8 @@ The Brevo HTTP-API transport is registered in `AppServiceProvider::boot()` and s
 enforces an **IP allowlist** for API keys, which blocks Render's rotating egress IPs; either
 allowlist the address or disable the allowlist under Brevo → Security → Authorised IPs.
 Mail chrome is seal-green (`#1F5B3A` buttons/links, `#16452B` header band — see
-`EmailBrandingTest`). Two stipend mails: `StipendAvailable` ("ready to claim", control no. + slip
-link) at certify, and the repurposed `StipendReleased` ("received", Receiving Slip) at receipt.
+`EmailBrandingTest`). One stipend mail: `StipendReleased` ("SWAP Stipend Released", amount,
+period, control no., stub on the Stipend page) at release. `StipendAvailable` was removed 2026-10-05.
 
 ---
 
@@ -665,10 +674,11 @@ every stub carrying a drawn signature fails; the download endpoint converts this
 `503` (logged) and the recipient page surfaces the backend message from the blob — do not
 "fix" the 503 by swallowing it.
 
-### 9.14 Claim tokens are single-use
-`confirmReceipt` nulls `claim_token`; `void` does the same. The public verify link 404s
-(`{valid:false}`) afterwards by design — a "broken" verify link on a claimed stub is the
-replay protection working.
+### 9.14 A release is final — no claim step
+Since 2026-10-05 nothing flips a stub after release: no QR, no Banking Office scan/PIN, no
+`claimed` transition. Old `/claim/{token}` links and `/stipend/verify/*` 404 by design. Don't
+reintroduce `certified` for new stubs; legacy `certified`/`claimed` rows are read-only (count them
+via `StipendHistory::LIVE_STATUSES`).
 
 ---
 
@@ -702,8 +712,12 @@ manual mark, badges), `TermReportReviewTest`, `TermHistoryTest` (log scope, past
 completion), `RbacTest`, `ResourceAccessTest`,
 `SignatureTest` (specimen upload/serve policy, drawn-vs-typed stub, lost file: profile flag,
 release refusal, ink restored on redraw), `StorageCheckTest`, `StipendClaimTest`
-(certify co-sign, step-up/unlock, single-use verify, receipt + notifications, `503` GD path,
-bulk skip-duplicates), `SupervisorReportTest`, `VerificationTest`.
+(final release signed by supervisor/director/beneficiary, no QR or releasing officer on the PDF,
+Banking Office routes gone, step-up/unlock, void with a reason (legacy received stubs refused),
+`503` GD path, bulk skip-duplicates), `ReleaseReadyToClaimStubsMigrationTest`,
+`ApprovalMakesRecipientTest` (approval → recipient, announcements before placement, recipient pages
+without an office, placement, the promotion migration),
+`SupervisorReportTest`, `VerificationTest`.
 
 **Time-sensitive tests must build times in Manila and send ISO-8601 with an offset**, and zero the
 microseconds (`setTime($h, 0, 0, 0)`) or comparisons against DB-truncated timestamps fail.

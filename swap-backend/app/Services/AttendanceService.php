@@ -318,7 +318,10 @@ class AttendanceService
                     'stipend_status' => $stipend?->status,
                     'stipend_via_promissory' => (bool) $stipend?->via_promissory,
                     'stipend_amount' => $stipend && $stipend->status !== 'void' ? (float) $stipend->amount : null,
-                    'stipend_claimed_at' => $stipend?->claimed_at?->toISOString(),
+                    // When the money went out: the release (final), or the Banking Office payout on legacy stubs.
+                    'stipend_released_at' => $stipend && $stipend->status !== 'void'
+                        ? ($stipend->claimed_at ?? $stipend->released_at ?? $stipend->certified_at)?->toISOString()
+                        : null,
                 ];
             })
             ->all();

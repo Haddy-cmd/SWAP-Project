@@ -322,7 +322,7 @@ class PromissoryNoteTest extends TestCase
                 'academic_year' => '2024-2025',
                 'semester' => '1st Semester',
             ]],
-        ])->assertStatus(200)->assertJsonPath('data.released.0.status', 'certified');
+        ])->assertStatus(200)->assertJsonPath('data.released.0.status', 'released');
 
         $stub = StipendHistory::firstWhere('user_id', $recipient->id);
         $this->assertStringContainsString("via approved promissory #{$id}", $stub->remarks);
@@ -411,7 +411,7 @@ class PromissoryNoteTest extends TestCase
         $this->postJson('/api/admin/stipend/release-bulk', [
             'unlock_token' => $token,
             'items' => [['user_id' => $recipient->id, 'academic_year' => '2024-2025', 'semester' => '1st Semester']],
-        ])->assertStatus(200)->assertJsonPath('data.released.0.status', 'certified');
+        ])->assertStatus(200)->assertJsonPath('data.released.0.status', 'released');
 
         return StipendHistory::where('user_id', $recipient->id)->latest('id')->firstOrFail();
     }

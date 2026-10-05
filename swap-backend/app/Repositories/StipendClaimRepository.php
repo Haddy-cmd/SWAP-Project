@@ -13,13 +13,6 @@ class StipendClaimRepository implements StipendClaimRepositoryInterface
         return StipendHistory::with(['recipient.profile', 'certifiedBy', 'releasedBy', 'signatures'])->find($id);
     }
 
-    public function findByClaimToken(string $token): ?StipendHistory
-    {
-        return StipendHistory::with(['recipient.profile', 'signatures'])
-            ->where('claim_token', $token)
-            ->first();
-    }
-
     public function update(StipendHistory $stipend, array $data): StipendHistory
     {
         $stipend->update($data);

@@ -6,7 +6,8 @@
     $amount = number_format((float) $stipend->amount, 2);
     $period = trim(($stipend->period_label ? $stipend->period_label . ' of the ' : '') . $stipend->semester . ' ' . $stipend->academic_year);
     $control = $stipend->control_number ?? '—';
-    $date = optional($stipend->certified_at)->timezone('Asia/Manila')->format('F j, Y') ?? '';
+    // The release date (legacy stubs: when they were certified).
+    $date = optional($stipend->released_at ?? $stipend->certified_at)->timezone('Asia/Manila')->format('F j, Y') ?? '';
 
     // Released through an approved promissory note: the stub states the shortfall
     // the note covers instead of certifying completed hours.
@@ -87,9 +88,9 @@
     <p class="void">VOID — {{ $stipend->void_reason }}</p>
 @endif
 
-{{-- ── PART 1 · ACKNOWLEDGMENT RECEIPT (→ Banking Office) ── --}}
+{{-- ── PART 1 · ACKNOWLEDGMENT RECEIPT (→ DSA) ── --}}
 <div class="part">
-    <span class="copytag">DSA / BANKING COPY</span>
+    <span class="copytag">DSA COPY</span>
     <div class="hdr">
         Republic of the Philippines<br>
         <span class="u">Mindanao State University</span><br>
@@ -123,13 +124,6 @@
                     @endif
                 </div>
             </td>
-            @if (!empty($claimQr))
-                {{-- The releasing officer scans this to verify the stub and record the payout. --}}
-                <td style="width: 96px; text-align: center; vertical-align: top; padding-left: 10px;">
-                    <img src="{{ $claimQr }}" style="width: 84px; height: 84px;" alt="">
-                    <div style="font-size: 7px; line-height: 1.25; color: #333;">Banking Office:<br>scan to verify and release</div>
-                </td>
-            @endif
         </tr>
     </table>
 
@@ -160,7 +154,7 @@
     <table class="sigrow">
         <tr>
             <td><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>
-            <td><div class="sigbox"><span class="role">Releasing Officer / Cashier</span><br>{!! $line($sig('releasing_officer')) !!}</div></td>
+            <td></td>
         </tr>
     </table>
 </div>
@@ -184,7 +178,7 @@
     <table class="sigrow">
         <tr>
             <td><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>
-            <td><div class="sigbox"><span class="role">Releasing Officer / Cashier</span><br>{!! $line($sig('releasing_officer')) !!}</div></td>
+            <td></td>
         </tr>
     </table>
 </div>

@@ -107,13 +107,17 @@ class SignatureTest extends TestCase
         $this->assertDatabaseHas('stipend_signatures', [
             'stipend_history_id' => $stipend->id, 'signatory_role' => 'supervisor', 'method' => 'drawn',
         ]);
+        $this->assertDatabaseHas('stipend_signatures', [
+            'stipend_history_id' => $stipend->id, 'signatory_role' => 'beneficiary', 'method' => 'drawn',
+        ]);
 
-        // The rendered stub embeds both specimens as ink, not typed lines.
+        // The rendered stub embeds every specimen as ink, not typed lines: mentor and
+        // director on the certificate, the student on the Return and Receiving Slips.
         $html = view('stipend.slip', ['stipend' => $stipend->load(['recipient.profile', 'signatures', 'certifiedBy'])])->render();
-        $this->assertEquals(2, substr_count($html, 'data:image/png;base64,'));
+        $this->assertEquals(4, substr_count($html, 'data:image/png;base64,'));
     }
 
-    public function test_release_without_specimens_stays_typed(): void
+    public function test_release_without_staff_specimens_types_their_lines(): void
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
@@ -131,8 +135,9 @@ class SignatureTest extends TestCase
             'stipend_history_id' => $stipend->id, 'signatory_role' => 'supervisor', 'method' => 'authenticated',
         ]);
 
+        // Only the student's ink (release requires their specimen), on the two slips.
         $html = view('stipend.slip', ['stipend' => $stipend->load(['recipient.profile', 'signatures', 'certifiedBy'])])->render();
-        $this->assertStringNotContainsString('data:image', $html);
+        $this->assertEquals(2, substr_count($html, 'data:image'));
     }
 
     public function test_signature_serve_policy(): void
@@ -246,10 +251,8 @@ class SignatureTest extends TestCase
 
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
             ->assertStatus(201);
+        // The recipient fixture carries a specimen → drawn beneficiary at release.
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-
-        // The recipient fixture carries a specimen → drawn beneficiary on receipt.
-        $this->bankingOfficeRelease($stipend)->assertStatus(200);
 
         $html = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
 
@@ -261,11 +264,11 @@ class SignatureTest extends TestCase
         $this->assertStringNotContainsString('SWAP Mentor / Chairperson', $html);
         $this->assertStringNotContainsString('Noted by', $html);
         $this->assertStringNotContainsString('<span class="role">SWAP Beneficiary</span>', $html);
-        // …while the external officer keeps label + line.
-        $this->assertStringContainsString('Releasing Officer / Cashier', $html);
+        // …and no releasing officer column: the release is final.
+        $this->assertStringNotContainsString('Releasing Officer', $html);
     }
 
-    public function test_unclaimed_stub_preprints_the_beneficiary_to_be_signed(): void
+    public function test_released_stub_prints_the_beneficiary_already_signed(): void
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
@@ -278,36 +281,11 @@ class SignatureTest extends TestCase
 
         $html = view('stipend.slip', ['stipend' => $stipend->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
 
-        // Beneficiary blocks read "to be signed by": name + title, no gray placeholder…
+        // Every block is signed: name + title + "signed …", no gray placeholder anywhere.
         $this->assertStringContainsString($recipient->name, $html);
         $this->assertStringContainsString('SWAP BENEFICIARY', $html);
-        $this->assertStringNotContainsString('(not yet signed)', explode('Releasing Officer / Cashier', $html)[0]);
-        // …while the external officer blocks keep the placeholder.
-        $this->assertStringContainsString('(not yet signed)', $html);
-    }
-
-    public function test_release_without_specimen_falls_back_to_typed_receipt(): void
-    {
-        $supervisor = $this->makeUser('supervisor');
-        $recipient = $this->makeUser('recipient');
-        $this->payableAssignment($recipient, $supervisor);
-        Sanctum::actingAs($this->makeUser('admin'));
-
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
-            ->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-
-        // Removed after release (release itself requires a specimen).
-        $recipient->update(['signature_image_path' => null]);
-        $this->bankingOfficeRelease($stipend)->assertStatus(200)->assertJsonPath('data.status', 'claimed');
-
-        // Typed fallback: recorded, but no ink on the re-rendered stub.
-        $this->assertDatabaseHas('stipend_signatures', [
-            'stipend_history_id' => $stipend->id, 'signatory_role' => 'beneficiary', 'method' => 'authenticated',
-        ]);
-        $html = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
-        $this->assertStringContainsString($recipient->name, $html);
-        $this->assertStringContainsString('SWAP BENEFICIARY', $html);
+        $this->assertStringNotContainsString('(not yet signed)', $html);
+        $this->assertSame(4, substr_count($html, 'signed '.now('Asia/Manila')->format('M j, Y')), 'mentor, director, beneficiary ×2');
     }
 
     public function test_reminder_command_nudges_only_specimen_less_recipients_once(): void
@@ -379,7 +357,7 @@ class SignatureTest extends TestCase
         Sanctum::actingAs($this->makeUser('admin'));
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-        $this->bankingOfficeRelease($stipend)->assertStatus(200);
+        $this->assertSame('released', $stipend->status);
 
         $ink = StipendSignature::where('stipend_history_id', $stipend->id)->where('signatory_role', 'beneficiary')->first();
         $this->assertSame('drawn', $ink->method);

@@ -5,9 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Stipend\ReleaseBulkStipendRequest;
 use App\Http\Requests\Stipend\ReleaseStipendRequest;
-use App\Http\Requests\Stipend\SetBankingOfficePinRequest;
-use App\Models\AuditLog;
-use App\Support\BankingOfficePin;
 use App\Http\Requests\Stipend\UnlockStipendRequest;
 use App\Http\Requests\Stipend\VoidStipendRequest;
 use App\Models\StipendHistory;
@@ -74,7 +71,7 @@ class StipendController extends Controller
 
         return response()->json([
             'data' => new StipendResource($stipend),
-            'message' => 'Claim stub released. The recipient has been notified that it is ready to claim.',
+            'message' => 'Stipend released. The recipient has been notified.',
         ], 201);
     }
 
@@ -86,7 +83,7 @@ class StipendController extends Controller
 
         return response()->json([
             'data' => new StipendResource($stipend),
-            'message' => 'Stipend voided.',
+            'message' => 'Stipend voided. The recipient can be released a new stub.',
         ]);
     }
 
@@ -102,45 +99,6 @@ class StipendController extends Controller
             'data' => ['unlock_token' => $token, 'expires_in' => StipendUnlock::TTL_SECONDS],
             'message' => 'Stipend Management unlocked.',
         ]);
-    }
-
-    /** The releasing officer's name and whether their PIN is set (never the PIN itself). */
-    public function bankingOfficePin(): JsonResponse
-    {
-        return response()->json(['data' => $this->bankingOfficeStatus()]);
-    }
-
-    /**
-     * Set the releasing officer's name and PIN. The name is what prints on every
-     * stub the Banking Office releases; a blank PIN keeps the current one.
-     */
-    public function setBankingOfficePin(SetBankingOfficePinRequest $request): JsonResponse
-    {
-        $data = $request->validated();
-        $oldName = BankingOfficePin::officerName();
-        $pinChanged = !empty($data['pin']);
-
-        BankingOfficePin::set($data['pin'] ?? null, $data['officer_name']);
-        AuditLog::record('banking_office_pin_changed', $request->user(),
-            ['officer_name' => $oldName],
-            ['officer_name' => BankingOfficePin::officerName(), 'pin_changed' => $pinChanged]);
-
-        return response()->json([
-            'data' => $this->bankingOfficeStatus(),
-            'message' => $pinChanged
-                ? 'Releasing officer and PIN saved. Give the PIN only to ' . BankingOfficePin::officerName() . '.'
-                : 'Releasing officer updated. The PIN is unchanged.',
-        ]);
-    }
-
-    private function bankingOfficeStatus(): array
-    {
-        return [
-            'is_set' => BankingOfficePin::isSet(),
-            'has_pin' => BankingOfficePin::hasPin(),
-            'officer_name' => BankingOfficePin::officerName(),
-            'updated_at' => BankingOfficePin::updatedAt(),
-        ];
     }
 
     /**

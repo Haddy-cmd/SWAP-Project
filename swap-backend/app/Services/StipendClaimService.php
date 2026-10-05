@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Events\StipendReleased;
-use App\Jobs\SendApplicationNotificationJob;
 use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\StipendHistory;
@@ -17,15 +16,16 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
- * Drives the digital claim stub lifecycle. Releasing the stub and certifying it are
- * one admin action (Option C): the record is created already `certified`, so the
- * student is immediately notified and can download/print the stub. From there:
- * certified → claimed (receipt confirmed) | void (before claim).
- * See docs/STIPEND_CLAIM_DESIGN.md.
+ * The stipend release. Releasing is final and a single admin action: once the recipient
+ * is eligible (hours met or an approved promissory note, a saved signature, the
+ * end-of-term report) the stub is created `released`, signed by the supervisor, the
+ * director and the beneficiary, archived as a PDF, and the student is notified. There is
+ * no claim QR, Banking Office scan or releasing officer any more (2026-10-05). A released
+ * stub can still be voided with a reason, which frees the recipient for a new release.
+ * Legacy rows: `certified` (migrated to released), `claimed` (paid at the Banking Office).
  */
 class StipendClaimService
 {
@@ -43,9 +43,9 @@ class StipendClaimService
     public const MSG_NO_TERM_REPORT = 'This recipient has not submitted their end-of-term narrative report yet.';
 
     /**
-     * Release a claim stub for an eligible recipient in one step: create the record,
-     * certify it (control number + single-use token + PDF), co-sign it (supervisor +
-     * admin), and notify the student it is ready to claim.
+     * Release the stipend to an eligible recipient in one step: create the record as
+     * released, with its control number, the three signatures and the PDF, and notify
+     * the student.
      */
     public function releaseClaimStub(array $data, User $admin): StipendHistory
     {
@@ -118,7 +118,7 @@ class StipendClaimService
         $amount = $data['amount'] ?? StipendService::DEFAULT_STIPEND_AMOUNT;
 
         try {
-            $stipend = $this->createCertifiedStub($data, $amount, $admin, $row);
+            $stipend = $this->createReleasedStub($data, $amount, $admin, $row);
         } catch (UniqueConstraintViolationException) {
             // The partial unique index is the last line against a concurrent release.
             throw new UnprocessableEntityHttpException(self::MSG_ALREADY_LIVE);
@@ -126,34 +126,32 @@ class StipendClaimService
 
         // After commit, off the request's critical path: a mail outage must not undo a
         // committed release (QUEUE_CONNECTION=sync makes dispatch run inline).
-        $this->dispatchQuietly('stipend_available', [
-            'user_id' => $stipend->user_id,
+        AfterCommit::quietly(fn () => event(new StipendReleased($stipend)), 'Stipend released notification', [
             'stipend_id' => $stipend->id,
-            'amount' => $stipend->amount,
-            'period_label' => $stipend->period_label,
-            'control_number' => $stipend->control_number,
         ]);
 
         return $stipend->load(['recipient.profile', 'certifiedBy', 'signatures']);
     }
 
-    private function createCertifiedStub(array $data, $amount, User $admin, array $row): StipendHistory
+    private function createReleasedStub(array $data, $amount, User $admin, array $row): StipendHistory
     {
         return DB::transaction(function () use ($data, $amount, $admin, $row) {
             $viaPromissory = (bool) ($row['via_promissory'] ?? false);
 
-            // Releasing the stub IS the certification — no pending limbo (Option C).
-            // A release through a promissory note keeps the term's shortfall on the
-            // paid record itself (and the stub prints it).
+            // Releasing is final: certified and released in the same moment. A release
+            // through a promissory note keeps the term's shortfall on the paid record
+            // itself (and the stub prints it).
             $stipend = StipendHistory::create([
                 'user_id' => $data['user_id'],
                 'amount' => $amount,
                 'academic_year' => $data['academic_year'],
                 'semester' => $data['semester'],
                 'period_label' => $data['period_label'] ?? null,
-                'status' => StipendHistory::STATUS_CERTIFIED,
+                'status' => StipendHistory::STATUS_RELEASED,
                 'certified_by' => $admin->id,
                 'certified_at' => now(),
+                'released_by' => $admin->id,
+                'released_at' => now(),
                 'remarks' => $data['remarks'] ?? null,
                 'required_hours' => $row['required_hours'] ?? null,
                 'via_promissory' => $viaPromissory,
@@ -162,10 +160,7 @@ class StipendClaimService
                 'lacking_hours' => $viaPromissory ? ($row['lacking_hours'] ?? null) : null,
             ]);
 
-            $stipend->update([
-                'control_number' => $this->makeControlNumber($stipend),
-                'claim_token' => Str::random(64),
-            ]);
+            $stipend->update(['control_number' => $this->makeControlNumber($stipend)]);
 
             // Supervisor (SWAP Mentor) co-signature — attested by the hours they verified.
             // Carries their drawn specimen when they saved one on their profile.
@@ -198,6 +193,20 @@ class StipendClaimService
                 'signature_image_path' => $directorImage,
                 'signed_at' => now(),
                 'remarks' => $data['remarks'] ?? null,
+            ]);
+
+            // The beneficiary signs with their saved specimen, copied into the stub
+            // (a saved signature whose file exists is a release requirement).
+            $recipient = User::withTrashed()->findOrFail($data['user_id']);
+            $beneficiaryImage = $this->snapshotSpecimen($recipient->signature_image_path, $stipend->id, StipendSignature::ROLE_BENEFICIARY);
+            $this->repository->addSignature($stipend, [
+                'signatory_role' => StipendSignature::ROLE_BENEFICIARY,
+                'user_id' => $recipient->id,
+                'printed_name' => $recipient->name,
+                'method' => $beneficiaryImage ? StipendSignature::METHOD_DRAWN : StipendSignature::METHOD_AUTHENTICATED,
+                'signature_image_path' => $beneficiaryImage,
+                'signed_at' => now(),
+                'remarks' => 'Released by the DSA.',
             ]);
 
             $stipend->refresh();
@@ -273,86 +282,25 @@ class StipendClaimService
         return StipendHistory::where('user_id', $userId)
             ->where('academic_year', $academicYear)
             ->where('semester', $semester)
-            ->whereIn('status', ['pending', 'certified', 'claimed', 'released'])
+            ->whereIn('status', StipendHistory::LIVE_STATUSES)
             ->exists();
     }
 
-    public const MSG_NOT_CLAIMABLE = 'This stipend is not available to claim.';
+    public const MSG_NOT_VOIDABLE = 'This stub was received at the Banking Office and can\'t be voided.';
+    public const MSG_ALREADY_VOID = 'This stub is already void.';
 
     /**
-     * The Banking Office releases the money: the releasing officer scans the stub's
-     * QR, confirms with their name (and the Banking Office PIN, checked by the
-     * caller), and the stub becomes claimed. Records the beneficiary signature (their
-     * saved specimen, copied into the stub) and the releasing officer by name, and
-     * consumes the single-use token so the stub can't be paid twice.
+     * Void a released stub (e.g. the wrong recipient or amount): with a reason, audit-logged,
+     * and the recipient becomes eligible for a new release. A legacy stub paid at the
+     * Banking Office (`claimed`) is never mutated.
      */
-    public function releaseAtBankingOffice(StipendHistory $stipend, string $releasingOfficer): StipendHistory
-    {
-        if (!$stipend->isCertified()) {
-            throw new UnprocessableEntityHttpException(self::MSG_NOT_CLAIMABLE);
-        }
-
-        $recipient = $stipend->recipient()->withTrashed()->firstOrFail();
-        $before = $stipend->only(['status', 'claimed_at']);
-
-        $updated = DB::transaction(function () use ($stipend, $releasingOfficer, $recipient, $before) {
-            $fresh = $this->repository->update($stipend, [
-                'status' => StipendHistory::STATUS_CLAIMED,
-                'claimed_at' => now(),
-                'receipt_signed_at' => now(),
-                'released_at' => $stipend->released_at ?? now(),
-                'releasing_officer_name' => $releasingOfficer,
-                // Single-use: consume the token so the QR can't be replayed.
-                'claim_token' => null,
-            ]);
-
-            // The beneficiary signs with their saved specimen (required before the
-            // stub is released); the typed fallback keeps older stubs working.
-            $beneficiaryImage = $this->snapshotSpecimen($recipient->signature_image_path, $fresh->id, StipendSignature::ROLE_BENEFICIARY);
-            $this->repository->addSignature($fresh, [
-                'signatory_role' => StipendSignature::ROLE_BENEFICIARY,
-                'user_id' => $recipient->id,
-                'printed_name' => $recipient->name,
-                'method' => $beneficiaryImage ? StipendSignature::METHOD_DRAWN : StipendSignature::METHOD_AUTHENTICATED,
-                'signature_image_path' => $beneficiaryImage,
-                'signed_at' => now(),
-            ]);
-
-            // The releasing officer is external (no portal account) — recorded by name.
-            $this->repository->addSignature($fresh, [
-                'signatory_role' => StipendSignature::ROLE_RELEASING_OFFICER,
-                'user_id' => null,
-                'printed_name' => $releasingOfficer,
-                'method' => StipendSignature::METHOD_AUTHENTICATED,
-                'signed_at' => now(),
-            ]);
-
-            $this->renderSlip($fresh);
-
-            // No portal user acted: the audit row records who and where instead.
-            AuditLog::record('claimed', $fresh, $before, $fresh->only(['status', 'claimed_at']) + [
-                'via' => 'banking_office',
-                'releasing_officer_name' => $releasingOfficer,
-            ], null);
-
-            return $fresh;
-        });
-
-        // Reuses the existing StipendReleased → "received" notification wiring. The
-        // claim is committed: a mail failure here must not turn it into a 500 that
-        // the student retries into "not available to claim".
-        AfterCommit::quietly(fn () => event(new StipendReleased($updated)), 'Stipend received notification', [
-            'stipend_id' => $updated->id,
-        ]);
-
-        return $updated;
-    }
-
-    /** Void a stipend before it is claimed; a claimed record is never mutated. */
     public function void(StipendHistory $stipend, string $reason, User $admin): StipendHistory
     {
         if ($stipend->isClaimed()) {
-            throw new UnprocessableEntityHttpException('A claimed stipend cannot be voided. Post a reversing entry instead.');
+            throw new UnprocessableEntityHttpException(self::MSG_NOT_VOIDABLE);
+        }
+        if ($stipend->status === StipendHistory::STATUS_VOID) {
+            throw new UnprocessableEntityHttpException(self::MSG_ALREADY_VOID);
         }
 
         $before = $stipend->only(['status']);
@@ -362,11 +310,11 @@ class StipendClaimService
                 'status' => StipendHistory::STATUS_VOID,
                 'voided_at' => now(),
                 'void_reason' => $reason,
-                // Invalidate the outstanding claim token.
-                'claim_token' => null,
             ]);
 
             AuditLog::record('voided', $fresh, $before, ['status' => $fresh->status, 'void_reason' => $reason], $admin->id);
+            // The archived PDF now prints VOID.
+            $this->renderSlip($fresh);
 
             return $fresh;
         });
@@ -423,7 +371,7 @@ class StipendClaimService
                 ->where('user_id', $user->id)
                 ->where('method', StipendSignature::METHOD_DRAWN)
                 ->whereNotNull('signature_image_path')
-                ->whereHas('stipend', fn ($q) => $q->whereIn('status', [StipendHistory::STATUS_CERTIFIED, StipendHistory::STATUS_CLAIMED, 'released']))
+                ->whereHas('stipend', fn ($q) => $q->whereIn('status', [StipendHistory::STATUS_RELEASED, StipendHistory::STATUS_CERTIFIED, StipendHistory::STATUS_CLAIMED]))
                 ->get();
 
             foreach ($rows as $row) {
@@ -471,14 +419,6 @@ class StipendClaimService
         }
     }
 
-    private function dispatchQuietly(string $type, array $data): void
-    {
-        AfterCommit::quietly(
-            fn () => SendApplicationNotificationJob::dispatch($type, $data)->onQueue('notifications'),
-            'Stipend notification dispatch',
-            ['type' => $type]
-        );
-    }
 
     /**
      * Freeze a signer's specimen into the stub at signing time. Signature rows used

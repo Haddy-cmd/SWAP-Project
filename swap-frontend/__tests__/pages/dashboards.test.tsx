@@ -15,7 +15,7 @@ vi.mock('@/lib/api/analytics.api', () => ({
   analyticsApi: {
     getAdminOverview: vi.fn().mockResolvedValue({
       total_applications: 5, active_recipients: 3, pending_applications: 2, total_offices: 4,
-      office_distribution: [], monthly_stats: [], stipend_summary: { total_released: 0, total_pending: 0 },
+      office_distribution: [], monthly_stats: [], stipend_summary: { total_released: 0, ready_to_release: 0 },
     }),
   },
 }))

@@ -312,8 +312,8 @@ class ApplicationService
             $this->renewalReadiness->assertReady($application);
         }
 
-        // The status, the renewal rollover or the return to the applicant portal, and
-        // the audit entries land together or not at all.
+        // The status, the promotion to recipient / renewal rollover / return to the
+        // applicant portal, and the audit entries land together or not at all.
         return DB::transaction(function () use ($application, $decision, $remarks, $admin) {
             $old = $application->only(['status', 'remarks']);
 
@@ -332,6 +332,8 @@ class ApplicationService
                 // announcement, so the renewal email can name the new placement.
                 if ($updated->type === 'renewal') {
                     $this->rolloverRenewal($updated, $admin);
+                } else {
+                    $this->promoteToRecipient($updated, $admin);
                 }
 
                 DB::afterCommit(fn () => AfterCommit::quietly(fn () => event(new ApplicationApproved($updated)), 'Application approved notification', ['application_id' => $updated->id]));
@@ -345,6 +347,26 @@ class ApplicationService
 
             return $updated;
         });
+    }
+
+    /**
+     * An approved application makes the student a recipient right away (since 2026-10-05),
+     * before any office assignment, so DSA announcements reach them while they wait to be
+     * placed. The Assignments queue still lists them (it goes by the approved application).
+     */
+    private function promoteToRecipient(Application $application, User $admin): void
+    {
+        $user = User::find($application->user_id);
+        if (!$user || !$user->isApplicant()) {
+            return;
+        }
+
+        $user->update(['role' => 'recipient']);
+
+        AuditLog::record('promoted_to_recipient', $user, ['role' => 'applicant'], [
+            'role' => 'recipient',
+            'application_id' => $application->id,
+        ], $admin->id);
     }
 
     /**

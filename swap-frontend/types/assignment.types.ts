@@ -59,9 +59,9 @@ export interface TermHistoryItem {
   deficient_hours: number | null
   stipend_status: string | null
   stipend_via_promissory: boolean
-  /** The term's stub amount (not void), and when it was claimed. */
+  /** The term's stub amount (not void), and when it was released (received, on legacy stubs). */
   stipend_amount: number | null
-  stipend_claimed_at: string | null
+  stipend_released_at: string | null
 }
 
 /** The supervisor student page's term block (StudentController::termPayload). */

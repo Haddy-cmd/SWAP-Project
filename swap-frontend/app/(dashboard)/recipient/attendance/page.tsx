@@ -254,6 +254,13 @@ export default function AttendancePage() {
         </p>
       </div>
 
+      {/* Approved but not placed yet (approval makes a student a recipient): nothing to clock into. */}
+      {myAssignment === null && (
+        <div className="rounded-2xl border border-gold-200 bg-gold-50 px-4 py-3 text-[13px] text-gold-700">
+          You don&apos;t have an office assignment yet. You can clock in once the DSA places you; you&apos;ll get a notification.
+        </div>
+      )}
+
       {/* main grid */}
       <div className="grid items-start gap-4 lg:grid-cols-[1.25fr_0.9fr]">
         {/* ── CLOCK CARD ─────────────────────────────────────────────── */}

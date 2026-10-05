@@ -86,20 +86,20 @@ class RecipientProgressTest extends TestCase
             'stipend' => ['waiting', 'Stipend released by the DSA once the items above are done'],
         ], $states());
 
-        // Note approved, report accepted but marked not eligible, signature file lost, stub ready.
+        // Note approved, report accepted but marked not eligible, signature file lost, stipend released.
         PromissoryNote::create(['assignment_id' => $a->id, 'user_id' => $recipient->id, 'academic_year' => $a->academic_year,
             'semester' => $a->semester, 'verified_hours_snapshot' => 4, 'lacking_hours' => 6, 'deficient_hours' => 6,
             'status' => 'approved', 'file_path' => 'p.pdf', 'file_name' => 'p.pdf', 'mime_type' => 'application/pdf', 'file_size' => 1]);
         $this->submitTermReport($a)->forceFill(['reviewed_at' => now(), 'renewal_eligible' => false])->save();
         Storage::disk('public')->delete($recipient->signature_image_path);
         StipendHistory::create(['user_id' => $recipient->id, 'amount' => 5000, 'academic_year' => $a->academic_year,
-            'semester' => $a->semester, 'status' => 'certified', 'control_number' => 'C-1']);
+            'semester' => $a->semester, 'status' => 'released', 'control_number' => 'C-1']);
 
         $this->assertSame([
             'hours' => ['done', 'Short 6 hours — promissory note approved'],
             'signature' => ['todo', 'Your signature image was lost — draw it again'],
             'report' => ['blocked', 'End-of-term report accepted — marked not eligible for renewal'],
-            'stipend' => ['todo', 'Claim stub ready — bring it to the Banking Office'],
+            'stipend' => ['done', 'Stipend released'],
         ], $states());
     }
 

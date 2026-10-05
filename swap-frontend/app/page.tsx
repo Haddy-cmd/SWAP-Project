@@ -50,13 +50,13 @@ const STEPS = [
   { title: 'Apply online', body: 'Fill out the form and upload your documents through this portal.' },
   { title: 'Screening & interview', body: 'The SWAP office reviews your file and schedules a short interview.' },
   { title: 'Serve in your office', body: 'Report to your assigned office. Clock in with QR; hours are geofenced.' },
-  { title: 'Claim your stipend', body: 'Once your supervisor verifies your hours, claim at the Banking Office.' },
+  { title: 'Receive your stipend', body: 'Once your hours are verified and your end-of-term report is in, the DSA releases your stipend.' },
 ]
 
 const FAQS = [
   { q: 'Who is eligible for SWAP?', a: '3rd, 4th and 5th year MSU Marawi students who are qualified and financially in need, carrying at least 15 units. Graduating students on their last load may carry fewer.' },
   { q: 'How many hours must I render per semester?', a: '200 hours, spread across the semester in your assigned office. Your supervisor verifies each logged session.' },
-  { q: 'How is the allowance released?', a: 'Beneficiaries receive a monthly allowance once their rendered hours are verified. A claim stub is issued and collected at the Banking Office. Beneficiaries are assigned to an office or college and also receive free dormitory accommodation.' },
+  { q: 'How is the allowance released?', a: 'Beneficiaries receive a monthly allowance once their rendered hours are verified. The DSA then releases the stipend, and the signed stub is available in the portal. Beneficiaries are assigned to an office or college and also receive free dormitory accommodation.' },
   { q: 'Can I apply every semester?', a: 'Yes. Applications re-open every semester.' },
 ]
 
@@ -215,7 +215,7 @@ export default async function LandingPage() {
               service alongside staff. Hours are logged by QR and geofence, then verified by the office supervisor.
             </p>
             <p className="text-pretty">
-              Once verified, the stipend is released as a claim stub and collected at the Banking Office.
+              Once verified, the DSA releases the stipend, with a signed stub in the beneficiary&apos;s portal.
               Beneficiaries also receive free dormitory accommodation. The program
               reflects the University&apos;s commitment to accessible education and the whole development of its students.
             </p>

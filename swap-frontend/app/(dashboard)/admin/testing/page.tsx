@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FlaskConical, UserRound, Clock, CalendarX, Gavel, FileText, ClipboardCheck, RefreshCw, RotateCcw, Search, UserPlus,
   UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser, Banknote, BadgeCheck, ThumbsUp, ThumbsDown,
-  Ticket, Wallet, History, HardDrive, CheckCircle2, AlertTriangle,
+  Ticket, History, HardDrive, CheckCircle2, AlertTriangle,
 } from 'lucide-react'
 import { testingApi } from '@/lib/api/testing.api'
 import { errorText } from '@/lib/utils/apiError'
@@ -562,11 +562,8 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
           <button onClick={() => run('reset-term')} disabled={busy} className={BTN} title="Back to in progress: clears the verdict and the term-end shortcut.">
             <RotateCcw className="h-3.5 w-3.5" /> Reset term</button>
           <button onClick={() => run('release-stub')} disabled={busy} className={BTN}
-            title="As the admin (Admin → Stipend): release this term's claim stub, with the real checks (hours or approved note, signature, end-of-term report).">
-            <Ticket className="h-3.5 w-3.5" /> Release claim stub</button>
-          <button onClick={() => run('pay-out')} disabled={busy} className={BTN}
-            title="As the Banking Office: scan the ready-to-claim stub and pay it out (no PIN needed here).">
-            <Wallet className="h-3.5 w-3.5" /> Pay out</button>
+            title="As the admin (Admin → Stipend): release this term's stipend, with the real checks (hours or approved note, signature, end-of-term report). A release is final: the stub is signed by the supervisor, the director and the student.">
+            <Ticket className="h-3.5 w-3.5" /> Release stipend</button>
           {!confirmStipend ? (
             <button onClick={() => { setMsg(null); setConfirmStipend(true) }} disabled={busy} className={BTN}
               title="Remove this term's stipend stub so the student is eligible again under Admin → Stipend. Undo on Remove from testing brings it back.">
@@ -588,8 +585,8 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
   )
 }
 
-// How the term's stub reads on the card.
-const STIPEND_LABEL: Record<string, string> = { pending: 'being prepared', certified: 'ready to claim', claimed: 'received', released: 'received' }
+// How the term's stub reads on the card (claimed/certified/pending are legacy stubs).
+const STIPEND_LABEL: Record<string, string> = { released: 'released', claimed: 'received', certified: 'released', pending: 'released' }
 
 const SMALL = 'mt-0.5 block rounded-lg border border-ink-300 bg-white px-2 py-1.5 text-xs focus:border-brand-700 focus:outline-none'
 const BTN = 'flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-50'

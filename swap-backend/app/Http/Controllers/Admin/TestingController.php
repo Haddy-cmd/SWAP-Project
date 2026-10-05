@@ -20,7 +20,7 @@ class TestingController extends Controller
     public const ACTIONS = [
         'hours', 'complete-hours', 'reset-hours', 'verify-hours', 'clock-in', 'auto-clock-out', 'end-term', 'file-promissory',
         'approve-promissory', 'reject-promissory', 'close-term', 'term-report', 'review-report', 'renewal',
-        'reset-term', 'release-stub', 'pay-out', 'reset-stipend',
+        'reset-term', 'release-stub', 'reset-stipend',
     ];
 
     public function __construct(private readonly TestingService $testing) {}
@@ -139,12 +139,7 @@ class TestingController extends Controller
             'release-stub' => (function () use ($recipient, $admin) {
                 $stub = $this->testing->releaseStub($recipient, $admin);
 
-                return "Claim stub released ({$stub->control_number}): ready to claim at the Banking Office.";
-            })(),
-            'pay-out' => (function () use ($recipient, $admin) {
-                $stub = $this->testing->payOut($recipient, $admin);
-
-                return "Paid out as the Banking Office: {$stub->control_number} is now received.";
+                return "Stipend released ({$stub->control_number}) with the supervisor's, director's and student's signatures.";
             })(),
             'clock-in' => ($this->testing->clockInNow($recipient, $admin) ? 'Clocked in now. The student can clock out by scanning their office QR.' : ''),
             'auto-clock-out' => ($this->testing->autoClockOut($recipient, $admin)

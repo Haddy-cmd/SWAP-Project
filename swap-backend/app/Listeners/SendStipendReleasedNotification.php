@@ -14,6 +14,8 @@ class SendStipendReleasedNotification
             'stipend_id' => $event->stipend->id,
             'amount' => $event->stipend->amount,
             'period_label' => $event->stipend->period_label,
+            'term' => "{$event->stipend->semester} {$event->stipend->academic_year}",
+            'control_number' => $event->stipend->control_number,
         ])->onQueue('notifications');
     }
 }

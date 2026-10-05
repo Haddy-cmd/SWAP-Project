@@ -5,12 +5,10 @@ namespace Tests\Concerns;
 use App\Models\Assignment;
 use App\Models\NarrativeReport;
 use App\Models\Office;
-use App\Models\StipendHistory;
 use App\Models\TermReport;
 use App\Models\TimeLog;
 use App\Models\User;
 use App\Services\QrCodeService;
-use App\Support\BankingOfficePin;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
@@ -168,18 +166,5 @@ trait MakesSwapData
             'content' => str_repeat('Filed records and assisted the office staff throughout the term. ', 3),
             'submitted_at' => now(),
         ]);
-    }
-
-    protected const UBO_PIN = '123456';
-
-    /**
-     * The Banking Office records the payout: scans the stub's QR and enters the
-     * PIN. The DSA set up `$officer` with that PIN, so that is the name recorded.
-     */
-    protected function bankingOfficeRelease(StipendHistory $stipend, string $officer = 'Cashier Jane Doe'): \Illuminate\Testing\TestResponse
-    {
-        BankingOfficePin::set(self::UBO_PIN, $officer);
-
-        return $this->postJson("/api/stipend/verify/{$stipend->claim_token}/release", ['pin' => self::UBO_PIN]);
     }
 }

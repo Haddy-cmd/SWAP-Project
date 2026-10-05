@@ -65,6 +65,7 @@ class TermHistoryTest extends TestCase
         StipendHistory::create([
             'user_id' => $recipient->id, 'amount' => 5000, 'academic_year' => '2024-2025', 'semester' => '1st Semester',
             'status' => StipendHistory::STATUS_CLAIMED, 'via_promissory' => true,
+            'certified_at' => '2024-11-01 01:00:00', 'claimed_at' => '2024-11-04 02:00:00',
         ]);
         Sanctum::actingAs($recipient);
 
@@ -77,7 +78,9 @@ class TermHistoryTest extends TestCase
             ->assertJsonPath('data.0.term_status', 'deficient')
             ->assertJsonPath('data.0.deficient_hours', 4)
             ->assertJsonPath('data.0.stipend_status', 'claimed')
-            ->assertJsonPath('data.0.stipend_via_promissory', true);
+            ->assertJsonPath('data.0.stipend_via_promissory', true)
+            // A legacy stub paid at the Banking Office: the payout date, not the release.
+            ->assertJsonPath('data.0.stipend_released_at', '2024-11-04T02:00:00.000000Z');
     }
 
     public function test_average_completion_counts_only_current_terms(): void

@@ -10,9 +10,9 @@ use Tests\Concerns\MakesSwapData;
 use Tests\TestCase;
 
 /**
- * Stipend totals follow the Option C lifecycle: a stub is paid once claimed
- * (legacy rows say "released") and awaits claim while certified. Before this,
- * both aggregates counted only the legacy statuses and showed ₱0.
+ * Stipend totals: a release is final (2026-10-05), so every live stub is money released —
+ * `released`, plus the legacy `claimed` (paid at the Banking Office) and `certified`
+ * (migrated to released). A void stub never counts.
  */
 class StipendTotalsTest extends TestCase
 {
@@ -32,24 +32,32 @@ class StipendTotalsTest extends TestCase
 
     private function seedStubs(): void
     {
-        $this->stub($this->makeUser('recipient'), 'claimed', 5000);
-        $this->stub($this->makeUser('recipient'), 'released', 4000); // legacy paid
-        $this->stub($this->makeUser('recipient'), 'certified', 3000);
-        $this->stub($this->makeUser('recipient'), 'void', 9000);     // never counted
+        $this->stub($this->makeUser('recipient'), 'claimed', 5000);   // legacy: paid at the Banking Office
+        $this->stub($this->makeUser('recipient'), 'released', 4000);
+        $this->stub($this->makeUser('recipient'), 'certified', 3000); // legacy: ready to claim
+        $this->stub($this->makeUser('recipient'), 'void', 9000);      // never counted
     }
 
-    public function test_analytics_counts_claimed_as_paid_and_certified_as_awaiting(): void
+    public function test_analytics_counts_every_live_stub_as_released_and_who_is_ready(): void
     {
         $this->seedStubs();
+        $supervisor = $this->makeUser('supervisor');
+        // Payable with signature + end-of-term report: ready for release.
+        $ready = $this->makeAssignment($this->makeUser('recipient'), $supervisor, null, ['required_hours' => 2]);
+        $this->makeClosedLog($ready, 2);
+        $this->submitTermReport($ready);
+        // Payable, report not in yet: not ready.
+        $this->makeClosedLog($this->makeAssignment($this->makeUser('recipient'), $supervisor, null, ['required_hours' => 2]), 2);
         Sanctum::actingAs($this->makeUser('admin'));
 
-        $this->getJson('/api/admin/analytics/overview?academic_year=2024-2025&semester=1st%20Semester')
+        $res = $this->getJson('/api/admin/analytics/overview?academic_year=2024-2025&semester=1st%20Semester')
             ->assertOk()
-            ->assertJsonPath('data.stipend_summary.total_released', 9000)
-            ->assertJsonPath('data.stipend_summary.total_pending', 3000);
+            ->assertJsonPath('data.stipend_summary.total_released', 12000)
+            ->assertJsonPath('data.stipend_summary.ready_to_release', 1);
+        $this->assertArrayNotHasKey('total_pending', $res->json('data.stipend_summary'));
     }
 
-    public function test_disbursement_report_counts_claimed_as_paid_and_certified_as_awaiting(): void
+    public function test_disbursement_report_counts_every_live_stub_as_released(): void
     {
         $this->seedStubs();
         Sanctum::actingAs($this->makeUser('admin'));
@@ -60,10 +68,10 @@ class StipendTotalsTest extends TestCase
                 ->json('data.stats')
         )->pluck('value', 'label');
 
-        $this->assertSame('₱9,000', $stats['Total Claimed']);
-        $this->assertSame('₱3,000', $stats['Awaiting Claim']);
-        $this->assertSame('2', $stats['Claimed']);
+        $this->assertSame('₱12,000', $stats['Total Released']);
         $this->assertSame('3', $stats['Recipients']);
+        $this->assertSame('0', $stats['Via Promissory']);
+        $this->assertSame('1', $stats['Voided']);
     }
 
     public function test_recipient_history_returns_every_stub_when_asked(): void

@@ -135,11 +135,10 @@ class RecipientProgressService
             default => $item('report', 'blocked', 'End-of-term report accepted — marked not eligible for renewal', '/recipient/hours'),
         };
 
-        $stipend = match ($stub?->status) {
-            'claimed', 'released' => $item('stipend', 'done', 'Stipend claimed', '/recipient/stipend'),
-            'certified', 'pending' => $item('stipend', 'todo', 'Claim stub ready — bring it to the Banking Office', '/recipient/stipend'),
-            default => $item('stipend', 'waiting', 'Stipend released by the DSA once the items above are done', '/recipient/stipend'),
-        };
+        // A release is final: any live stub means the stipend was released.
+        $stipend = $stub
+            ? $item('stipend', 'done', 'Stipend released', '/recipient/stipend')
+            : $item('stipend', 'waiting', 'Stipend released by the DSA once the items above are done', '/recipient/stipend');
 
         return [$hours, $signature, $reportItem, $stipend];
     }

@@ -16,7 +16,7 @@ export interface TestingAssignment {
   report_submitted: boolean
   /** The term's promissory note, if any. */
   promissory: 'approved' | 'pending' | null
-  /** The term's stipend stub: certified = ready to claim; claimed/released = received. */
+  /** The term's stipend stub: released (final); claimed/certified/pending are legacy rows. */
   stipend: 'pending' | 'certified' | 'claimed' | 'released' | null
 }
 
@@ -80,7 +80,7 @@ export const TESTING_OFF_MESSAGE = 'Switch System Testing on first.'
 export type TestingAction =
   | 'hours' | 'complete-hours' | 'reset-hours' | 'verify-hours' | 'clock-in' | 'auto-clock-out'
   | 'end-term' | 'file-promissory' | 'approve-promissory' | 'reject-promissory' | 'close-term'
-  | 'term-report' | 'review-report' | 'renewal' | 'reset-term' | 'release-stub' | 'pay-out' | 'reset-stipend'
+  | 'term-report' | 'review-report' | 'renewal' | 'reset-term' | 'release-stub' | 'reset-stipend'
 
 /** Admin → System Testing → File storage (StorageCheckService::run). */
 export interface StorageCheck {

@@ -144,13 +144,16 @@ class AnalyticsService
             ])
             ->toArray();
 
-        $stipendSummary = StipendHistory::whereHas('recipient')
+        // A release is final: every live stub is money released (legacy payouts included).
+        $releasedTotal = (float) StipendHistory::whereHas('recipient')
             ->where('academic_year', $academicYear)
             ->where('semester', $semester)
-            ->selectRaw("status, SUM(amount) as total")
-            ->groupBy('status')
-            ->pluck('total', 'status')
-            ->toArray();
+            ->whereIn('status', StipendHistory::LIVE_STATUSES)
+            ->sum('amount');
+        // Payable now and not released yet, with signature + end-of-term report in (any term).
+        $readyToRelease = collect(app(StipendService::class)->eligibleRecipients())
+            ->filter(fn ($row) => $row['has_signature'] && $row['narrative_submitted'])
+            ->count();
 
         // System-wide totals for the dashboard headline cards (not period-scoped),
         // so they always reflect the current state across all academic years.
@@ -207,11 +210,9 @@ class AnalyticsService
             'applicants_by_college' => $applicantsByCollege,
             'recipients_by_college' => $recipientsByCollege,
             'weekly_hours' => $weeklyHours,
-            // Option C lifecycle: paid = claimed (+ legacy released rows); awaiting
-            // claim = certified (+ legacy pending). Keys unchanged for the frontend.
             'stipend_summary' => [
-                'total_released' => (float) (($stipendSummary['claimed'] ?? 0) + ($stipendSummary['released'] ?? 0)),
-                'total_pending' => (float) (($stipendSummary['certified'] ?? 0) + ($stipendSummary['pending'] ?? 0)),
+                'total_released' => $releasedTotal,
+                'ready_to_release' => $readyToRelease,
             ],
         ];
     }

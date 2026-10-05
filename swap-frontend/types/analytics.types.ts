@@ -57,13 +57,20 @@ export interface MonthlyStats {
 }
 
 export interface StipendSummary {
+  /** Released this term (a release is final; legacy Banking Office payouts included). */
   total_released: number
-  total_pending: number
+  /** Payable now with signature + end-of-term report in, not released yet (any term). */
+  ready_to_release: number
 }
 
+/**
+ * New stubs are always `released` (final). `claimed` (received at the Banking Office)
+ * and `certified`/`pending` (ready to claim) are legacy rows from before 2026-10-05.
+ */
 export type StipendStatus = 'pending' | 'certified' | 'claimed' | 'void' | 'released'
 
 export interface StipendSignatureView {
+  /** `releasing_officer` only on legacy stubs paid at the Banking Office. */
   signatory_role: 'supervisor' | 'director' | 'beneficiary' | 'releasing_officer'
   printed_name: string
   method: 'authenticated' | 'drawn'
@@ -84,8 +91,6 @@ export interface StipendRecord {
   certified_at: string | null
   released_by: number | null
   released_at: string | null
-  claimed_at: string | null
-  releasing_officer_name: string | null
   void_reason: string | null
   has_slip: boolean
   remarks: string | null
@@ -100,38 +105,6 @@ export interface StipendRecord {
   recipient?: import('./auth.types').User
   certifier?: { id: number; name: string } | null
   signatures?: StipendSignatureView[]
-}
-
-// Mirrors StipendVerifyController::show — only what the Banking Office needs to pay.
-export interface ClaimVerification {
-  control_number: string
-  recipient_name: string | null
-  // To match against the student's ID card at the window.
-  student_id_number?: string | null
-  amount: number | string
-  academic_year: string
-  semester: string
-  period_label: string | null
-  certified_at: string | null
-  status: StipendStatus
-  // Who the payout will be recorded under (set by the DSA with the PIN); null until set up.
-  releasing_officer_name: string | null
-}
-
-// Mirrors StipendVerifyController::release.
-export interface ClaimReleaseResult {
-  control_number: string
-  status: StipendStatus
-  claimed_at: string | null
-  releasing_officer_name: string
-}
-
-// Mirrors Admin\StipendController::bankingOfficePin — never the PIN itself.
-export interface BankingOfficePinStatus {
-  is_set: boolean
-  has_pin: boolean
-  officer_name: string | null
-  updated_at: string | null
 }
 
 export interface EligibleStipend {
@@ -180,16 +153,15 @@ export interface ProgramInsights {
     renewal_rate: number | null
   }
   stipend: {
-    stubs: number
+    /** Live stubs this term (a release is final). */
+    released: number
     released_amount: number
-    claimed_amount: number
-    awaiting_amount: number
-    claimed: number
-    awaiting: number
     via_promissory: number
-    avg_days_to_claim: number | null
-    unclaimed_after_days: number
-    unclaimed: { stipend_id: number; name: string; control_number: string | null; amount: number; days: number }[]
+    voided: number
+    /** Payable this term, signature + end-of-term report in, not released yet. */
+    ready_to_release: number
+    /** Payable this term but still missing the signature or the report. */
+    missing_requirements: number
   }
   integrity: { office: string; logs: number; flagged: number; auto_clock_outs: number; rejected: number; missing_task: number }[]
   workload: {

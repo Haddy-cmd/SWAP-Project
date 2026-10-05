@@ -131,17 +131,12 @@ function InsightsBody({ data, term }: { data: Insights; term: string }) {
 
       {/* Stipend */}
       <div className={CARD}>
-        <Title icon={<Coins className="h-4 w-4" />} note={`${s.stubs} stub${s.stubs === 1 ? '' : 's'} · ${s.via_promissory} via promissory`}>Stipend Disbursement</Title>
+        <Title icon={<Coins className="h-4 w-4" />} note={`${s.via_promissory} via promissory · a release is final`}>Stipend Disbursement</Title>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Tile label="Released" value={peso(s.released_amount)} />
-          <Tile label="Claimed" value={peso(s.claimed_amount)} tone="good" sub={`${s.claimed} recipient${s.claimed === 1 ? '' : 's'}`} />
-          <Tile label="Awaiting claim" value={peso(s.awaiting_amount)} tone={s.awaiting ? 'warn' : 'ink'} sub={`${s.awaiting} recipient${s.awaiting === 1 ? '' : 's'}`} />
-          <Tile label="Days to claim" value={num(s.avg_days_to_claim)} sub="Average, release → claimed" />
-        </div>
-        <div className="mt-4">
-          <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-500">Ready to claim for over {s.unclaimed_after_days} days</div>
-          <Table headers={['Recipient', 'Control No.', 'Amount', 'Days waiting']} numeric={[2, 3]} empty="No stub has been waiting that long."
-            rows={s.unclaimed.map((u) => [u.name, u.control_number ?? '—', peso(u.amount), u.days])} />
+          <Tile label="Released" value={peso(s.released_amount)} tone="good" sub={`${s.released} recipient${s.released === 1 ? '' : 's'}`} />
+          <Tile label="Ready to release" value={num(s.ready_to_release)} tone={s.ready_to_release ? 'warn' : 'ink'} sub="Signature and report in" />
+          <Tile label="Missing a requirement" value={num(s.missing_requirements)} tone={s.missing_requirements ? 'warn' : 'ink'} sub="No signature or report yet" />
+          <Tile label="Voided" value={num(s.voided)} sub="Stubs voided this term" />
         </div>
       </div>
 

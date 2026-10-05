@@ -20,12 +20,12 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ProgramInsightsService
 {
-    /** A ready-to-claim stub older than this is listed as unclaimed. */
-    public const UNCLAIMED_AFTER_DAYS = 14;
-
     private const WAITING = ['submitted', 'under_review', 'interview_scheduled'];
 
-    public function __construct(private readonly RenewalReadinessService $readiness) {}
+    public function __construct(
+        private readonly RenewalReadinessService $readiness,
+        private readonly StipendService $stipends,
+    ) {}
 
     public function forTerm(string $academicYear, string $semester): array
     {
@@ -154,51 +154,27 @@ class ProgramInsightsService
             : null;
     }
 
-    /** Stub amounts, how fast they're claimed, and stubs waiting too long to be claimed. */
+    /**
+     * Money released this term (a release is final; legacy Banking Office payouts count
+     * too), how much went through promissory notes, what was voided, and who is payable
+     * but not released yet — split into ready (signature + report in) and still missing one.
+     */
     private function stipend(string $ay, string $sem): array
     {
-        $live = fn () => StipendHistory::whereHas('recipient')
-            ->where('academic_year', $ay)
-            ->where('semester', $sem)
-            ->where('status', '!=', StipendHistory::STATUS_VOID);
+        $term = fn () => StipendHistory::whereHas('recipient')->where('academic_year', $ay)->where('semester', $sem);
+        $released = $term()->whereIn('status', StipendHistory::LIVE_STATUSES);
 
-        $byStatus = $live()->selectRaw('status, COUNT(*) as n, COALESCE(SUM(amount), 0) as total')->groupBy('status')->get()->keyBy('status');
-        $sum = fn (array $statuses, string $col) => (float) collect($statuses)->sum(fn ($s) => $byStatus[$s]->{$col} ?? 0);
-
-        $avgDays = $live()
-            ->whereNotNull('claimed_at')
-            ->whereNotNull('certified_at')
-            ->selectRaw('AVG(EXTRACT(EPOCH FROM (claimed_at - certified_at))) / 86400 as days')
-            ->value('days');
-
-        $cutoff = now()->subDays(self::UNCLAIMED_AFTER_DAYS);
-        $unclaimed = $live()
-            ->with('recipient.profile')
-            ->where('status', StipendHistory::STATUS_CERTIFIED)
-            ->where('certified_at', '<=', $cutoff)
-            ->orderBy('certified_at')
-            ->get(['id', 'user_id', 'control_number', 'amount', 'certified_at'])
-            ->map(fn (StipendHistory $s) => [
-                'stipend_id' => $s->id,
-                'name' => $s->recipient?->profile?->full_name ?? $s->recipient?->name,
-                'control_number' => $s->control_number,
-                'amount' => (float) $s->amount,
-                'days' => (int) $s->certified_at->diffInDays(now()),
-            ])
-            ->all();
+        $eligible = collect($this->stipends->eligibleRecipients())
+            ->filter(fn ($row) => $row['academic_year'] === $ay && $row['semester'] === $sem);
+        $ready = $eligible->filter(fn ($row) => $row['has_signature'] && $row['narrative_submitted'])->count();
 
         return [
-            // Paid = claimed (+ legacy "released"); awaiting = ready to claim (+ legacy "pending").
-            'stubs' => (int) $byStatus->sum('n'),
-            'released_amount' => round($sum(['pending', 'certified', 'claimed', 'released'], 'total'), 2),
-            'claimed_amount' => round($sum(['claimed', 'released'], 'total'), 2),
-            'awaiting_amount' => round($sum(['pending', 'certified'], 'total'), 2),
-            'claimed' => (int) $sum(['claimed', 'released'], 'n'),
-            'awaiting' => (int) $sum(['pending', 'certified'], 'n'),
-            'via_promissory' => $live()->where('via_promissory', true)->count(),
-            'avg_days_to_claim' => $avgDays !== null ? round((float) $avgDays, 1) : null,
-            'unclaimed_after_days' => self::UNCLAIMED_AFTER_DAYS,
-            'unclaimed' => $unclaimed,
+            'released' => (clone $released)->count(),
+            'released_amount' => round((float) (clone $released)->sum('amount'), 2),
+            'via_promissory' => (clone $released)->where('via_promissory', true)->count(),
+            'voided' => $term()->where('status', StipendHistory::STATUS_VOID)->count(),
+            'ready_to_release' => $ready,
+            'missing_requirements' => $eligible->count() - $ready,
         ];
     }
 

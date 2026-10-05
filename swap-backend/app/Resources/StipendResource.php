@@ -22,11 +22,9 @@ class StipendResource extends JsonResource
             'certified_at' => $this->certified_at?->toISOString(),
             'released_by' => $this->released_by,
             'released_at' => $this->released_at?->toISOString(),
-            'claimed_at' => $this->claimed_at?->toISOString(),
-            'releasing_officer_name' => $this->releasing_officer_name,
             'void_reason' => $this->void_reason,
-            // The claim slip PDF is downloadable once certified (via /recipient/stipend/{id}/slip).
-            'has_slip' => in_array($this->status, ['certified', 'claimed'], true),
+            // The stub PDF is downloadable once released (via /recipient/stipend/{id}/slip).
+            'has_slip' => in_array($this->status, ['released', 'claimed', 'certified'], true),
             'remarks' => $this->remarks,
             // Released through an approved promissory note: the term's shortfall and
             // the hours it lacked, as recorded at release.

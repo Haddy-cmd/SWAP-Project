@@ -17,7 +17,7 @@ import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
-import { rejectConfirm } from '@/lib/utils/rejectConfirm'
+import { rejectConfirm, notEligibleRemarks } from '@/lib/utils/rejectConfirm'
 import type { ApplicationStatus } from '@/types/application.types'
 
 const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
@@ -132,6 +132,15 @@ export default function AdminApplicationsPage() {
     setRescheduling(false)
   }, [activeId])
 
+  // A renewal the supervisor marked not eligible can only be rejected: start the remarks
+  // with the reason, so Reject is ready (the admin can still edit them).
+  const suggestedRemarks = selected?.id === activeId && selected?.type === 'renewal' && selected?.status === 'submitted'
+    ? notEligibleRemarks(selected?.renewal_readiness)
+    : null
+  useEffect(() => {
+    if (suggestedRemarks) setRemarks((current) => current || suggestedRemarks)
+  }, [suggestedRemarks])
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
     queryClient.invalidateQueries({ queryKey: ['admin-application', activeId] })
@@ -199,7 +208,7 @@ export default function AdminApplicationsPage() {
       notify(decision === 'approved'
         ? data.type === 'renewal'
           ? { title: 'Renewal approved', detail: 'The new term\'s placement was created and the recipient has been notified.' }
-          : { title: 'Application approved', detail: 'Moved to the Assignments queue. The applicant has been notified.' }
+          : { title: 'Application approved', detail: 'They are now a recipient (announcements reach them) and wait in the Assignments queue for an office. They have been notified.' }
         : data.type === 'renewal'
           ? { title: 'Renewal rejected', detail: 'The recipient is back in the applicant portal and has been notified.' }
           : { title: 'Application rejected', detail: 'The applicant has been notified with your remarks.' })

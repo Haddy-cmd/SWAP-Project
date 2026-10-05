@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, CheckCircle, XCircle, Eye, Calendar } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
@@ -12,7 +12,7 @@ import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
-import { rejectConfirm } from '@/lib/utils/rejectConfirm'
+import { rejectConfirm, notEligibleRemarks } from '@/lib/utils/rejectConfirm'
 import {
   manilaToday, manilaNowMinutes, manilaToISO, minutesToLabel,
   slotsFor, slotViolation, windowFor, type InterviewMode,
@@ -75,6 +75,15 @@ export default function AdminApplicationDetailPage() {
     enabled: !!id,
   })
 
+  // A renewal the supervisor marked not eligible can only be rejected: start the remarks
+  // with the reason, so Reject is ready (the admin can still edit them).
+  const suggestedRemarks = application?.type === 'renewal' && application.status === 'submitted'
+    ? notEligibleRemarks(application.renewal_readiness)
+    : null
+  useEffect(() => {
+    if (suggestedRemarks) setRemarks((current) => current || suggestedRemarks)
+  }, [suggestedRemarks])
+
   const { notify, notifyError, confirm } = useFeedback()
   const markReview = useMutation({
     mutationFn: () => applicationsApi.adminMarkUnderReview(Number(id)),
@@ -115,7 +124,9 @@ export default function AdminApplicationDetailPage() {
       applicationsApi.adminDecideApplication(Number(id), { decision, remarks }),
     onSuccess: (data, decision) => {
       notify(decision === 'approved'
-        ? { title: data.type === 'renewal' ? 'Renewal approved' : 'Application approved', detail: 'The applicant has been notified.' }
+        ? data.type === 'renewal'
+          ? { title: 'Renewal approved', detail: 'The new term\'s placement was created and the recipient has been notified.' }
+          : { title: 'Application approved', detail: 'They are now a recipient (announcements reach them) and wait in the Assignments queue for an office. They have been notified.' }
         : { title: data.type === 'renewal' ? 'Renewal rejected' : 'Application rejected',
             detail: data.type === 'renewal' ? 'The recipient is back in the applicant portal and has been notified.' : 'The applicant has been notified with your remarks.' })
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })

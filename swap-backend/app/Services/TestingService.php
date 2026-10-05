@@ -46,11 +46,8 @@ class TestingService
     public const MSG_NO_SUPERVISOR = 'This recipient has no supervisor on their placement.';
     public const MSG_NOTHING_TO_CLEAN = 'Nothing is left from an earlier test on this account.';
 
-    /** Printed on the stub when System Testing stands in for the Banking Office. */
-    public const TEST_RELEASING_OFFICER = 'System Testing (Banking Office)';
-
     /** Stub statuses that count as paid or payable (a void one doesn't). */
-    private const LIVE_STIPEND = [StipendHistory::STATUS_PENDING, StipendHistory::STATUS_CERTIFIED, StipendHistory::STATUS_CLAIMED, 'released'];
+    private const LIVE_STIPEND = StipendHistory::LIVE_STATUSES;
 
     /** Audit actions that record a term's verdict, with the old one in old_values. */
     private const VERDICT_ACTIONS = ['term_closed', 'term_requalified', 'term_marked_deficient'];
@@ -139,7 +136,7 @@ class TestingService
                     // The supervisor's acceptance: null until accepted, then eligible or not.
                     'report_eligible' => $a->termReport?->reviewed_at ? (bool) $a->termReport->renewal_eligible : null,
                     'promissory' => $a->has_approved_promissory ? 'approved' : ($a->has_pending_promissory ? 'pending' : null),
-                    // The term's stub: certified = ready to claim; claimed/released = received.
+                    // The term's stub status: released (legacy: claimed / certified), or void.
                     'stipend' => $stubs->get("{$a->user_id}|{$a->academic_year}|{$a->semester}")?->status,
                 ])->values()->all(),
                 'applications' => ($applications[$u->id] ?? collect())->map(fn (Application $a) => [
@@ -406,7 +403,7 @@ class TestingService
         return $reviewed;
     }
 
-    /** Release the term's claim stub as the admin would (Admin → Stipend), with the real checks. */
+    /** Release the term's stipend as the admin would (Admin → Stipend), with the real checks. */
     public function releaseStub(User $recipient, User $admin): StipendHistory
     {
         $assignment = $this->currentAssignment($recipient);
@@ -418,24 +415,6 @@ class TestingService
         $this->audit('testing_stub_released', $assignment, ['stipend_id' => $stub->id], $admin);
 
         return $stub;
-    }
-
-    /** Pay out the ready-to-claim stub as if the Banking Office scanned it (real release). */
-    public function payOut(User $recipient, User $admin): StipendHistory
-    {
-        $assignment = $this->currentAssignment($recipient);
-        $term = "{$assignment->semester} {$assignment->academic_year}";
-        $stub = StipendHistory::where('user_id', $recipient->id)
-            ->where('academic_year', $assignment->academic_year)->where('semester', $assignment->semester)
-            ->where('status', StipendHistory::STATUS_CERTIFIED)->latest('id')->first();
-        if (!$stub) {
-            throw new UnprocessableEntityHttpException("This recipient has no stipend stub ready to claim for {$term}.");
-        }
-
-        $paid = $this->stipendClaims->releaseAtBankingOffice($stub, self::TEST_RELEASING_OFFICER);
-        $this->audit('testing_paid_out', $assignment, ['stipend_id' => $stub->id], $admin);
-
-        return $paid;
     }
 
     private function supervisorOf(Assignment $assignment): User

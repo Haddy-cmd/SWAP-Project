@@ -20,8 +20,10 @@ class RenewalController extends Controller
     {
         $target = SemesterPeriodService::renewalTarget();
 
+        // Renewals only: a newly approved student's own application can be for the same term.
         $application = $target
             ? Application::where('user_id', $request->user()->id)
+                ->where('type', 'renewal')
                 ->where('academic_year', $target->academic_year)
                 ->where('semester', $target->semester)
                 ->first()

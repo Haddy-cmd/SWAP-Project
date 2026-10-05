@@ -33,6 +33,8 @@ class AssignmentService
 
                 $this->qrCodeService->generateForAssignment($assignment);
 
+                // Approval already makes the student a recipient; this covers anyone
+                // approved before that rule (2026-10-05) and not migrated yet.
                 $user = User::find($data['user_id']);
                 if ($user && $user->isApplicant()) {
                     $user->update(['role' => 'recipient']);

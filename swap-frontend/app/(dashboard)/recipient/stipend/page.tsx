@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, CheckCircle, Clock, Download, HandCoins, Ban, Loader2, FileText, Upload, QrCode } from 'lucide-react'
+import { DollarSign, CheckCircle, Download, Ban, Loader2, FileText, Upload } from 'lucide-react'
 import { stipendApi } from '@/lib/api/stipend.api'
 import { promissoryApi } from '@/lib/api/promissory.api'
 import { formatDate } from '@/lib/utils/formatDate'
@@ -12,12 +12,14 @@ import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
 const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
 
+// A release is final. `claimed` (paid at the Banking Office) and `certified`/`pending`
+// (ready to claim, migrated to released) are legacy stubs from before 2026-10-05.
 const STATUS: Record<StipendStatus, { label: string; cls: string; Icon: typeof CheckCircle }> = {
-  certified: { label: 'Ready to claim', cls: 'bg-info-50 text-brand-700', Icon: HandCoins },
-  claimed: { label: 'Received', cls: 'bg-success-50 text-success-600', Icon: CheckCircle },
   released: { label: 'Released', cls: 'bg-success-50 text-success-600', Icon: CheckCircle },
+  claimed: { label: 'Received', cls: 'bg-success-50 text-success-600', Icon: CheckCircle },
+  certified: { label: 'Released', cls: 'bg-success-50 text-success-600', Icon: CheckCircle },
+  pending: { label: 'Released', cls: 'bg-success-50 text-success-600', Icon: CheckCircle },
   void: { label: 'Void', cls: 'bg-danger-50 text-danger-700', Icon: Ban },
-  pending: { label: 'Pending', cls: 'bg-warning-50 text-warning-600', Icon: Clock },
 }
 
 const PROMISSORY_STATUS: Record<PromissoryStatus, { label: string; cls: string }> = {
@@ -34,13 +36,6 @@ export default function StipendPage() {
   const { data: history = [], isLoading } = useQuery({
     queryKey: ['stipend-history'],
     queryFn: () => stipendApi.getHistory(),
-    // The Banking Office records the payout on a different device by scanning
-    // the stub's QR — poll while a claimable stub exists so the list flips to
-    // "Received" without a manual refresh.
-    refetchInterval: (query) => {
-      const items = query.state.data ?? []
-      return items.some((s) => s.status === 'certified') ? 30_000 : false
-    },
   })
 
   const { data: promissory } = useQuery({
@@ -65,25 +60,25 @@ export default function StipendPage() {
       setSubmitError(Object.values(e.response?.data?.errors ?? {}).flat()[0] ?? e.response?.data?.message ?? 'Could not submit.'),
   })
 
-  const totalReceived = history.filter((s) => s.status === 'claimed' || s.status === 'released')
-    .reduce((sum, s) => sum + Number(s.amount || 0), 0)
+  // Every stub that isn't void was released (a release is final).
+  const live = history.filter((s) => s.status !== 'void')
+  const totalReleased = live.reduce((sum, s) => sum + Number(s.amount || 0), 0)
 
   async function downloadSlip(s: StipendRecord) {
     setDownloadingId(s.id)
     setDownloadError(null)
     try {
-      // Versioned by lifecycle timestamps so a download after the Banking Office
-      // records the payout can never serve the pre-claim bytes from cache.
-      const blob = await stipendApi.getSlip(s.id, s.claimed_at ?? s.certified_at ?? s.created_at)
+      // Versioned by status so a download after a void never serves the released bytes from cache.
+      const blob = await stipendApi.getSlip(s.id, `${s.status}-${s.released_at ?? s.certified_at ?? s.created_at}`)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `swap-claim-stub-${s.control_number ?? s.id}.pdf`
+      a.download = `swap-stipend-stub-${s.control_number ?? s.id}.pdf`
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
     } catch (e) {
       // The request asked for a Blob, so the API's JSON error arrives as one too:
       // read it to show the backend's message verbatim.
-      let message = 'Could not download the claim stub.'
+      let message = 'Could not download the stub.'
       const response = (e as { response?: { data?: unknown } }).response
       if (response?.data instanceof Blob) {
         try {
@@ -104,13 +99,13 @@ export default function StipendPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">My Stipend</h1>
-        <p className="mt-1 text-sm text-ink-500">Download your claim stub and present it at the University Banking Office. The releasing officer scans it to record your payout.</p>
+        <p className="mt-1 text-sm text-ink-500">Your released stipends. Each stub carries your supervisor&apos;s, the director&apos;s and your saved signature. Download it for your records.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card label="Total Received" value={PHP.format(totalReceived)} />
-        <Card label="Claim Stubs" value={String(history.length)} />
-        <Card label="Ready to Claim" value={String(history.filter((s) => s.status === 'certified').length)} />
+        <Card label="Total Released" value={PHP.format(totalReleased)} />
+        <Card label="Stipends Released" value={String(live.length)} />
+        <Card label="Voided Stubs" value={String(history.length - live.length)} />
       </div>
 
       {isLoading ? (
@@ -123,8 +118,7 @@ export default function StipendPage() {
       ) : (
         <div className="space-y-3">
           {history.map((s) => {
-            const meta = STATUS[s.status] ?? STATUS.pending
-            const claimable = s.status === 'certified'
+            const meta = STATUS[s.status] ?? STATUS.released
             return (
               <div key={s.id} className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -139,7 +133,9 @@ export default function StipendPage() {
                       {[s.period_label, s.semester, s.academic_year].filter(Boolean).join(' · ')}
                     </p>
                     {s.control_number && <p className="mt-0.5 font-mono text-xs text-ink-350">{s.control_number}</p>}
-                    {s.status === 'claimed' && s.claimed_at && <p className="mt-0.5 text-xs text-success-600">Received {formatDate(s.claimed_at)}</p>}
+                    {s.status !== 'void' && (s.released_at ?? s.certified_at) && (
+                      <p className="mt-0.5 text-xs text-success-600">{meta.label} {formatDate((s.released_at ?? s.certified_at)!)}</p>
+                    )}
                     {s.status === 'void' && s.void_reason && <p className="mt-0.5 text-xs text-danger-700">Void — {s.void_reason}</p>}
                     {s.via_promissory && (
                       <p className="mt-1.5">
@@ -155,7 +151,7 @@ export default function StipendPage() {
                       <button onClick={() => downloadSlip(s)} disabled={downloadingId === s.id}
                         className="flex items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-50">
                         {downloadingId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                        {s.status === 'claimed' ? 'Receiving Slip' : 'Claim Slip'}
+                        Download stub
                       </button>
                     </div>
                   )}
@@ -165,14 +161,6 @@ export default function StipendPage() {
                   <p role="alert" className="mt-3 text-sm text-danger-700">{downloadError.message}</p>
                 )}
 
-                {/* The Banking Office records the payout by scanning the stub's QR;
-                    the page refreshes to "Received" once it does. */}
-                {claimable && (
-                  <p className="mt-3 flex items-start gap-2 rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-xs text-ink-500">
-                    <QrCode className="mt-0.5 h-3.5 w-3.5 flex-none text-brand-700" />
-                    Present this stub at the Banking Office — the releasing officer confirms it.
-                  </p>
-                )}
               </div>
             )
           })}

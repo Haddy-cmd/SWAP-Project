@@ -16,8 +16,9 @@ use Illuminate\Support\Facades\Notification;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
- * Admin → Announcements: one message to every active recipient, in the portal and
- * by email. Jobs run inline in production (QUEUE_CONNECTION=sync), so the email
+ * Admin → Announcements: one message to every active recipient — approved students
+ * still waiting for an office included (approval makes them recipients) — in the portal
+ * and by email. Jobs run inline in production (QUEUE_CONNECTION=sync), so the email
  * goes out in Bcc batches — a few mail calls, not one per recipient — and nobody
  * sees the others' addresses.
  */

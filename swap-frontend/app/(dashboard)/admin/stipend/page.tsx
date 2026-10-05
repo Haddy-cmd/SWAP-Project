@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, Send, CheckCircle, Ban, Lock, KeyRound, Search } from 'lucide-react'
+import { DollarSign, Send, CheckCircle, Ban, Lock, Search } from 'lucide-react'
 import Link from 'next/link'
 import { adminApi } from '@/lib/api/admin.api'
-import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
+import { formatDate } from '@/lib/utils/formatDate'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { StipendRecord, EligibleStipend, StipendStatus } from '@/types/analytics.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
@@ -14,13 +14,18 @@ const pesoAmount = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH',
 
 const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
 
+// A release is final. `claimed` (paid at the Banking Office) and `certified`/`pending`
+// (ready to claim, migrated to released) are legacy stubs from before 2026-10-05.
 const STATUS_META: Record<StipendStatus, { label: string; cls: string }> = {
-  certified: { label: 'Ready to claim', cls: 'bg-info-50 text-brand-700' },
-  claimed: { label: 'Received', cls: 'bg-success-50 text-success-600' },
-  void: { label: 'Void', cls: 'bg-danger-50 text-danger-700' },
-  pending: { label: 'Pending', cls: 'bg-warning-50 text-warning-600' },
   released: { label: 'Released', cls: 'bg-success-50 text-success-600' },
+  claimed: { label: 'Received', cls: 'bg-success-50 text-success-600' },
+  certified: { label: 'Released', cls: 'bg-success-50 text-success-600' },
+  pending: { label: 'Released', cls: 'bg-success-50 text-success-600' },
+  void: { label: 'Void', cls: 'bg-danger-50 text-danger-700' },
 }
+
+// Same rule as StipendClaimService::void: anything but a void stub or a legacy Banking Office payout.
+const canVoid = (status: StipendStatus) => status !== 'void' && status !== 'claimed'
 
 // The page gate stays open for 15 minutes of activity, then re-locks.
 const GATE_TIMEOUT_MS = 15 * 60 * 1000
@@ -127,14 +132,14 @@ export default function AdminStipendPage() {
       const nameOf = (id: number) => eligible.find((e) => e.user_id === id)?.name ?? `User #${id}`
       notify({
         tone: released ? 'success' : 'error',
-        title: released ? `${released} claim stub${released === 1 ? '' : 's'} released` : 'Nothing was released',
+        title: released ? `${released} stipend${released === 1 ? '' : 's'} released` : 'Nothing was released',
         detail: [
-          released ? 'Each recipient is notified that their stub is ready to claim at the Banking Office.' : '',
+          released ? 'Each recipient is notified. Their stub, signed with their saved signature, is on their Stipend page.' : '',
           ...res.data.skipped.map((sk: { user_id: number; reason: string }) => `Skipped ${nameOf(sk.user_id)}: ${sk.reason}`),
         ].filter(Boolean).join('\n'),
       })
     },
-    onError: (e: ApiError) => mutationError(e, 'Could not release the selected stubs'),
+    onError: (e: ApiError) => mutationError(e, 'Could not release the selected stipends'),
   })
 
   // Money leaves with this: say how much, to how many, before releasing.
@@ -142,8 +147,8 @@ export default function AdminStipendPage() {
     const items = eligible.filter((e) => selected.includes(keyOf(e)))
     const total = items.reduce((sum, e) => sum + (bulkAmount ? Number(bulkAmount) : e.suggested_amount), 0)
     const ok = await confirm({
-      title: `Release ${items.length} claim stub${items.length === 1 ? '' : 's'}?`,
-      body: `${pesoAmount(total)} in total. Each recipient is notified to claim it at the Banking Office.`,
+      title: `Release ${items.length} stipend${items.length === 1 ? '' : 's'}?`,
+      body: `${pesoAmount(total)} in total. They are marked Released with the supervisor's, director's and recipient's signatures, and each recipient is notified. Only a void with a reason undoes a release.`,
       details: items.length <= 6 ? items.map((e) => `${e.name} · ${pesoAmount(bulkAmount ? Number(bulkAmount) : e.suggested_amount)}`) : undefined,
       confirmLabel: 'Release',
     })
@@ -155,7 +160,7 @@ export default function AdminStipendPage() {
       adminApi.voidStipend(v.id, v.reason, { unlock_token: unlockToken ?? '' }),
     onSuccess: () => {
       invalidate(); setVoiding(null)
-      notify({ title: 'Claim stub voided', detail: 'It can no longer be claimed. The recipient can be released a new stub.' })
+      notify({ title: 'Stipend voided', detail: 'The stub now prints VOID. The recipient can be released a new stub.' })
     },
     onError: (e: ApiError) => mutationError(e, 'Could not void the stub'),
   })
@@ -192,7 +197,7 @@ export default function AdminStipendPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Stipend Management</h1>
-        <p className="mt-1 text-sm text-ink-500">Tick eligible recipients and release their claim stubs in one go; each recipient is notified and claims it at the Banking Office.</p>
+        <p className="mt-1 text-sm text-ink-500">Tick eligible recipients and release their stipends in one go. A release is final: the stub is marked Released with the supervisor&apos;s, director&apos;s and recipient&apos;s signatures, and each recipient is notified.</p>
       </div>
 
       {/* Releases are blocked server-side without a title — say so up front. */}
@@ -202,8 +207,6 @@ export default function AdminStipendPage() {
           Set your position title on your <Link href="/profile" className="font-semibold underline">Profile page</Link> before releasing stipends.
         </div>
       )}
-
-      <BankingOfficePinCard unlockToken={unlockToken} onGateExpired={gateExpired} />
 
       {/* Always render this section: hiding it when nobody qualifies left the page
           looking exactly like the pre-checklist layout, with no hint why. */}
@@ -319,6 +322,7 @@ export default function AdminStipendPage() {
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
                       {r.status === 'void' && r.void_reason && <p className="mt-0.5 text-[11px] text-danger-700">{r.void_reason}</p>}
+                      {r.status !== 'void' && r.released_at && <p className="mt-0.5 text-[11px] text-ink-500">{formatDate(r.released_at)}</p>}
                       {r.via_promissory && (
                         <p className="mt-1">
                           <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
@@ -328,7 +332,7 @@ export default function AdminStipendPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {r.status === 'certified' && (
+                      {canVoid(r.status) && (
                         voiding?.id === r.id ? (
                           <div className="flex items-center gap-1.5">
                             <input autoFocus value={voiding.reason} onChange={e => setVoiding(v => v && ({ ...v, reason: e.target.value }))}
@@ -336,8 +340,8 @@ export default function AdminStipendPage() {
                             <button onClick={async () => {
                                 if (!voiding.reason) return
                                 const ok = await confirm({
-                                  title: 'Void this claim stub?',
-                                  body: `${r.recipient?.name ?? 'The recipient'} · ${r.control_number ?? 'no control number'} · ${pesoAmount(Number(r.amount))}. It can no longer be claimed at the Banking Office.`,
+                                  title: 'Void this stipend?',
+                                  body: `${r.recipient?.name ?? 'The recipient'} · ${r.control_number ?? 'no control number'} · ${pesoAmount(Number(r.amount))}. The stub is marked VOID and the recipient becomes eligible to be released again.`,
                                   details: [`Reason: ${voiding.reason}`],
                                   confirmLabel: 'Void stub',
                                   tone: 'danger',
@@ -354,7 +358,6 @@ export default function AdminStipendPage() {
                           </button>
                         )
                       )}
-                      {r.status === 'claimed' && r.claimed_at && <span className="text-xs text-ink-500">Claimed {formatDate(r.claimed_at)}</span>}
                     </td>
                   </tr>
                 )
@@ -368,111 +371,3 @@ export default function AdminStipendPage() {
 }
 
 const INPUT = 'w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none'
-
-/**
- * The Banking Office's releasing officer: the DSA sets their name together with
- * the PIN they enter after scanning a claim stub's QR. The name is what prints on
- * every stub they release; the PIN itself is never read back.
- */
-function BankingOfficePinCard({ unlockToken, onGateExpired }: { unlockToken: string; onGateExpired: (message: string) => void }) {
-  const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
-  const [officerName, setOfficerName] = useState('')
-  const [pin, setPin] = useState('')
-  const [pinConfirmation, setPinConfirmation] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const { notify } = useFeedback()
-
-  const { data: status } = useQuery({
-    queryKey: ['admin-banking-office-pin'],
-    queryFn: () => adminApi.getBankingOfficePin(),
-  })
-
-  const reset = () => { setEditing(false); setOfficerName(''); setPin(''); setPinConfirmation(''); setError(null) }
-
-  const save = useMutation({
-    mutationFn: () => adminApi.setBankingOfficePin({
-      officer_name: officerName.trim(),
-      ...(pin ? { pin, pin_confirmation: pinConfirmation } : {}),
-      unlock_token: unlockToken,
-    }),
-    onSuccess: (res) => {
-      queryClient.setQueryData(['admin-banking-office-pin'], res.data)
-      reset()
-      notify({ title: 'Banking Office details saved', detail: res.message ?? null })
-    },
-    onError: (e: ApiError) => {
-      const errors = e.response?.data?.errors
-      if (errors?.unlock_token?.[0]) { onGateExpired(errors.unlock_token[0]); return }
-      setError(errors?.officer_name?.[0] ?? errors?.pin?.[0] ?? e.response?.data?.message ?? 'Could not save.')
-    },
-  })
-
-  const digitsOnly = (v: string) => v.replace(/\D/g, '').slice(0, 8)
-  // A PIN is required the first time; afterwards blank keeps the current one.
-  const pinRequired = !status?.has_pin
-  const canSave = !!officerName.trim() && (pinRequired ? !!pin && !!pinConfirmation : !pin || !!pinConfirmation)
-
-  return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-4 w-4 text-brand-700" />
-            <h2 className="font-semibold text-ink-900">Banking Office Releasing Officer</h2>
-            {status && (
-              <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${status.is_set ? 'bg-success-50 text-success-600' : 'bg-warning-50 text-warning-600'}`}>
-                {status.is_set ? 'Set' : 'Not set'}
-              </span>
-            )}
-          </div>
-          {status?.officer_name && (
-            <p className="mt-1 text-sm text-ink-900">
-              <span className="font-semibold">{status.officer_name}</span>
-              {status.updated_at && <span className="text-xs text-ink-500"> · PIN last changed {formatDateTime(status.updated_at)}</span>}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-ink-500">
-            The releasing officer scans the QR on a claim stub and enters this PIN to record the payout.
-            The name you set here is printed on the stub as the releasing officer. Give the PIN only to that officer.
-          </p>
-          {status && !status.is_set && (
-            <p className="mt-1 text-xs font-medium text-warning-700">Until the officer and PIN are set, the Banking Office cannot record payouts.</p>
-          )}
-        </div>
-        {/* Wait for the status so the label never says "Set" over an existing setup. */}
-        {!editing && status && (
-          <button onClick={() => { setError(null); setOfficerName(status.officer_name ?? ''); setEditing(true) }}
-            className="flex-shrink-0 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50">
-            {status.is_set ? 'Change officer or PIN' : 'Set up'}
-          </button>
-        )}
-      </div>
-
-      {editing && (
-        <div className="mt-3 space-y-2">
-          <input value={officerName} onChange={(e) => setOfficerName(e.target.value)} maxLength={150}
-            autoComplete="off" placeholder="Releasing officer's full name"
-            className="w-full max-w-sm rounded-lg border border-ink-300 bg-ink-50 px-3 py-2 text-xs focus:border-brand-700 focus:outline-none" />
-          <div className="flex flex-wrap items-center gap-2">
-            <input type="password" inputMode="numeric" autoComplete="new-password" value={pin}
-              onChange={(e) => setPin(digitsOnly(e.target.value))}
-              placeholder={pinRequired ? 'PIN (6–8 digits)' : 'New PIN (blank = keep current)'}
-              className="w-52 rounded-lg border border-ink-300 bg-ink-50 px-3 py-2 text-xs focus:border-brand-700 focus:outline-none" />
-            <input type="password" inputMode="numeric" autoComplete="new-password" value={pinConfirmation}
-              onChange={(e) => setPinConfirmation(digitsOnly(e.target.value))} placeholder="Repeat the PIN"
-              onKeyDown={(e) => { if (e.key === 'Enter' && canSave && !save.isPending) save.mutate() }}
-              className="w-44 rounded-lg border border-ink-300 bg-ink-50 px-3 py-2 text-xs focus:border-brand-700 focus:outline-none" />
-            <button onClick={() => { setError(null); save.mutate() }} disabled={save.isPending || !canSave}
-              className="rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
-              {save.isPending ? 'Saving…' : 'Save'}
-            </button>
-            <button onClick={reset}
-              className="rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
-          </div>
-        </div>
-      )}
-      {error && <p className="mt-2 text-xs font-medium text-danger-700">{error}</p>}
-    </div>
-  )
-}

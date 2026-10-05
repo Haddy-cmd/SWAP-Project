@@ -55,8 +55,9 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
             ->subject('SWAP Application Approved')
             ->greeting("Dear {$notifiable->name},")
             ->line('Congratulations! Your Student Welfare Assistantship Program application has been approved.')
+            ->line('You are now a SWAP recipient: announcements from the DSA reach you in the portal and by email.')
             ->line('You will be assigned to an office shortly. Please check the SWAP Portal for your assignment details.')
-            ->action('View Portal', \App\Support\Frontend::url('/applicant/dashboard'))
+            ->action('View Portal', \App\Support\Frontend::url('/recipient/dashboard'))
             ->line('Thank you for being part of the SWAP program at MSU Marawi.');
     }
 
@@ -66,7 +67,7 @@ class ApplicationApprovedNotification extends Notification implements ShouldQueu
             'title' => $this->isRenewal() ? 'Renewal Approved' : 'Application Approved',
             'message' => $this->isRenewal()
                 ? "Your SWAP renewal for {$this->term()} has been approved."
-                : 'Congratulations! Your SWAP application has been approved.',
+                : 'Congratulations! Your SWAP application has been approved. You are now a SWAP recipient; the DSA will assign your office soon.',
             'type' => 'application',
             'application_id' => $this->data['application_id'] ?? null,
         ];

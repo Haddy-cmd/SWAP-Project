@@ -72,7 +72,7 @@ export default function AdminAnnouncementsPage() {
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Announcements</h1>
         <p className="mt-1 text-sm text-ink-500">
-          Send a message to every active recipient. It appears in their portal notifications and is emailed to them.
+          Send a message to every active recipient, approved students still waiting for an office included. It appears in their portal notifications and is emailed to them.
         </p>
       </div>
 

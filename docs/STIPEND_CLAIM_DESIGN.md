@@ -1,5 +1,13 @@
 # Digital Stipend Claim — Design Proposal
 
+> **Superseded 2026-10-05.** A stipend release is now **final**: the stub is created `released`,
+> signed at release by the supervisor, the director and the beneficiary (their saved signature).
+> The claim QR, the public `/claim/{claimToken}` scan page, `/stipend/verify/*`, the Banking Office
+> PIN, the releasing officer and the `claimed` transition were removed; a mistake is undone by
+> voiding with a reason. Existing ready-to-claim stubs were migrated to `released`
+> (`2026_10_05_000004`). The current rules are in `docs/SYSTEM_OVERVIEW.md` §6 "Stipend release";
+> this document is kept as the history of the original design.
+
 > Feature design for digitizing the 3-part paper claim stub (Acknowledgment Receipt →
 > Banking Office, Return Slip → DSA, Receiving Slip → student), built to plug into the
 > existing SWAP Portal conventions.

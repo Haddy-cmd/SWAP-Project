@@ -21,7 +21,7 @@ class StipendClaimController extends Controller
         $stipend = StipendHistory::with(['recipient.profile', 'signatures', 'certifiedBy'])->findOrFail($id);
 
         abort_if($stipend->user_id !== $request->user()->id, 403, 'This stipend does not belong to you.');
-        abort_if(!in_array($stipend->status, ['certified', 'claimed'], true), 404, 'No claim slip is available yet.');
+        abort_if(!in_array($stipend->status, ['released', 'claimed', 'certified'], true), 404, 'No stub is available for this stipend.');
 
         $disk = config('filesystems.documents_disk', 'public');
 
@@ -43,7 +43,4 @@ class StipendClaimController extends Controller
 
         return Storage::disk($disk)->download($stipend->slip_path, "swap-claim-stub-{$stipend->control_number}.pdf");
     }
-
-    // Receipt is no longer confirmed here: the Banking Office's releasing officer
-    // records the payout by scanning the stub's QR (StipendVerifyController::release).
 }

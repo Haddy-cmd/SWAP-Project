@@ -136,7 +136,7 @@ export default function RecipientDashboard() {
                     )}
                   </div>
                 ) : (
-                  <p className="text-[12.5px] text-white/75">No active office assignment yet.</p>
+                  <p className="text-[12.5px] text-white/75">No office assignment yet. The DSA will notify you once you&apos;re placed.</p>
                 )}
               </div>
             </div>

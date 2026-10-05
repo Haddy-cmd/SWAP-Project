@@ -289,11 +289,8 @@ class ReportService
                     $a->deficient_hours !== null ? (float) $a->deficient_hours : '',
                     self::promissoryLabel($a),
                     self::reportLabel($a->termReport),
-                    match ($stub?->status) {
-                        'claimed', 'released' => 'Claimed',
-                        'certified', 'pending' => 'Ready to claim',
-                        default => '—',
-                    },
+                    // Any live stub is a release (legacy claimed/certified rows included).
+                    $stub ? 'Released' : '—',
                     match ($renewal?->status) {
                         null => '—',
                         'approved' => 'Approved',
@@ -367,29 +364,28 @@ class ReportService
             ->where('academic_year', $ay)->where('semester', $sem)
             ->with('recipient.profile')->orderByDesc('created_at')->get();
 
-        // Option C lifecycle: a stub is paid once claimed (legacy rows say
-        // 'released'); certified stubs (and legacy 'pending') await claim.
-        $paid = $stipends->whereIn('status', ['claimed', 'released']);
-        $awaiting = $stipends->whereIn('status', ['certified', 'pending']);
+        // A release is final (2026-10-05): every live stub counts as released, legacy
+        // Banking Office payouts (`claimed`) included; void ones don't count.
+        $released = $stipends->whereIn('status', StipendHistory::LIVE_STATUSES);
 
         return [
             'title' => 'Stipend Disbursement',
             'slug' => 'stipend-disbursement',
-            'headers' => ['Recipient', 'Email', 'Student ID', 'Amount', 'Status', 'Period', 'Claimed At', 'Via Promissory', 'Deficient Hours'],
+            'headers' => ['Recipient', 'Email', 'Student ID', 'Amount', 'Status', 'Period', 'Released At', 'Via Promissory', 'Deficient Hours'],
             'stats' => [
-                ['label' => 'Total Claimed', 'value' => '₱' . number_format((float) $paid->sum('amount'), 0)],
-                ['label' => 'Recipients', 'value' => (string) $stipends->where('status', '!=', 'void')->count()],
-                ['label' => 'Awaiting Claim', 'value' => '₱' . number_format((float) $awaiting->sum('amount'), 0)],
-                ['label' => 'Claimed', 'value' => (string) $paid->count()],
+                ['label' => 'Total Released', 'value' => '₱' . number_format((float) $released->sum('amount'), 0)],
+                ['label' => 'Recipients', 'value' => (string) $released->count()],
+                ['label' => 'Via Promissory', 'value' => (string) $released->where('via_promissory', true)->count()],
+                ['label' => 'Voided', 'value' => (string) $stipends->where('status', StipendHistory::STATUS_VOID)->count()],
             ],
             'rows' => $stipends->map(fn ($s) => [
                 $s->recipient?->name,
                 $s->recipient?->email,
                 $s->recipient?->profile?->student_id_number,
                 number_format((float) $s->amount, 2, '.', ''),
-                ucwords($s->status),
+                $s->status === StipendHistory::STATUS_VOID ? 'Void' : 'Released',
                 $s->period_label,
-                ($s->claimed_at ?? $s->released_at)?->format('Y-m-d H:i') ?? '—',
+                ($s->released_at ?? $s->claimed_at ?? $s->certified_at)?->format('Y-m-d H:i') ?? '—',
                 $s->via_promissory ? 'Yes' : 'No',
                 $s->deficient_hours !== null ? (float) $s->deficient_hours : '',
             ])->all(),

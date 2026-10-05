@@ -4,12 +4,10 @@ namespace Tests\Feature;
 
 use App\Events\StipendReleased;
 use App\Models\StipendHistory;
-use App\Notifications\StipendAvailableNotification;
 use App\Notifications\StipendReleasedNotification;
 use App\Services\StipendClaimService;
 use App\Services\StipendService;
 use App\Services\StipendSlipService;
-use App\Support\BankingOfficePin;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -77,33 +75,56 @@ class StipendClaimTest extends TestCase
             ->json('data.unlock_token');
     }
 
-    public function test_release_creates_a_certified_stub_signed_by_supervisor_and_admin(): void
+    public function test_release_is_final_and_signed_by_supervisor_director_and_beneficiary(): void
     {
         Notification::fake();
         [$recipient, $supervisor] = $this->recipientWithSupervisor();
         $admin = $this->makeUser('admin');
 
         Sanctum::actingAs($admin);
-        $res = $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
             ->assertStatus(201)
-            ->assertJsonPath('data.status', 'certified');
+            ->assertJsonPath('data.status', 'released')
+            ->assertJsonPath('data.has_slip', true)
+            ->assertJsonPath('message', 'Stipend released. The recipient has been notified.');
 
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
         $this->assertNotNull($stipend->control_number);
-        $this->assertNotNull($stipend->claim_token);
+        // No QR to scan any more: nothing is generated for the Banking Office.
+        $this->assertNull($stipend->claim_token);
+        $this->assertNull($stipend->releasing_officer_name);
+        $this->assertSame($admin->id, $stipend->released_by);
+        $this->assertNotNull($stipend->released_at);
         // Fixed semester amount applied by default.
         $this->assertEquals((float) StipendService::DEFAULT_STIPEND_AMOUNT, (float) $stipend->amount);
 
-        // Co-signed by the supervisor (SWAP Mentor) and the certifying admin.
+        // Signed by the supervisor (SWAP Mentor), the releasing admin and the student, at release.
+        $this->assertEqualsCanonicalizing(
+            ['supervisor', 'director', 'beneficiary'],
+            $stipend->signatures()->pluck('signatory_role')->all(),
+        );
         $this->assertDatabaseHas('stipend_signatures', [
             'stipend_history_id' => $stipend->id, 'signatory_role' => 'supervisor', 'user_id' => $supervisor->id,
         ]);
         $this->assertDatabaseHas('stipend_signatures', [
             'stipend_history_id' => $stipend->id, 'signatory_role' => 'director', 'user_id' => $admin->id,
         ]);
+        // The saved specimen is copied to the stub, so a later redraw doesn't change it.
+        $this->assertDatabaseHas('stipend_signatures', [
+            'stipend_history_id' => $stipend->id, 'signatory_role' => 'beneficiary', 'user_id' => $recipient->id,
+            'method' => 'drawn', 'signature_image_path' => "stipend-signatures/{$stipend->id}/beneficiary.png",
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'released', 'auditable_type' => StipendHistory::class, 'auditable_id' => $stipend->id,
+        ]);
 
-        Notification::assertSentTo($recipient, StipendAvailableNotification::class);
-        $this->assertStringNotContainsString($stipend->claim_token, $res->getContent());
+        Notification::assertSentTo($recipient, StipendReleasedNotification::class, function ($n) use ($recipient, $stipend) {
+            $mail = $n->toMail($recipient);
+
+            return $mail->subject === 'SWAP Stipend Released'
+                && str_contains(implode(' ', $mail->introLines), $stipend->control_number);
+        });
+        Notification::assertSentTimes(StipendReleasedNotification::class, 1);
     }
 
     public function test_release_requires_the_admin_step_up_password(): void
@@ -117,140 +138,19 @@ class StipendClaimTest extends TestCase
         $this->assertDatabaseMissing('stipend_history', ['user_id' => $recipient->id]);
     }
 
-    public function test_verify_endpoint_confirms_a_certified_claim_and_hides_after_it_is_claimed(): void
-    {
-        [$recipient] = $this->recipientWithSupervisor();
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-
-        $token = StipendHistory::firstWhere('user_id', $recipient->id)->claim_token;
-
-        // Banking Office verifies (public, no auth).
-        $this->getJson("/api/stipend/verify/{$token}")
-            ->assertStatus(200)
-            ->assertJsonPath('valid', true)
-            ->assertJsonPath('data.status', 'certified');
-
-        // An unknown token is rejected.
-        $this->getJson('/api/stipend/verify/nope')->assertStatus(404)->assertJsonPath('valid', false);
-    }
-
-    public function test_banking_office_release_marks_claimed_consumes_token_and_notifies(): void
-    {
-        Notification::fake();
-        [$recipient] = $this->recipientWithSupervisor();
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-        $token = $stipend->claim_token;
-
-        // The releasing officer is not logged in: the scan page is public, the PIN is the gate.
-        $this->app['auth']->forgetGuards();
-        $this->bankingOfficeRelease($stipend)
-            ->assertStatus(200)
-            ->assertJsonPath('data.status', 'claimed')
-            ->assertJsonPath('data.releasing_officer_name', 'Cashier Jane Doe')
-            ->assertJsonPath('message', 'Payout recorded. The stub is now marked as claimed.');
-
-        $fresh = $stipend->fresh();
-        $this->assertEquals('claimed', $fresh->status);
-        $this->assertNull($fresh->claim_token, 'token must be consumed');
-        $this->assertEquals('Cashier Jane Doe', $fresh->releasing_officer_name);
-        $this->assertEqualsCanonicalizing(
-            ['supervisor', 'director', 'beneficiary', 'releasing_officer'],
-            $fresh->signatures()->pluck('signatory_role')->all(),
-        );
-        $this->assertDatabaseHas('audit_logs', [
-            'action' => 'claimed', 'auditable_type' => StipendHistory::class, 'auditable_id' => $stipend->id,
-        ]);
-
-        // The consumed token no longer verifies or releases: a replayed/photographed slip can't be paid twice.
-        $this->getJson("/api/stipend/verify/{$token}")->assertStatus(404);
-        $this->postJson("/api/stipend/verify/{$token}/release", ['pin' => self::UBO_PIN])
-            ->assertStatus(404)->assertJsonPath('valid', false);
-        Notification::assertSentTo($recipient, StipendReleasedNotification::class);
-    }
-
-    public function test_banking_office_release_rejects_a_wrong_pin_and_keeps_the_stub_certified(): void
+    public function test_the_banking_office_scan_and_pin_routes_are_gone(): void
     {
         $recipient = $this->eligibleRecipient();
         Sanctum::actingAs($this->makeUser('admin'));
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-        BankingOfficePin::set(self::UBO_PIN, 'Cashier Jane Doe');
 
-        $this->postJson("/api/stipend/verify/{$stipend->claim_token}/release", ['pin' => '999999'])
-            ->assertStatus(422)->assertJsonPath('errors.pin.0', BankingOfficePin::MSG_WRONG);
+        $this->getJson('/api/stipend/verify/any-token')->assertStatus(404);
+        $this->postJson('/api/stipend/verify/any-token/release', ['pin' => '123456'])->assertStatus(404);
+        $this->getJson('/api/admin/stipend/banking-office-pin')->assertStatus(404);
+        $this->putJson('/api/admin/stipend/banking-office-pin', ['officer_name' => 'Cashier', 'pin' => '123456'])
+            ->assertStatus(404);
 
-        $this->postJson("/api/stipend/verify/{$stipend->claim_token}/release", [])
-            ->assertStatus(422)->assertJsonPath('errors.pin.0', 'Enter the Banking Office PIN.');
-
-        $this->assertEquals('certified', $stipend->fresh()->status);
-        $this->assertNotNull($stipend->fresh()->claim_token);
-    }
-
-    public function test_banking_office_release_is_refused_until_the_pin_is_set(): void
-    {
-        $recipient = $this->eligibleRecipient();
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-
-        $this->postJson("/api/stipend/verify/{$stipend->claim_token}/release", ['pin' => '123456'])
-            ->assertStatus(422)->assertJsonPath('message', BankingOfficePin::MSG_NOT_SET);
-
-        $this->assertEquals('certified', $stipend->fresh()->status);
-    }
-
-    public function test_banking_office_pin_attempts_are_throttled(): void
-    {
-        $recipient = $this->eligibleRecipient();
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-        BankingOfficePin::set(self::UBO_PIN, 'Cashier Jane Doe');
-        // The officer is anonymous (keyed by IP), not the admin whose release used their own bucket.
-        $this->app['auth']->forgetGuards();
-
-        for ($i = 0; $i < 6; $i++) {
-            $this->postJson("/api/stipend/verify/{$stipend->claim_token}/release", ['pin' => '00000'.$i])
-                ->assertStatus(422);
-        }
-
-        // Even the right PIN is refused once the window is spent.
-        $this->bankingOfficeRelease($stipend)->assertStatus(429);
-        $this->assertEquals('certified', $stipend->fresh()->status);
-    }
-
-    public function test_the_stub_gets_the_officer_name_the_admin_set_not_a_typed_one(): void
-    {
-        [$recipient] = $this->recipientWithSupervisor();
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-        BankingOfficePin::set(self::UBO_PIN, 'Juan Dela Cruz');
-        $this->app['auth']->forgetGuards();
-
-        // The scan page shows who the payout will be recorded under.
-        $this->getJson("/api/stipend/verify/{$stipend->claim_token}")
-            ->assertOk()->assertJsonPath('data.releasing_officer_name', 'Juan Dela Cruz');
-
-        // A name sent with the request (e.g. browser autofill) is ignored.
-        $this->postJson("/api/stipend/verify/{$stipend->claim_token}/release", [
-            'pin' => self::UBO_PIN, 'releasing_officer_name' => 'admin@msu-marawi.edu.ph',
-        ])->assertOk()->assertJsonPath('data.releasing_officer_name', 'Juan Dela Cruz');
-
-        $this->assertDatabaseHas('stipend_signatures', [
-            'stipend_history_id' => $stipend->id, 'signatory_role' => 'releasing_officer', 'printed_name' => 'Juan Dela Cruz',
-        ]);
-        $html = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
-        $this->assertSame(2, substr_count($html, 'Juan Dela Cruz'), 'Return Slip + Receiving Slip');
-        $this->assertStringNotContainsString('admin@msu-marawi.edu.ph', $html);
-
-        // Changing the officer later never rewrites a stub already released.
-        BankingOfficePin::set(null, 'Maria Santos');
-        $this->assertSame('Juan Dela Cruz', $stipend->fresh()->releasing_officer_name);
+        $this->assertSame('released', StipendHistory::firstWhere('user_id', $recipient->id)->status);
     }
 
     public function test_the_student_can_no_longer_confirm_their_own_receipt(): void
@@ -265,82 +165,28 @@ class StipendClaimTest extends TestCase
             'releasing_officer_name' => 'Cashier',
         ])->assertStatus(404);
 
-        $this->assertEquals('certified', $stipend->fresh()->status);
+        $this->assertEquals('released', $stipend->fresh()->status);
     }
 
-    public function test_a_certified_stub_carries_the_banking_office_qr_until_it_is_claimed(): void
+    public function test_the_released_stub_has_no_qr_and_no_releasing_officer(): void
     {
         $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
-        // No supervisor or admin holds ink, and the beneficiary signs only at payout:
-        // the QR is the only image on the certified stub.
+        // No supervisor or admin holds ink: the only image on the stub is the beneficiary's
+        // (the fixture's 1×1 specimen), signed at release. No QR is printed.
         [$recipient] = $this->recipientWithSupervisor();
 
         Sanctum::actingAs($this->makeUser('admin'));
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
 
-        $images = $this->pdfImages($disk->get($stipend->slip_path));
-        $this->assertCount(1, $images, 'the certified stub prints one QR');
-        [$w, $h] = array_map('intval', explode('x', array_key_first($images)));
-        $this->assertSame($w, $h, 'the QR is square');
-        $this->assertStringEndsWith('/claim/'.$stipend->claim_token, StipendSlipService::claimUrl($stipend));
+        $this->assertSame(['1x1'], array_keys($this->pdfImages($disk->get($stipend->slip_path))));
+        $this->assertSame(2, $this->pdfImages($disk->get($stipend->slip_path))['1x1']['draws'], 'Return Slip + Receiving Slip');
 
-        $this->bankingOfficeRelease($stipend)->assertStatus(200);
-
-        // Claimed: token cleared, so the re-rendered stub has no QR left to scan — the
-        // only image left is the beneficiary's ink (the fixture's 1×1 specimen).
-        $this->assertSame(['1x1'], array_keys($this->pdfImages($disk->get($stipend->fresh()->slip_path))));
-    }
-
-    public function test_admin_sets_the_releasing_officer_and_pin_behind_the_step_up(): void
-    {
-        $admin = $this->makeUser('admin');
-        Sanctum::actingAs($admin);
-        $url = '/api/admin/stipend/banking-office-pin';
-        $officer = ['officer_name' => 'Juan Dela Cruz', 'password' => self::PW];
-
-        $this->getJson($url)->assertStatus(200)
-            ->assertJsonPath('data.is_set', false)
-            ->assertJsonPath('data.officer_name', null);
-
-        // Step-up required; name and PIN required the first time; PIN shape enforced.
-        $this->putJson($url, ['officer_name' => 'Juan Dela Cruz', 'pin' => '123456', 'pin_confirmation' => '123456'])
-            ->assertStatus(422);
-        $this->putJson($url, ['pin' => '123456', 'pin_confirmation' => '123456', 'password' => self::PW])
-            ->assertStatus(422)->assertJsonPath('errors.officer_name.0', "Enter the releasing officer's name.");
-        $this->putJson($url, $officer)
-            ->assertStatus(422)->assertJsonPath('errors.pin.0', 'Enter a PIN for the releasing officer.');
-        $this->putJson($url, $officer + ['pin' => '12ab', 'pin_confirmation' => '12ab'])
-            ->assertStatus(422)->assertJsonPath('errors.pin.0', 'The Banking Office PIN must be 6 to 8 digits.');
-        $this->putJson($url, $officer + ['pin' => '123456', 'pin_confirmation' => '654321'])
-            ->assertStatus(422)->assertJsonPath('errors.pin.0', 'The two PIN entries do not match.');
-        $this->assertFalse(BankingOfficePin::isSet());
-
-        $this->putJson($url, $officer + ['pin' => '24681357', 'pin_confirmation' => '24681357'])
-            ->assertStatus(200)
-            ->assertJsonPath('data.is_set', true)
-            ->assertJsonPath('data.officer_name', 'Juan Dela Cruz')
-            ->assertJsonPath('message', 'Releasing officer and PIN saved. Give the PIN only to Juan Dela Cruz.');
-        $this->assertTrue(BankingOfficePin::matches('24681357'));
-
-        // Renaming alone keeps the PIN (another admin: this one spent the 6/min PIN window).
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->putJson($url, ['officer_name' => 'Maria Santos', 'password' => self::PW])
-            ->assertStatus(200)
-            ->assertJsonPath('data.officer_name', 'Maria Santos')
-            ->assertJsonPath('message', 'Releasing officer updated. The PIN is unchanged.');
-        $this->assertTrue(BankingOfficePin::matches('24681357'));
-
-        // Audited with the names, never the PIN.
-        $log = \App\Models\AuditLog::where('action', 'banking_office_pin_changed')->latest('id')->first();
-        $this->assertSame('Juan Dela Cruz', $log->old_values['officer_name']);
-        $this->assertSame('Maria Santos', $log->new_values['officer_name']);
-        $this->assertFalse($log->new_values['pin_changed']);
-        $this->assertStringNotContainsString('24681357', json_encode(\App\Models\AuditLog::pluck('new_values')));
-
-        // Other roles can't read or change it.
-        Sanctum::actingAs($this->makeUser('supervisor'));
-        $this->getJson('/api/admin/stipend/banking-office-pin')->assertStatus(403);
+        $html = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
+        $this->assertStringNotContainsString('Releasing Officer', $html);
+        $this->assertStringNotContainsString('/claim/', $html);
+        $this->assertStringNotContainsString('Banking Office', $html);
+        $this->assertStringContainsString('DSA COPY', $html);
     }
 
     /**
@@ -363,20 +209,17 @@ class StipendClaimTest extends TestCase
         return ob_get_clean();
     }
 
-    /** Release as admin, then the Banking Office records the payout; returns [stipend, response]. */
-    private function releaseAndConfirm(\App\Models\User $recipient): array
+    /** Release as admin (final, signed by the student too); returns [stipend, response] acting as the recipient. */
+    private function releaseAs(\App\Models\User $recipient): array
     {
         Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-
-        $res = $this->bankingOfficeRelease($stipend)->assertStatus(200);
+        $res = $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
         Sanctum::actingAs($recipient);
 
-        return [$stipend->fresh(), $res];
+        return [StipendHistory::firstWhere('user_id', $recipient->id), $res];
     }
 
-    public function test_confirmed_stub_shows_the_beneficiarys_transparent_drawn_ink(): void
+    public function test_released_stub_shows_the_beneficiarys_transparent_drawn_ink(): void
     {
         [$recipient] = $this->recipientWithSupervisor();
 
@@ -387,42 +230,21 @@ class StipendClaimTest extends TestCase
             'signature' => UploadedFile::fake()->createWithContent('signature.png', $this->transparentInkPng(300, 113)),
         ], ['Accept' => 'application/json'])->assertSuccessful();
 
-        [$stipend] = $this->releaseAndConfirm($recipient->fresh());
+        [$stipend] = $this->releaseAs($recipient->fresh());
 
         // The receipt's rows are on the model the PDF was rendered from.
         $this->assertEqualsCanonicalizing(
-            ['supervisor', 'director', 'beneficiary', 'releasing_officer'],
+            ['supervisor', 'director', 'beneficiary'],
             $stipend->signatures()->pluck('signatory_role')->all(),
         );
 
-        // What the student downloads after confirming.
+        // What the student downloads once released.
         $pdf = $this->get("/api/recipient/stipend/{$stipend->id}/slip")->assertStatus(200)->streamedContent();
         $images = $this->pdfImages($pdf);
         $this->assertArrayHasKey('300x113', $images, 'beneficiary ink missing from the archived stub');
         $this->assertTrue($images['300x113']['smask'], 'transparency must be kept as an alpha mask');
         $this->assertSame(2, $images['300x113']['draws'], 'ink belongs on the Return Slip and the Receiving Slip');
         $this->assertGreaterThan(0, $images['300x113']['visible_px'], 'strokes must be visible on white paper');
-    }
-
-    public function test_confirmed_stub_keeps_the_typed_fallback_without_a_specimen(): void
-    {
-        $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
-        [$recipient] = $this->recipientWithSupervisor();
-
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-
-        // Removed after release (release itself requires one): the receipt falls back to typed.
-        $recipient->update(['signature_image_path' => null]);
-        $this->bankingOfficeRelease($stipend)->assertStatus(200);
-        $stipend = $stipend->fresh();
-
-        $this->assertDatabaseHas('stipend_signatures', [
-            'stipend_history_id' => $stipend->id, 'signatory_role' => 'beneficiary', 'method' => 'authenticated',
-        ]);
-        // Nobody holds a specimen here, so the stub carries typed lines only.
-        $this->assertSame([], $this->pdfImages($disk->get($stipend->slip_path)));
     }
 
     public function test_slip_download_reports_a_render_failure_as_a_readable_503(): void
@@ -450,21 +272,52 @@ class StipendClaimTest extends TestCase
             && str_contains($ctx['error'], 'GD extension'))->once();
     }
 
-    public function test_void_invalidates_the_claim_token(): void
+    public function test_void_on_a_released_stub_needs_a_reason_and_makes_the_recipient_eligible_again(): void
     {
         [$recipient] = $this->recipientWithSupervisor();
         $admin = $this->makeUser('admin');
         Sanctum::actingAs($admin);
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-        $token = $stipend->claim_token;
+
+        $this->postJson("/api/admin/stipend/{$stipend->id}/void", ['password' => self::PW])
+            ->assertStatus(422)->assertJsonValidationErrors('reason');
 
         $this->postJson("/api/admin/stipend/{$stipend->id}/void", ['reason' => 'Duplicate release', 'password' => self::PW])
-            ->assertStatus(200)->assertJsonPath('data.status', 'void');
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', 'void')
+            ->assertJsonPath('message', 'Stipend voided. The recipient can be released a new stub.');
 
-        $this->assertNull($stipend->fresh()->claim_token);
-        $this->getJson("/api/stipend/verify/{$token}")->assertStatus(404);
+        $fresh = $stipend->fresh();
+        $this->assertSame('Duplicate release', $fresh->void_reason);
+        $this->assertNotNull($fresh->voided_at);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'voided', 'auditable_type' => StipendHistory::class, 'auditable_id' => $stipend->id,
+        ]);
+        $this->getJson('/api/admin/stipend/eligible')->assertOk()->assertJsonFragment(['user_id' => $recipient->id]);
+
+        // Voiding twice is refused with a readable reason.
+        $this->postJson("/api/admin/stipend/{$stipend->id}/void", ['reason' => 'Again', 'password' => self::PW])
+            ->assertStatus(422)->assertJsonPath('message', StipendClaimService::MSG_ALREADY_VOID);
+    }
+
+    public function test_a_legacy_stub_received_at_the_banking_office_cannot_be_voided(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $stipend = StipendHistory::create([
+            'user_id' => $recipient->id,
+            'amount' => 5000,
+            'academic_year' => '2024-2025',
+            'semester' => '1st Semester',
+            'status' => StipendHistory::STATUS_CLAIMED,
+            'claimed_at' => now()->subMonth(),
+        ]);
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->postJson("/api/admin/stipend/{$stipend->id}/void", ['reason' => 'Mistake', 'password' => self::PW])
+            ->assertStatus(422)->assertJsonPath('message', StipendClaimService::MSG_NOT_VOIDABLE);
+
+        $this->assertSame('claimed', $stipend->fresh()->status);
     }
 
     public function test_eligible_excludes_a_recipient_who_already_has_a_live_stipend(): void
@@ -513,7 +366,7 @@ class StipendClaimTest extends TestCase
         $payload['unlock_token'] = $token;
 
         $this->postJson('/api/admin/stipend/release', $payload)
-            ->assertStatus(201)->assertJsonPath('data.status', 'certified');
+            ->assertStatus(201)->assertJsonPath('data.status', 'released');
     }
 
     public function test_bulk_release_releases_eligible_and_skips_the_rest(): void
@@ -538,8 +391,15 @@ class StipendClaimTest extends TestCase
         $this->assertCount(2, $res->json('data.released'));
         $this->assertCount(2, $res->json('data.skipped'));
 
-        $this->assertEquals('certified', StipendHistory::firstWhere('user_id', $a->id)->status);
-        $this->assertEquals('certified', StipendHistory::firstWhere('user_id', $b->id)->status);
+        foreach ([$a, $b] as $recipient) {
+            $stub = StipendHistory::firstWhere('user_id', $recipient->id);
+            $this->assertEquals('released', $stub->status);
+            $this->assertNull($stub->claim_token);
+            $this->assertEqualsCanonicalizing(
+                ['supervisor', 'director', 'beneficiary'],
+                $stub->signatures()->pluck('signatory_role')->all(),
+            );
+        }
         // One row per recipient — the intra-batch duplicate was skipped, not doubled.
         $this->assertEquals(1, StipendHistory::where('user_id', $a->id)->count());
         $this->assertNull(StipendHistory::firstWhere('user_id', $ineligible->id));
@@ -571,7 +431,7 @@ class StipendClaimTest extends TestCase
 
         $this->postJson("/api/admin/stipend/{$stipend->id}/void", ['reason' => 'No auth sent'])
             ->assertStatus(422);
-        $this->assertEquals('certified', $stipend->fresh()->status);
+        $this->assertEquals('released', $stipend->fresh()->status);
 
         // …while the unlock token authorizes it.
         $this->postJson("/api/admin/stipend/{$stipend->id}/void", [
@@ -657,7 +517,7 @@ class StipendClaimTest extends TestCase
             'amount' => 5000,
             'academic_year' => '2024-2025',
             'semester' => '1st Semester',
-            'status' => StipendHistory::STATUS_CERTIFIED,
+            'status' => StipendHistory::STATUS_RELEASED,
         ];
         StipendHistory::create($row);
 
@@ -711,19 +571,17 @@ class StipendClaimTest extends TestCase
             ->assertStatus(429);
     }
 
-    public function test_banking_office_release_succeeds_even_when_the_notification_fails(): void
+    public function test_release_succeeds_even_when_the_notification_fails(): void
     {
         [$recipient] = $this->recipientWithSupervisor();
-        Sanctum::actingAs($this->makeUser('admin'));
-        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))->assertStatus(201);
-        $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
-
-        // A mail outage after the claim is committed.
+        // A mail outage after the release is committed.
         Event::listen(StipendReleased::class, fn () => throw new \RuntimeException('SMTP connection refused'));
 
-        $this->bankingOfficeRelease($stipend)->assertStatus(200)->assertJsonPath('data.status', 'claimed');
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
+            ->assertStatus(201)->assertJsonPath('data.status', 'released');
 
-        $this->assertEquals('claimed', $stipend->fresh()->status);
+        $this->assertEquals('released', StipendHistory::firstWhere('user_id', $recipient->id)->status);
     }
 
     public function test_a_signed_stub_keeps_its_ink_after_the_signers_replace_their_specimens(): void
@@ -739,7 +597,7 @@ class StipendClaimTest extends TestCase
         // Distinctive sizes identify each signer's ink among the PDF's images.
         $saveSpecimen($supervisor, 320, 121);
         $saveSpecimen($recipient, 300, 113);
-        [$stipend] = $this->releaseAndConfirm($recipient->fresh());
+        [$stipend] = $this->releaseAs($recipient->fresh());
 
         // Both signers later draw new specimens (the old files are deleted)…
         $saveSpecimen($supervisor, 222, 77);

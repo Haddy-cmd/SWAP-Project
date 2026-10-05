@@ -15,7 +15,6 @@ use App\Http\Controllers\Shared\ReportController;
 use App\Http\Controllers\Shared\InvitationController;
 use App\Http\Controllers\Shared\SettingController;
 use App\Http\Controllers\Shared\SignatureController;
-use App\Http\Controllers\Shared\StipendVerifyController;
 use App\Http\Controllers\Admin\PromissoryController as AdminPromissoryController;
 use App\Http\Controllers\Recipient\PromissoryController as RecipientPromissoryController;
 use App\Http\Controllers\Recipient\StipendClaimController;
@@ -66,11 +65,6 @@ Route::get('/landing/photos/{id}/image', [PublicLandingPhotoController::class, '
 // Staff invitations — the invitee opens the emailed link to create their account.
 Route::get('/invitations/{token}', [InvitationController::class, 'show'])->middleware('throttle:10,1');
 Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept'])->middleware('throttle:6,1');
-
-// Banking Office claim verification — token-gated, single-use (consumed on receipt).
-Route::get('/stipend/verify/{claimToken}', [StipendVerifyController::class, 'show'])->middleware('throttle:30,1');
-// The releasing officer records the payout (name + Banking Office PIN) — PIN guessing is throttled.
-Route::post('/stipend/verify/{claimToken}/release', [StipendVerifyController::class, 'release'])->middleware('throttle:6,1');
 
 // Document file serving — auth is handled inside the controller (Bearer header
 // OR ?token= query param) so that links opened in new browser tabs still work.
@@ -206,8 +200,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/stipend/release', [StipendController::class, 'release'])->middleware('throttle:6,1');
         Route::post('/stipend/release-bulk', [StipendController::class, 'releaseBulk'])->middleware('throttle:6,1');
         Route::post('/stipend/{id}/void', [StipendController::class, 'void'])->middleware('throttle:6,1');
-        Route::get('/stipend/banking-office-pin', [StipendController::class, 'bankingOfficePin']);
-        Route::put('/stipend/banking-office-pin', [StipendController::class, 'setBankingOfficePin'])->middleware('throttle:6,1');
         Route::get('/promissory', [AdminPromissoryController::class, 'index']);
         Route::get('/promissory/{id}/file', [AdminPromissoryController::class, 'file']);
 

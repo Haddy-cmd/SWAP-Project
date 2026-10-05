@@ -324,6 +324,28 @@ class RenewalTest extends TestCase
             ->assertStatus(409)->assertJsonPath('message', Gate::msgNotEligible(self::TERM));
     }
 
+    public function test_a_renewal_marked_not_eligible_is_rejected_by_the_admin(): void
+    {
+        // The supervisor's "not eligible" mark locks approval; the admin's rejection is what
+        // ends the recipient's time in the program and returns them to the applicant portal.
+        [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
+        $this->pay($previous);
+        $this->submitTermReport($previous);
+        $this->accept($previous, eligible: false);
+        $renewal = $this->renewalFor($recipient);
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        $this->decide($renewal, 'approved')->assertStatus(409)->assertJsonPath('message', Gate::msgNotEligible(self::TERM));
+        $this->assertSame('recipient', $recipient->fresh()->role, 'the mark alone changes nothing');
+
+        $this->decide($renewal, 'rejected')->assertOk()->assertJsonPath('data.status', 'rejected');
+        $this->assertSame('applicant', $recipient->fresh()->role);
+        $this->assertSame('completed', $previous->fresh()->status);
+        Sanctum::actingAs($recipient->fresh());
+        $this->getJson('/api/recipient/hours/summary')->assertForbidden();
+        $this->getJson('/api/applicant/applications')->assertOk();
+    }
+
     public function test_a_renewal_without_its_cor_or_an_earlier_placement_is_not_approved(): void
     {
         // Even with the term paid and the report accepted, a renewal that never came with a COR stays blocked.

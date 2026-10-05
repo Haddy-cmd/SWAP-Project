@@ -6,8 +6,8 @@ const manilaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Man
 
 /**
  * What rejecting a renewal costs the recipient right now (ApplicationService::returnToApplicant
- * switches them to the applicant portal at once): a term still running, a stub not claimed,
- * a stipend not released, a missing end-of-term report.
+ * switches them to the applicant portal at once): a term still running, a stipend not
+ * released, a missing end-of-term report. A released stipend is final and unaffected.
  */
 export function renewalRejectWarnings(readiness: RenewalReadiness | null | undefined): string[] {
   if (!readiness) return []
@@ -16,15 +16,23 @@ export function renewalRejectWarnings(readiness: RenewalReadiness | null | undef
   if (readiness.term_end_date && readiness.term_end_date >= manilaToday()) {
     warnings.push(`Their ${term} term is still running (ends ${formatDate(readiness.term_end_date)}) — they won't be able to clock in for the rest of it.`)
   }
-  if (readiness.stipend_status === 'certified' || readiness.stipend_status === 'pending') {
-    warnings.push(`Their ${term} claim stub is released but not claimed yet — they won't be able to open it in the portal.`)
-  } else if (!readiness.stipend_status && (readiness.payment === 'owed' || readiness.payment === 'promissory')) {
+  if (!readiness.stipend_status && (readiness.payment === 'owed' || readiness.payment === 'promissory')) {
     warnings.push(`Their ${term} stipend hasn't been released yet.`)
   }
   if (!readiness.report.submitted) {
     warnings.push(`They haven't submitted the ${term} end-of-term report, and won't be able to after this.`)
   }
   return warnings
+}
+
+/**
+ * The supervisor marked the renewed term "not eligible for renewal": approval stays locked
+ * (RenewalReadinessService), and the admin rejects instead. These are the remarks the
+ * review form starts with (sent to the student; the admin can edit them).
+ */
+export function notEligibleRemarks(readiness: RenewalReadiness | null | undefined): string | null {
+  if (!readiness || readiness.report.renewal_eligible !== false) return null
+  return `Your supervisor marked you not eligible for renewal for ${readiness.term}.`
 }
 
 /** The "Are you sure?" before rejecting an application or a renewal (a decision is final). */

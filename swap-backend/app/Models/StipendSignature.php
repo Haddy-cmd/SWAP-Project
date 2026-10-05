@@ -10,9 +10,9 @@ class StipendSignature extends Model
 {
     use HasFactory;
 
-    // Certification is co-signed by the supervisor (SWAP Mentor, attested via the
-    // hours they verified) and the admin (DSA). Receipt is signed by the
-    // beneficiary and the external releasing officer.
+    // A release is co-signed by the supervisor (SWAP Mentor, attested via the hours
+    // they verified), the admin (DSA) and the beneficiary (their saved signature).
+    // `releasing_officer` exists only on legacy stubs paid at the Banking Office.
     public const ROLE_SUPERVISOR = 'supervisor';
     public const ROLE_DIRECTOR = 'director';
     public const ROLE_BENEFICIARY = 'beneficiary';
