@@ -28,6 +28,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Attendance', href: '/recipient/attendance', icon: Clock },
     { label: 'Scan QR', href: '/recipient/attendance/scan', icon: CheckSquare },
     { label: 'Hours', href: '/recipient/hours', icon: BarChart2 },
+    { label: 'My Reports', href: '/recipient/reports', icon: ClipboardList },
     { label: 'Duty Slip', href: '/recipient/reports/duty-slip', icon: FileText },
     { label: 'Renewal', href: '/recipient/renewal', icon: RefreshCw },
     { label: 'Stipend', href: '/recipient/stipend', icon: Banknote },
@@ -37,7 +38,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Students', href: '/supervisor/students', icon: Users },
     { label: 'Verify', href: '/supervisor/verifications', icon: CheckSquare },
     { label: 'Promissory', href: '/supervisor/promissory', icon: FileText },
-    { label: 'Summary', href: '/supervisor/reports', icon: BarChart2 },
+    { label: 'Analytics & Reports', href: '/supervisor/reports', icon: BarChart2 },
     { label: 'Office QR', href: '/supervisor/qr-code', icon: QrCode },
   ],
   admin: [
@@ -49,8 +50,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Semesters', href: '/admin/semesters', icon: CalendarRange },
     { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Stipend', href: '/admin/stipend', icon: Banknote },
-    { label: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
-    { label: 'Reports', href: '/admin/reports', icon: ClipboardList },
+    { label: 'Analytics & Reports', href: '/admin/analytics', icon: BarChart2 },
     { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },
     { label: 'Concerns', href: '/admin/concerns', icon: Inbox },
     { label: 'Landing Page', href: '/admin/landing', icon: Images },
@@ -90,6 +90,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
+  // Only the most specific match lights up, so /recipient/reports/duty-slip marks
+  // Duty Slip but not My Reports (and Scan QR not Attendance).
+  const activeHref = roleNav.filter((i) => isActive(i.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href
 
   return (
     <aside
@@ -114,7 +117,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       {/* Nav rail */}
       <nav className="sidebar-scroll flex-1 space-y-1 overflow-y-auto px-2 py-2">
         {roleNav.map((item) => (
-          <RailItem key={item.href} item={item} active={isActive(item.href)} onNavigate={onNavigate} />
+          <RailItem key={item.href} item={item} active={item.href === activeHref} onNavigate={onNavigate} />
         ))}
       </nav>
 

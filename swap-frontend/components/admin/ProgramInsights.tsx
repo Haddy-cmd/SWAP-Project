@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowRight, Coins, Gavel, RefreshCw, ShieldAlert, UserCheck, Building2, Filter } from 'lucide-react'
 import { analyticsApi } from '@/lib/api/analytics.api'
 import type { ProgramInsights as Insights } from '@/types/analytics.types'
+import type { ReportDrill } from '@/lib/utils/reportQuery'
 
 const CARD = 'rounded-[15px] border border-ink-200 bg-white p-6 shadow-[0_2px_8px_rgba(19,36,26,0.04)]'
 
@@ -24,18 +25,27 @@ function Title({ icon, children, note }: { icon: ReactNode; children: ReactNode;
   )
 }
 
-function Tile({ label, value, sub, tone = 'ink' }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'ink' | 'good' | 'bad' | 'warn' }) {
+function Tile({ label, value, sub, tone = 'ink', onClick }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'ink' | 'good' | 'bad' | 'warn'; onClick?: () => void }) {
   const color = { ink: 'text-ink-950', good: 'text-success-700', bad: 'text-danger-700', warn: 'text-warning-700' }[tone]
-  return (
-    <div className="rounded-[12px] border border-ink-100 bg-ink-50/60 px-4 py-3">
+  const body = (
+    <>
       <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-ink-500">{label}</div>
       <div className={`mt-1 font-serif text-[24px] font-semibold leading-none tabular-nums ${color}`}>{value}</div>
       {sub && <div className="mt-1 text-[11.5px] text-ink-500">{sub}</div>}
-    </div>
+    </>
+  )
+  // A tile with a report behind it opens that report, already filtered.
+  return onClick ? (
+    <button onClick={onClick} title={`Open the ${label.toLowerCase()} list`}
+      className="rounded-[12px] border border-ink-100 bg-ink-50/60 px-4 py-3 text-left transition-colors hover:border-brand-300 hover:bg-brand-50/60">
+      {body}
+    </button>
+  ) : (
+    <div className="rounded-[12px] border border-ink-100 bg-ink-50/60 px-4 py-3">{body}</div>
   )
 }
 
-function Table({ headers, rows, empty, numeric = [] }: { headers: string[]; rows: ReactNode[][]; empty: string; numeric?: number[] }) {
+function Table({ headers, rows, empty, numeric = [], onRow }: { headers: string[]; rows: ReactNode[][]; empty: string; numeric?: number[]; onRow?: (index: number) => void }) {
   if (!rows.length) return <p className="rounded-[11px] border border-dashed border-ink-300 bg-ink-50 p-4 text-[12.5px] text-ink-600">{empty}</p>
   return (
     <div className="overflow-x-auto">
@@ -49,7 +59,7 @@ function Table({ headers, rows, empty, numeric = [] }: { headers: string[]; rows
         </thead>
         <tbody>
           {rows.map((r, ri) => (
-            <tr key={ri}>
+            <tr key={ri} onClick={onRow ? () => onRow(ri) : undefined} className={onRow ? 'cursor-pointer hover:bg-brand-50/60' : undefined}>
               {r.map((c, ci) => (
                 <td key={ci} className={`whitespace-nowrap border-b border-ink-100 px-2 py-2 text-ink-700 ${numeric.includes(ci) ? 'text-right tabular-nums' : 'text-left'} ${ci === 0 ? 'font-semibold text-ink-900' : ''}`}>{c}</td>
               ))}
@@ -69,7 +79,7 @@ const Flag = ({ n }: { n: number }) => <span className={n > 0 ? 'font-bold text-
  * attendance integrity, supervisor workload, the application funnel and office use
  * (GET /admin/analytics/insights).
  */
-export function ProgramInsights({ academicYear, semester }: { academicYear: string; semester: string }) {
+export function ProgramInsights({ academicYear, semester, onDrill }: { academicYear: string; semester: string; onDrill?: (d: ReportDrill) => void }) {
   const { data, isLoading } = useQuery({
     queryKey: ['admin-insights', academicYear, semester],
     queryFn: () => analyticsApi.getInsights(academicYear, semester),
@@ -79,11 +89,14 @@ export function ProgramInsights({ academicYear, semester }: { academicYear: stri
     return <div className="h-[420px] animate-pulse rounded-[15px] bg-ink-100" />
   }
 
-  return <InsightsBody data={data} term={`${semester} ${academicYear}`} />
+  return <InsightsBody data={data} term={`${semester} ${academicYear}`} onDrill={onDrill} />
 }
 
-function InsightsBody({ data, term }: { data: Insights; term: string }) {
+function InsightsBody({ data, term, onDrill }: { data: Insights; term: string; onDrill?: (d: ReportDrill) => void }) {
   const { term_results: t, renewals: r, stipend: s, funnel: f } = data
+  // Each drill opens a report tab with the filter already applied (undefined → plain tile).
+  const go = (tab: string, filters: Record<string, string[]>, sort?: string, dir?: 'asc' | 'desc') =>
+    onDrill ? () => onDrill({ tab, filters, sort, dir }) : undefined
 
   return (
     <div className="space-y-[22px]">
@@ -92,10 +105,11 @@ function InsightsBody({ data, term }: { data: Insights; term: string }) {
         <div className={CARD}>
           <Title icon={<Gavel className="h-4 w-4" />} note={`${t.placements} placements`}>Term Results · {term}</Title>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Tile label="Qualified" value={t.qualified} tone="good" />
-            <Tile label="Deficient" value={t.deficient} tone={t.deficient ? 'bad' : 'ink'} sub={t.deficient_hours ? `${num(t.deficient_hours)} h short in all` : undefined} />
-            <Tile label="In progress" value={t.in_progress} />
-            <Tile label="Promissory notes" value={t.promissory.filed}
+            <Tile label="Qualified" value={t.qualified} tone="good" onClick={go('term-results', { verdict: ['Qualified'] })} />
+            <Tile label="Deficient" value={t.deficient} tone={t.deficient ? 'bad' : 'ink'} sub={t.deficient_hours ? `${num(t.deficient_hours)} h short in all` : undefined}
+              onClick={go('term-results', { verdict: ['Deficient'] }, 'deficient_hours', 'desc')} />
+            <Tile label="In progress" value={t.in_progress} onClick={go('term-results', { verdict: ['In Progress'] })} />
+            <Tile label="Promissory notes" value={t.promissory.filed} onClick={go('term-results', { promissory: ['Approved', 'Pending'] })}
               sub={`${t.promissory.approved} approved · ${t.promissory.pending} pending · ${t.promissory.rejected} rejected`} />
             <Tile label="Hours carried over" value={num(t.carried_hours)} sub="Added to the next term on renewal" />
           </div>
@@ -109,9 +123,9 @@ function InsightsBody({ data, term }: { data: Insights; term: string }) {
           </Title>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Tile label="Submitted" value={r.submitted} />
-            <Tile label="Approved" value={r.approved} tone="good" />
-            <Tile label="Rejected" value={r.rejected} tone={r.rejected ? 'bad' : 'ink'} />
-            <Tile label="Waiting" value={r.waiting} tone={r.waiting ? 'warn' : 'ink'} />
+            <Tile label="Approved" value={r.approved} tone="good" onClick={go('term-results', { renewal: ['Approved'] })} />
+            <Tile label="Rejected" value={r.rejected} tone={r.rejected ? 'bad' : 'ink'} onClick={go('term-results', { renewal: ['Rejected'] })} />
+            <Tile label="Waiting" value={r.waiting} tone={r.waiting ? 'warn' : 'ink'} onClick={go('term-results', { renewal: ['Waiting'] })} />
           </div>
           {r.waiting_reasons.length > 0 && (
             <div className="mt-4">
@@ -133,10 +147,10 @@ function InsightsBody({ data, term }: { data: Insights; term: string }) {
       <div className={CARD}>
         <Title icon={<Coins className="h-4 w-4" />} note={`${s.via_promissory} via promissory · a release is final`}>Stipend Disbursement</Title>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Tile label="Released" value={peso(s.released_amount)} tone="good" sub={`${s.released} recipient${s.released === 1 ? '' : 's'}`} />
+          <Tile label="Released" value={peso(s.released_amount)} tone="good" sub={`${s.released} recipient${s.released === 1 ? '' : 's'}`} onClick={go('stipend', { status: ['Released'] })} />
           <Tile label="Ready to release" value={num(s.ready_to_release)} tone={s.ready_to_release ? 'warn' : 'ink'} sub="Signature and report in" />
           <Tile label="Missing a requirement" value={num(s.missing_requirements)} tone={s.missing_requirements ? 'warn' : 'ink'} sub="No signature or report yet" />
-          <Tile label="Voided" value={num(s.voided)} sub="Stubs voided this term" />
+          <Tile label="Voided" value={num(s.voided)} sub="Stubs voided this term" onClick={go('stipend', { status: ['Void'] })} />
         </div>
       </div>
 
@@ -176,6 +190,7 @@ function InsightsBody({ data, term }: { data: Insights; term: string }) {
             <span className="rounded-lg bg-ink-50 px-3 py-1.5 text-ink-600"><b className="tabular-nums">{f.no_shows}</b> interview no-show{f.no_shows === 1 ? '' : 's'}</span>
           </div>
           <Table headers={['College', 'Applications', 'Approved', 'Rejected']} numeric={[1, 2, 3]} empty="No new applications this term."
+            onRow={onDrill ? (i) => onDrill({ tab: 'applications', filters: { college: [f.by_college[i].college ?? '(Blank)'], type: ['New'] } }) : undefined}
             rows={f.by_college.map((c) => [c.college, c.total, c.approved, c.rejected])} />
         </div>
 
@@ -183,6 +198,7 @@ function InsightsBody({ data, term }: { data: Insights; term: string }) {
         <div className={CARD}>
           <Title icon={<Building2 className="h-4 w-4" />}>Office Use</Title>
           <Table headers={['Office', 'Filled / Capacity', 'Verified hrs', 'Avg completion']} numeric={[1, 2, 3]} empty="No active offices."
+            onRow={onDrill ? (i) => onDrill({ tab: 'recipients', filters: { office: [data.offices[i].office] } }) : undefined}
             rows={data.offices.map((o) => [
               o.office,
               <span key="c" className={o.capacity > 0 && o.filled >= o.capacity ? 'font-bold text-warning-700' : ''}>{o.filled} / {o.capacity}</span>,

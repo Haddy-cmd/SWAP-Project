@@ -63,7 +63,7 @@ class StipendTotalsTest extends TestCase
         Sanctum::actingAs($this->makeUser('admin'));
 
         $stats = collect(
-            $this->getJson('/api/admin/reports/preview?type=stipend&academic_year=2024-2025&semester=1st%20Semester')
+            $this->getJson('/api/admin/reports/stipend?academic_year=2024-2025&semester=1st%20Semester')
                 ->assertOk()
                 ->json('data.stats')
         )->pluck('value', 'label');

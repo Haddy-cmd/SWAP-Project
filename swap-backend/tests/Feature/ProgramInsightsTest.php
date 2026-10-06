@@ -162,13 +162,14 @@ class ProgramInsightsTest extends TestCase
         Application::create(['user_id' => $met->id, 'academic_year' => '2024-2025', 'semester' => '2nd Semester', 'status' => 'approved', 'type' => 'renewal']);
 
         Sanctum::actingAs($this->makeUser('admin'));
-        $res = $this->getJson('/api/admin/reports/preview?type=term-results&' . http_build_query(self::TERM))->assertOk();
+        $res = $this->getJson('/api/admin/reports/term-results?' . http_build_query(self::TERM))->assertOk();
 
         $this->assertSame('Term Results', $res->json('data.title'));
-        $this->assertSame([
-            ['Ana Met', null, 'Library', 2, 2, 'Qualified', '', '', 'Accepted · Eligible', 'Released', 'Approved'],
-            ['Ben Short', null, 'Library', 10, 2, 'Deficient', 8, 'Approved', 'Missing', '—', '—'],
-        ], $res->json('data.rows'));
+        $pick = fn ($r) => array_intersect_key($r, array_flip(['recipient', 'office', 'required_hours', 'verified_hours', 'verdict', 'deficient_hours', 'promissory', 'report', 'stipend', 'renewal']));
+        $this->assertEquals([
+            ['recipient' => 'Ana Met', 'office' => 'Library', 'required_hours' => 2, 'verified_hours' => 2, 'verdict' => 'Qualified', 'deficient_hours' => null, 'promissory' => null, 'report' => 'Accepted · Eligible', 'stipend' => 'Released', 'renewal' => 'Approved'],
+            ['recipient' => 'Ben Short', 'office' => 'Library', 'required_hours' => 10, 'verified_hours' => 2, 'verdict' => 'Deficient', 'deficient_hours' => 8, 'promissory' => 'Approved', 'report' => 'Missing', 'stipend' => 'Not Released', 'renewal' => 'None'],
+        ], array_map($pick, $res->json('data.rows')));
         $this->assertSame(['1', '1', '1', '1'], array_column($res->json('data.stats'), 'value'));
     }
 

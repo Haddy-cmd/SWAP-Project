@@ -12,6 +12,7 @@ use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
 use App\Http\Controllers\Shared\ReportController;
+use App\Http\Controllers\Shared\ReportExplorerController;
 use App\Http\Controllers\Shared\InvitationController;
 use App\Http\Controllers\Shared\SettingController;
 use App\Http\Controllers\Shared\SignatureController;
@@ -122,6 +123,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/term-report', [TermReportController::class, 'show']);
         Route::put('/term-report', [TermReportController::class, 'update']);
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
+        Route::get('/reports/{type}', [ReportExplorerController::class, 'show'])->where('type', '[a-z-]+');
+        Route::get('/reports/{type}/export', [ReportExplorerController::class, 'export'])->where('type', '[a-z-]+')->middleware('throttle:20,1');
         Route::get('/stipend/{id}/slip', [StipendClaimController::class, 'slip']);
         Route::get('/promissory', [RecipientPromissoryController::class, 'index']);
         Route::post('/promissory', [RecipientPromissoryController::class, 'store']);
@@ -145,9 +148,11 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/students/{id}/required-hours/decision', [StudentController::class, 'decideRequiredHours']);
         Route::post('/students/{id}/mark-deficient', [StudentController::class, 'markDeficient']);
         Route::put('/assignments/{id}/term-report/review', [SupervisorTermReportController::class, 'review'])->whereNumber('id');
-        Route::get('/reports/roster', [ReportController::class, 'supervisorRoster']);
+        // Analytics & Reports: insights first, so it isn't taken for a report type.
         Route::get('/reports/insights', [ReportController::class, 'supervisorInsights']);
-        Route::get('/reports/roster/export', [ReportController::class, 'exportSupervisorRoster']);
+        Route::get('/reports/periods', [ReportExplorerController::class, 'supervisorPeriods']);
+        Route::get('/reports/{type}', [ReportExplorerController::class, 'show'])->where('type', '[a-z-]+');
+        Route::get('/reports/{type}/export', [ReportExplorerController::class, 'export'])->where('type', '[a-z-]+')->middleware('throttle:20,1');
         Route::get('/verifications/pending', [VerificationController::class, 'pending']);
         Route::get('/verifications/reviewed', [VerificationController::class, 'reviewed']);
         Route::post('/verifications/bulk', [VerificationController::class, 'bulkVerify']);
@@ -207,8 +212,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/analytics/insights', [AnalyticsController::class, 'insights']);
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
-        Route::get('/reports/preview', [ReportController::class, 'previewAdminReport']);
-        Route::get('/reports/generate', [ReportController::class, 'generateAdminReport']);
+        Route::get('/analytics/overview/export', [ReportExplorerController::class, 'overviewPdf'])->middleware('throttle:20,1');
+        Route::get('/reports/{type}', [ReportExplorerController::class, 'show'])->where('type', '[a-z-]+');
+        Route::get('/reports/{type}/export', [ReportExplorerController::class, 'export'])->where('type', '[a-z-]+')->middleware('throttle:20,1');
 
         // System Testing — 404 unless SWAP_TEST_TOOLS is on; test accounts only.
         Route::get('/testing', [TestingController::class, 'status']);

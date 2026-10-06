@@ -226,8 +226,8 @@ export default function SupervisorDashboard() {
               <h2 className="font-bold text-warning-700">Falling Behind</h2>
               <span className="rounded-full bg-gold-50 px-2 py-0.5 text-xs font-bold text-warning-700">{atRisk.length}</span>
             </div>
-            <Link href="/supervisor/reports" className="text-xs font-semibold text-brand-700 hover:text-brand-600 transition-colors">
-              Semester summary →
+            <Link href="/supervisor/reports?tab=roster&f_pace=Behind&sort=remaining_hours&dir=desc" className="text-xs font-semibold text-brand-700 hover:text-brand-600 transition-colors">
+              See who is behind →
             </Link>
           </div>
           <p className="mb-4 text-xs text-ink-500">

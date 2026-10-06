@@ -39,10 +39,10 @@ class SupervisorReportTest extends TestCase
         Sanctum::actingAs($supervisor);
         $res = $this->getJson('/api/supervisor/reports/roster')->assertStatus(200);
 
-        $names = collect($res->json('data.rows'))->pluck(0);
+        $names = collect($res->json('data.rows'))->pluck('recipient');
         $this->assertContains('Amina Roster', $names);
         $this->assertNotContains('Unrelated Student', $names);
-        $res->assertJsonPath('data.totals.recipients', 1);
+        $res->assertJsonPath('data.total_rows', 1);
     }
 
     public function test_co_supervisor_of_the_same_office_exports_the_shared_roster(): void
@@ -58,8 +58,8 @@ class SupervisorReportTest extends TestCase
         Sanctum::actingAs($coSupervisor);
         $this->getJson('/api/supervisor/reports/roster')
             ->assertStatus(200)
-            ->assertJsonPath('data.totals.recipients', 1)
-            ->assertJsonPath('data.rows.0.0', 'Shared Student');
+            ->assertJsonPath('data.total_rows', 1)
+            ->assertJsonPath('data.rows.0.recipient', 'Shared Student');
     }
 
     public function test_roster_totals_split_verified_from_pending_hours(): void
@@ -77,14 +77,13 @@ class SupervisorReportTest extends TestCase
         $res = $this->getJson('/api/supervisor/reports/roster')->assertStatus(200);
 
         // Rejected hours count toward neither total, and remaining tracks verified only.
-        $res->assertJsonPath('data.totals.verified', 6)
-            ->assertJsonPath('data.totals.pending', 4);
+        $this->assertSame('6', collect($res->json('data.stats'))->firstWhere('label', 'Verified Hours')['value']);
 
         $row = $res->json('data.rows.0');
-        $this->assertEquals(200, $row[6], 'required hours');
-        $this->assertEquals(6, $row[7], 'verified hours');
-        $this->assertEquals(4, $row[8], 'pending hours');
-        $this->assertEquals(194, $row[9], 'remaining hours');
+        $this->assertEquals(200, $row['required_hours'], 'required hours');
+        $this->assertEquals(6, $row['verified_hours'], 'verified hours');
+        $this->assertEquals(4, $row['pending_hours'], 'pending hours');
+        $this->assertEquals(194, $row['remaining_hours'], 'remaining hours');
     }
 
     public function test_export_streams_a_csv_with_a_header_row(): void
@@ -94,7 +93,7 @@ class SupervisorReportTest extends TestCase
         $this->makeAssignment($this->makeUser('recipient', ['name' => 'Csv Student']), $supervisor, $office);
 
         Sanctum::actingAs($supervisor);
-        $res = $this->get('/api/supervisor/reports/roster/export')->assertStatus(200);
+        $res = $this->get('/api/supervisor/reports/roster/export?format=csv')->assertStatus(200);
         $res->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
 
         $csv = $res->streamedContent();
@@ -111,7 +110,7 @@ class SupervisorReportTest extends TestCase
         $this->makeAssignment($this->makeUser('recipient', ['name' => $evil]), $supervisor, $office);
 
         Sanctum::actingAs($supervisor);
-        $csv = $this->get('/api/supervisor/reports/roster/export')->assertStatus(200)->streamedContent();
+        $csv = $this->get('/api/supervisor/reports/roster/export?format=csv')->assertStatus(200)->streamedContent();
 
         // The spreadsheet shows it as text instead of running it.
         $this->assertStringContainsString("\"'=HYPERLINK(", $csv);
@@ -221,14 +220,13 @@ class SupervisorReportTest extends TestCase
         Sanctum::actingAs($supervisor);
         $res = $this->getJson('/api/supervisor/reports/roster')->assertOk();
 
-        $headers = $res->json('data.headers');
-        $row = array_combine($headers, $res->json('data.rows.0'));
-        $this->assertSame('In Progress', $row['Term Status']);
-        $this->assertSame('Submitted', $row['End-of-Term Report']);
-        $this->assertSame('', $row['Promissory Note']);
-        $this->assertSame(now()->subDays(3)->timezone('Asia/Manila')->format('M j, Y'), $row['Last Clock-in']);
-        $this->assertSame(2, $row['Days on Duty']);
-        $this->assertSame(1, $row['Flagged Logs']);
+        $row = $res->json('data.rows.0');
+        $this->assertSame('In Progress', $row['term_status']);
+        $this->assertSame('Submitted', $row['report']);
+        $this->assertNull($row['promissory']);
+        $this->assertSame(now()->subDays(3)->timezone('Asia/Manila')->format('Y-m-d'), $row['last_clock_in']);
+        $this->assertSame(2, $row['days_on_duty']);
+        $this->assertSame(1, $row['flagged_logs']);
         $this->assertSame('1', collect($res->json('data.stats'))->firstWhere('label', 'Reports to Accept')['value']);
     }
 

@@ -96,7 +96,7 @@ class AuditTrailTest extends TestCase
         $admin = $this->makeUser('admin');
         Sanctum::actingAs($admin);
 
-        $this->get('/api/admin/reports/generate?type=stipend&academic_year=2024-2025&semester=1st%20Semester')
+        $this->get('/api/admin/reports/stipend/export?format=csv&academic_year=2024-2025&semester=1st%20Semester')
             ->assertOk();
 
         $this->assertAudited('report_exported', User::class, $admin->id, $admin->id);

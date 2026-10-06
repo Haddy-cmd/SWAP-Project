@@ -28,7 +28,8 @@ return [
 
     'allowed_headers' => ['*'],
 
-    'exposed_headers' => [],
+    // Downloads read the server's filename (reports, stubs) from this header.
+    'exposed_headers' => ['Content-Disposition'],
 
     'max_age' => 0,
 

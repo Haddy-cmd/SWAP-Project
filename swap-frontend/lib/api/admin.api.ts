@@ -3,13 +3,6 @@ import type { User } from '@/types/auth.types'
 import type { StipendRecord, EligibleStipend } from '@/types/analytics.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
-export interface ReportPreview {
-  title: string
-  headers: string[]
-  rows: (string | number | null)[][]
-  stats: { label: string; value: string }[]
-}
-
 export const adminApi = {
   getUsers: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<User>>('/admin/users', { params }).then((r) => r.data),
@@ -63,11 +56,4 @@ export const adminApi = {
 
   voidStipend: (id: number, reason: string, auth: { password?: string; unlock_token?: string }) =>
     apiClient.post<ApiResponse<StipendRecord>>(`/admin/stipend/${id}/void`, { reason, ...auth }).then((r) => r.data.data),
-
-  previewReport: (params: { type: string; academic_year: string; semester: string }) =>
-    apiClient.get<{ data: ReportPreview }>('/admin/reports/preview', { params }).then((r) => r.data.data),
-
-  // Returns the report as a CSV Blob so the caller can trigger a browser download.
-  generateReport: (params: { type: string; academic_year: string; semester: string }) =>
-    apiClient.get<Blob>('/admin/reports/generate', { params, responseType: 'blob' }).then((r) => r.data),
 }

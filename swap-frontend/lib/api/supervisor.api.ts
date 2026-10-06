@@ -22,17 +22,7 @@ export interface StudentDocument {
   type: 'new' | 'renewal'
 }
 
-export interface RosterSummary {
-  title: string
-  office: string
-  supervisor: string
-  headers: string[]
-  rows: (string | number | null)[][]
-  stats: { label: string; value: string }[]
-  totals: { recipients: number; required: number; verified: number; pending: number; behind: number }
-}
-
-/** Supervisor → Reports → Insights (ReportService::supervisorInsights). */
+/** Supervisor → Analytics & Reports → Overview (ReportService::supervisorInsights). */
 export interface SupervisorInsights {
   students: number
   pending: number
@@ -57,15 +47,12 @@ export const supervisorApi = {
   getStudentDocuments: (studentId: number) =>
     apiClient.get<ApiResponse<StudentDocument[]>>(`/supervisor/students/${studentId}/documents`).then((r) => r.data.data),
 
-  // End-of-semester roster summary — the sheet the supervisor hands to the DSA.
-  getRosterSummary: () =>
-    apiClient.get<ApiResponse<RosterSummary>>('/supervisor/reports/roster').then((r) => r.data.data),
-
   getInsights: () =>
     apiClient.get<ApiResponse<SupervisorInsights>>('/supervisor/reports/insights').then((r) => r.data.data),
 
-  exportRosterCsv: () =>
-    apiClient.get<Blob>('/supervisor/reports/roster/export', { responseType: 'blob' }).then((r) => r.data),
+  /** The terms this supervisor's students were placed in, newest first (for the Term Results tab). */
+  getReportPeriods: () =>
+    apiClient.get<ApiResponse<{ academic_year: string; semester: string }[]>>('/supervisor/reports/periods').then((r) => r.data.data),
 
   getSettings: () =>
     apiClient.get<ApiResponse<SupervisorSettings>>('/supervisor/settings').then((r) => r.data.data),

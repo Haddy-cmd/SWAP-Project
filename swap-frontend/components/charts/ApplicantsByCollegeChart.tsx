@@ -24,6 +24,8 @@ interface ApplicantsByCollegeChartProps {
   /** Bar palette; defaults to the green-led seal set. */
   colors?: string[]
   emptyMessage?: string
+  /** Makes the bars clickable (Analytics → open the report filtered to that college). */
+  onBarClick?: (college: string) => void
 }
 
 // Seal-derived series order: green, gold, maroon, blue, teal, violet, grey.
@@ -36,6 +38,7 @@ export function ApplicantsByCollegeChart({
   label = 'Applicants',
   colors = DEFAULT_COLORS,
   emptyMessage = 'No applicants this period',
+  onBarClick,
 }: ApplicantsByCollegeChartProps) {
   if (!data.length) return <EmptyChart message={emptyMessage} />
 
@@ -64,7 +67,9 @@ export function ApplicantsByCollegeChart({
           cursor={{ fill: '#F7F6EE' }}
           contentStyle={{ borderRadius: '0.5rem', border: '1px solid #DCE0CF', fontSize: '0.75rem' }}
         />
-        <Bar dataKey="value" name={label} radius={[0, 4, 4, 0]} barSize={20}>
+        <Bar dataKey="value" name={label} radius={[0, 4, 4, 0]} barSize={20}
+          cursor={onBarClick ? 'pointer' : undefined}
+          onClick={onBarClick ? (d: { college?: string }) => { if (d?.college) onBarClick(d.college) } : undefined}>
           {data.map((_, i) => (
             <Cell key={i} fill={colors[i % colors.length]} />
           ))}

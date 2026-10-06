@@ -6,7 +6,7 @@
 > caught people. Read the "Traps" section before changing anything — several of them are
 > non-obvious and have each cost a debugging session.
 
-> Last verified against the repository: **2026-10-05** (approval makes the student a recipient before the office assignment; a renewal marked not eligible is rejected by the admin; stipend release is final — no claim QR, Banking Office scan/PIN or releasing officer; reports & analytics per role; Task Description required at clock-out, report reminders, floating shift timer, office map confirmation; 2026-10-03: end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
+> Last verified against the repository: **2026-10-06** (Analytics & Reports: one page per role, datasets filtered/sorted/grouped server-side, server-made PDF + CSV of what is on screen; 2026-10-05: approval makes the student a recipient before the office assignment; a renewal marked not eligible is rejected by the admin; stipend release is final — no claim QR, Banking Office scan/PIN or releasing officer; reports & analytics per role; Task Description required at clock-out, report reminders, floating shift timer, office map confirmation; 2026-10-03: end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
 
 ---
 
@@ -462,27 +462,53 @@ All comparisons in **Asia/Manila**.
   removed; `App\Support\DutySlipControl` now only holds the shared `studentRef()` / `termCode()`
   that the claim stub's control number also uses.
 
-### Reports & analytics per role
-All read from data already recorded, per term, leaving out soft-deleted users.
-- **Admin → Analytics → Program insights** (`ProgramInsightsService`, `GET /admin/analytics/insights`):
-  term results (verdicts, deficient hours, promissory notes, hours carried over), renewals (counts,
-  why waiting ones are blocked — `RenewalReadinessService::check()` per waiting renewal — and the
-  renewal rate against the previous semester period's recipients), stipend (released count and
-  amount, via promissory, voided, and this term's payable recipients split into ready to release —
-  signature and report in — and missing a requirement), attendance integrity per office (flagged, automatic clock-outs, rejected, logs with no
-  task description), supervisor workload (pending per assigned supervisor, oldest, average verify
-  time per verifier), the new-application funnel by college, and office use. **Reports → Term
-  Results** (`ReportService` type `term-results`): one row per placement with verdict, promissory,
-  end-of-term report, stipend and renewal.
-- **Supervisor → Reports:** the roster adds Term Status, End-of-Term Report, Promissory Note, Last
-  Clock-in, Days on Duty and Flagged Logs (+ a "Reports to Accept" tile); **Insights**
-  (`ReportService::supervisorInsights`, `GET /supervisor/reports/insights`): the verification queue,
-  their own 30-day verify time, average session, students with no clock-in for 7+ days, automatic
-  clock-outs per student.
-- **Recipient** (`RecipientProgressService`, `GET /recipient/progress`): pace (`paceStatus`), a forecast
-  (hours/week needed to the term end, recent 28-day average, projected finish), an hours breakdown
-  with rejected-log reasons, and a stipend/renewal checklist (hours or promissory, signature incl. a
-  lost file, end-of-term report and its mark, stub). Past terms also show the stub amount and claim date.
+### Reports & analytics per role (Analytics & Reports, since 2026-10-06)
+All read from data already recorded, per term, leaving out soft-deleted users. Analytics and reports
+are one feature per role: an **Overview** (charts/insights) plus **report tabs**.
+
+- **How a report works.** Each report is a *dataset* under `app/Reports/Datasets/` (extends
+  `App\Reports\ReportDataset`): `columns()` (`key, label, type` text|number|hours|money|percent|date|status,
+  `filterable` → facet dropdown + chart grouping, `metric` → can be totalled per group), keyed `rows()`
+  and `stats()` computed from the **filtered** rows. `ReportExplorerService` maps role → type → dataset
+  (another role's type → 404) and `run()` returns `{title, slug, term, columns, rows, total_rows, stats,
+  facets, group_by, metric, groups, filters_applied, meta}`. `App\Support\ReportQuery` applies filters
+  (OR within a column, AND across; values compared as displayed, empty = `(Blank)`), search (text
+  columns), sort (numeric for number types, blanks last) and grouping in PHP, and refuses unknown
+  columns with 422. **The JSON, the CSV and the PDF all go through the same `run()`**, so a download
+  is exactly the filtered, sorted rows on screen.
+- **Endpoints** (`ReportExplorerController`, `ReportQueryRequest`): `GET /{role}/reports/{type}` and
+  `GET /{role}/reports/{type}/export?format=pdf|csv` (throttle 20/min) with `academic_year`,
+  `semester`, `filters[col][]=…`, `search`, `sort`, `dir`, `group_by`, `metric`. Per-term datasets
+  need the term (422 "Choose a school year and semester for this report."). Exports are audit-logged
+  `report_exported` with type, format, term, filters and row count. CSV keeps `csvSafe()` + BOM.
+  PDF: `ReportPdfService` + `resources/views/reports/report.blade.php` (letterhead, "Filters applied",
+  KPIs, chart as CSS bars, full table, page numbers; landscape over 7 columns; refused over
+  `PDF_ROW_LIMIT` 2000 rows → use CSV). PDFs are rendered on request, not stored.
+- **Admin → Analytics & Reports** (`/admin/analytics`; `/admin/reports` redirects): term picker from
+  `/admin/analytics/periods`; **Overview** = the KPI tiles, charts and **Program insights**
+  (`ProgramInsightsService`, `GET /admin/analytics/insights`: term results, renewals with waiting
+  reasons and renewal rate, stipend incl. ready-to-release vs missing a requirement, attendance
+  integrity per office, supervisor workload, new-application funnel by college, office use). Charts,
+  tiles, legend entries and table rows **drill down** into a report tab already filtered. Overview PDF:
+  `GET /admin/analytics/overview/export` (`reports/overview.blade.php`). Report tabs: `applications`,
+  `recipients`, `term-results` (adds college/program/year level/supervisor), `stipend` (adds college,
+  office, control no.), `offices` (capacity, active, fill %, availability Full/Has Slots/Empty).
+- **Supervisor → Analytics & Reports** (`/supervisor/reports`): Overview = `ReportService::supervisorInsights`
+  (`GET /supervisor/reports/insights`: queue, own 30-day verify time, average session, no clock-in for
+  7+ days, automatic clock-outs); `roster` (My Students: active placements via `visibleToSupervisor`,
+  pace, term status, end-of-term report, promissory, last clock-in, days on duty, flagged logs; PDF
+  header names their office — `meta`) and `term-results` (same dataset as the admin's, scoped with
+  `visibleToSupervisor`); term picker from `GET /supervisor/reports/periods`.
+- **Recipient → My Reports** (`/recipient/reports`): My Progress (`RecipientProgressService`,
+  `GET /recipient/progress`: pace, forecast, hours breakdown with rejected-log reasons, stipend/renewal
+  checklist) and the datasets `time-logs` (every own session, all terms: status, term, month, office,
+  clock-out kind, flagged, task description) and `terms` (every placement incl. the current one:
+  verdict badge, stipend, amount). The printed Duty Slip stays its own page.
+- **Frontend:** `components/reports/` (`ReportExplorer`, `FilterBar`, `GroupChart` — click a bar to
+  filter, `ReportTable` — click a header to sort, `ExportButtons`, `ReportTabs`, `TermSelect`),
+  `lib/api/reports.api.ts`, `types/report.types.ts`. All state is in the URL (`lib/utils/reportQuery.ts`,
+  `useReportUrlState`): `?tab=…&ay=…&sem=…&f_<col>=<value>&q=…&sort=…&dir=…&group=…&metric=…` (one
+  `f_` param per value). Pages using it wrap their content in `<Suspense>` (useSearchParams).
 - **Applicant:** `ApplicationResource.status_history` (submitted + every status change in the audit
   log; the applicant's own and single applications only) dates the timeline on the dashboard and the
   application page.
@@ -502,9 +528,9 @@ Base path `/api`. Auth via `Authorization: Bearer <sanctum token>`.
 | `qr-codes/*` | **none (public)** | 2 | Legacy dead endpoints — see §13 security note |
 | `chatbot/query` | public, **unthrottled** | 1 | gap — see AUDIT R4 |
 | `applicant/*` | `role:applicant` | 5 | submit application, upload documents |
-| `recipient/*` | `role:recipient` | 20 | attendance (logs default to the current term), hours, past terms (`assignments/history`, with `stipend_released_at`), session notes, end-of-term report, stipend history + stub download, promissory index/store/file, renewal, duty slip |
-| `supervisor/*` | `role:supervisor` | 23 | students (+ `mark-deficient`), end-of-term report acceptance (`assignments/{id}/term-report/review`), verifications, roster reports, office QR, **settings**, promissory index/review/file |
-| `admin/*` | `role:admin` | 68 | applications, interviews, offices, assignments (`?term=` verdict filter), **semester periods**, users, stipend (index/eligible/**unlock/release/release-bulk/void**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics, audit logs |
+| `recipient/*` | `role:recipient` | 22 | attendance (logs default to the current term), hours, past terms (`assignments/history`, with `stipend_released_at`), session notes, end-of-term report, stipend history + stub download, promissory index/store/file, renewal, duty slip, **reports** (`time-logs`, `terms` + export) |
+| `supervisor/*` | `role:supervisor` | 24 | students (+ `mark-deficient`), end-of-term report acceptance (`assignments/{id}/term-report/review`), verifications, **reports** (`insights`, `periods`, `roster`, `term-results` + export), office QR, **settings**, promissory index/review/file |
+| `admin/*` | `role:admin` | 69 | applications, interviews, offices, assignments (`?term=` verdict filter), **semester periods**, users, stipend (index/eligible/**unlock/release/release-bulk/void**), promissory index/file, duty-slip verify, **concerns inbox**, **announcements**, landing photos, analytics (+ overview PDF), **reports** (5 datasets + export), audit logs |
 | `profile/*`, `notifications/*`, `concerns`, `chatbot`, `settings` | authenticated | ~15 | shared + signature specimen upload/delete (`POST/DELETE /profile/signature`); `GET/POST /concerns` + `POST /concerns/{id}/messages` back the SWAP Assistant's Ask the DSA tab as a running thread (the old `/help` route just opens it); each concern's messages live in `concern_messages` |
 
 Response shape is consistently `{ "data": …, "message": … }`, with Laravel's standard
@@ -717,7 +743,7 @@ Banking Office routes gone, step-up/unlock, void with a reason (legacy received 
 `503` GD path, bulk skip-duplicates), `ReleaseReadyToClaimStubsMigrationTest`,
 `ApprovalMakesRecipientTest` (approval → recipient, announcements before placement, recipient pages
 without an office, placement, the promotion migration),
-`SupervisorReportTest`, `VerificationTest`.
+`SupervisorReportTest`, `ReportExplorerTest` (filters/sort/groups, unknown columns 422, role scope, CSV = JSON rows, PDF + audit, PDF row cap, roster meta, overview PDF, supervisor periods, office columns aligned), `VerificationTest`.
 
 **Time-sensitive tests must build times in Manila and send ISO-8601 with an offset**, and zero the
 microseconds (`setTime($h, 0, 0, 0)`) or comparisons against DB-truncated timestamps fail.
