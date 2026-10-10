@@ -50,6 +50,49 @@ class TestingController extends Controller
         ]);
     }
 
+    /** A picked account's email switch. Works with the switch off too. */
+    public function accountEmail(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate(['muted' => ['required', 'boolean']]);
+        $user = $this->testing->setAccountEmail($request->user(), $id, (bool) $data['muted']);
+
+        return response()->json([
+            'data' => $this->testing->status(),
+            'message' => $data['muted']
+                ? "Emails to {$user->name} are off. They still get bell notifications; verification and password-reset emails still go out."
+                : "Emails to {$user->name} are on.",
+        ]);
+    }
+
+    /** Applicant ↔ recipient, the role only (needs the switch on). */
+    public function accountRole(Request $request, int $id): JsonResponse
+    {
+        $this->guard();
+        $data = $request->validate(['role' => ['required', Rule::in(['applicant', 'recipient'])]]);
+        $user = $this->testing->setRole($request->user(), $id, $data['role']);
+
+        return response()->json([
+            'data' => $this->testing->status(),
+            'message' => "{$user->name} is now {$this->article($data['role'])} {$data['role']}. Restore puts the original role back.",
+        ]);
+    }
+
+    private function article(string $role): string
+    {
+        return $role === 'applicant' ? 'an' : 'a';
+    }
+
+    // Works with the switch off too.
+    public function restoreAccount(Request $request, int $id): JsonResponse
+    {
+        $this->testing->restoreExisting($request->user(), $id);
+
+        return response()->json([
+            'data' => $this->testing->status(),
+            'message' => 'Restored to how it was when picked. It stays in System Testing.',
+        ]);
+    }
+
     /** Existing recipients/applicants the admin can pick. */
     public function candidates(Request $request): JsonResponse
     {
@@ -76,7 +119,7 @@ class TestingController extends Controller
 
         return response()->json([
             'data' => $this->testing->status(),
-            'message' => 'Restored to how it was when picked and removed from System Testing.',
+            'message' => 'Removed from System Testing. Its current record was kept.',
         ]);
     }
 

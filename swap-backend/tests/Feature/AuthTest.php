@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -91,6 +92,12 @@ class AuthTest extends TestCase
             'email' => 'acc@s.msumain.edu.ph', 'student_id_number' => '202400006',
             'college' => 'CBAA', 'program' => 'BS Accountancy', 'year_level' => 5,
         ]))->assertStatus(201);
+
+        // Every College of Engineering program, e.g. the ones whose names don't start with the discipline.
+        $this->postJson('/api/auth/register', $this->validRegisterPayload([
+            'email' => 'abe@s.msumain.edu.ph', 'student_id_number' => '202400008',
+            'college' => 'CoE', 'program' => 'BS Agricultural and Biosystems Engineering', 'year_level' => 5,
+        ]))->assertStatus(201);
     }
 
     public function test_fifth_year_is_rejected_for_four_year_programs(): void
@@ -100,7 +107,13 @@ class AuthTest extends TestCase
             'college' => 'CSSH', 'program' => 'BS Psychology', 'year_level' => 5,
         ]));
 
-        $res->assertStatus(422)->assertJsonValidationErrors('year_level');
+        $res->assertStatus(422)->assertJsonPath('errors.year_level.0', RegisterRequest::MSG_NOT_FIVE_YEAR);
+
+        // "Engineering" in the name isn't enough: BSET programs run four years.
+        $this->postJson('/api/auth/register', $this->validRegisterPayload([
+            'email' => 'bset@s.msumain.edu.ph', 'student_id_number' => '202400009',
+            'college' => 'DET', 'program' => 'BSET Construction Engineering Management', 'year_level' => 5,
+        ]))->assertStatus(422)->assertJsonPath('errors.year_level.0', RegisterRequest::MSG_NOT_FIVE_YEAR);
     }
 
     public function test_register_duplicate_email_is_rejected(): void

@@ -95,6 +95,8 @@ export interface Office {
   qr_code?: string | null
   active_recipients?: number
   supervisors_count?: number
+  /** The office's supervisors, by name (office list only). */
+  supervisors?: { id: number; name: string }[]
 }
 
 export interface CreateAssignmentData {

@@ -32,6 +32,8 @@ class ReportQueryRequest extends FormRequest
             'group_by' => ['nullable', 'string', 'max:64'],
             'metric' => ['nullable', 'string', 'max:64'],
             'format' => ['sometimes', 'in:pdf,csv'],
+            // PDF only: leave out the graph (the KPI tiles and the table stay).
+            'include_chart' => ['sometimes', 'boolean'],
         ];
     }
 }

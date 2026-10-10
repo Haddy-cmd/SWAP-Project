@@ -68,6 +68,17 @@ class ApplicationRepository implements ApplicationRepositoryInterface
             default => null,
         };
 
+        // Approved, still waiting for an office: no active assignment for the application's term
+        // (Admin → Assignments queue; same rule as the dashboard's "need an office" task).
+        if (!empty($filters['unassigned'])) {
+            $query->where('status', 'approved')
+                ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('assignments')
+                    ->whereColumn('assignments.user_id', 'applications.user_id')
+                    ->whereColumn('assignments.academic_year', 'applications.academic_year')
+                    ->whereColumn('assignments.semester', 'applications.semester')
+                    ->where('assignments.status', 'active'));
+        }
+
         if (!empty($filters['search'])) {
             $term = "%{$filters['search']}%";
             $query->whereHas('user', fn ($q) => $q->where(fn ($w) => $w

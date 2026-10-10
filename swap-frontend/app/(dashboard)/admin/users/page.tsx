@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
-  Search, UserCheck, UserX, UserPlus, X, Trash2, Check, ChevronDown, Filter, Send,
+  Search, UserCheck, UserX, UserPlus, X, Trash2, Check, ChevronDown, Filter, Send, History,
 } from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { formatDate } from '@/lib/utils/formatDate'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
 
 // Soft avatar palettes (bg / fg), mirrored from the mockup.
 const AV: [string, string][] = [
@@ -180,6 +181,8 @@ export default function AdminUsersPage() {
   const [page, setPage] = useState(1)
   const [role, setRole] = useState('')
   const [status, setStatus] = useState<StatusKey>('All')
+  // The account whose audit trail is open in the side drawer.
+  const [history, setHistory] = useState<{ id: number; name: string } | null>(null)
   const [statusOpen, setStatusOpen] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -387,6 +390,10 @@ export default function AdminUsersPage() {
                     </span>
 
                     <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => setHistory({ id: user.id, name: user.name })} title="History" aria-label={`History of ${user.name}`}
+                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-ink-200 bg-white text-ink-500 transition-colors hover:bg-ink-50 hover:text-brand-700">
+                        <History className="h-4 w-4" />
+                      </button>
                       {/* Admins can't be deactivated (protected), but an inactive
                           admin can still be reactivated so they're never stranded. */}
                       {user.role === 'admin' && active ? (
@@ -440,6 +447,9 @@ export default function AdminUsersPage() {
       </div>
 
       {showAdd && <AddUserModal onClose={() => setShowAdd(false)} />}
+      {history && (
+        <AuditHistoryDrawer scope={{ subjectUserId: history.id }} title={`History · ${history.name}`} onClose={() => setHistory(null)} />
+      )}
     </div>
   )
 }

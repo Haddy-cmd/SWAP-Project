@@ -18,8 +18,8 @@ export const assignmentsApi = {
   requestRequiredHours: (id: number, required_hours: number) =>
     apiClient.post(`/admin/assignments/${id}/required-hours`, { required_hours }).then((r) => r.data),
 
-  getOffices: () =>
-    apiClient.get<{ data: Office[] }>('/admin/offices').then((r) => r.data),
+  getOffices: (params?: Record<string, string>) =>
+    apiClient.get<{ data: Office[]; meta?: { total: number } }>('/admin/offices', { params }).then((r) => r.data),
 
   createOffice: (data: Partial<Office>) =>
     apiClient.post<ApiResponse<Office>>('/admin/offices', data).then((r) => r.data.data),

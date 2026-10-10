@@ -16,6 +16,7 @@ class AnnouncementResource extends JsonResource
             'sent_by' => $this->whenLoaded('sender', fn () => $this->sender?->name),
             'recipient_count' => $this->recipient_count,
             'emailed_count' => $this->emailed_count,
+            'attachments' => $this->whenLoaded('attachments', fn () => $this->attachments->map->summary()->values()),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

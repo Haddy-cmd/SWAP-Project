@@ -31,6 +31,11 @@ class AnnouncementMail extends Mailable
                 // Blank lines separate paragraphs; single line breaks are kept inside them.
                 'paragraphs' => preg_split('/\R\s*\R/', trim($this->announcement->message)),
                 'portalUrl' => Frontend::url('/notifications'),
+                // Files aren't attached (size limits, privacy): the email lists them, the portal opens them.
+                'attachments' => $this->announcement->attachments->map(fn ($a) => [
+                    'name' => $a->file_name,
+                    'size' => $a->file_size >= 1048576 ? round($a->file_size / 1048576, 1) . ' MB' : max(1, (int) round($a->file_size / 1024)) . ' KB',
+                ])->all(),
             ],
         );
     }

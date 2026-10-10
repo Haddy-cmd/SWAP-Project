@@ -24,7 +24,7 @@ function RecipientReports() {
   const tab = TABS.some((t) => t.key === state.tab) ? state.tab! : 'overview'
 
   return (
-    <div className="mx-auto max-w-[1180px] space-y-[22px] text-ink-950">
+    <div className="space-y-[22px] text-ink-950">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Service Record</p>

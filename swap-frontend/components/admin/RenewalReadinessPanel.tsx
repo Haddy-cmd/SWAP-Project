@@ -15,7 +15,7 @@ const PAYMENT: Record<RenewalReadiness['payment'], string> = {
  * term, in the order the backend checks it (RenewalReadinessService). The approval
  * is refused with the same first blocker.
  */
-export function RenewalReadinessPanel({ readiness }: { readiness: RenewalReadiness }) {
+export function RenewalReadinessPanel({ readiness, readyText = 'Ready to approve.' }: { readiness: RenewalReadiness; readyText?: string }) {
   const report = readiness.report
   const paidOk = readiness.payment === 'paid' || readiness.payment === 'not_required' || readiness.payment === 'promissory'
   const items: { ok: boolean | null; label: string; detail?: string }[] = [
@@ -62,7 +62,7 @@ export function RenewalReadinessPanel({ readiness }: { readiness: RenewalReadine
       </ul>
       <p className={cn('mt-2.5 rounded-lg px-3 py-2 text-[12.5px] font-semibold',
         readiness.ready ? 'bg-success-50 text-success-800' : 'bg-danger-50 text-danger-700')}>
-        {readiness.ready ? 'Ready to approve.' : `Blocked: ${readiness.blocker}`}
+        {readiness.ready ? readyText : `Blocked: ${readiness.blocker}`}
       </p>
       {/* A "not eligible" mark never clears by waiting: the admin rejects the renewal. */}
       {report.renewal_eligible === false && (

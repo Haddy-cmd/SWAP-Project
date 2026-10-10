@@ -13,6 +13,7 @@ import { authApi } from '@/lib/api/auth.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import type { ApiError } from '@/types/api.types'
+import { markLoginSplash } from '@/components/layout/LoginSplash'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -74,6 +75,7 @@ export default function LoginPage() {
       return authApi.login(data)
     },
     onSuccess: (res) => {
+      markLoginSplash()
       setAuth(res.data, res.token)
       // Honor a ?redirect= target (e.g. returning to /scan after a QR deep link).
       const redirect = new URLSearchParams(window.location.search).get('redirect')

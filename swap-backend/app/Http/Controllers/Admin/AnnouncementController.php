@@ -15,9 +15,9 @@ class AnnouncementController extends Controller
 {
     public function __construct(private readonly AnnouncementService $announcements) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $page = $this->announcements->history();
+        $page = $this->announcements->history(15, $request->string('search')->limit(100)->toString() ?: null);
 
         return response()->json([
             'data' => AnnouncementResource::collection($page->items()),
@@ -34,12 +34,16 @@ class AnnouncementController extends Controller
     public function store(StoreAnnouncementRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $announcement = $this->announcements->send($request->user(), $data['title'], $data['message']);
+        $announcement = $this->announcements->send($request->user(), $data['title'], $data['message'], $request->file('attachments', []));
 
         $sent = $announcement->recipient_count;
-        $message = $announcement->emailed_count === $sent
-            ? "Announcement sent to {$sent} active recipient(s) in the portal and by email."
-            : "Announcement sent to {$sent} active recipient(s) in the portal. The email reached {$announcement->emailed_count} of them; check the mail settings.";
+        // Test accounts held back by System Testing's email switch aren't a mail failure.
+        $muted = AnnouncementService::emailMutedCount();
+        $message = match (true) {
+            $announcement->emailed_count === $sent => "Announcement sent to {$sent} active recipient(s) in the portal and by email.",
+            $announcement->emailed_count === $sent - $muted => "Announcement sent to {$sent} active recipient(s) in the portal and by email ({$muted} test account(s) in the portal only: System Testing emails are off).",
+            default => "Announcement sent to {$sent} active recipient(s) in the portal. The email reached {$announcement->emailed_count} of them; check the mail settings.",
+        };
 
         return response()->json([
             'data' => new AnnouncementResource($announcement),

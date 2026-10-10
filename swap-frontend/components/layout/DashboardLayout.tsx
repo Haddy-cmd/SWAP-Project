@@ -3,6 +3,8 @@
 import { type ReactNode } from 'react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { SidebarHint } from './SidebarHint'
+import { ChevronRight } from 'lucide-react'
 import { SessionSync } from '@/components/auth/SessionSync'
 import { useUIStore } from '@/lib/store/uiStore'
 import { cn } from '@/lib/utils/cn'
@@ -57,7 +59,7 @@ function Backdrop() {
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const {
     desktopSidebarOpen, mobileSidebarOpen, setMobileSidebarOpen,
-    sidebarRevealed, revealSidebar, scheduleHideSidebar,
+    sidebarRevealed, revealSidebar, scheduleHideSidebar, toggleDesktopSidebar,
   } = useUIStore()
 
   // Pinned = always visible (pushes content). Otherwise it auto-hides and reveals on hover.
@@ -93,6 +95,21 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="fixed left-0 top-0 z-30 hidden h-full w-3 md:block print:hidden" onMouseEnter={revealSidebar} aria-hidden="true" />
       )}
 
+      {/* A visible handle while the sidebar is hidden: hovering shows "Menu", a click opens it and keeps it open. */}
+      {!revealed && (
+        <button
+          type="button"
+          onClick={toggleDesktopSidebar}
+          aria-label="Open menu"
+          title="Open the menu (stays open until you click ☰)"
+          className="group fixed left-0 top-1/2 z-30 hidden h-11 -translate-y-1/2 animate-[sidebarPeek_1.2s_ease-out_1] items-center gap-0.5 rounded-r-lg border border-l-0 border-ink-900/10 bg-white/60 pl-0.5 pr-1 text-ink-400 backdrop-blur-sm transition-colors hover:border-brand-200 hover:bg-white hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 md:flex print:hidden"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="max-w-0 overflow-hidden whitespace-nowrap text-[11.5px] font-semibold transition-all duration-200 group-hover:max-w-[60px] group-hover:pr-1 group-focus-visible:max-w-[60px] group-focus-visible:pr-1">Menu</span>
+        </button>
+      )}
+      <SidebarHint hidden={!pinned} />
+
       {/* Sidebar — fixed overlay; slides in/out */}
       <div
         onMouseEnter={revealSidebar}
@@ -117,7 +134,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <Topbar />
         <main className="flex-1 overflow-y-auto print:overflow-visible">
-          <div className="max-w-7xl mx-auto p-4 md:p-6 print:max-w-none print:p-0">{children}</div>
+          <div className="mx-auto w-full max-w-[1680px] px-3 py-4 sm:px-4 md:px-5 md:py-6 print:max-w-none print:p-0">{children}</div>
         </main>
       </div>
     </div>

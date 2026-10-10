@@ -1,11 +1,10 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Lock, Unlock } from 'lucide-react'
 import { settingsApi } from '@/lib/api/settings.api'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 
-/** Admin switch that opens or closes the student application period. */
+/** Admin switch that opens or closes the student application period: a small pill in the page header. */
 export function ApplicationPeriodToggle() {
   const queryClient = useQueryClient()
 
@@ -36,42 +35,34 @@ export function ApplicationPeriodToggle() {
   const open = settings?.applications_open ?? false
 
   if (isLoading) {
-    return <div className="h-[88px] animate-pulse rounded-2xl bg-ink-200/50" />
+    return <div className="h-9 w-56 animate-pulse rounded-full bg-ink-200/50" />
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-3">
-        <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${open ? 'bg-success-50' : 'bg-brand-100'}`}>
-          {open ? <Unlock className="h-5 w-5 text-success-600" /> : <Lock className="h-5 w-5 text-brand-700" />}
-        </div>
-        <div>
-          <p className="font-semibold text-ink-900">
-            Application Period —{' '}
-            <span className={open ? 'text-success-600' : 'text-brand-700'}>{open ? 'Open' : 'Closed'}</span>
-          </p>
-          <p className="mt-0.5 text-sm text-ink-500">
-            {open
-              ? 'Students can submit new applications right now.'
-              : 'Students see a "not yet open" notice and cannot apply.'}
-          </p>
-        </div>
-      </div>
+    <div
+      title={open ? 'Students can submit new applications right now.' : 'Students see a "not yet open" notice and cannot apply.'}
+      className="inline-flex flex-shrink-0 items-center gap-2.5 rounded-full border border-ink-200 bg-white py-1.5 pl-3 pr-1.5 shadow-sm"
+    >
+      <span className={`h-2 w-2 rounded-full ${open ? 'bg-success-600' : 'bg-ink-350'}`} aria-hidden />
+      <span className={`text-[13px] font-semibold ${open ? 'text-success-700' : 'text-ink-600'}`}>
+        Applications {open ? 'open' : 'closed'}
+      </span>
 
       {/* Toggle switch */}
       <button
         type="button"
         role="switch"
         aria-checked={open}
+        aria-label="Application period"
         disabled={update.isPending}
         onClick={() => flip(!open)}
-        className={`relative inline-flex h-7 w-12 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${
           open ? 'bg-success-600' : 'bg-ink-300'
         }`}
       >
         <span
-          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-            open ? 'translate-x-6' : 'translate-x-1'
+          className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow transition-transform ${
+            open ? 'translate-x-[22px]' : 'translate-x-[3px]'
           }`}
         />
       </button>

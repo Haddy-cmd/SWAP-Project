@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Newsreader } from 'next/font/google'
 import { QueryProvider } from '@/lib/providers/QueryProvider'
 import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget'
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider'
+import { LoginSplash } from '@/components/layout/LoginSplash'
 import '@/app/globals.css'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' })
@@ -27,6 +28,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {/* Action pop-outs and "Are you sure?" dialogs for every page (useFeedback). */}
           <FeedbackProvider>
             {children}
+            {/* The DSA-seal intro right after a sign-in (any role). */}
+            <LoginSplash />
             <ChatbotWidget />
           </FeedbackProvider>
         </QueryProvider>

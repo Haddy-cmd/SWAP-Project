@@ -54,9 +54,11 @@ class ReportExplorerController extends Controller
         }
 
         // Exports carry personal data out of the system — record who took what.
+        $includeChart = $request->boolean('include_chart', true);
         AuditLog::record('report_exported', $request->user(), null, [
             'type' => $type,
             'format' => $format,
+            'include_chart' => $format === 'pdf' ? $includeChart : null,
             'term' => $scope->termLabel(),
             'rows' => count($report['rows']),
         ] + $query->toArray());
@@ -67,7 +69,7 @@ class ReportExplorerController extends Controller
             return $this->streamCsv($report, $filename);
         }
 
-        return response($this->pdf->render($report, $request->user()), 200, [
+        return response($this->pdf->render($report, $request->user(), $includeChart), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);

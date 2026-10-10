@@ -212,7 +212,7 @@ class ProgramInsightsService
      * Per supervisor: what waits for them (pending logs of the placements they're assigned
      * to, and how old the oldest is) and how quickly they verified this term's logs.
      */
-    private function workload(string $ay, string $sem): array
+    public function workload(string $ay, string $sem): array
     {
         $termLogs = fn () => TimeLog::whereHas('user')
             ->join('assignments', 'assignments.id', '=', 'time_logs.assignment_id')

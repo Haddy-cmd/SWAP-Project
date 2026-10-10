@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   FlaskConical, UserRound, Clock, CalendarX, Gavel, FileText, ClipboardCheck, RefreshCw, RotateCcw, Search, UserPlus,
   UserMinus, Undo2, CheckCheck, LogIn, LogOut, FileSignature, Eraser, Banknote, BadgeCheck, ThumbsUp, ThumbsDown,
-  Ticket, History, HardDrive, CheckCircle2, AlertTriangle,
+  Ticket, History, HardDrive, CheckCircle2, AlertTriangle, Mail, MailX, Shuffle,
 } from 'lucide-react'
 import { testingApi } from '@/lib/api/testing.api'
 import { errorText } from '@/lib/utils/apiError'
@@ -86,7 +86,8 @@ export default function SystemTestingPage() {
         <p className="mt-1 max-w-3xl text-sm text-ink-500">
           Pick existing recipients or applicants and use shortcuts to try flows without waiting — end a term now, add hours, file a
           promissory note. While on, picked accounts may also clock in any day, any hour, from anywhere and without a selfie, and their
-          interviews can be scheduled at any time. They keep their real email, so notifications can be tested too.
+          interviews can be scheduled at any time. Each picked account starts with its emails off (bell
+          notifications only); switch them on per account to test the emails too.
         </p>
       </div>
 
@@ -176,7 +177,7 @@ export default function SystemTestingPage() {
                         Application #{app.id} · {app.term} · {app.status.replace(/_/g, ' ')} — review it under Applications; while on, its interview can be set any time.
                       </p>
                     ))}
-                    <RemoveFromTesting account={a} onRemoved={applied} />
+                    <AccountToolbar account={a} enabled={on} onChanged={applied} />
                   </li>
                 ))}
               </ul>
@@ -265,43 +266,107 @@ function ExistingPicker({ enabled, onAdded }: { enabled: boolean; onAdded: (res:
 }
 
 /** Take a picked account out of testing, restoring it to how it was when picked. Works while off too. */
-function RemoveFromTesting({ account, onRemoved }: { account: TestingAccount; onRemoved: (res: WithStatus) => void }) {
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+/**
+ * Per-account controls: its email switch, the applicant ↔ recipient role button, Restore (back
+ * to the picked moment, stays in testing) and Remove (out of testing as it is now). Restore,
+ * Remove and the email switch work with System Testing off too; the role button needs it on.
+ */
+function AccountToolbar({ account, enabled, onChanged }: { account: TestingAccount; enabled: boolean; onChanged: (res: WithStatus) => void }) {
+  const { confirm, notifyError } = useFeedback()
   const picked = new Date(account.picked_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+  const isRecipient = account.role === 'recipient'
+  const fail = (fallback: string) => (e: ApiRequestError) => notifyError(e, fallback)
 
+  const email = useMutation({
+    mutationFn: (muted: boolean) => testingApi.setAccountEmail(account.id, muted),
+    onSuccess: onChanged,
+    onError: fail('Could not change the email switch'),
+  })
+  const role = useMutation({
+    mutationFn: (next: 'applicant' | 'recipient') => testingApi.setAccountRole(account.id, next),
+    onSuccess: onChanged,
+    onError: fail('Could not change the role'),
+  })
+  const restore = useMutation({
+    mutationFn: () => testingApi.restoreExisting(account.id),
+    onSuccess: onChanged,
+    onError: fail('Could not restore this account'),
+  })
   const remove = useMutation({
     mutationFn: () => testingApi.removeExisting(account.id),
-    onSuccess: onRemoved,
-    onError: (e: ApiRequestError) => setError(errorText(e, 'Could not remove this account from testing.')),
+    onSuccess: onChanged,
+    onError: fail('Could not remove this account from testing'),
   })
+  const busy = email.isPending || role.isPending || restore.isPending || remove.isPending
 
-  if (!open) {
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-ink-500">
-          {account.restorable
-            ? `Picked ${picked}. Removing it or switching off restores this account to that moment.`
-            : 'Picked before restore points existed: removing it cleans up what was created while it was in testing.'}
-        </span>
-        <button onClick={() => { setError(null); setOpen(true) }} className={BTN}><UserMinus className="h-3.5 w-3.5" /> Restore and remove</button>
-      </div>
-    )
+  const changeRole = async () => {
+    const next = isRecipient ? 'applicant' : 'recipient'
+    const ok = await confirm({
+      title: `Make ${account.name} ${next === 'applicant' ? 'an applicant' : 'a recipient'}?`,
+      body: `Only the role changes: applications and placements aren't touched. They see the ${next} portal right away. Restore puts the original role back.`,
+      confirmLabel: next === 'applicant' ? 'Make applicant' : 'Make recipient',
+    })
+    if (ok) role.mutate(next)
+  }
+  const confirmRestore = async () => {
+    const ok = await confirm({
+      title: `Restore ${account.name}?`,
+      body: `Their record goes back to how it was on ${picked}: everything done since — hours, notes, reviews, results, reports, renewals and placements, stubs, the role — is removed or changed back. They stay in System Testing.`,
+      confirmLabel: 'Restore',
+      tone: 'danger',
+    })
+    if (ok) restore.mutate()
+  }
+  const confirmRemove = async () => {
+    const ok = await confirm(account.restorable
+      ? {
+          title: `Remove ${account.name} from System Testing?`,
+          body: 'They leave testing as they are now: test hours, notes, results and other changes stay on the account, and their emails come back on. Use Restore first to undo the test.',
+          confirmLabel: 'Remove',
+          tone: 'danger',
+        }
+      : {
+          title: `Remove ${account.name} from System Testing?`,
+          body: 'Picked before restore points existed: removing it cleans up what was created while it was in testing.',
+          confirmLabel: 'Clean up and remove',
+          tone: 'danger',
+        })
+    if (ok) remove.mutate()
   }
 
   return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-      <p>
-        Put {account.name}&apos;s record back to how it was on {picked}? Everything done to it since — hours, notes, reviews, results, reports,
-        evaluations, renewals and their placements, stubs and payouts, including what they did themselves — is removed or changed back.
-      </p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <button onClick={() => remove.mutate()} disabled={remove.isPending} className="rounded-lg bg-brand-700 px-2.5 py-1 font-semibold text-white disabled:opacity-50">
-          {remove.isPending ? 'Restoring…' : 'Yes, restore and remove'}
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" role="switch" aria-checked={!account.email_muted} disabled={busy}
+          onClick={() => email.mutate(!account.email_muted)}
+          title={account.email_muted ? 'Bell notifications only; verification and password-reset emails still go out.' : 'Emailed like everyone else.'}
+          className={`${BTN} ${account.email_muted ? 'text-amber-700' : ''}`}>
+          {account.email_muted ? <MailX className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
+          Emails {account.email_muted ? 'off' : 'on'}
+          <span className={`relative ml-1 inline-flex h-4 w-7 items-center rounded-full ${account.email_muted ? 'bg-ink-300' : 'bg-success-600'}`}>
+            <span className={`inline-block h-3 w-3 rounded-full bg-white shadow transition-transform ${account.email_muted ? 'translate-x-0.5' : 'translate-x-3.5'}`} />
+          </span>
         </button>
-        <button onClick={() => setOpen(false)} disabled={remove.isPending} className="font-semibold">Cancel</button>
+        <button onClick={changeRole} disabled={busy || !enabled} className={BTN}
+          title={enabled ? 'Change the role only' : TESTING_OFF_MESSAGE}>
+          <Shuffle className="h-3.5 w-3.5" /> {isRecipient ? 'Make applicant' : 'Make recipient'}
+        </button>
+        <span className="ml-auto flex flex-wrap gap-2">
+          {account.restorable && (
+            <button onClick={confirmRestore} disabled={busy} className={BTN}>
+              <Undo2 className="h-3.5 w-3.5" /> {restore.isPending ? 'Restoring…' : 'Restore'}
+            </button>
+          )}
+          <button onClick={confirmRemove} disabled={busy} className={`${BTN} text-danger-700`}>
+            <UserMinus className="h-3.5 w-3.5" /> {remove.isPending ? 'Removing…' : 'Remove'}
+          </button>
+        </span>
       </div>
-      {error && <p className="mt-2 font-medium text-danger-700">{error}</p>}
+      <p className="text-xs text-ink-500">
+        {account.restorable
+          ? `Picked ${picked}. Restore puts this account back to that moment; Remove takes it out of testing as it is now.`
+          : 'Picked before restore points existed: Remove cleans up what was created while it was in testing.'}
+      </p>
     </div>
   )
 }
@@ -580,7 +645,7 @@ function RecipientCard({ account: r, enabled, onChanged, onRemoved }: {
 
       {!enabled && <p className="mt-3 text-xs text-ink-500">{TESTING_OFF_MESSAGE}</p>}
       {msg && <p className={`mt-3 text-xs font-medium ${msg.error ? 'text-danger-700' : 'text-success-700'}`}>{msg.text}</p>}
-      <div className="mt-4 border-t border-ink-100 pt-3"><RemoveFromTesting account={r} onRemoved={onRemoved} /></div>
+      <div className="mt-4 border-t border-ink-100 pt-3"><AccountToolbar account={r} enabled={enabled} onChanged={onRemoved} /></div>
     </div>
   )
 }

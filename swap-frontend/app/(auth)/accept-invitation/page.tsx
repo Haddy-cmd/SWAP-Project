@@ -15,6 +15,7 @@ import type { UserRole } from '@/types/auth.types'
 import type { ApiError } from '@/types/api.types'
 import { strongPassword } from '@/lib/utils/password'
 import { PasswordGuide } from '@/components/auth/PasswordGuide'
+import { markLoginSplash } from '@/components/layout/LoginSplash'
 
 const schema = z
   .object({
@@ -62,6 +63,7 @@ function AcceptInvitationForm() {
   const accept = useMutation({
     mutationFn: (data: FormData) => authApi.acceptInvitation(token, data),
     onSuccess: (res) => {
+      markLoginSplash()
       setAuth(res.data, res.token)
       router.replace(getRoleDashboard(res.data.role as UserRole))
     },

@@ -176,6 +176,29 @@ class ReportExplorerTest extends TestCase
         $this->assertSame(2, $log->new_values['rows']);
     }
 
+    public function test_pdf_can_leave_out_the_graph(): void
+    {
+        $this->seedTerm();
+        $admin = $this->makeUser('admin');
+        Sanctum::actingAs($admin);
+
+        // The graph section prints by default and is left out on request.
+        $report = $this->getJson('/api/admin/reports/term-results?' . $this->query(['group_by' => 'college']))->assertOk()->json('data');
+        $this->assertNotEmpty($report['groups']);
+        $view = fn (bool $chart) => view('reports.report', ['report' => $report, 'includeChart' => $chart, 'preparedBy' => 'A', 'generatedAt' => 'now'])->render();
+        $this->assertStringContainsString('class="bars"', $view(true));
+        $this->assertStringNotContainsString('class="bars"', $view(false));
+        $this->assertStringContainsString('class="data"', $view(false), 'the table stays');
+
+        $pdf = $this->spy(\App\Services\ReportPdfService::class);
+        $this->get('/api/admin/reports/term-results/export?' . $this->query(['format' => 'pdf', 'include_chart' => '0']))->assertOk();
+        $pdf->shouldHaveReceived('render')->withArgs(fn ($r, $by, $chart) => $chart === false)->once();
+        $this->assertFalse(AuditLog::where('action', 'report_exported')->latest('id')->first()->new_values['include_chart']);
+
+        $this->get('/api/admin/reports/term-results/export?' . $this->query(['format' => 'pdf']))->assertOk();
+        $pdf->shouldHaveReceived('render')->withArgs(fn ($r, $by, $chart) => $chart === true)->once();
+    }
+
     public function test_pdf_refuses_more_rows_than_it_can_render(): void
     {
         $limit = ReportExplorerService::PDF_ROW_LIMIT;
@@ -223,6 +246,22 @@ class ReportExplorerTest extends TestCase
             ['academic_year' => '2024-2025', 'semester' => '2nd Semester'],
             ['academic_year' => '2024-2025', 'semester' => '1st Semester'],
         ], $this->getJson('/api/supervisor/reports/periods')->assertOk()->json('data'));
+    }
+
+    public function test_periods_open_on_the_current_semester(): void
+    {
+        // The local calendar that showed the bug: a "2nd Semester" period that already
+        // ended sorts before the running 1st Semester by name, so pages opened on it.
+        \App\Models\SemesterPeriod::create(['academic_year' => '2026-2027', 'semester' => '2nd Semester', 'start_date' => '2026-10-01', 'end_date' => '2026-10-02']);
+        \App\Models\SemesterPeriod::create(['academic_year' => '2026-2027', 'semester' => '1st Semester', 'start_date' => '2026-10-03', 'end_date' => '2026-12-21']);
+        $this->makeAssignment($this->makeUser('recipient'), $this->makeUser('supervisor'), null, ['academic_year' => '2025-2026', 'semester' => '2nd Semester']);
+        $this->makeAssignment($this->makeUser('recipient'), $this->makeUser('supervisor'), null, ['academic_year' => '2025-2026', 'semester' => '1st Semester']);
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-06 09:00', 'Asia/Manila'));
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        $this->assertSame([
+            '1st Semester 2026-2027', '2nd Semester 2026-2027', '2nd Semester 2025-2026', '1st Semester 2025-2026',
+        ], array_map(fn ($p) => "{$p['semester']} {$p['academic_year']}", $this->getJson('/api/admin/analytics/periods')->assertOk()->json('data')));
     }
 
     public function test_admin_overview_pdf(): void

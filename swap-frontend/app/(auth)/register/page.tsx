@@ -83,7 +83,7 @@ const schema = z
   })
   // 5th year only exists for the five-year programs; keep 4-year applicants from picking it.
   .refine((d) => d.year_level <= maxYearFor(d.program), {
-    message: 'A 5th year applies only to Engineering and BS Accountancy programs.',
+    message: 'A 5th year applies only to College of Engineering programs and BS Accountancy.',
     path: ['year_level'],
   })
 
@@ -92,25 +92,27 @@ type FormData = z.infer<typeof schema>
 const STEP1_FIELDS = ['first_name', 'middle_name', 'last_name', 'name', 'student_id_number', 'email'] as const
 const STEP2_FIELDS = ['college', 'program', 'year_level', 'password', 'password_confirmation'] as const
 
-/** Colleges of MSU Main Campus, Marawi City, and the programs they offer there.
- *  Value (abbreviation) is what gets stored. */
+/**
+ * Colleges and programs from the official student masterlist (AY 2025–2026, 1st semester): main campus
+ * only, bachelor's programs plus diplomas/certificates (graduate programs left out). Names as in the
+ * masterlist. Value (code) is what gets stored; existing codes are kept so saved profiles still match.
+ */
 const COLLEGES: { value: string; label: string; programs: string[] }[] = [
-  { value: 'CA', label: 'College of Agriculture', programs: ['BS Agriculture', 'BS Agribusiness', 'BS Food Technology', 'BS Agricultural and Biosystems Engineering'] },
-  { value: 'CBAA', label: 'College of Business Administration and Accountancy', programs: ['BS Accountancy', 'BS Business Administration', 'BS Management Accounting', 'BS Entrepreneurship', 'BS Office Administration'] },
-  { value: 'CED', label: 'College of Education', programs: ['Bachelor of Elementary Education', 'Bachelor of Secondary Education', 'Bachelor of Early Childhood Education', 'Bachelor of Special Needs Education'] },
-  { value: 'CoE', label: 'College of Engineering', programs: ['BS Civil Engineering', 'BS Electrical Engineering', 'BS Mechanical Engineering', 'BS Electronics Engineering', 'BS Computer Engineering', 'BS Chemical Engineering', 'BS Geodetic Engineering'] },
-  { value: 'CF', label: 'College of Fisheries', programs: ['BS Fisheries'] },
-  { value: 'CFES', label: 'College of Forestry and Environmental Studies', programs: ['BS Forestry', 'BS Environmental Science'] },
-  { value: 'CHS', label: 'College of Health Sciences', programs: ['BS Nursing', 'BS Midwifery'] },
+  { value: 'CA', label: 'College of Agriculture', programs: ['BS Agribusiness Management', 'BS Agricultural Business Management', 'BS Agriculture (Major in Animal Science)', 'BS Agriculture major in Agricultural Food Processing', 'BS Agriculture major in Agronomy', 'BS Agriculture major in Extension Education', 'BSA Agricultural Extension', 'BSA Farming Systems', 'BSA Horticulture', 'BSA Soil Science', 'BSA major in Food Processing', 'DABMT-Food Processing', 'DAT Crop Production Technology'] },
+  { value: 'CBAA', label: 'College of Business Administration and Accountancy', programs: ['BS Accountancy', 'BS Entrepreneurship', 'BSBA Business Economics', 'BSBA Human Resource Management', 'BSBA Marketing Management (Advertising)', 'BSBA Marketing Management (Digital Marketing)'] },
+  { value: 'CED', label: 'College of Education', programs: ['BSEd English', 'BSEd Filipino', 'BSEd Mathematics', 'BSEd Sciences', 'BSEd Social Studies', 'BTLEd Home Economics', 'BTVTEd Home Economics', 'Bachelor of Early Childhood Education (BECEd)', 'Bachelor of Elementary Education (BEEd)'] },
+  { value: 'CoE', label: 'College of Engineering', programs: ['BS Agricultural and Biosystems Engineering', 'BS Chemical Engineering', 'BS Civil Engineering', 'BS Civil Engineering (Structural)', 'BS Electrical Engineering', 'BS Electronics Engineering', 'BS Mechanical Engineering'] },
+  { value: 'CF', label: 'College of Fisheries and Aquatic Sciences', programs: ['BS Fisheries', 'Diploma in Fisheries Technology (Ladderized Program) Major in Aquaculture', 'Diploma in Fisheries Technology (Ladderized Program) Major in Fish Processing'] },
+  { value: 'CFES', label: 'College of Forestry and Environmental Studies', programs: ['BS Environmental Science', 'BS Forestry', 'BS Forestry major in Agroforestry'] },
+  { value: 'CHS', label: 'College of Health Sciences', programs: ['BS Midwifery', 'BS Nursing', 'BS Pharmacy'] },
   { value: 'CHTM', label: 'College of Hospitality and Tourism Management', programs: ['BS Hospitality Management', 'BS Tourism Management'] },
-  { value: 'CICS', label: 'College of Information and Computing Sciences', programs: ['BS Computer Science', 'BS Information Technology', 'BS Information Systems'] },
-  { value: 'LAW', label: 'College of Law', programs: ['Juris Doctor'] },
-  { value: 'CM', label: 'College of Medicine', programs: ['Doctor of Medicine'] },
-  { value: 'CNSM', label: 'College of Natural Sciences and Mathematics', programs: ['BS Biology', 'BS Chemistry', 'BS Physics', 'BS Mathematics', 'BS Statistics'] },
-  { value: 'CPA', label: 'College of Public Affairs', programs: ['Bachelor of Public Administration', 'BS Social Work'] },
-  { value: 'CSSH', label: 'College of Social Sciences and Humanities', programs: ['AB English', 'AB Political Science', 'BS Psychology', 'AB Sociology', 'AB History', 'AB Economics', 'AB Communication', 'AB Philosophy'] },
-  { value: 'CSPEAR', label: 'College of Sports, Physical Education and Recreation', programs: ['Bachelor of Physical Education', 'BS Exercise and Sports Sciences'] },
-  { value: 'KFCIAAS', label: 'King Faisal Center for Islamic, Arabic and Asian Studies', programs: ['AB Islamic Studies', 'AB Arabic Language', 'BS Islamic Studies'] },
+  { value: 'CICS', label: 'College of Information and Computing Sciences', programs: ['BS Computer Science', 'BS Information Systems', 'BS Information Technology (Database Systems)', 'BS Information Technology (Network Systems)'] },
+  { value: 'CNSM', label: 'College of Natural Sciences and Mathematics', programs: ['BS Biology (Animal Biology)', 'BS Chemistry', 'BS Mathematics', 'BS Physics', 'BS Statistics', 'Certificate in Statistics'] },
+  { value: 'CPA', label: 'College of Public Affairs', programs: ['BS Social Work', 'BS Sustainable Community Development', 'Bachelor of Public Administration'] },
+  { value: 'CSSH', label: 'College of Social Sciences and Humanities', programs: ['AB Communication Studies major in Devt. Com.', 'AB Communication Studies major in Journalism', 'BA Communication Studies (Media Education)', 'BA English Language Studies', 'BA Filipino', 'BA History International History Track', 'BA History Philippine and Asian History Track', 'BA History Public History/Development Track', 'BA Journalism', 'BA Literary and Cultural Studies', 'BA Panitikan', 'BA Philosophy', 'BA Political Science', 'BA Psychology', 'BA Sociology', 'BS Development Communication', 'BS Psychology', 'Bachelor of Library and Information Science'] },
+  { value: 'CSPEAR', label: 'College of Sports, Physical Education and Recreation', programs: ['BS Physical Education'] },
+  { value: 'DET', label: 'Division of Engineering Technology', programs: ['BSET Construction Engineering Management', 'BSET Electrical and Renewable Energy', 'BSET Machining and Fabrication', 'DT Machine Shop Technology', 'Diploma in Electrical Technology major in Renewable Energy', 'Diploma in Technology Major in Construction Technology'] },
+  { value: 'KFCIAAS', label: 'King Faisal Center for Islamic, Arabic and Asian Studies', programs: ['AB Islamic Studies major in Shariah', 'BS International Relations', 'BS Islamic Banking and Finance', 'BS Teaching Arabic'] },
 ]
 
 const STEP_META = [
@@ -132,9 +134,22 @@ const ICON = 'h-[19px] w-[19px] flex-none text-ink-400'
 
 const ORDINAL = ['', '1st', '2nd', '3rd', '4th', '5th', '6th']
 
-/** Engineering and BS Accountancy run five years; every other program caps at four. */
+/**
+ * Five-year programs: the College of Engineering's and BS Accountancy (same list as
+ * RegisterRequest::FIVE_YEAR_PROGRAMS). Every other program caps at four.
+ */
+const FIVE_YEAR_PROGRAMS = [
+  'BS Agricultural and Biosystems Engineering',
+  'BS Chemical Engineering',
+  'BS Civil Engineering',
+  'BS Civil Engineering (Structural)',
+  'BS Electrical Engineering',
+  'BS Electronics Engineering',
+  'BS Mechanical Engineering',
+  'BS Accountancy',
+].map((p) => p.toLowerCase())
 const maxYearFor = (program?: string) =>
-  program && (/engineering/i.test(program) || program.trim().toLowerCase() === 'bs accountancy') ? 5 : 4
+  program && FIVE_YEAR_PROGRAMS.includes(program.trim().toLowerCase()) ? 5 : 4
 
 function StepDot({ index, step }: { index: number; step: number }) {
   const n = index + 1

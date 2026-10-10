@@ -444,7 +444,8 @@ class ApplicationService
             'start_date' => app(SemesterPeriodService::class)
                 ->forTerm($application->academic_year, $application->semester)?->start_date?->toDateString()
                 ?? now()->toDateString(),
-        ], $admin);
+        // A returning recipient keeps their seat: a full office doesn't block a renewal.
+        ], $admin, enforceCapacity: false);
     }
 
     public function attachDocument(Application $application, array $documentData): void

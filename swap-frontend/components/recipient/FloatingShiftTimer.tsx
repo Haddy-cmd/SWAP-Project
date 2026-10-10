@@ -38,7 +38,8 @@ export function FloatingShiftTimer() {
   })
 
   const running = !!log?.time_in && !log.time_out && log.status === 'open'
-  const hidden = !running || pathname?.startsWith('/recipient/attendance')
+  // Attendance and the dashboard show the shift timer themselves.
+  const hidden = !running || pathname?.startsWith('/recipient/attendance') || pathname === '/recipient/dashboard'
 
   const clamp = (x: number, y: number): Pos => {
     const w = ref.current?.offsetWidth ?? 190

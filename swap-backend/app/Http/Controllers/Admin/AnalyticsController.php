@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
+use App\Http\Requests\Analytics\RemindSupervisorsRequest;
 use App\Services\AnalyticsService;
 use App\Services\ProgramInsightsService;
+use App\Services\SupervisorReminderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,24 +40,16 @@ class AnalyticsController extends Controller
         return response()->json(['data' => $insights->forTerm($data['academic_year'], $data['semester'])]);
     }
 
+    /** Supervisors tab: remind the busy supervisors (at most once a day each). */
+    public function remindSupervisors(RemindSupervisorsRequest $request, SupervisorReminderService $reminders): JsonResponse
+    {
+        $data = $request->validated();
+
+        return response()->json(['data' => $reminders->remindBusy($data['academic_year'], $data['semester'], $request->user())]);
+    }
+
     public function periods(): JsonResponse
     {
         return response()->json(['data' => $this->analyticsService->getAvailablePeriods()]);
-    }
-
-    public function auditLogs(Request $request): JsonResponse
-    {
-        $logs = AuditLog::with('user')
-            ->orderByDesc('created_at')
-            ->paginate(15);
-
-        return response()->json([
-            'data' => $logs->items(),
-            'meta' => [
-                'current_page' => $logs->currentPage(),
-                'last_page' => $logs->lastPage(),
-                'total' => $logs->total(),
-            ],
-        ]);
     }
 }

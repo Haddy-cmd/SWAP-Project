@@ -4,59 +4,69 @@ import { useEffect, useState, type ComponentType } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
-  Search, ArrowRight, CheckCircle2, Inbox, Clock, CalendarClock, XCircle,
-  CheckCircle, Calendar, CalendarCheck, Eye, ChevronLeft, ChevronRight,
-  Video, Users, MapPin, AlertTriangle, Ban, BadgeCheck, RefreshCw,
+  Search, ArrowRight, CheckCircle2, Inbox, Clock, CalendarClock, XCircle, CheckCircle, CalendarCheck,
+  ChevronLeft, ChevronRight, Video, Users, MapPin, Ban, BadgeCheck, RefreshCw, Layers,
+  FileText, X, UserPlus, Building2,
 } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
-import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationPeriodToggle } from '@/components/admin/ApplicationPeriodToggle'
-import { RenewalPeriodStatus } from '@/components/admin/RenewalPeriodStatus'
 import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { rejectConfirm, notEligibleRemarks } from '@/lib/utils/rejectConfirm'
-import type { ApplicationStatus } from '@/types/application.types'
+import type { ApplicationStatus, Interview } from '@/types/application.types'
+
+/**
+ * Admin → Applications (layout "SWAP Admin Applications v2"): status tabs with counts, the
+ * queue on the left (search, type switch, paging) and the picked student on the right —
+ * facts, last semester's record for a renewal or the interview for a new applicant, documents,
+ * and the decision footer. Approved applicants leave this queue for Assignments.
+ */
 
 const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
+const GREEN = '#17815F'
+const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-white shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 
-// ── small presentational helpers ────────────────────────────────────────────
 const AVATARS: [string, string][] = [
   ['#E3EEE5', '#1F5B3A'], ['#F3F7FB', '#4A82B8'], ['#EFF8F4', '#1F8163'],
   ['#FDF8E4', '#9A7412'], ['#EFE9F7', '#6B4E9A'], ['#FEF3F2', '#E2483B'], ['#F3F7FB', '#234A70'],
 ]
 const avatar = (id: number) => AVATARS[id % AVATARS.length]
 
-const STATUS_META: Record<string, { short: string; color: string; dot: string }> = {
-  submitted: { short: 'Submitted', color: '#2F5D8A', dot: '#4A82B8' },
-  under_review: { short: 'Review', color: '#B45309', dot: '#F59E0B' },
-  interview_scheduled: { short: 'Interview', color: '#5A3E86', dot: '#6B4E9A' },
-  approved: { short: 'Approved', color: '#145643', dot: '#1F8163' },
-  rejected: { short: 'Rejected', color: '#B42318', dot: '#E2483B' },
+const STATUS_META: Record<string, { label: string; bg: string; fg: string; dot: string }> = {
+  submitted: { label: 'Submitted', bg: '#EEF4FA', fg: '#2F5D8A', dot: '#4A82B8' },
+  under_review: { label: 'Under review', bg: '#FFF7E6', fg: '#9A5B06', dot: '#F59E0B' },
+  interview_scheduled: { label: 'Interview set', bg: '#F1ECF8', fg: '#5A3E86', dot: '#6B4E9A' },
+  approved: { label: 'Approved', bg: '#EAF6F0', fg: '#145643', dot: '#1F8163' },
+  rejected: { label: 'Rejected', bg: '#FDEDEC', fg: '#B42318', dot: '#E2483B' },
 }
 
-const STAT_CARDS: {
-  status: ApplicationStatus
-  label: string
-  iconBg: string
-  iconFg: string
-  Icon: ComponentType<{ className?: string }>
-}[] = [
-  { status: 'submitted', label: 'Submitted', iconBg: '#F3F7FB', iconFg: '#4A82B8', Icon: Inbox },
-  { status: 'under_review', label: 'Under review', iconBg: '#FFFBEB', iconFg: '#9A7412', Icon: Clock },
-  { status: 'interview_scheduled', label: 'Interview set', iconBg: '#EFE9F7', iconFg: '#6B4E9A', Icon: CalendarClock },
-  { status: 'rejected', label: 'Rejected', iconBg: '#FEF3F2', iconFg: '#E2483B', Icon: XCircle },
+function StatusPill({ status }: { status: string }) {
+  const m = STATUS_META[status] ?? STATUS_META.submitted
+  return (
+    <span className="inline-flex flex-none items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: m.bg, color: m.fg }}>
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.dot }} />
+      {m.label}
+    </span>
+  )
+}
+
+// Status tabs: "All" is every application still in play (approved ones moved to Assignments).
+const STATUS_TABS: { status: ApplicationStatus | null; label: string; Icon: ComponentType<{ className?: string }> }[] = [
+  { status: null, label: 'All', Icon: Layers },
+  { status: 'submitted', label: 'Submitted', Icon: Inbox },
+  { status: 'under_review', label: 'Under review', Icon: Clock },
+  { status: 'interview_scheduled', label: 'Interview set', Icon: CalendarClock },
+  { status: 'rejected', label: 'Rejected', Icon: XCircle },
 ]
 
-
-// New applications vs. renewals from returning recipients.
 type TypeFilter = 'all' | 'new' | 'renewal'
 const TYPE_TABS: { value: TypeFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'new', label: 'New applications' },
-  { value: 'renewal', label: 'Renewals' },
+  { value: 'all', label: 'All types' },
+  { value: 'new', label: 'New' },
+  { value: 'renewal', label: 'Renewal' },
 ]
 
 export default function AdminApplicationsPage() {
@@ -67,6 +77,11 @@ export default function AdminApplicationsPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | null>(null)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
+  // Links can open a tab directly (the dashboard's "renewals ready to approve" → ?type=renewal).
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get('type')
+    if (t === 'renewal' || t === 'new') setTypeFilter(t)
+  }, [])
   const typeParam: Record<string, string> = typeFilter === 'all' ? {} : { type: typeFilter }
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
@@ -76,10 +91,10 @@ export default function AdminApplicationsPage() {
   const [location, setLocation] = useState(DSA_OFFICE)
   const [remarks, setRemarks] = useState('')
   const { notify, notifyError, confirm } = useFeedback()
-  const [rescheduling, setRescheduling] = useState(false)
+  const [dialog, setDialog] = useState<'schedule' | 'reschedule' | null>(null)
   const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
 
-  // ── queue list (same params/behaviour as before) ─────────────────────────
+  // ── queue list ───────────────────────────────────────────────────────────
   const { data: listData, isLoading } = useQuery({
     queryKey: ['admin-applications', typeFilter, statusFilter ?? 'active', search, page],
     queryFn: () =>
@@ -87,21 +102,21 @@ export default function AdminApplicationsPage() {
         page: String(page),
         ...typeParam,
         ...(search && { search }),
-        // Approved applicants graduate to the Assignments queue, so the default
-        // view hides them. Each stat card narrows to one explicit status.
+        // Approved applicants graduate to the Assignments queue, so "All" hides them.
         ...(statusFilter ? { status: statusFilter } : { exclude_status: 'approved' }),
       }),
   })
   const applications = listData?.data ?? []
   const meta = listData?.meta
 
-  // ── per-status counts for the stat cards ─────────────────────────────────
-  // The cards count within the selected tab, so they always agree with the list.
+  // ── per-tab counts (within the selected type, so they agree with the list) ─
   const countQueries = useQueries({
-    queries: STAT_CARDS.map((c) => ({
-      queryKey: ['admin-applications', 'count', typeFilter, c.status],
+    queries: STATUS_TABS.map((t) => ({
+      queryKey: ['admin-applications', 'count', typeFilter, t.status ?? 'active'],
       queryFn: () =>
-        applicationsApi.adminListApplications({ status: c.status, page: '1', ...typeParam }).then((r) => r.meta?.total ?? 0),
+        applicationsApi.adminListApplications({
+          page: '1', ...typeParam, ...(t.status ? { status: t.status } : { exclude_status: 'approved' }),
+        }).then((r) => r.meta?.total ?? 0),
     })),
   })
 
@@ -115,21 +130,19 @@ export default function AdminApplicationsPage() {
   // The active selection defaults to the first item in the current queue.
   const activeId = selectedId ?? applications[0]?.id ?? null
 
-  // ── selected application detail ──────────────────────────────────────────
   const { data: selected, isLoading: detailLoading } = useQuery({
     queryKey: ['admin-application', activeId],
     queryFn: () => applicationsApi.adminGetApplication(activeId!),
     enabled: activeId != null,
   })
 
-  // Reset the form whenever the selected applicant changes so values never leak
-  // from one applicant to another.
+  // Reset the form whenever the selected applicant changes so values never leak between them.
   useEffect(() => {
     setInterviewDate('')
     setMode('in_person')
     setLocation(DSA_OFFICE)
     setRemarks('')
-    setRescheduling(false)
+    setDialog(null)
   }, [activeId])
 
   // A renewal the supervisor marked not eligible can only be rejected: start the remarks
@@ -146,13 +159,10 @@ export default function AdminApplicationsPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-application', activeId] })
   }
 
-  // ── mutations (identical endpoints/payloads to the detail page) ───────────
-  // The backend refuses with a message (a window rule, a missing link, a state
-  // conflict) — show it verbatim instead of failing silently.
+  // The backend refuses with a message (a window rule, a missing link, a state conflict) — show it verbatim.
   const showError = (err: unknown) => notifyError(err, 'That didn\'t go through')
 
-  // Online interviews carry their join link in meeting_link (required by the
-  // backend); the "Meeting Link" field shares the venue input on this page.
+  // Online interviews carry their join link in meeting_link (required by the backend).
   const interviewPayload = () =>
     mode === 'online'
       ? { scheduled_at: interviewDate, mode, meeting_link: location.trim() }
@@ -162,7 +172,7 @@ export default function AdminApplicationsPage() {
     mutationFn: () => applicationsApi.adminMarkUnderReview(activeId!),
     onSuccess: () => {
       refresh()
-      notify({ title: 'Moved to Under Review', detail: 'You can now schedule an interview.' })
+      notify({ title: 'Moved to Under review', detail: 'You can now set the interview.' })
     },
     onError: showError,
   })
@@ -172,7 +182,8 @@ export default function AdminApplicationsPage() {
     onSuccess: () => {
       refresh()
       setInterviewDate('')
-      notify({ title: 'Interview scheduled', detail: 'The applicant has been notified.' })
+      setDialog(null)
+      notify({ title: 'Interview set', detail: 'The applicant has been notified.' })
     },
     onError: showError,
   })
@@ -182,7 +193,7 @@ export default function AdminApplicationsPage() {
     onSuccess: () => {
       refresh()
       setInterviewDate('')
-      setRescheduling(false)
+      setDialog(null)
       notify({ title: 'Interview rescheduled', detail: 'The applicant has been notified of the new time.' })
     },
     onError: showError,
@@ -201,8 +212,7 @@ export default function AdminApplicationsPage() {
     mutationFn: (decision: 'approved' | 'rejected') =>
       applicationsApi.adminDecideApplication(activeId!, { decision, remarks }),
     onSuccess: (data, decision) => {
-      // Keep the decided applicant in view so the admin sees the confirmation,
-      // even though it leaves the active queue.
+      // Keep the decided applicant in view so the admin sees the confirmation.
       setSelectedId(activeId)
       refresh()
       notify(decision === 'approved'
@@ -231,15 +241,25 @@ export default function AdminApplicationsPage() {
     if (ok) markNoShow.mutate()
   }
 
-  // Venue ↔ meeting-link swap when the mode changes (both schedule forms).
+  // Venue ↔ meeting-link swap when the mode changes.
   const changeMode = (next: 'in_person' | 'online') => {
     setMode(next)
     if (next === 'in_person' && !location) setLocation(DSA_OFFICE)
     if (next === 'online' && location === DSA_OFFICE) setLocation('')
   }
 
-  const setFilter = (s: ApplicationStatus) => {
-    setStatusFilter((cur) => (cur === s ? null : s))
+  const openDialog = (kind: 'schedule' | 'reschedule') => {
+    setInterviewDate('')
+    if (kind === 'reschedule' && selected?.interview) {
+      const online = selected.interview.mode === 'online'
+      setMode(online ? 'online' : 'in_person')
+      setLocation(online ? (selected.interview.meeting_link ?? '') : (selected.interview.location || DSA_OFFICE))
+    }
+    setDialog(kind)
+  }
+
+  const setFilter = (s: ApplicationStatus | null) => {
+    setStatusFilter(s)
     setPage(1)
     setSelectedId(null)
   }
@@ -254,106 +274,83 @@ export default function AdminApplicationsPage() {
   const isRenewal = selected?.type === 'renewal'
   const iv = selected?.interview
   const documents = selected?.documents ?? []
+  const readiness = selected?.renewal_readiness
+  const deciding = status === 'under_review' || status === 'interview_scheduled' || (isRenewal && status === 'submitted')
+  // Same gates as the backend: a renewal waits for its checks; a new applicant needs an attended-or-pending interview.
+  const canApprove = isRenewal ? readiness?.ready !== false : status === 'interview_scheduled' && iv?.status !== 'no_show'
+  const hint = isRenewal
+    ? readiness?.ready === false ? (readiness.blocker ?? 'Not ready to approve yet.') : 'Approving renews their placement for the new term. They get an email.'
+    : status === 'under_review' ? 'Set an interview before approving.'
+    : iv?.status === 'no_show' ? 'They missed the interview. Reschedule it before approving.'
+    : 'Approving moves them to Assignments. They get an email either way.'
 
   return (
     <div className="space-y-5">
-      {/* header */}
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Admissions Review</p>
-        <h1 className="mt-1 font-serif text-3xl font-medium text-ink-950">Applications</h1>
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-[30px] font-medium leading-tight text-ink-950">Applications</h1>
+          <p className="mt-1 text-sm text-ink-500">Pick a student on the left, check their details, then approve or reject.</p>
+        </div>
+        <ApplicationPeriodToggle />
       </div>
 
-      {/* application-period toggle (unchanged behaviour) */}
-      <ApplicationPeriodToggle />
-      {/* renewal is opened per semester under Admin → Semesters */}
-      <RenewalPeriodStatus />
-
-      {/* approved applicants move to the assignment queue */}
-      <Link
-        href="/admin/assignments"
-        className="flex items-center justify-between gap-3 rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm transition-colors hover:bg-success-100"
-      >
-        <span className="flex items-center gap-2 font-medium text-success-800">
-          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-          Approved applicants move to the Assignments queue, ready to be onboarded to an office.
-        </span>
-        <span className="flex flex-shrink-0 items-center gap-1 font-semibold text-success-800">
-          Go to Assignments
-          <ArrowRight className="h-4 w-4" />
-        </span>
-      </Link>
-
-      {/* stat cards = status filters */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {STAT_CARDS.map((c, i) => {
-          const active = statusFilter === c.status
+      {/* Status tabs */}
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Application status">
+        {STATUS_TABS.map((t, i) => {
+          const active = statusFilter === t.status
+          const count = countQueries[i]?.data
           return (
-            <button
-              key={c.status}
-              onClick={() => setFilter(c.status)}
-              className="flex items-center gap-3 rounded-[13px] border bg-white px-4 py-3.5 text-left transition-colors"
-              style={{ borderColor: active ? '#1F5B3A' : '#DCE0CF', boxShadow: active ? '0 6px 16px rgba(22,69,43,.14)' : '0 1px 3px rgba(19,36,26,.04)' }}
-            >
-              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px]" style={{ background: c.iconBg, color: c.iconFg }}>
-                <c.Icon className="h-5 w-5" />
-              </span>
-              <span>
-                <span className="block font-serif text-2xl font-semibold leading-none text-ink-950">
-                  {countQueries[i]?.isLoading ? '·' : countQueries[i]?.data ?? 0}
-                </span>
-                <span className="mt-0.5 block text-[11.5px] text-ink-400">{c.label}</span>
+            <button key={t.label} role="tab" aria-selected={active} onClick={() => setFilter(t.status)}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+                active ? 'border-[#17815F] bg-[#17815F] text-white shadow-[0_6px_16px_rgba(23,129,95,.22)]' : 'border-ink-900/[.08] bg-white text-ink-600 hover:border-[#17815F]/40 hover:text-[#17815F]'
+              }`}>
+              <t.Icon className="h-4 w-4" />
+              {t.label}
+              <span className={`rounded-full px-2 py-px text-[11px] font-bold ${active ? 'bg-white/20 text-white' : 'bg-ink-100 text-ink-600'}`}>
+                {countQueries[i]?.isLoading ? '·' : count ?? 0}
               </span>
             </button>
           )
         })}
       </div>
 
-      {/* master / detail */}
-      <div className="grid items-start gap-4 lg:grid-cols-[1fr_1.4fr]">
-        {/* ── queue ─────────────────────────────────────────────────────── */}
-        <div>
-          {/* type tabs: everything / new applications / renewals from returning recipients */}
-          <div className="mb-3 flex gap-1 rounded-[11px] bg-ink-100 p-1" role="tablist" aria-label="Application type">
-            {TYPE_TABS.map((t) => (
-              <button key={t.value} role="tab" aria-selected={typeFilter === t.value} onClick={() => setType(t.value)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[12.5px] font-semibold transition-colors ${
-                  typeFilter === t.value ? 'bg-white text-brand-800 shadow-sm' : 'text-ink-500 hover:text-brand-700'
-                }`}>
-                {t.value === 'renewal' && <RefreshCw className="h-3.5 w-3.5" />}
-                {t.label}
-                {t.value === 'renewal' && !!renewalsWaiting && (
-                  <span className="rounded-full bg-violet-100 px-1.5 py-px text-[10.5px] font-bold text-violet-700">{renewalsWaiting}</span>
-                )}
-              </button>
-            ))}
+      {/* List / detail */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)]">
+        {/* ── list ───────────────────────────────────────────────────────── */}
+        <div className={`${CARD} overflow-hidden`}>
+          <div className="space-y-2.5 border-b border-ink-900/[.06] p-3.5">
+            <div className="relative">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+              <input
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); setSelectedId(null) }}
+                placeholder="Search name or student ID"
+                className="h-10 w-full rounded-xl border border-ink-200 bg-ink-50/60 pl-10 pr-4 text-sm text-ink-900 placeholder:text-ink-400 focus:border-[#17815F] focus:bg-white focus:outline-none"
+              />
+            </div>
+            <div className="flex gap-1 rounded-[11px] bg-ink-100 p-1" role="tablist" aria-label="Application type">
+              {TYPE_TABS.map((t) => (
+                <button key={t.value} role="tab" aria-selected={typeFilter === t.value} onClick={() => setType(t.value)}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                    typeFilter === t.value ? 'bg-white text-[#17815F] shadow-sm' : 'text-ink-500 hover:text-[#17815F]'
+                  }`}>
+                  {t.label}
+                  {t.value === 'renewal' && !!renewalsWaiting && (
+                    <span className="rounded-full bg-violet-100 px-1.5 py-px text-[10.5px] font-bold text-violet-700" title="Renewals waiting for a decision">{renewalsWaiting}</span>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="relative mb-3">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-            <input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); setSelectedId(null) }}
-              placeholder="Search name, email or student ID…"
-              className="h-11 w-full rounded-[11px] border border-ink-200 bg-white pl-10 pr-4 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-            />
-          </div>
-
-          <div className="mb-2.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-warning-700">
-            {typeFilter === 'renewal' ? 'Renewals · ' : typeFilter === 'new' ? 'New · ' : ''}
-            {statusFilter ? STATUS_META[statusFilter]?.short ?? 'Filtered' : typeFilter === 'all' ? 'All pending' : 'pending'}
-            <span className="rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] text-gold-700">{meta?.total ?? applications.length}</span>
-            {statusFilter && (
-              <button onClick={() => { setStatusFilter(null); setSelectedId(null) }} className="ml-auto text-xs font-semibold text-brand-700">
-                Clear
-              </button>
-            )}
-          </div>
-
-          <div className="flex max-h-[560px] flex-col gap-2.5 overflow-auto pr-0.5">
+          <div className="max-h-[600px] overflow-auto">
             {isLoading ? (
-              [1, 2, 3, 4, 5].map((n) => <div key={n} className="h-[62px] animate-pulse rounded-xl bg-ink-200/60" />)
+              <div className="space-y-2 p-3.5">
+                {[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-[54px] animate-pulse rounded-xl bg-ink-200/50" />)}
+              </div>
             ) : applications.length === 0 ? (
-              <div className="rounded-[13px] border border-dashed border-ink-300 bg-white px-5 py-10 text-center">
+              <div className="px-5 py-12 text-center">
                 <CheckCircle2 className="mx-auto h-8 w-8 text-success-600" />
                 <p className="mt-2.5 text-[13.5px] font-semibold text-ink-700">All caught up</p>
                 <p className="mt-1 text-[12.5px] text-ink-400">
@@ -361,72 +358,69 @@ export default function AdminApplicationsPage() {
                 </p>
               </div>
             ) : (
-              applications.map((a) => {
-                const [avBg, avFg] = avatar(a.id)
-                const m = STATUS_META[a.status] ?? STATUS_META.submitted
-                const isActive = a.id === activeId
-                return (
-                  <button
-                    key={a.id}
-                    onClick={() => setSelectedId(a.id)}
-                    className="flex items-center gap-3 rounded-xl border bg-white px-3.5 py-3 text-left transition-colors"
-                    style={{ borderColor: isActive ? '#1F5B3A' : '#DCE0CF', boxShadow: isActive ? '0 6px 18px rgba(22,69,43,.14)' : '0 1px 3px rgba(19,36,26,.04)' }}
-                  >
-                    <UserAvatar name={a.user?.name} avatarUrl={a.user?.avatar_url}
-                      className="h-[38px] w-[38px] rounded-full text-[13px] font-bold" style={{ background: avBg, color: avFg }} />
-                    <span className="min-w-0 flex-1 leading-tight">
-                      <span className="block truncate text-[13.5px] font-semibold text-ink-950">{a.user?.name ?? '—'}</span>
-                      {a.user?.profile?.student_id_number && (
-                        <span className="block font-mono text-[11px] text-ink-500">ID {a.user.profile.student_id_number}</span>
-                      )}
-                      <span className="flex items-center gap-1.5 text-[11.5px] text-ink-400">
-                        {formatDate(a.created_at)}
-                        {a.type === 'renewal' && (
-                          <span className="rounded-full bg-violet-100 px-1.5 py-px text-[10px] font-bold text-violet-600">Renewal</span>
-                        )}
-                      </span>
-                    </span>
-                    <span className="flex flex-shrink-0 items-center gap-1.5 text-[10.5px] font-bold" style={{ color: m.color }}>
-                      <span className="h-2 w-2 rounded-full" style={{ background: m.dot }} />
-                      {m.short}
-                    </span>
-                  </button>
-                )
-              })
+              <ul className="divide-y divide-ink-900/[.06]">
+                {applications.map((a) => {
+                  const [avBg, avFg] = avatar(a.id)
+                  const isActive = a.id === activeId
+                  return (
+                    <li key={a.id}>
+                      <button
+                        onClick={() => setSelectedId(a.id)}
+                        aria-current={isActive}
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
+                          isActive ? 'bg-[#F1F8F4] shadow-[inset_3px_0_0_#17815F]' : 'hover:bg-ink-50/70'
+                        }`}
+                      >
+                        <UserAvatar name={a.user?.name} avatarUrl={a.user?.avatar_url}
+                          className="h-9 w-9 rounded-full text-[12.5px] font-bold" style={{ background: avBg, color: avFg }} />
+                        <span className="min-w-0 flex-1 leading-tight">
+                          <span className="block truncate text-[13.5px] font-semibold text-ink-950">{a.user?.name ?? '—'}</span>
+                          <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-ink-400">
+                            {formatDate(a.created_at)}
+                            {a.type === 'renewal' && (
+                              <span className="rounded-full bg-violet-100 px-1.5 py-px text-[10px] font-bold text-violet-600">Renewal</span>
+                            )}
+                          </span>
+                        </span>
+                        <StatusPill status={a.status} />
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
             )}
           </div>
 
-          {/* pagination preserved */}
-          {meta && meta.last_page > 1 && (
-            <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-ink-500">Page {meta.current_page} of {meta.last_page} · {meta.total} total</p>
-              <div className="flex gap-2">
+          {meta && meta.total > 0 && (
+            <div className="flex items-center justify-between border-t border-ink-900/[.06] px-4 py-2.5">
+              <p className="text-xs text-ink-500">Page {meta.current_page} of {meta.last_page}</p>
+              <div className="flex gap-1.5">
                 <button
                   onClick={() => { setPage((p) => Math.max(1, p - 1)); setSelectedId(null) }}
-                  disabled={page === 1}
-                  className="flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-700 disabled:opacity-40"
+                  disabled={page === 1} aria-label="Previous page"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-600 hover:text-[#17815F] disabled:opacity-40"
                 >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => { setPage((p) => p + 1); setSelectedId(null) }}
-                  disabled={page === meta.last_page}
-                  className="flex items-center gap-1 rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-700 disabled:opacity-40"
+                  disabled={page >= meta.last_page} aria-label="Next page"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-600 hover:text-[#17815F] disabled:opacity-40"
                 >
-                  Next <ChevronRight className="h-3.5 w-3.5" />
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── review panel ──────────────────────────────────────────────── */}
-        <div className="sticky top-[88px] overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-[0_8px_24px_rgba(19,36,26,.08)]">
+        {/* ── detail ─────────────────────────────────────────────────────── */}
+        <div className={`${CARD} overflow-hidden lg:sticky lg:top-[88px]`}>
           {!activeId ? (
             <div className="px-8 py-[70px] text-center">
               <BadgeCheck className="mx-auto h-11 w-11 text-success-600" />
               <p className="mt-3.5 font-serif text-[22px] font-semibold text-ink-950">All caught up</p>
-              <p className="mt-1.5 text-[13.5px] text-ink-500">No application is selected. Pick one from the queue to review it.</p>
+              <p className="mt-1.5 text-[13.5px] text-ink-500">Nothing is selected. Pick a student on the left to review them.</p>
             </div>
           ) : detailLoading || !selected ? (
             <div className="space-y-4 p-6">
@@ -436,51 +430,54 @@ export default function AdminApplicationsPage() {
             </div>
           ) : (
             <div>
-              {/* selected header */}
-              <div className="border-b border-ink-200 px-6 py-6">
-                <div className="flex items-center gap-3.5">
-                  {(() => { const [bg, fg] = avatar(selected.id); return (
-                    <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
-                      className="h-14 w-14 rounded-full text-[18px] font-bold" style={{ background: bg, color: fg }} />
-                  ) })()}
-                  <div className="min-w-0 flex-1 leading-tight">
-                    <p className="flex flex-wrap items-center gap-2 font-serif text-[22px] font-semibold text-ink-950">
-                      {selected.user?.name ?? '—'}
-                      {isRenewal && (
-                        <span className="rounded-full bg-violet-100 px-2 py-0.5 font-sans text-[11px] font-bold text-violet-600">Renewal</span>
-                      )}
-                    </p>
-                    <p className="text-[13px] text-ink-400">{selected.user?.email ?? '—'}</p>
-                  </div>
-                  <StatusBadge status={selected.status} />
+              {/* header */}
+              <div className="flex items-center gap-3.5 border-b border-ink-900/[.06] px-6 py-5">
+                {(() => { const [bg, fg] = avatar(selected.id); return (
+                  <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
+                    className="h-[52px] w-[52px] rounded-full text-[17px] font-bold" style={{ background: bg, color: fg }} />
+                ) })()}
+                <div className="min-w-0 flex-1 leading-tight">
+                  <p className="flex flex-wrap items-center gap-2 font-serif text-[21px] font-semibold text-ink-950">
+                    {selected.user?.name ?? '—'}
+                    {isRenewal ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 font-sans text-[11px] font-bold text-violet-700">
+                        <RefreshCw className="h-3 w-3" /> Renewal
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF6F0] px-2 py-0.5 font-sans text-[11px] font-bold text-[#145643]">
+                        <UserPlus className="h-3 w-3" /> New applicant
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 truncate text-[13px] text-ink-400">{selected.user?.email ?? '—'}</p>
                 </div>
+                <StatusPill status={selected.status} />
               </div>
 
-              <div className="px-6 py-5">
-                {/* meta */}
-                <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink-200 bg-ink-200">
+              <div className="space-y-5 px-6 py-5">
+                {/* facts */}
+                <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-ink-900/[.08] bg-ink-900/[.08] sm:grid-cols-4">
                   {[
-                    ['Period', `${selected.academic_year} · ${selected.semester}`],
-                    ['Submitted', formatDate(selected.created_at)],
                     ['Student ID', selected.user?.profile?.student_id_number ?? '—'],
-                    ['Email', selected.user?.email ?? '—'],
-                    ['Application', `#${selected.id}`],
+                    ['Application #', `#${selected.id}`],
+                    ['Submitted', formatDate(selected.created_at)],
+                    ['For term', `${selected.academic_year} · ${selected.semester}`],
                   ].map(([label, value]) => (
-                    <div key={label} className="bg-white px-4 py-3">
+                    <div key={label} className="bg-white px-3.5 py-2.5">
                       <p className="text-[11px] text-ink-400">{label}</p>
-                      <p className="truncate text-[13px] font-semibold text-ink-900">{value}</p>
+                      <p className="truncate text-[13px] font-semibold text-ink-900" title={value}>{value}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* renewal: previous service record */}
+                {/* renewal: last semester at SWAP + the checks */}
                 {isRenewal && (
-                  <div className="mb-5 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3.5">
-                    <p className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.06em] text-violet-700">
-                      <RefreshCw className="h-3.5 w-3.5" /> Previous service record
+                  <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-4 py-3.5">
+                    <p className="mb-2.5 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.08em] text-violet-700">
+                      <Building2 className="h-3.5 w-3.5" /> Last semester at SWAP
                     </p>
                     {selected.renewal_context ? (
-                      <div className="grid grid-cols-1 gap-x-4 gap-y-1 text-[12.5px] text-ink-700 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-[12.5px] text-ink-700 sm:grid-cols-2">
                         <span>Office: <b>{selected.renewal_context.office ?? '—'}</b></span>
                         <span>Supervisor: <b>{selected.renewal_context.supervisor ?? '—'}</b>
                           {selected.renewal_context.supervisor_employee_id && (
@@ -493,266 +490,263 @@ export default function AdminApplicationsPage() {
                     ) : (
                       <p className="text-[12.5px] text-violet-700">No previous assignment found for this student.</p>
                     )}
-                    {selected.renewal_readiness && status === 'submitted' && <RenewalReadinessPanel readiness={selected.renewal_readiness} />}
-                    <p className="mt-2 text-[11.5px] text-ink-500">
-                      Approving rolls their assignment into {selected.academic_year} — {selected.semester} at the same office. No interview needed.
-                    </p>
+                    {readiness && status === 'submitted' && (
+                      <RenewalReadinessPanel readiness={readiness}
+                        readyText={`All checks passed. Approving keeps them at the same office for ${selected.academic_year} · ${selected.semester}. No interview needed.`} />
+                    )}
                   </div>
                 )}
 
-                {/* documents (review stages) */}
-                {documents.length > 0 && status !== 'approved' && status !== 'rejected' && (
-                  <div className="mb-5">
-                    <p className="mb-2.5 text-xs font-bold uppercase tracking-[0.06em] text-ink-400">Documents</p>
-                    <div className="flex flex-col gap-2">
+                {/* new applicant: the interview */}
+                {!isRenewal && status !== 'approved' && status !== 'rejected' && (
+                  <InterviewBanner
+                    status={status!}
+                    interview={iv ?? null}
+                    onMarkReview={() => markReview.mutate()}
+                    markingReview={markReview.isPending}
+                    onSchedule={() => openDialog('schedule')}
+                    onReschedule={() => openDialog('reschedule')}
+                    onNoShow={confirmNoShow}
+                    markingNoShow={markNoShow.isPending}
+                  />
+                )}
+
+                {/* documents */}
+                {documents.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-ink-400">Documents</p>
+                    <div className="flex flex-wrap gap-2">
                       {documents.map((doc) => (
-                        <div key={doc.id} className="flex items-center gap-2.5 rounded-[10px] border border-ink-200 px-3.5 py-2.5">
-                          <CheckCircle className="h-4 w-4 text-success-600" />
-                          <span className="flex-1 text-[13px] capitalize text-ink-700">{doc.document_type.replace(/_/g, ' ')}</span>
-                          <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-semibold text-brand-700">
-                            <Eye className="h-3.5 w-3.5" /> View
-                          </button>
-                        </div>
+                        <button key={doc.id} onClick={() => setViewDoc(doc)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-ink-900/[.08] bg-white px-3 py-2 text-[12.5px] font-semibold capitalize text-[#17815F] hover:border-[#17815F]/40 hover:bg-[#F1F8F4]">
+                          <FileText className="h-3.5 w-3.5" />
+                          {doc.document_type.replace(/_/g, ' ')}
+                        </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* STATE: submitted → mark under review (fresh applications only) */}
-                {status === 'submitted' && !isRenewal && (
-                  <div>
-                    <div className="mb-4 flex gap-3 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3.5">
-                      <AlertTriangle className="h-5 w-5 flex-shrink-0 text-gold-600" />
-                      <p className="text-[12.5px] leading-relaxed text-gold-700">
-                        Move this application to <strong>Under Review</strong> to start processing it and unlock interview scheduling.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => markReview.mutate()}
-                      disabled={markReview.isPending}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 text-sm font-semibold text-ink-25 shadow-[0_10px_22px_rgba(22,69,43,.24)] disabled:opacity-50"
-                    >
-                      <Clock className="h-[18px] w-[18px]" /> Mark as Under Review
-                    </button>
-                  </div>
-                )}
-
-                {/* STATE: under_review → schedule interview (fresh applications only) */}
-                {status === 'under_review' && !isRenewal && (
-                  <div className="mb-5">
-                    <div className="mb-4 flex items-center gap-2">
-                      <Calendar className="h-5 w-5 text-brand-700" />
-                      <span className="text-[15px] font-bold text-ink-950">Schedule Interview</span>
-                    </div>
-                    <div className="mb-3.5 grid grid-cols-2 gap-3.5">
-                      <div>
-                        <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-600">Date &amp; Time</label>
-                        <input
-                          type="datetime-local"
-                          value={interviewDate}
-                          onChange={(e) => setInterviewDate(e.target.value)}
-                          className="h-[46px] w-full rounded-[11px] border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-600">Mode</label>
-                        <select
-                          value={mode}
-                          onChange={(e) => changeMode(e.target.value as 'in_person' | 'online')}
-                          className="h-[46px] w-full rounded-[11px] border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-                        >
-                          <option value="in_person">In Person</option>
-                          <option value="online">Online</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="mb-2">
-                      <label className="mb-1.5 block text-[12.5px] font-semibold text-ink-600">{mode === 'in_person' ? 'Venue' : 'Meeting Link'}</label>
-                      <input
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        placeholder={mode === 'in_person' ? 'Building / office' : 'https://meet.google.com/…'}
-                        className="h-[46px] w-full rounded-[11px] border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-                      />
-                    </div>
-                    <p className="mb-4 text-xs leading-relaxed text-ink-500">
-                      {mode === 'in_person'
-                        ? 'In-person interviews are held at the DSA office. Leave as-is unless it changes.'
-                        : 'Share an online meeting link the applicant can join.'}
-                    </p>
-                    <button
-                      onClick={() => scheduleInterview.mutate()}
-                      disabled={scheduleInterview.isPending || !interviewDate}
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white shadow-[0_10px_22px_rgba(22,69,43,.2)] disabled:cursor-not-allowed"
-                      style={{ background: interviewDate ? 'linear-gradient(180deg,#2A7148,#16452B)' : '#CAD2BC' }}
-                    >
-                      <CalendarCheck className="h-[18px] w-[18px]" /> Schedule Interview
-                    </button>
-                  </div>
-                )}
-
-                {/* STATE: interview_scheduled → details */}
-                {status === 'interview_scheduled' && iv && (
-                  <div className="mb-5 rounded-[13px] border border-violet-200 bg-violet-50 px-[18px] py-4">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <CalendarCheck className="h-[19px] w-[19px] text-violet-600" />
-                      <span className="text-[13.5px] font-bold text-violet-700">Interview Scheduled</span>
-                      {iv.status === 'no_show' && (
-                        <span className="rounded-full bg-gold-50 px-2 py-0.5 text-[11px] font-bold text-warning-700 ring-1 ring-gold-200">No-show</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2 text-[13px] text-ink-700">
-                      <span className="flex items-center gap-2.5"><Clock className="h-[17px] w-[17px] text-violet-400" />{formatDateTime(iv.scheduled_at)}</span>
-                      <span className="flex items-center gap-2.5">
-                        {iv.mode === 'online' ? <Video className="h-[17px] w-[17px] text-violet-400" /> : <Users className="h-[17px] w-[17px] text-violet-400" />}
-                        {iv.mode === 'online' ? 'Online' : 'In Person'}
-                      </span>
-                      <span className="flex items-center gap-2.5"><MapPin className="h-[17px] w-[17px] text-violet-400" />{iv.location || 'Online meeting link'}</span>
-                    </div>
-
-                    {iv.status === 'no_show' && (
-                      <p className="mt-2.5 text-[12px] text-gold-700">
-                        The applicant did not attend. Reschedule below, or reject with remarks.
-                      </p>
-                    )}
-
-                    {(iv.history?.length ?? 0) > 0 && (
-                      <div className="mt-3 border-t border-violet-200 pt-2.5">
-                        <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-violet-400">Reschedule history</p>
-                        {iv.history!.map((h, i) => (
-                          <p key={i} className="text-[11.5px] text-ink-600">
-                            {h.from ? formatDateTime(h.from) : '?'} {'->'} {h.to ? formatDateTime(h.to) : '?'}
-                            {h.changed_by ? ` (by ${h.changed_by})` : ''}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-3.5 flex flex-wrap gap-2">
-                      {iv.status !== 'no_show' && (
-                        <button
-                          onClick={confirmNoShow}
-                          disabled={markNoShow.isPending}
-                          className="flex h-9 items-center gap-1.5 rounded-lg border border-gold-200 bg-gold-50 px-3 text-[12.5px] font-semibold text-gold-700 disabled:opacity-50"
-                        >
-                          <Ban className="h-4 w-4" /> Mark as No-show
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setRescheduling((r) => !r)}
-                        className="flex h-9 items-center gap-1.5 rounded-lg border border-violet-200 bg-white px-3 text-[12.5px] font-semibold text-violet-700"
-                      >
-                        <CalendarClock className="h-4 w-4" /> {rescheduling ? 'Cancel reschedule' : 'Reschedule'}
-                      </button>
-                    </div>
-
-                    {rescheduling && (
-                      <div className="mt-3 space-y-2.5 rounded-xl border border-violet-200 bg-white p-3">
-                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                          <input
-                            type="datetime-local"
-                            value={interviewDate}
-                            onChange={(e) => setInterviewDate(e.target.value)}
-                            className="h-10 rounded-lg border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-                          />
-                          <select
-                            value={mode}
-                            onChange={(e) => changeMode(e.target.value as 'in_person' | 'online')}
-                            className="h-10 rounded-lg border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-                          >
-                            <option value="in_person">In person</option>
-                            <option value="online">Online</option>
-                          </select>
-                        </div>
-                        <input
-                          value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                          placeholder={mode === 'online' ? 'https://meet.google.com/…' : 'Venue'}
-                          className="h-10 w-full rounded-lg border border-ink-200 bg-ink-50 px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-                        />
-                        <button
-                          onClick={() => reschedule.mutate()}
-                          disabled={reschedule.isPending || !interviewDate}
-                          className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-b from-brand-600 to-brand-800 text-[13px] font-semibold text-white disabled:opacity-50"
-                        >
-                          <CalendarCheck className="h-4 w-4" /> {reschedule.isPending ? 'Rescheduling...' : 'Confirm new schedule'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* DECISION — Approve unlocks only after an interview is scheduled; Reject is allowed earlier */}
-                {(status === 'under_review' || status === 'interview_scheduled' || (isRenewal && status === 'submitted')) && (
-                  <div>
-                    {status === 'under_review' && !isRenewal && (
-                      <div className="mb-3 flex gap-2.5 rounded-xl border border-gold-200 bg-gold-50 px-4 py-2.5 text-[12px] leading-relaxed text-gold-700">
-                        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-gold-600" />
-                        Schedule an interview before approving .
-                      </div>
-                    )}
-                    <textarea
-                      value={remarks}
-                      onChange={(e) => setRemarks(e.target.value)}
-                      placeholder="Remarks (required for rejection)"
-                      rows={3}
-                      className="mb-3 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
-                    />
-                    <div className="flex gap-2.5">
-                      {/* A no-show must be rescheduled before approval (backend rule). */}
-                      {(isRenewal || (status === 'interview_scheduled' && iv?.status !== 'no_show')) && (
-                        <button
-                          onClick={() => decide.mutate('approved')}
-                          // A renewal waits for its readiness checks (the backend refuses with the same blocker).
-                          disabled={decide.isPending || (isRenewal && selected?.renewal_readiness?.ready === false)}
-                          title={isRenewal ? selected?.renewal_readiness?.blocker ?? undefined : undefined}
-                          className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-success-600 to-success-700 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(25,107,83,.24)] disabled:opacity-50"
-                        >
-                          <CheckCircle className="h-[18px] w-[18px]" /> Approve
-                        </button>
-                      )}
-                      <button
-                        onClick={confirmAndReject}
-                        disabled={decide.isPending || !remarks.trim()}
-                        className={`flex h-12 items-center justify-center gap-2 rounded-xl border border-danger-200 bg-danger-50 text-sm font-semibold text-danger-700 disabled:opacity-50 ${status === 'interview_scheduled' || isRenewal ? 'px-5' : 'flex-1'}`}
-                      >
-                        <XCircle className="h-[18px] w-[18px]" /> Reject
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* DECIDED summary */}
+                {/* decided summary */}
                 {(status === 'approved' || status === 'rejected') && (
                   <div
                     className="flex items-center gap-3.5 rounded-[13px] border px-[18px] py-4"
-                    style={status === 'approved'
-                      ? { background: '#EFF8F4', borderColor: '#B4E1CF' }
-                      : { background: '#FEF3F2', borderColor: '#FBCBC6' }}
+                    style={status === 'approved' ? { background: '#EFF8F4', borderColor: '#B4E1CF' } : { background: '#FEF3F2', borderColor: '#FBCBC6' }}
                   >
                     {status === 'approved'
                       ? <BadgeCheck className="h-6 w-6 flex-shrink-0 text-success-800" />
                       : <Ban className="h-6 w-6 flex-shrink-0 text-danger-700" />}
-                    <div className="leading-snug">
+                    <div className="min-w-0 flex-1 leading-snug">
                       <p className="text-sm font-bold" style={{ color: status === 'approved' ? '#145643' : '#B42318' }}>
-                        {status === 'approved' ? 'Approved — moved to Assignments' : 'Application Rejected'}
+                        {status === 'approved' ? (isRenewal ? 'Renewal approved' : 'Approved, waiting for an office') : 'Application rejected'}
                       </p>
                       <p className="text-[12.5px]" style={{ color: status === 'approved' ? '#145643' : '#B42318', opacity: 0.85 }}>
                         {status === 'approved'
-                          ? 'This student is now in the Assignments queue.'
+                          ? isRenewal ? 'Their placement continues in the new term.' : 'This student is now in the Assignments queue.'
                           : selected.remarks || 'This applicant was not accepted this cycle.'}
                       </p>
                     </div>
+                    {status === 'approved' && !isRenewal && (
+                      <Link href="/admin/assignments" className="inline-flex flex-none items-center gap-1 text-[12.5px] font-semibold text-[#17815F] hover:underline">
+                        Go to Assignments <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
                   </div>
                 )}
-
               </div>
+
+              {/* decision footer */}
+              {deciding && (
+                <div className="border-t border-ink-900/[.06] bg-ink-50/50 px-6 py-4">
+                  <textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="Remarks (needed if you reject)"
+                    rows={2}
+                    className="w-full resize-none rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-[#17815F] focus:outline-none"
+                  />
+                  <div className="mt-3 flex flex-wrap items-center gap-2.5">
+                    <p className="min-w-0 flex-1 text-[12px] leading-snug text-ink-500">{hint}</p>
+                    <button
+                      onClick={confirmAndReject}
+                      disabled={decide.isPending || !remarks.trim()}
+                      title={!remarks.trim() ? 'Write remarks to reject' : undefined}
+                      className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-danger-200 bg-white px-4 text-sm font-semibold text-[#C8322B] hover:bg-danger-50 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      <XCircle className="h-4 w-4" /> Reject
+                    </button>
+                    <button
+                      onClick={() => decide.mutate('approved')}
+                      disabled={decide.isPending || !canApprove}
+                      title={!canApprove ? hint : undefined}
+                      className="inline-flex h-10 items-center gap-1.5 rounded-xl px-5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(23,129,95,.25)] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
+                      style={{ background: GREEN }}
+                    >
+                      <CheckCircle className="h-4 w-4" /> Approve
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
-      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
 
+      {dialog && selected && (
+        <InterviewDialog
+          kind={dialog}
+          name={selected.user?.name ?? 'the applicant'}
+          date={interviewDate} setDate={setInterviewDate}
+          mode={mode} setMode={changeMode}
+          location={location} setLocation={setLocation}
+          pending={dialog === 'schedule' ? scheduleInterview.isPending : reschedule.isPending}
+          onClose={() => setDialog(null)}
+          onSubmit={() => (dialog === 'schedule' ? scheduleInterview.mutate() : reschedule.mutate())}
+        />
+      )}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} onClose={() => setViewDoc(null)} />}
+    </div>
+  )
+}
+
+
+/** A new applicant's interview: not reviewed yet → under review → interview set (or missed). */
+function InterviewBanner({ status, interview: iv, onMarkReview, markingReview, onSchedule, onReschedule, onNoShow, markingNoShow }: {
+  status: string
+  interview: Interview | null
+  onMarkReview: () => void
+  markingReview: boolean
+  onSchedule: () => void
+  onReschedule: () => void
+  onNoShow: () => void
+  markingNoShow: boolean
+}) {
+  const btn = 'inline-flex h-9 flex-none items-center gap-1.5 rounded-lg px-3.5 text-[12.5px] font-semibold'
+
+  if (status === 'submitted') {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#BFD3E6] bg-[#EEF4FA] px-4 py-3">
+        <Inbox className="h-5 w-5 flex-none text-[#2F5D8A]" />
+        <p className="min-w-0 flex-1 text-[13px] text-[#2F5D8A]">
+          <b>Not reviewed yet.</b> Start the review to set an interview.
+        </p>
+        <button onClick={onMarkReview} disabled={markingReview} className={`${btn} bg-[#17815F] text-white disabled:opacity-50`}>
+          <Clock className="h-4 w-4" /> {markingReview ? 'Moving…' : 'Mark under review'}
+        </button>
+      </div>
+    )
+  }
+
+  if (status === 'under_review' || !iv) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3">
+        <CalendarClock className="h-5 w-5 flex-none text-warning-700" />
+        <p className="min-w-0 flex-1 text-[13px] text-warning-700"><b>No interview scheduled yet.</b> Set one before approving.</p>
+        <button onClick={onSchedule} className={`${btn} bg-[#17815F] text-white`}>
+          <CalendarCheck className="h-4 w-4" /> Set interview
+        </button>
+      </div>
+    )
+  }
+
+  const missed = iv.status === 'no_show'
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${missed ? 'border-gold-200 bg-gold-50' : 'border-violet-200 bg-violet-50/60'}`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <CalendarCheck className={`h-5 w-5 flex-none ${missed ? 'text-warning-700' : 'text-violet-600'}`} />
+        <div className="min-w-0 flex-1 text-[13px] leading-snug">
+          <p className={missed ? 'text-warning-700' : 'text-violet-800'}>
+            <b>{missed ? 'Missed the interview' : 'Interview set'} for {formatDateTime(iv.scheduled_at)}</b>
+          </p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-ink-600">
+            <span className="inline-flex items-center gap-1">
+              {iv.mode === 'online' ? <Video className="h-3.5 w-3.5" /> : <Users className="h-3.5 w-3.5" />}
+              {iv.mode === 'online' ? 'Online' : 'In person'}
+            </span>
+            <span className="inline-flex min-w-0 items-center gap-1"><MapPin className="h-3.5 w-3.5 flex-none" /><span className="truncate">{iv.location || 'Online meeting link'}</span></span>
+          </p>
+        </div>
+        {!missed && (
+          <button onClick={onNoShow} disabled={markingNoShow} className={`${btn} border border-gold-200 bg-white text-warning-700 disabled:opacity-50`}>
+            <Ban className="h-4 w-4" /> No-show
+          </button>
+        )}
+        <button onClick={onReschedule} className={`${btn} border border-violet-200 bg-white text-violet-700`}>
+          <CalendarClock className="h-4 w-4" /> Reschedule
+        </button>
+      </div>
+      {(iv.history?.length ?? 0) > 0 && (
+        <div className="mt-2.5 border-t border-violet-200/70 pt-2">
+          <p className="mb-0.5 text-[10.5px] font-bold uppercase tracking-wide text-violet-400">Reschedule history</p>
+          {iv.history!.map((h, i) => (
+            <p key={i} className="text-[11.5px] text-ink-600">
+              {h.from ? formatDateTime(h.from) : '?'} → {h.to ? formatDateTime(h.to) : '?'}{h.changed_by ? ` (by ${h.changed_by})` : ''}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Set or move an interview: date & time, in person (venue) or online (meeting link). */
+function InterviewDialog({ kind, name, date, setDate, mode, setMode, location, setLocation, pending, onClose, onSubmit }: {
+  kind: 'schedule' | 'reschedule'
+  name: string
+  date: string; setDate: (v: string) => void
+  mode: 'in_person' | 'online'; setMode: (v: 'in_person' | 'online') => void
+  location: string; setLocation: (v: string) => void
+  pending: boolean
+  onClose: () => void
+  onSubmit: () => void
+}) {
+  const field = 'h-11 w-full rounded-xl border border-ink-200 bg-ink-50/60 px-3 text-sm text-ink-900 focus:border-[#17815F] focus:bg-white focus:outline-none'
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={kind === 'schedule' ? 'Set interview' : 'Reschedule interview'}
+        className="w-full max-w-md rounded-[18px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-xl font-semibold text-ink-950">{kind === 'schedule' ? 'Set interview' : 'Reschedule interview'}</h2>
+            <p className="text-[13px] text-ink-500">{name} gets an email with the details.</p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="text-ink-400 hover:text-ink-700"><X className="h-5 w-5" /></button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1.4fr_1fr]">
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-ink-600">Date &amp; time</span>
+              <input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} className={field} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[12px] font-semibold text-ink-600">Mode</span>
+              <select value={mode} onChange={(e) => setMode(e.target.value as 'in_person' | 'online')} className={field}>
+                <option value="in_person">In person</option>
+                <option value="online">Online</option>
+              </select>
+            </label>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-semibold text-ink-600">{mode === 'in_person' ? 'Venue' : 'Meeting link'}</span>
+            <input value={location} onChange={(e) => setLocation(e.target.value)}
+              placeholder={mode === 'in_person' ? 'Building / office' : 'https://meet.google.com/…'} className={field} />
+          </label>
+          <p className="text-[12px] text-ink-500">
+            {mode === 'in_person' ? 'In-person interviews are held at the DSA office. Leave as-is unless it changes.' : 'Share an online meeting link the applicant can join.'}
+          </p>
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2.5">
+          <button onClick={onClose} className="h-10 rounded-xl border border-ink-200 px-4 text-sm font-semibold text-ink-600 hover:bg-ink-50">Cancel</button>
+          <button onClick={onSubmit} disabled={pending || !date || !location.trim()}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-45"
+            style={{ background: GREEN }}>
+            <CalendarCheck className="h-4 w-4" />
+            {pending ? 'Saving…' : kind === 'schedule' ? 'Set interview' : 'Confirm new time'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

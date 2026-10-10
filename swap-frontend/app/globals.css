@@ -207,3 +207,13 @@ body {
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background-color: rgba(242, 204, 75, 0.6);
 }
+
+/* The sidebar edge tab nudges out once when it appears, so it's noticed. */
+@keyframes sidebarPeek {
+  0% { transform: translate(-100%, -50%); }
+  60% { transform: translate(6px, -50%); }
+  100% { transform: translate(0, -50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[sidebarPeek"] { animation: none !important; }
+}

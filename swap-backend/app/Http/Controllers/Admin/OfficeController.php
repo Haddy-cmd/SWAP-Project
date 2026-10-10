@@ -15,14 +15,19 @@ class OfficeController extends Controller
 {
     public function __construct(private readonly QrCodeService $qrCodeService) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        // Admin → Assignments picks an office and its supervisor from one list, so it asks
+        // for every office at once (per_page up to 100) with each office's supervisors.
+        $perPage = min(max((int) $request->query('per_page', 15), 1), 100);
+
         $offices = Office::withCount([
             'activeAssignments as active_recipients',
             'supervisors as supervisors_count',
         ])
+            ->with(['supervisors' => fn ($q) => $q->select('id', 'name', 'office_id')->orderBy('name')])
             ->orderBy('name')
-            ->paginate(15);
+            ->paginate($perPage);
 
         return response()->json([
             'data' => $offices->items(),

@@ -7,7 +7,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 /**
  * Renders an Analytics & Reports result as a downloadable PDF: DSA letterhead, the
- * filters that were applied, the KPI tiles, the chart as CSS bars (dompdf runs no
+ * filters that were applied, the KPI tiles, the chart as CSS bars unless left out (dompdf runs no
  * JavaScript) and the full table. Rendered on request and not stored — reports
  * are views of live data, not records.
  */
@@ -16,12 +16,13 @@ class ReportPdfService
     /** Wider tables than this print landscape. */
     private const PORTRAIT_MAX_COLUMNS = 7;
 
-    public function render(array $report, User $by): string
+    public function render(array $report, User $by, bool $includeChart = true): string
     {
         $landscape = count($report['columns']) > self::PORTRAIT_MAX_COLUMNS;
 
         return Pdf::loadView('reports.report', [
             'report' => $report,
+            'includeChart' => $includeChart,
             'preparedBy' => $by->profile?->full_name ?? $by->name,
             'generatedAt' => now('Asia/Manila')->format('F j, Y g:i A'),
         ])->setPaper('a4', $landscape ? 'landscape' : 'portrait')->output();

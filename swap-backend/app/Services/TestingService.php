@@ -91,6 +91,53 @@ class TestingService
         return $restored;
     }
 
+    public const MSG_NO_RESTORE_POINT = 'This account was picked before restore points existed — use Remove to clean it up.';
+
+    public static function msgSameRole(string $role): string
+    {
+        return 'This account is already '.($role === 'applicant' ? 'an' : 'a')." {$role}.";
+    }
+
+    /** A picked account's email switch: muted = bell notifications only (TestTools::mutesEmail). */
+    public function setAccountEmail(User $admin, int $id, bool $muted): User
+    {
+        $user = $this->picked($id);
+        $was = (bool) $user->testing_email_muted;
+        if ($was !== $muted) {
+            $user->forceFill(['testing_email_muted' => $muted])->save();
+            AuditLog::record($muted ? 'testing_email_off' : 'testing_email_on', $user, ['email_muted' => $was], ['email_muted' => $muted], $admin->id);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Flip a picked account between applicant and recipient — the role only: applications and
+     * placements are not touched. Restore (or switching testing off) puts the original role back.
+     */
+    public function setRole(User $admin, int $id, string $role): User
+    {
+        $user = $this->picked($id);
+        if ($user->role === $role) {
+            throw new UnprocessableEntityHttpException(self::msgSameRole($role));
+        }
+        $old = $user->role;
+        $user->forceFill(['role' => $role])->save();
+        AuditLog::record('testing_role_changed', $user, ['role' => $old], ['role' => $role], $admin->id);
+
+        return $user;
+    }
+
+    private function picked(int $id): User
+    {
+        $user = User::whereNotNull('testing_added_at')->find($id);
+        if (!$user) {
+            throw new NotFoundHttpException(self::MSG_NOT_PICKED);
+        }
+
+        return $user;
+    }
+
     // ── Overview ────────────────────────────────────────────────────────────
 
     public function status(): array
@@ -122,6 +169,8 @@ class TestingService
                 'picked_at' => $u->testing_added_at?->toISOString(),
                 // False only for accounts picked before restore points existed.
                 'restorable' => $withSnapshot->has($u->id),
+                // Its email switch: true = bell notifications only, no emails (default when picked).
+                'email_muted' => (bool) $u->testing_email_muted,
                 'clocked_in_since' => $openShifts->get($u->id)?->time_in?->toISOString(),
                 'assignments' => ($assignments[$u->id] ?? collect())->map(fn (Assignment $a) => [
                     'id' => $a->id,
@@ -531,8 +580,10 @@ class TestingService
 
         DB::transaction(function () use ($user) {
             $now = now();
-            TestingSnapshot::updateOrCreate(['user_id' => $user->id], ['taken_at' => $now, 'data' => $this->snapshots->take($user)]);
-            $user->forceFill(['testing_added_at' => $now])->save();
+            // The restore point keeps the role too (the role buttons change it).
+            TestingSnapshot::updateOrCreate(['user_id' => $user->id], ['taken_at' => $now, 'data' => $this->snapshots->take($user) + ['role' => $user->role]]);
+            // Emails start off: a tested account's inbox gets no notification emails.
+            $user->forceFill(['testing_added_at' => $now, 'testing_email_muted' => true])->save();
         });
         AuditLog::record('testing_account_added', $user, null, ['email' => $user->email], $admin->id);
 
@@ -540,50 +591,96 @@ class TestingService
     }
 
     /**
-     * Take a picked account out of testing, restoring its record to how it was when it was
-     * picked (whatever changed it since). Works while the tools are off too. An account
-     * picked before restore points existed is cleaned up from the audit log instead.
+     * Put a picked account back to how it was when it was picked (whatever changed it since),
+     * role included. It stays in testing with the same restore point, so it can be restored
+     * again. Works while the tools are off too.
      *
      * @return array{removed: int, restored: int, files: int, notifications: int}
      */
-    public function removeExisting(User $admin, int $id): array
+    public function restoreExisting(User $admin, int $id): array
     {
-        $user = User::whereNotNull('testing_added_at')->find($id);
-        if (!$user) {
-            throw new NotFoundHttpException(self::MSG_NOT_PICKED);
-        }
-
+        $user = $this->picked($id);
         $snapshot = TestingSnapshot::where('user_id', $user->id)->first();
         if (!$snapshot) {
-            // Picked before restore points existed: clean up from the audit log instead.
-            $plan = $this->earlierTestPlan($user);
-            $plan ? $this->applyCleanup($admin, $user, $plan) : $user->forceFill(['testing_added_at' => null])->save();
-
-            return ['removed' => 0, 'restored' => 0, 'files' => 0, 'notifications' => 0];
+            throw new UnprocessableEntityHttpException(self::MSG_NO_RESTORE_POINT);
         }
 
-        $counts = $this->snapshots->restore($user, $snapshot->data, $snapshot->taken_at);
-        DB::transaction(function () use ($user, $snapshot) {
-            $snapshot->delete();
-            $user->forceFill(['testing_added_at' => null])->save();
-        });
-        AuditLog::record('testing_account_removed', $user, null, ['restored' => true] + $counts, $admin->id);
+        $counts = $this->restoreRecord($user, $snapshot);
+        AuditLog::record('testing_account_restored', $user, null, $counts, $admin->id);
 
         return $counts;
     }
 
-    /** Restore every picked account and take it out of testing. Returns how many. */
+    /**
+     * Take a picked account out of testing as it is now: what was done to it while tested stays
+     * (Restore first to undo it). An account picked before restore points existed is cleaned up
+     * from the audit log instead, as before. Works while the tools are off too.
+     */
+    public function removeExisting(User $admin, int $id): void
+    {
+        $user = $this->picked($id);
+        $snapshot = TestingSnapshot::where('user_id', $user->id)->first();
+        if (!$snapshot) {
+            // Picked before restore points existed: clean up from the audit log instead.
+            $plan = $this->earlierTestPlan($user);
+            $plan ? $this->applyCleanup($admin, $user, $plan) : $this->unpick($user);
+
+            return;
+        }
+
+        DB::transaction(function () use ($user, $snapshot) {
+            $snapshot->delete();
+            $this->unpick($user);
+        });
+        AuditLog::record('testing_account_removed', $user, null, ['restored' => false], $admin->id);
+    }
+
+    /** Restore every picked account and take it out of testing (switching testing off). Returns how many. */
     public function releaseAll(User $admin): int
     {
         $ids = User::whereNotNull('testing_added_at')->pluck('id');
         foreach ($ids as $id) {
-            $this->removeExisting($admin, $id);
+            $user = User::find($id);
+            $snapshot = TestingSnapshot::where('user_id', $id)->first();
+            if (!$snapshot) {
+                $this->removeExisting($admin, $id); // older picks: the audit-log cleanup
+
+                continue;
+            }
+            $counts = $this->restoreRecord($user, $snapshot);
+            DB::transaction(function () use ($user, $snapshot) {
+                $snapshot->delete();
+                $this->unpick($user);
+            });
+            AuditLog::record('testing_account_removed', $user, null, ['restored' => true] + $counts, $admin->id);
         }
         if ($ids->isNotEmpty()) {
             AuditLog::record('testing_released_all', $admin, null, ['accounts' => $ids->count()], $admin->id);
         }
 
         return $ids->count();
+    }
+
+    /**
+     * The account's data back to the restore point, and its role (restore points taken before
+     * the role buttons existed don't carry one: the role is left as it is).
+     *
+     * @return array{removed: int, restored: int, files: int, notifications: int}
+     */
+    private function restoreRecord(User $user, TestingSnapshot $snapshot): array
+    {
+        $counts = $this->snapshots->restore($user, $snapshot->data, $snapshot->taken_at);
+        $role = $snapshot->data['role'] ?? null;
+        if ($role && $user->fresh()->role !== $role) {
+            $user->forceFill(['role' => $role])->save();
+        }
+
+        return $counts;
+    }
+
+    private function unpick(User $user): void
+    {
+        $user->forceFill(['testing_added_at' => null, 'testing_email_muted' => true])->save();
     }
 
     // ── Accounts tested before restore points existed ───────────────────────

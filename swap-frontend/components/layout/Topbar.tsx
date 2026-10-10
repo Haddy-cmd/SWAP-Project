@@ -1,5 +1,6 @@
 'use client'
 
+import { TOPBAR_SLOT_ID } from '@/components/layout/TopbarSlot'
 import Link from 'next/link'
 import { Menu } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -51,6 +52,8 @@ export function Topbar() {
       </div>
 
       <div className="flex flex-shrink-0 items-center gap-2.5">
+        {/* A page's own control (TopbarSlot), e.g. the admin dashboard's semester picker. */}
+        <div id={TOPBAR_SLOT_ID} className="flex items-center empty:hidden" />
         <NotificationBell />
 
         <Link

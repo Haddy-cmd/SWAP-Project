@@ -15,7 +15,7 @@ vi.mock('@/lib/api/analytics.api', () => ({
   analyticsApi: {
     getAdminOverview: vi.fn().mockResolvedValue({
       total_applications: 5, active_recipients: 3, pending_applications: 2, total_offices: 4,
-      office_distribution: [], monthly_stats: [], stipend_summary: { total_released: 0, ready_to_release: 0 },
+      office_distribution: [], monthly_stats: [], stipend_summary: { total_released: 0, ready_to_release: 0 }, tasks: [],
     }),
   },
 }))
@@ -26,6 +26,10 @@ vi.mock('@/lib/api/attendance.api', () => ({
       required: 240, rendered: 0, verified: 0, pending: 0, rejected: 0, remaining: 240,
     }),
     getSupervisorStudents: vi.fn().mockResolvedValue({ data: [] }),
+    getCurrentLog: vi.fn().mockResolvedValue(null),
+    getMyAssignment: vi.fn().mockResolvedValue(null),
+    getProgress: vi.fn().mockResolvedValue(null),
+    getMyLogs: vi.fn().mockResolvedValue({ data: [] }),
   },
 }))
 
@@ -48,7 +52,7 @@ describe('dashboard pages render without crashing', () => {
   it('recipient dashboard', async () => {
     const { default: Page } = await import('@/app/(dashboard)/recipient/dashboard/page')
     renderWithQuery(<Page />)
-    expect(screen.getByText(/welcome, test user/i)).toBeInTheDocument()
+    expect(screen.getByText(/test user/i)).toBeInTheDocument()
   })
 
   it('applicant dashboard', async () => {

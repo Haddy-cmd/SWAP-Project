@@ -87,7 +87,7 @@
     </tr></table>
 @endif
 
-@if ($groups && $groupLabel)
+@if (($includeChart ?? true) && $groups && $groupLabel)
     <div class="section">{{ $metricCol ? $metricCol['label'] : 'Records' }} by {{ $groupLabel }}</div>
     <table class="bars">
         @foreach ($groups as $i => $g)

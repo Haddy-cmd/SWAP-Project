@@ -30,11 +30,11 @@ class AnalyticsTestSeeder extends Seeder
 
     private array $colleges = [
         ['CICS', 'BS Computer Science'],
-        ['CED', 'Bachelor of Secondary Education'],
+        ['CED', 'BSEd English'],
         ['CBAA', 'BS Accountancy'],
         ['CoE', 'BS Civil Engineering'],
-        ['CNSM', 'BS Biology'],
-        ['CSSH', 'AB Political Science'],
+        ['CNSM', 'BS Biology (Animal Biology)'],
+        ['CSSH', 'BA Political Science'],
         ['CHS', 'BS Nursing'],
         ['CPA', 'BS Social Work'],
     ];

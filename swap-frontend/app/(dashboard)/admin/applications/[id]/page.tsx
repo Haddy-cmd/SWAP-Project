@@ -13,6 +13,7 @@ import { formatDateTime } from '@/lib/utils/formatDate'
 import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { rejectConfirm, notEligibleRemarks } from '@/lib/utils/rejectConfirm'
+import { AuditHistory } from '@/components/admin/AuditHistory'
 import {
   manilaToday, manilaNowMinutes, manilaToISO, minutesToLabel,
   slotsFor, slotViolation, windowFor, type InterviewMode,
@@ -353,6 +354,8 @@ export default function AdminApplicationDetailPage() {
           )}
         </div>
       </div>
+      {/* Who moved this application, when, and what changed. */}
+      <AuditHistory scope={{ record: `application:${application.id}` }} title="Application history" />
       {viewDoc && <DocumentViewerModal doc={viewDoc} docs={application.documents ?? []} onClose={() => setViewDoc(null)} />}
     </div>
   )

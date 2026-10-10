@@ -25,6 +25,8 @@ class AnnouncementNotification extends Notification
             'title' => 'Announcement: ' . $this->announcement->title,
             'message' => $this->announcement->message,
             'type' => 'announcement',
+            'attachments' => $this->announcement->attachments->map->summary()->values()->all(),
+            // Keep this key LAST: AnnouncementService::delete() finds the copies by `"announcement_id":ID}`.
             'announcement_id' => $this->announcement->id,
         ];
     }

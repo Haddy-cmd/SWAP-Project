@@ -34,10 +34,12 @@ export interface TestingAccount {
   name: string
   email: string
   student_id_number: string | null
-  /** When it was picked: removing it, or switching off, restores it to this moment (ISO). */
+  /** When it was picked: Restore (or switching testing off) puts it back to this moment (ISO). */
   picked_at: string
   /** False only for an account picked before restore points existed (cleaned up instead). */
   restorable: boolean
+  /** Its email switch: true = bell notifications only, no emails (the default when picked). */
+  email_muted: boolean
   /** When their open shift started (ISO), or null when not clocked in. */
   clocked_in_since: string | null
   assignments: TestingAssignment[]

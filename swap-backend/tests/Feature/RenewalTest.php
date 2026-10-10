@@ -206,6 +206,22 @@ class RenewalTest extends TestCase
         $this->decide($renewal, 'approved')->assertOk();
     }
 
+    public function test_a_full_office_does_not_block_a_renewal(): void
+    {
+        [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
+        $this->pay($previous);
+        $this->accept($previous);
+        // Their office is full: they hold one seat, another recipient the last one.
+        $previous->office->update(['max_recipients' => 2]);
+        $this->makeAssignment($this->makeUser('recipient'), $this->makeUser('supervisor'), $previous->office);
+        $renewal = $this->renewalFor($recipient);
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        $this->decide($renewal, 'approved')->assertOk()->assertJsonPath('data.status', 'approved');
+        $this->assertSame(1, Assignment::where('user_id', $recipient->id)->where('status', 'active')
+            ->where('semester', '2nd Semester')->where('office_id', $previous->office_id)->count());
+    }
+
     public function test_once_paid_and_accepted_approval_rolls_the_assignment_over(): void
     {
         [$recipient, $previous] = $this->recipientWithTerm(metHours: true);

@@ -238,7 +238,7 @@ export default function ProfilePage() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1160px] text-ink-950">
+    <div className="text-ink-950">
       {/* Breadcrumb */}
       <div className="mb-5 flex items-center gap-1.5 text-[13px] text-ink-400">
         <Link href={getRoleDashboard(role)} className="hover:text-brand-700 transition-colors">Dashboard</Link>

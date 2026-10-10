@@ -16,6 +16,7 @@ use App\Repositories\TimeLogRepository;
 use App\Repositories\UserRepository;
 use App\Services\SemesterPeriodService;
 use Illuminate\Foundation\Http\Events\RequestHandled;
+use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
@@ -78,5 +79,10 @@ class AppServiceProvider extends ServiceProvider
         });
         // Queue workers are long-running too: read the System Testing switch fresh per job.
         Event::listen(JobProcessing::class, fn () => TestTools::flush());
+
+        // System Testing → email switch off: picked accounts get the bell copy only
+        // (returning false cancels just this channel for this notifiable).
+        Event::listen(NotificationSending::class, fn (NotificationSending $e) =>
+            $e->channel === 'mail' && TestTools::mutesEmail($e->notifiable, $e->notification) ? false : null);
     }
 }

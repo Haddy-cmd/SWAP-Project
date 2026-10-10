@@ -17,9 +17,21 @@ export const testingApi = {
   addExisting: (userId: number) =>
     apiClient.post<WithStatus>(`/admin/testing/accounts/${userId}`).then((r) => r.data),
 
-  // Restores the account to how it was when picked (whatever changed it), then takes it out of testing.
+  // Takes the account out of testing as it is now (Restore first to undo the test).
   removeExisting: (userId: number) =>
     apiClient.delete<WithStatus>(`/admin/testing/accounts/${userId}`).then((r) => r.data),
+
+  // Back to how it was when picked (whatever changed it, role included); it stays in testing.
+  restoreExisting: (userId: number) =>
+    apiClient.post<WithStatus>(`/admin/testing/accounts/${userId}/restore`).then((r) => r.data),
+
+  // One account's emails off/on (bell notifications and account emails are unaffected).
+  setAccountEmail: (userId: number, muted: boolean) =>
+    apiClient.put<WithStatus>(`/admin/testing/accounts/${userId}/email`, { muted }).then((r) => r.data),
+
+  // Applicant ↔ recipient, the role only (Restore puts it back). Needs the switch on.
+  setAccountRole: (userId: number, role: 'applicant' | 'recipient') =>
+    apiClient.put<WithStatus>(`/admin/testing/accounts/${userId}/role`, { role }).then((r) => r.data),
 
   // Every picked account is restored and leaves testing.
   releaseAll: () => apiClient.delete<WithStatus>('/admin/testing').then((r) => r.data),

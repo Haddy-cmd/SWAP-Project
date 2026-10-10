@@ -6,7 +6,7 @@
 > caught people. Read the "Traps" section before changing anything — several of them are
 > non-obvious and have each cost a debugging session.
 
-> Last verified against the repository: **2026-10-06** (Analytics & Reports: one page per role, datasets filtered/sorted/grouped server-side, server-made PDF + CSV of what is on screen; 2026-10-05: approval makes the student a recipient before the office assignment; a renewal marked not eligible is rejected by the admin; stipend release is final — no claim QR, Banking Office scan/PIN or releasing officer; reports & analytics per role; Task Description required at clock-out, report reminders, floating shift timer, office map confirmation; 2026-10-03: end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
+> Last verified against the repository: **2026-10-07** (registration colleges/programs from the official masterlist, explicit 5th-year list; System Testing email switch; chart-type switch on the report and dashboard graphs; report PDF without the graph; 2026-10-06: Analytics & Reports: one page per role, datasets filtered/sorted/grouped server-side, server-made PDF + CSV of what is on screen; 2026-10-05: approval makes the student a recipient before the office assignment; a renewal marked not eligible is rejected by the admin; stipend release is final — no claim QR, Banking Office scan/PIN or releasing officer; reports & analytics per role; Task Description required at clock-out, report reminders, floating shift timer, office map confirmation; 2026-10-03: end-of-term report acceptance replaces the evaluation, promissory window tied to the next renewal, one renewal at a time; earlier: semester periods, term verdicts, renewal gate).
 
 ---
 
@@ -133,7 +133,20 @@ Conventions that are consistently followed and should be preserved:
 - **Shared rule sets get a `app/Support/` class** so the FormRequest, the service and the tests
   all read one definition. Example: `App\Support\InterviewWindow`.
 - **Every mutation that matters is audit-logged** via `AuditLog::record($action, $model, $old,
-  $new, $userId)`.
+  $new, $userId)`. It also stores `subject_user_id` — the student/account the entry is about
+  (`AuditLog::SUBJECT_PATHS`: the row's `user_id`, or through its application / placement / time log;
+  null for program-wide changes and for `ACTOR_ONLY_ACTIONS` like report exports). Migration
+  `2026_10_09_000002` added the column and filled it for older rows.
+- **Admin → Audit Logs** (`AuditLogService`, `GET /admin/audit-logs`, `GET /admin/audit-logs/options`;
+  since 2026-10-09): each entry is a readable sentence ("Released stipend SWAP-STP-… (₱5,000.00) to Ana
+  Cruz") with the actor, an area badge, a "Sensitive" flag (voids, role changes, deletions, exports,
+  password and semester changes) and a click-to-expand before → after table (secrets such as
+  `qr_secret` and tokens never shown). One student search box plus a Filters panel (area, who did it,
+  date presets Today / Last 7 / Last 30 days / Custom, Sensitive only, Include System Testing), active
+  filters as removable chips, all kept in the URL. System Testing entries are hidden by default (
+  `testing_*` entries and anything about an account while it is picked). `record=type:id` and
+  `subject_user_id` give one record's / one account's full history — the **History** panels on the
+  application detail page, on each user (Users) and each stub (Stipend) use them.
 - **Comments explain *why*, not *what*.** The codebase has a distinctive commenting style: short
   paragraphs above non-obvious logic explaining the reasoning or the bug being prevented. Match it.
 
@@ -217,9 +230,9 @@ four `2026_09_20_*` and five `2026_09_21_*` / `2026_09_23_*` additions).
 | `PromissoryNote` | Post-semester shortfall pledge: `assignment_id`, `user_id`, `verified_hours_snapshot`, `deficient_hours` (required − verified at submit), `lacking_hours` (the makeup the supervisor approved), document (`file_path/name/mime/file_size`), `reason`, `status` (`pending → approved \| rejected`), `reviewed_by/at`, `review_remarks`, `makeup_deadline` (old rows only — no longer set; lacking hours carry into the next term on renewal). One pending note per assignment enforced in the service |
 | `StaffInvitation` | Token-based invite flow for supervisor/admin accounts (students self-register) |
 | `Setting` | Key/value app settings, e.g. `applications_open`. The Banking Office PIN + officer name rows (`ubo_release_*`) are no longer read (2026-10-05). The old `semester_end_date` and `renewal_*` rows are no longer read (semester periods replaced them) |
-| `AuditLog` | Polymorphic change trail |
+| `AuditLog` | Polymorphic change trail: actor (`user_id`), subject (`subject_user_id`), action, before/after values, IP and device |
 | `Concern`, `FaqKnowledgeBase` | Chatbot / help desk |
-| `Announcement` | Admin → Announcements history. Sending one creates a `database` notification for every active recipient (approved students still waiting for an office included) and emails them in Bcc batches of 50 (`AnnouncementService`); `emailed_count` shows how many the email reached |
+| `Announcement` | Admin → Announcements history. Sending one creates a `database` notification for every active recipient (approved students still waiting for an office included) and emails them in Bcc batches of 50 (`AnnouncementService`); `emailed_count` shows how many the email reached. Up to 5 photos/documents (10 MB each: jpg/png/gif/webp, pdf, doc(x), xls(x), ppt(x)) in `announcement_attachments`, stored on the documents disk under `announcements/{id}/`; the portal copy lists them (`attachments`, kept before `announcement_id`, which must stay the last key for delete), the email only names them, and `GET /announcements/{id}/attachments/{fileId}` (token in header or `?token=`) serves them to admins and to users who received it. Deleting removes the files. Templates on the page are fixed text with [brackets] |
 | `WeeklyReport`, `MonthlyReport`, `SemesterReport` | Generated by scheduled jobs |
 
 **Key relationship subtlety:** a supervisor's students are defined by
@@ -242,6 +255,16 @@ co-supervisors otherwise get a typed-name fallback, not the image).
 - "Full Name (as per records)" must equal one of: `First Middle Last`, `First M. Last`,
   `First M Last`, or `First Last`. Case- and whitespace-insensitive. Multi-word middle names
   initialise per word (`Dela Cruz` → `D. C.`).
+- College and program come from the dropdowns on `app/(auth)/register/page.tsx` (`COLLEGES`): the
+  official student masterlist AY 2025–2026, main campus only, bachelor's programs plus
+  diplomas/certificates (no graduate programs, so no College of Law, Medicine or Institute of
+  Science Education) — 15 colleges, 88 programs, names as in the masterlist. The code is stored;
+  existing codes were kept (new: `DET`). The API stores them as free strings (no list check);
+  profiles saved before 2026-10-07 keep what they registered with.
+- Year level 1–4; a **5th year only for the five-year programs** in
+  `RegisterRequest::FIVE_YEAR_PROGRAMS` (the 7 College of Engineering programs + BS Accountancy;
+  the form uses the same list) — "Engineering" in a BSET name isn't enough. Otherwise 422 "A 5th
+  year applies only to College of Engineering programs and BS Accountancy."
 - New accounts are created `is_active = false` and unverified; clicking the emailed verification
   link activates them.
 
@@ -393,11 +416,32 @@ All comparisons in **Asia/Manila**.
 - **Approving an application** (`ApplicationService::promoteToRecipient`, in the same DB transaction as
   the decision): role `applicant` → `recipient` before any office, audit `promoted_to_recipient`, and
   the approval email links to the recipient dashboard. The Assignments queue still lists them (it goes
-  by the approved application); `AssignmentService` still promotes any applicant it places. Until
+  by the approved application: `GET /admin/applications?unassigned=1` = approved with no active
+  assignment for that application's term, the same rule as the dashboard's "need an office" task);
+  `AssignmentService` still promotes any applicant it places. Until
   placed, the recipient pages say there is no office assignment yet, renewal is refused ("Renewal is
   only available to recipients with an existing assignment.") and `GET /recipient/renewals` looks only
   at renewal applications. Migration `2026_10_05_000005` promoted the students approved earlier whose
   latest application is approved (audit `promoted_to_recipient`, `migrated: true`, actor null).
+- **Admin → Applications / Assignments pages** (layouts "Admin Applications v2" / "Admin Assignments
+  v2", 2026-10-09). Applications: status tabs with counts (All = everything but approved), the queue
+  card (search, All types / New / Renewal, paging) and the review card (facts; "Last semester at SWAP"
+  with the readiness checks for a renewal; an interview banner for a new applicant whose Set interview /
+  Reschedule open a dialog, plus Mark under review and No-show; remarks + Reject / Approve with the
+  backend's gate shown as a hint). Assignments: "Needs an office" (server-side queue, office cards with
+  capacity "{n} of {max} spots · {x} open / Full" and the supervisor picked automatically or from a
+  short list; offices without one, or full, can't be chosen) and "Assigned"
+  (verdict chips with server counts, `GET /admin/assignments?search=`, paged table with Bonus / Hours /
+  Move). `GET /admin/offices` takes `per_page` (max 100) and returns each office's `supervisors`
+  (id, name), so the page no longer depends on the first 15 supervisors. Both pages keep the side menu
+  (the designs' top bar is not used).
+- **Office capacity** (`AssignmentService::assertRoom`, 2026-10-09): a new placement or a move into
+  another office is refused with 422 on `office_id` — "{office} is full ({n} of {max}). Raise its limit
+  on the Offices page or pick another office." — when the office's active placements already reach
+  `max_recipients` (the office row is locked so two admins can't take the last seat). Completed terms
+  don't count, a supervisor-only change is never blocked, and renewal approval is exempt
+  (`createAssignment(..., enforceCapacity: false)`): a returning recipient keeps their seat. Lowering a
+  limit below current use is allowed; it only stops new seats.
 - **A renewal marked "not eligible"** by the supervisor stays locked for approval; the admin rejects it.
   Both review pages say so under the blocker and start the remarks with "Your supervisor marked you
   not eligible for renewal for {term}." (editable), so Reject is ready.
@@ -425,6 +469,22 @@ All comparisons in **Asia/Manila**.
 - Always in the admin sidebar; switched on and off on its own page (setting `test_tools_enabled`, off
   by default, audit-logged; `TestTools::enabled()` is memoised per request/job). While off, picking
   accounts and the shortcuts answer 409 "Switch System Testing on first."; removing still works.
+- **Per-account controls** on each picked card (since 2026-10-09):
+  - **Emails** switch (`PUT /admin/testing/accounts/{id}/email {muted}`, column `users.testing_email_muted`,
+    **off by default** when picked, audit `testing_email_off` / `_on`): a `NotificationSending` listener
+    (AppServiceProvider → `TestTools::mutesEmail`) cancels the `mail` channel for a muted picked account,
+    so it keeps every bell notification; `ResetPassword` and `VerifyEmail` always go out. Announcements
+    leave muted accounts out of the Bcc batches and the send message says how many were held back.
+  - **Make applicant / Make recipient** (`PUT …/{id}/role {role}`, needs the switch on): the role only,
+    no applications or placements touched; audit `testing_role_changed`. The restore point stores the
+    role (`data.role`), so Restore and switching off put it back.
+  - **Restore** (`POST …/{id}/restore`): back to the picked moment (rows + role); the account stays
+    picked with the same restore point; audit `testing_account_restored`.
+  - **Remove** (`DELETE …/{id}`): out of testing **as it is now** (the test's changes stay), emails back
+    on; audit `testing_account_removed {restored: false}`. Accounts picked before restore points existed
+    keep the audit-log cleanup.
+  - Restore, Remove and the email switch work with the switch off too. The page-wide email switch and
+    `PUT /admin/testing/email` (2026-10-07) were removed.
 - The admin picks existing active recipients/applicants (`users.testing_added_at`, never
   mass-assignable). Shortcuts on a picked recipient's current term: add hours, complete hours (the
   missing hours, verified, ≤ 8 h/day on past days), reset hours (every log of the term removed; the
@@ -442,7 +502,7 @@ All comparisons in **Asia/Manila**.
 - Restore: picking copies the student's whole record (`App\Support\AccountSnapshot` → `testing_snapshots`):
   applications (+ documents, interviews), placements (+ time logs, narratives, verifications,
   promissory notes, term reports, old evaluations, weekly/monthly/semester reports) and stipend stubs
-  (+ signatures), as raw rows. "Restore and remove", "Restore all" and switching testing off delete the
+  (+ signatures), as raw rows. "Restore", "Restore all" and switching testing off delete the
   student's current rows and re-insert the copy with its own IDs, whatever changed them (the buttons or
   the normal pages — e.g. a renewal approved under Applications and its rollover); files of rows the
   test created and the bell notifications from the test go too. The user row, profile, concerns and
@@ -478,19 +538,29 @@ are one feature per role: an **Overview** (charts/insights) plus **report tabs**
   is exactly the filtered, sorted rows on screen.
 - **Endpoints** (`ReportExplorerController`, `ReportQueryRequest`): `GET /{role}/reports/{type}` and
   `GET /{role}/reports/{type}/export?format=pdf|csv` (throttle 20/min) with `academic_year`,
-  `semester`, `filters[col][]=…`, `search`, `sort`, `dir`, `group_by`, `metric`. Per-term datasets
+  `semester`, `filters[col][]=…`, `search`, `sort`, `dir`, `group_by`, `metric`, and for a PDF
+  `include_chart=0` to leave out the graph ("Include graph" next to Download PDF). Per-term datasets
   need the term (422 "Choose a school year and semester for this report."). Exports are audit-logged
-  `report_exported` with type, format, term, filters and row count. CSV keeps `csvSafe()` + BOM.
+  `report_exported` with type, format, term, filters, row count and `include_chart`. CSV keeps `csvSafe()` + BOM.
   PDF: `ReportPdfService` + `resources/views/reports/report.blade.php` (letterhead, "Filters applied",
-  KPIs, chart as CSS bars, full table, page numbers; landscape over 7 columns; refused over
+  KPIs, chart as CSS bars unless left out, full table, page numbers; landscape over 7 columns; refused over
   `PDF_ROW_LIMIT` 2000 rows → use CSV). PDFs are rendered on request, not stored.
-- **Admin → Analytics & Reports** (`/admin/analytics`; `/admin/reports` redirects): term picker from
-  `/admin/analytics/periods`; **Overview** = the KPI tiles, charts and **Program insights**
-  (`ProgramInsightsService`, `GET /admin/analytics/insights`: term results, renewals with waiting
-  reasons and renewal rate, stipend incl. ready-to-release vs missing a requirement, attendance
-  integrity per office, supervisor workload, new-application funnel by college, office use). Charts,
-  tiles, legend entries and table rows **drill down** into a report tab already filtered. Overview PDF:
-  `GET /admin/analytics/overview/export` (`reports/overview.blade.php`). Report tabs: `applications`,
+- **Admin → Analytics & reports** (`/admin/analytics`; `/admin/reports` redirects; layout "Admin
+  Analytics v2", 2026-10-10): term picker from `/admin/analytics/periods` and "Download summary" (the
+  overview PDF, `GET /admin/analytics/overview/export`, `reports/overview.blade.php`). Summary tabs
+  (`components/admin/analytics/`, all fed by `GET /admin/analytics/overview` and
+  `ProgramInsightsService` / `GET /admin/analytics/insights`): **Overview** (4 KPIs, "Worth a look"
+  items generated from the data, where new applications stand Bar / Donut, one-click ready-made
+  downloads), **Applications** (the term's applications from the `applications` dataset, grouped by
+  college / program / year level in the browser with approved / rejected / waiting and rejection rate),
+  **Hours & offices** (weekly hours Bars / Line; offices with filled/limit, verified hours, flagged
+  logs), **Supervisors** (pending logs per supervisor; "Busy" = `SupervisorReminderService::BUSY_PENDING`
+  (10) logs or the oldest `BUSY_DAYS` (3) days; **Remind busy supervisors** = `POST
+  /admin/analytics/remind-supervisors` → `VerificationReminderNotification` (bell + email), at most once
+  per Manila day per supervisor, audit `verification_reminder_sent`), **Stipend & renewals** (renewals
+  approved / ready / blocked by reason, stipends, term results). Chart views are remembered per graph
+  (`useChartType`, localStorage). **All reports** keeps the detailed reports; their keys are the URL
+  `tab` values used before v2, so old links and drill-downs (`f_*` filters) still open them. Report tabs: `applications`,
   `recipients`, `term-results` (adds college/program/year level/supervisor), `stipend` (adds college,
   office, control no.), `offices` (capacity, active, fill %, availability Full/Has Slots/Empty).
 - **Supervisor → Analytics & Reports** (`/supervisor/reports`): Overview = `ReportService::supervisorInsights`
@@ -741,7 +811,8 @@ release refusal, ink restored on redraw), `StorageCheckTest`, `StipendClaimTest`
 (final release signed by supervisor/director/beneficiary, no QR or releasing officer on the PDF,
 Banking Office routes gone, step-up/unlock, void with a reason (legacy received stubs refused),
 `503` GD path, bulk skip-duplicates), `ReleaseReadyToClaimStubsMigrationTest`,
-`ApprovalMakesRecipientTest` (approval → recipient, announcements before placement, recipient pages
+`TestingEmailSwitchTest` (email switch: bell only for picked accounts, account emails still sent,
+announcements), `ApprovalMakesRecipientTest` (approval → recipient, announcements before placement, recipient pages
 without an office, placement, the promotion migration),
 `SupervisorReportTest`, `ReportExplorerTest` (filters/sort/groups, unknown columns 422, role scope, CSV = JSON rows, PDF + audit, PDF row cap, roster meta, overview PDF, supervisor periods, office columns aligned), `VerificationTest`.
 

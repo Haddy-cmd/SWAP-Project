@@ -39,9 +39,9 @@ class UserSeeder extends Seeder
         ]);
 
         $applicants = [
-            ['name' => 'Ali Hassan', 'email' => 'ali@student.msu-marawi.edu.ph', 'sid' => '2020-0001', 'college' => 'CSST', 'program' => 'BSCS', 'year' => 3],
-            ['name' => 'Fatima Macarambong', 'email' => 'fatima@student.msu-marawi.edu.ph', 'sid' => '2020-0002', 'college' => 'CSST', 'program' => 'BSIT', 'year' => 2],
-            ['name' => 'Amir Alonto', 'email' => 'amir@student.msu-marawi.edu.ph', 'sid' => '2021-0003', 'college' => 'CED', 'program' => 'BSED', 'year' => 2],
+            ['name' => 'Ali Hassan', 'email' => 'ali@student.msu-marawi.edu.ph', 'sid' => '2020-0001', 'college' => 'CICS', 'program' => 'BS Computer Science', 'year' => 3],
+            ['name' => 'Fatima Macarambong', 'email' => 'fatima@student.msu-marawi.edu.ph', 'sid' => '2020-0002', 'college' => 'CICS', 'program' => 'BS Information Technology (Database Systems)', 'year' => 2],
+            ['name' => 'Amir Alonto', 'email' => 'amir@student.msu-marawi.edu.ph', 'sid' => '2021-0003', 'college' => 'CED', 'program' => 'BSEd English', 'year' => 2],
         ];
 
         foreach ($applicants as $data) {
@@ -68,8 +68,8 @@ class UserSeeder extends Seeder
         }
 
         $recipients = [
-            ['name' => 'Norhana Macarimbang', 'email' => 'norhana@student.msu-marawi.edu.ph', 'sid' => '2019-0004', 'college' => 'CAS', 'program' => 'BSMATH', 'year' => 4],
-            ['name' => 'Ibrahim Disomimba', 'email' => 'ibrahim@student.msu-marawi.edu.ph', 'sid' => '2019-0005', 'college' => 'CSST', 'program' => 'BSCS', 'year' => 4],
+            ['name' => 'Norhana Macarimbang', 'email' => 'norhana@student.msu-marawi.edu.ph', 'sid' => '2019-0004', 'college' => 'CNSM', 'program' => 'BS Mathematics', 'year' => 4],
+            ['name' => 'Ibrahim Disomimba', 'email' => 'ibrahim@student.msu-marawi.edu.ph', 'sid' => '2019-0005', 'college' => 'CICS', 'program' => 'BS Computer Science', 'year' => 4],
         ];
 
         foreach ($recipients as $data) {

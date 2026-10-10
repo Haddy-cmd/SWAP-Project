@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, Send, CheckCircle, Ban, Lock, Search } from 'lucide-react'
+import { DollarSign, Send, CheckCircle, Ban, Lock, Search, History } from 'lucide-react'
 import Link from 'next/link'
 import { adminApi } from '@/lib/api/admin.api'
 import { formatDate } from '@/lib/utils/formatDate'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { StipendRecord, EligibleStipend, StipendStatus } from '@/types/analytics.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
 
 const pesoAmount = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -38,6 +39,8 @@ export default function AdminStipendPage() {
   const [page, setPage] = useState(1)
   const [recordSearch, setRecordSearch] = useState('')
   const [voiding, setVoiding] = useState<{ id: number; reason: string } | null>(null)
+  // The stub whose audit trail (release, void…) is open in the side drawer.
+  const [history, setHistory] = useState<{ id: number; label: string } | null>(null)
   // Page gate: the unlock token lives in memory only — never persisted.
   const [unlockToken, setUnlockToken] = useState<string | null>(null)
   const [unlockPw, setUnlockPw] = useState('')
@@ -332,6 +335,12 @@ export default function AdminStipendPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
+                      <div className="inline-flex items-center gap-1.5">
+                      <button onClick={() => setHistory({ id: r.id, label: r.control_number ?? `#${r.id}` })} title="History"
+                        aria-label={`History of ${r.control_number ?? r.id}`}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-ink-200 text-ink-500 hover:bg-ink-50 hover:text-brand-700">
+                        <History className="h-3.5 w-3.5" />
+                      </button>
                       {canVoid(r.status) && (
                         voiding?.id === r.id ? (
                           <div className="flex items-center gap-1.5">
@@ -358,6 +367,7 @@ export default function AdminStipendPage() {
                           </button>
                         )
                       )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -366,6 +376,9 @@ export default function AdminStipendPage() {
           </table></div>
         )}
       </div>
+      {history && (
+        <AuditHistoryDrawer scope={{ record: `stipend:${history.id}` }} title={`History · Stipend ${history.label}`} onClose={() => setHistory(null)} />
+      )}
     </div>
   )
 }

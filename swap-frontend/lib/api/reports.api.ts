@@ -17,9 +17,12 @@ export const reportsApi = {
     apiClient.get<ApiResponse<ReportResult>>(`/${role}/reports/${type}`, { params: clean(params) })
       .then((r) => r.data.data),
 
-  /** The same rows as a file. Returns the blob and the server's filename. */
-  export: (role: ReportRole, type: string, params: ReportParams, format: 'pdf' | 'csv') =>
-    apiClient.get<Blob>(`/${role}/reports/${type}/export`, { params: { ...clean(params), format }, responseType: 'blob' })
+  /** The same rows as a file. Returns the blob and the server's filename. A PDF can leave out the graph. */
+  export: (role: ReportRole, type: string, params: ReportParams, format: 'pdf' | 'csv', options: { includeChart?: boolean } = {}) =>
+    apiClient.get<Blob>(`/${role}/reports/${type}/export`, {
+      params: { ...clean(params), format, ...(format === 'pdf' && options.includeChart === false ? { include_chart: 0 } : {}) },
+      responseType: 'blob',
+    })
       .then((r) => ({ blob: r.data, filename: filenameFrom(r.headers['content-disposition']) }))
       .catch(rethrowBlobError),
 

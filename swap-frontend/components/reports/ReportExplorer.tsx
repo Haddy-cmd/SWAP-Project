@@ -61,9 +61,11 @@ export function ReportExplorer({ role, type, term, state, onChange }: Props) {
           </p>
         </div>
         <ExportButtons
-          download={(format) => reportsApi.export(role, type, params, format)}
+          download={(format, options) => reportsApi.export(role, type, params, format, options)}
           fallbackName={fallbackName}
           disabled={data.rows.length === 0}
+          // The PDF prints the graph shown here; let it be left out.
+          chartOption={data.groups.length > 0}
           summary={summary}
         />
       </div>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { authApi } from '@/lib/api/auth.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
+import { markLoginSplash } from '@/components/layout/LoginSplash'
 import type { LoginCredentials, RegisterData } from '@/types/auth.types'
 
 export function useAuth() {
@@ -15,6 +16,7 @@ export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: (credentials: LoginCredentials) => authApi.login(credentials),
     onSuccess: (data) => {
+      markLoginSplash()
       setAuth(data.data, data.token)
       queryClient.clear()
 

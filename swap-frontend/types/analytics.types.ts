@@ -17,6 +17,8 @@ export interface AdminOverview {
   recipients_by_college: RecipientsByCollege[]
   weekly_hours: WeeklyHours[]
   stipend_summary: StipendSummary
+  /** The dashboard banner's "Today:" list — only kinds with something waiting (AnalyticsService::tasks). */
+  tasks?: AdminTask[]
 }
 
 export interface ApplicantsByCollege {
@@ -54,6 +56,13 @@ export interface MonthlyStats {
   total_applications: number
   approved: number
   rejected: number
+}
+
+export interface AdminTask {
+  key: 'applications' | 'renewals' | 'stipends' | 'interviews' | 'placements' | 'concerns'
+  count: number
+  label: string
+  href: string
 }
 
 export interface StipendSummary {
@@ -129,6 +138,12 @@ export interface EligibleStipend {
 }
 
 /** Admin → Analytics → Program insights for one term (ProgramInsightsService::forTerm). */
+/** POST /admin/analytics/remind-supervisors (SupervisorReminderService). */
+export interface SupervisorReminderResult {
+  reminded: number
+  already_today: number
+}
+
 export interface ProgramInsights {
   term_results: {
     placements: number

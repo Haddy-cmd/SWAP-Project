@@ -8,6 +8,7 @@ use App\Http\Controllers\Shared\ConcernController;
 use App\Http\Controllers\Shared\AttendancePhotoController;
 use App\Http\Controllers\Shared\AvatarController;
 use App\Http\Controllers\Shared\OfficeLogoController;
+use App\Http\Controllers\Shared\AnnouncementAttachmentController;
 use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
@@ -37,6 +38,7 @@ use App\Http\Controllers\Admin\AssignmentController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\ConcernController as AdminConcernController;
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\LandingPhotoController;
 use App\Http\Controllers\Shared\LandingPhotoController as PublicLandingPhotoController;
 use App\Http\Controllers\Admin\OfficeController;
@@ -70,6 +72,9 @@ Route::post('/invitations/{token}/accept', [InvitationController::class, 'accept
 // Document file serving — auth is handled inside the controller (Bearer header
 // OR ?token= query param) so that links opened in new browser tabs still work.
 Route::get('/documents/{documentId}/file', [DocumentFileController::class, 'show']);
+// Announcement photos/documents — same in-controller auth (admins and those who received it).
+Route::get('/announcements/{id}/attachments/{attachmentId}', [AnnouncementAttachmentController::class, 'show'])
+    ->whereNumber(['id', 'attachmentId'])->middleware('throttle:120,1');
 // Profile photo serving — same in-controller auth so it works in an <img src>.
 Route::get('/users/{id}/avatar', [AvatarController::class, 'show']);
 // Office logos — public, streamed from storage (works with a private R2 bucket).
@@ -210,8 +215,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
         Route::get('/analytics/overview', [AnalyticsController::class, 'overview']);
         Route::get('/analytics/insights', [AnalyticsController::class, 'insights']);
+        Route::post('/analytics/remind-supervisors', [AnalyticsController::class, 'remindSupervisors'])->middleware('throttle:10,1');
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
-        Route::get('/audit-logs', [AnalyticsController::class, 'auditLogs']);
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::get('/audit-logs/options', [AuditLogController::class, 'options']);
         Route::get('/analytics/overview/export', [ReportExplorerController::class, 'overviewPdf'])->middleware('throttle:20,1');
         Route::get('/reports/{type}', [ReportExplorerController::class, 'show'])->where('type', '[a-z-]+');
         Route::get('/reports/{type}/export', [ReportExplorerController::class, 'export'])->where('type', '[a-z-]+')->middleware('throttle:20,1');
@@ -222,6 +229,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/testing/candidates', [TestingController::class, 'candidates']);
         Route::post('/testing/accounts/{id}', [TestingController::class, 'addAccount'])->whereNumber('id');
         Route::delete('/testing/accounts/{id}', [TestingController::class, 'removeAccount'])->whereNumber('id');
+        Route::post('/testing/accounts/{id}/restore', [TestingController::class, 'restoreAccount'])->whereNumber('id');
+        Route::put('/testing/accounts/{id}/email', [TestingController::class, 'accountEmail'])->whereNumber('id');
+        Route::put('/testing/accounts/{id}/role', [TestingController::class, 'accountRole'])->whereNumber('id');
         Route::get('/testing/earlier', [TestingController::class, 'earlierTests']);
         Route::post('/testing/earlier/{id}', [TestingController::class, 'cleanUpEarlierTest'])->whereNumber('id');
         Route::post('/testing/recipients/{id}/{action}', [TestingController::class, 'action']);

@@ -57,6 +57,15 @@ class AssignmentRepository implements AssignmentRepositoryInterface
             $query->where('academic_year', $filters['academic_year']);
         }
 
+        if (!empty($filters['search'])) {
+            $term = "%{$filters['search']}%";
+            $query->whereHas('user', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'ilike', $term)
+                ->orWhere('email', 'ilike', $term)
+                ->orWhereHas('profile', fn ($p) => $p->where('student_id_number', 'ilike', $term))
+            ));
+        }
+
         // Term verdict: in_progress (not decided yet), qualified or deficient.
         match ($filters['term'] ?? null) {
             'in_progress' => $query->whereNull('term_status'),

@@ -33,7 +33,7 @@ function SupervisorAnalyticsReports() {
   const term = resolveTerm(state.ay, state.sem, periods)
 
   return (
-    <div className="mx-auto max-w-[1280px] space-y-[22px] text-ink-950">
+    <div className="space-y-[22px] text-ink-950">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Your Students</p>

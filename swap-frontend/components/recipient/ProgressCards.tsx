@@ -23,14 +23,15 @@ const PACE: Record<RecipientProgress['pace']['status'], { label: string; cls: st
 }
 
 /** Dashboard: on track or behind, what each week needs, and where the current pace ends up. */
-export function PaceForecastCard() {
+/** `bare`: no outer card (the dashboard wraps it in its own). */
+export function PaceForecastCard({ bare = false }: { bare?: boolean }) {
   const { data } = useProgress()
   if (!data) return null
   const { pace, forecast: f } = data
   const badge = PACE[pace.status]
 
   return (
-    <section className={CARD}>
+    <section className={bare ? '' : CARD}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-bold text-ink-900"><Gauge className="h-[18px] w-[18px] text-brand-600" /> Pace &amp; Forecast</h2>
         <span className={`rounded-full px-3 py-1 text-xs font-bold ${badge.cls}`}>{badge.label}</span>
@@ -71,13 +72,13 @@ const STATE = {
 } as const
 
 /** Dashboard: what the stipend and the renewal still need, linking to where each is done. */
-export function PayoutChecklistCard() {
+export function PayoutChecklistCard({ bare = false }: { bare?: boolean }) {
   const { data } = useProgress()
   if (!data) return null
   const left = data.checklist.filter((i) => i.state !== 'done').length
 
   return (
-    <section className={CARD}>
+    <section className={bare ? '' : CARD}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-bold text-ink-900"><ListChecks className="h-[18px] w-[18px] text-brand-600" /> Stipend &amp; Renewal Checklist</h2>
         <span className="text-xs text-ink-500">{left === 0 ? 'All done' : `${left} left`}</span>
