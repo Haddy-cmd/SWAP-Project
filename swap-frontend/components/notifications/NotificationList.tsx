@@ -60,7 +60,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
           onClick={() => hasUnread && markAll.mutate()}
           disabled={!hasUnread || markAll.isPending}
           className="whitespace-nowrap text-[13px] font-semibold transition-colors disabled:cursor-default"
-          style={{ color: hasUnread ? '#1F5B3A' : '#ADB5A8' }}
+          style={{ color: hasUnread ? 'var(--text-brand-700)' : 'var(--text-ink-350)' }}
         >
           Mark all read
         </button>
@@ -77,8 +77,8 @@ export function NotificationList({ notifications }: NotificationListProps) {
               className="pb-[3px] text-[12.5px] transition-colors"
               style={{
                 fontWeight: on ? 700 : 500,
-                color: on ? '#13241A' : '#8C968F',
-                borderBottom: `1.5px solid ${on ? '#1F5B3A' : 'transparent'}`,
+                color: on ? 'var(--text-ink-950)' : 'var(--text-ink-400)',
+                borderBottom: `1.5px solid ${on ? 'var(--color-brand-700)' : 'transparent'}`,
               }}
             >
               {key === 'all' ? 'All' : 'Unread'} {key === 'all' ? total : unread}
@@ -106,9 +106,9 @@ export function NotificationList({ notifications }: NotificationListProps) {
                 onClick={() => open(n)}
                 className={`-mx-2 flex items-start gap-3.5 rounded-lg border-b border-ink-100 px-3 py-[17px] transition-colors ${clickable ? 'cursor-pointer hover:bg-ink-50' : ''}`}
               >
-                <span className="mt-[7px] h-[7px] w-[7px] flex-none rounded-full" style={{ background: isUnread ? '#1F5B3A' : 'transparent' }} />
+                <span className="mt-[7px] h-[7px] w-[7px] flex-none rounded-full" style={{ background: isUnread ? 'var(--color-brand-700)' : 'transparent' }} />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[15px]" style={{ fontWeight: isUnread ? 700 : 500, color: isUnread ? '#13241A' : '#34433A' }}>
+                  <div className="text-[15px]" style={{ fontWeight: isUnread ? 700 : 500, color: isUnread ? 'var(--text-ink-950)' : 'var(--text-ink-700)' }}>
                     {n.data.title}
                   </div>
                   <div className="mt-0.5 whitespace-pre-line text-[13px] leading-[1.45] text-ink-500">{n.data.message}</div>

@@ -7,7 +7,7 @@ import { ClipboardCheck, Hourglass, Timer, UserX, LogOut } from 'lucide-react'
 import { supervisorApi } from '@/lib/api/supervisor.api'
 import { formatDate } from '@/lib/utils/formatDate'
 
-const CARD = 'rounded-2xl border border-ink-200 bg-white p-5 shadow-sm'
+const CARD = 'rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm'
 
 function Tile({ icon, label, value, sub, warn }: { icon: ReactNode; label: string; value: string; sub?: string; warn?: boolean }) {
   return (

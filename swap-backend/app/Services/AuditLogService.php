@@ -34,9 +34,9 @@ class AuditLogService
 
     /** Areas: label, the actions that belong there, and the models whose plain created/updated/deleted do. */
     public const AREAS = [
-        'stipend' => ['Stipend', ['released', 'voided', 'claimed', 'stipend_signature_restored'], [StipendHistory::class]],
+        'stipend' => ['Stipend', ['released', 'voided', 'claimed', 'stipend_signature_restored', 'stipend_reminder_sent', 'stipend_received'], [StipendHistory::class]],
         'hours' => ['Hours & attendance', ['verified', 'rejected', 'clocked_in', 'clocked_out', 'manual_hours_added',
-            'required_hours_requested', 'required_hours_approved', 'required_hours_rejected', 'verification_reminder_sent'], [TimeLog::class, NarrativeReport::class]],
+            'required_hours_requested', 'required_hours_approved', 'required_hours_rejected', 'verification_reminder_sent', 'pace_reminder_sent'], [TimeLog::class, NarrativeReport::class]],
         'applications' => ['Applications & renewals', ['renewal_hours_carried', 'rescheduled', 'promoted_to_recipient', 'returned_to_applicant'],
             [Application::class, Interview::class]],
         'terms' => ['Terms, reports & notes', ['term_closed', 'term_marked_deficient', 'term_requalified', 'term_report_submitted',
@@ -44,7 +44,7 @@ class AuditLogService
             [PromissoryNote::class, TermReport::class]],
         'placements' => ['Placements', ['qr_regenerated'], [Assignment::class]],
         'accounts' => ['Accounts & profile', ['profile_updated', 'password_changed', 'photo_updated', 'photo_removed',
-            'signature_updated', 'signature_removed'], [User::class, StudentProfile::class, StaffInvitation::class]],
+            'signature_updated', 'signature_removed', 'session_revoked', 'sessions_revoked'], [User::class, StudentProfile::class, StaffInvitation::class]],
         'settings' => ['Semesters & settings', ['semester_period_created', 'semester_period_updated', 'semester_period_deleted', 'reordered'],
             [SemesterPeriod::class, \App\Models\Office::class, \App\Models\LandingPhoto::class]],
         'exports' => ['Report exports', ['report_exported'], []],
@@ -81,6 +81,43 @@ class AuditLogService
             'data' => $this->present(collect($page->items())),
             'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total(), 'per_page' => self::PER_PAGE],
         ];
+    }
+
+    /**
+     * Profile → Activity: what this person did themselves, newest first. Only the sentence —
+     * no before/after values, IPs or devices — and "Juan's" reads "your" when it is about them.
+     */
+    public function mine(User $user, int $page = 1): array
+    {
+        $page = AuditLog::where('user_id', $user->id)->where('action', 'not like', 'testing\_%')
+            ->with(['subject:id,name'])
+            ->orderByDesc('created_at')->orderByDesc('id')
+            ->paginate(self::PER_PAGE, ['*'], 'page', max(1, $page));
+        $logs = collect($page->items());
+        $records = $this->loadRecords($logs);
+
+        return [
+            'data' => $logs->map(function (AuditLog $log) use ($records, $user) {
+                $summary = $this->summary($log, $records[$log->auditable_type][$log->auditable_id] ?? null);
+                if ($log->subject_user_id === $user->id) {
+                    $summary = preg_replace('/^' . preg_quote($user->name, '/') . ' /u', 'You ', $summary);
+                    $summary = str_replace("{$user->name}'s", 'your', $summary);
+                }
+
+                return ['id' => $log->id, 'action' => $log->action, 'area' => self::areaOf($log),
+                    'summary' => $summary, 'created_at' => $log->created_at?->toISOString()];
+            })->values()->all(),
+            'meta' => ['current_page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total(), 'per_page' => self::PER_PAGE],
+        ];
+    }
+
+    /** When this person's password last changed (by them, or — never today — by someone else). */
+    public static function passwordChangedAt(User $user): ?string
+    {
+        return AuditLog::where('action', 'password_changed')
+            ->where(fn ($q) => $q->where('subject_user_id', $user->id)
+                ->orWhere(fn ($w) => $w->where('auditable_type', User::class)->where('auditable_id', $user->id)))
+            ->latest('created_at')->value('created_at')?->toISOString();
     }
 
     /** Areas and the people who appear in the log as the one acting (the "Who" filter). */
@@ -278,11 +315,15 @@ class AuditLogService
             'voided' => "Voided {$entity}" . (!empty($new['void_reason']) ? " — {$new['void_reason']}" : ''),
             'claimed' => "Recorded the Banking Office payout of {$entity}",
             'stipend_signature_restored' => "Put {$who}'s signature back on {$entity}",
+            'stipend_received' => "{$who} received {$entity} (" . (($new['via'] ?? 'download') === 'view' ? 'viewed' : 'downloaded') . ' the stub)',
+            'stipend_reminder_sent' => "Reminded {$who} to " . Str::lcfirst(implode(' and ', array_map('lcfirst', (array) ($new['missing'] ?? ['finish their requirements'])))) . ' before their stipend can be released',
             'promoted_to_recipient' => "Made {$who} a recipient (application approved)" . (!empty($new['migrated']) ? ' — automatically, by the approval rule' : ''),
-            'returned_to_applicant' => "Returned {$who} to the applicant portal (renewal rejected)",
+            'returned_to_applicant' => "Returned {$who} to an applicant account" . (($new['is_active'] ?? true) === false ? ' and deactivated it' : '') . ' (renewal rejected)',
             'report_exported' => 'Exported the ' . Str::headline((string) ($new['type'] ?? 'report')) . ' report (' . strtoupper((string) ($new['format'] ?? '')) . (isset($new['rows']) ? ", {$new['rows']} rows" : '') . ')',
             'password_changed' => "Changed {$who}'s password",
             'profile_updated' => "Updated {$who}'s profile",
+            'session_revoked' => "Signed {$who} out of " . ($new['device'] ?? 'a device'),
+            'sessions_revoked' => "Signed {$who} out of " . ($n = (int) ($new['count'] ?? 0)) . ' other ' . Str::plural('device', $n),
             'photo_updated', 'photo_removed' => ($log->action === 'photo_updated' ? 'Changed' : 'Removed') . " {$who}'s photo",
             'signature_updated', 'signature_removed' => ($log->action === 'signature_updated' ? 'Saved' : 'Removed') . " {$who}'s signature",
             'reviewed' => ($new['status'] ?? null) ? 'Marked ' . $entity . ' ' . Str::lower((string) $new['status']) : "Reviewed {$entity}",
@@ -292,6 +333,10 @@ class AuditLogService
             'term_closed', 'term_requalified', 'term_marked_deficient' => "Recorded {$who}'s term as " . Str::headline((string) ($new['term_status'] ?? 'closed')),
             'required_hours_requested' => "Asked to change {$who}'s required hours",
             'verification_reminder_sent' => "Reminded {$who} to verify " . ($new['pending'] ?? 'their') . ' waiting hour logs' . (isset($new['term']) ? " ({$new['term']})" : ''),
+            'term_report_reminder' => ($new['kind'] ?? null) === 'supervisor'
+                ? "Reminded {$who} to submit the end-of-term report"
+                : "Reminded {$who} to submit the end-of-term report (" . (($new['kind'] ?? '') === 'hours_met' ? 'hours met' : 'term ended') . ')',
+            'pace_reminder_sent' => "Reminded {$who} they are " . rtrim(rtrim(number_format((float) ($new['deficit_hours'] ?? 0), 1), '0'), '.') . 'h behind',
             'required_hours_approved', 'required_hours_rejected' => ($log->action === 'required_hours_approved' ? 'Approved' : 'Rejected') . " the required-hours change for {$who}",
             'qr_regenerated' => "Regenerated the QR code of {$entity}",
             'semester_period_created', 'semester_period_updated', 'semester_period_deleted' => Str::ucfirst(Str::after($log->action, 'semester_period_')) . " {$entity}",

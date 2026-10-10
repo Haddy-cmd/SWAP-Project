@@ -13,7 +13,7 @@ export function ApplicationCard({ application, href }: ApplicationCardProps) {
   return (
     <Link
       href={href}
-      className="block rounded-xl border border-ink-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+      className="block rounded-xl border border-ink-200 bg-surface p-5 shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">

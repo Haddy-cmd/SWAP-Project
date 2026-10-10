@@ -166,4 +166,35 @@ class ConcernTest extends TestCase
             $this->putJson("/api/admin/concerns/{$concern->id}", ['status' => 'resolved', 'response' => 'Nope.'])->assertStatus(403);
         }
     }
+
+    public function test_the_inbox_searches_and_shows_who_is_waiting_for_a_reply(): void
+    {
+        Notification::fake();
+        $ali = $this->makeUser('recipient', ['name' => 'Ali Hassan']);
+        \App\Models\StudentProfile::create([
+            'user_id' => $ali->id, 'student_id_number' => '2020-0001', 'first_name' => 'Ali', 'last_name' => 'Hassan',
+            'college' => 'CICS', 'program' => 'BSIT', 'year_level' => 3,
+        ]);
+        $prof = $this->makeUser('supervisor', ['name' => 'Sittie Hadja', 'employee_id' => 'EMP-0142']);
+        Sanctum::actingAs($ali);
+        $mine = $this->postJson('/api/concerns', ['subject' => 'Hours not showing', 'message' => 'My Friday hours are missing.'])->json('data.id');
+        Sanctum::actingAs($prof);
+        $this->postJson('/api/concerns', ['subject' => 'Need a student', 'message' => 'We are short one student at Campo.'])->assertStatus(201);
+
+        Sanctum::actingAs($this->makeUser('admin'));
+        foreach (['hassan', '2020-0001', 'friday hours', 'EMP-0142'] as $term) {
+            $this->getJson('/api/admin/concerns?search=' . urlencode($term))->assertOk()->assertJsonCount(1, 'data');
+        }
+        $this->getJson('/api/admin/concerns?search=' . urlencode('2020-0001'))
+            ->assertJsonPath('data.0.id', $mine)->assertJsonPath('data.0.waiting_on_staff', true)->assertJsonPath('data.0.user.student_id_number', '2020-0001');
+        $this->getJson('/api/admin/concerns?search=EMP-0142')->assertJsonPath('data.0.user.employee_id', 'EMP-0142');
+
+        // The DSA answers: nobody is waiting; the student writes back: waiting again.
+        $this->putJson("/api/admin/concerns/{$mine}", ['status' => 'in_progress', 'response' => 'Checking it now.'])->assertOk()
+            ->assertJsonPath('data.waiting_on_staff', false);
+        Sanctum::actingAs($ali);
+        $this->postJson("/api/concerns/{$mine}/messages", ['body' => 'Thank you, still missing though.'])->assertSuccessful();
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->getJson('/api/admin/concerns?search=hassan')->assertJsonPath('data.0.waiting_on_staff', true);
+    }
 }

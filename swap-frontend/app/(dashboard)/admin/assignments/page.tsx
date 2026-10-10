@@ -24,14 +24,14 @@ import { useFeedback } from '@/components/feedback/FeedbackProvider'
  * "Assigned" — every placement with its hours, term verdict and Bonus / Hours / Move actions.
  */
 
-const GREEN = '#17815F'
-const RED = '#C8322B'
-const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-white shadow-[0_1px_3px_rgba(20,40,30,.05)]'
+const GREEN = 'var(--color-accent)'
+const RED = 'var(--color-red-accent)'
+const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 
 // Soft avatar palettes (bg / fg pairs).
 const AV: [string, string][] = [
-  ['#E3EEE5', '#1F5B3A'], ['#F3F7FB', '#4A82B8'], ['#EFF8F4', '#1F8163'],
-  ['#FDF8E4', '#9A7412'], ['#EFE9F7', '#6B4E9A'], ['#FEF3F2', '#E2483B'],
+  ['var(--color-brand-100)', 'var(--color-brand-700)'], ['var(--color-info-50)', 'var(--color-info-500)'], ['var(--color-success-50)', 'var(--color-success-600)'],
+  ['var(--color-gold-50)', 'var(--color-gold-600)'], ['var(--color-violet-100)', 'var(--color-violet-600)'], ['var(--color-danger-50)', 'var(--color-danger-500)'],
 ]
 const av = (i: number) => AV[((i % AV.length) + AV.length) % AV.length]
 const today = () => new Date().toISOString().slice(0, 10)
@@ -41,13 +41,13 @@ const firstError = (e: unknown, fallback: string) => {
   const err = e as { message?: string; errors?: Record<string, string[]> }
   return (err?.errors && Object.values(err.errors)[0]?.[0]) || err?.message || fallback
 }
-const fieldCls = 'h-10 w-full rounded-xl border border-ink-200 bg-ink-50/60 px-3 text-sm text-ink-900 focus:border-[#17815F] focus:bg-white focus:outline-none'
+const fieldCls = 'h-10 w-full rounded-xl border border-ink-200 bg-ink-50/60 px-3 text-sm text-ink-900 focus:border-accent focus:bg-surface focus:outline-none'
 
 type Tab = 'queue' | 'assigned'
 
 function Pager({ page, lastPage, onPage }: { page: number; lastPage: number; onPage: (p: number) => void }) {
   if (lastPage <= 1) return null
-  const btn = 'flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-600 hover:text-[#17815F] disabled:opacity-40'
+  const btn = 'flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-surface text-ink-600 hover:text-accent disabled:opacity-40'
   return (
     <div className="flex items-center justify-between border-t border-ink-900/[.06] px-4 py-2.5">
       <p className="text-xs text-ink-500">Page {page} of {lastPage}</p>
@@ -232,13 +232,13 @@ export default function AdminAssignmentsPage() {
             value={search}
             onChange={(e) => changeSearch(e.target.value)}
             placeholder="Search name, email or student ID"
-            className="h-10 w-full rounded-xl border border-ink-200 bg-white pl-10 pr-4 text-sm text-ink-900 placeholder:text-ink-400 focus:border-[#17815F] focus:outline-none"
+            className="h-10 w-full rounded-xl border border-ink-200 bg-surface pl-10 pr-4 text-sm text-ink-900 placeholder:text-ink-400 focus:border-accent focus:outline-none"
           />
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6 border-b border-ink-900/[.08]" role="tablist">
+      <div className="no-scrollbar flex gap-6 overflow-x-auto border-b border-ink-900/[.08]" role="tablist">
         {([
           ['queue', 'Needs an office', queueTotal],
           ['assigned', 'Assigned', termCounts[0]?.data],
@@ -247,11 +247,11 @@ export default function AdminAssignmentsPage() {
           return (
             <button key={value} role="tab" aria-selected={active} onClick={() => setTab(value)}
               className={`-mb-px inline-flex items-center gap-2 border-b-2 px-0.5 pb-2.5 text-[14px] font-semibold transition-colors ${
-                active ? 'border-[#17815F] text-[#17815F]' : 'border-transparent text-ink-500 hover:text-ink-800'
+                active ? 'border-accent text-accent' : 'border-transparent text-ink-500 hover:text-ink-800'
               }`}>
               {label}
               <span className={`rounded-full px-2 py-px text-[11px] font-bold ${
-                active ? 'bg-[#17815F] text-white' : value === 'queue' && count ? 'bg-gold-100 text-gold-700' : 'bg-ink-100 text-ink-600'
+                active ? 'bg-accent text-white' : value === 'queue' && count ? 'bg-gold-100 text-gold-700' : 'bg-ink-100 text-ink-600'
               }`}>{count ?? '·'}</span>
             </button>
           )
@@ -281,7 +281,7 @@ export default function AdminAssignmentsPage() {
                   return (
                     <li key={app.id}>
                       <button onClick={() => selectRecipient(app)} aria-current={active}
-                        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${active ? 'bg-[#F1F8F4] shadow-[inset_3px_0_0_#17815F]' : 'hover:bg-ink-50/70'}`}>
+                        className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${active ? 'bg-accent-tint shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-ink-50/70'}`}>
                         <UserAvatar name={app.user?.name} avatarUrl={app.user?.avatar_url}
                           className="h-9 w-9 rounded-full text-[12.5px] font-bold" style={{ background: bg, color: fg }} />
                         <span className="min-w-0 flex-1 leading-tight">
@@ -290,7 +290,7 @@ export default function AdminAssignmentsPage() {
                             {app.user?.profile?.student_id_number ? `ID ${app.user.profile.student_id_number} · ` : ''}{app.user?.email ?? '—'}
                           </span>
                         </span>
-                        <ChevronRight className="h-4 w-4 flex-none" style={{ color: active ? GREEN : '#CAD2BC' }} />
+                        <ChevronRight className="h-4 w-4 flex-none" style={{ color: active ? GREEN : 'var(--text-ink-300)' }} />
                       </button>
                     </li>
                   )
@@ -303,8 +303,8 @@ export default function AdminAssignmentsPage() {
           {/* Assign panel */}
           <div className={`${CARD} overflow-hidden lg:sticky lg:top-[88px]`}>
             <div className="px-6 py-4 text-white"
-              style={{ background: 'radial-gradient(110% 150% at 100% 0%, rgba(221,187,56,.28), transparent 45%), linear-gradient(120deg,#0B5234 0%,#063D27 55%,#08301F 100%)' }}>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-[#DDBB38]">Assigning</p>
+              style={{ background: 'var(--hero-gradient)' }}>
+              <p className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-gold-accent">Assigning</p>
               {selected ? (
                 <div className="mt-1.5 flex items-center gap-3">
                   <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
@@ -345,7 +345,7 @@ export default function AdminAssignmentsPage() {
                     </div>
                     {officeId && panelSups.length === 1 && (
                       <p className="mt-2.5 flex items-center gap-2 text-[12.5px] text-ink-600">
-                        <Users className="h-4 w-4 text-[#17815F]" /> Supervisor: <b className="text-ink-900">{panelSups[0].name}</b>
+                        <Users className="h-4 w-4 text-accent" /> Supervisor: <b className="text-ink-900">{panelSups[0].name}</b>
                       </p>
                     )}
                     {officeId && panelSups.length > 1 && (
@@ -413,7 +413,7 @@ export default function AdminAssignmentsPage() {
               return (
                 <button key={f.value} onClick={() => { setTermFilter(f.value); setAssignedPage(1) }} aria-pressed={active}
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                    active ? 'border-[#17815F] bg-[#17815F] text-white' : 'border-ink-900/[.08] bg-white text-ink-600 hover:text-[#17815F]'
+                    active ? 'border-accent bg-accent text-white' : 'border-ink-900/[.08] bg-surface text-ink-600 hover:text-accent'
                   }`}>
                   {f.label}
                   <span className={`rounded-full px-1.5 py-px text-[11px] font-bold ${active ? 'bg-white/20' : 'bg-ink-100'}`}>{termCounts[i]?.data ?? '·'}</span>
@@ -474,9 +474,9 @@ export default function AdminAssignmentsPage() {
 
       {/* Move: change office / supervisor */}
       {editFor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditFor(null)}>
+        <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditFor(null)}>
           <div role="dialog" aria-modal="true" aria-label="Move to another office"
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[18px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-[18px] bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between">
               <div>
                 <h2 className="font-serif text-xl font-semibold text-ink-950">Move to another office</h2>
@@ -559,10 +559,10 @@ function OfficeCard({ office: o, on, onPick }: { office: Office; on: boolean; on
     <button type="button" onClick={onPick} disabled={noSup || full} aria-pressed={on}
       title={full ? 'This office is full. Raise its limit on the Offices page to add more.' : noSup ? 'Add a supervisor to this office on the Offices page first' : undefined}
       className={`flex items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-        on ? 'border-[#17815F] bg-[#F1F8F4] ring-1 ring-[#17815F]' : 'border-ink-900/[.08] bg-white enabled:hover:border-[#17815F]/40'
+        on ? 'border-accent bg-accent-tint ring-1 ring-accent' : 'border-ink-900/[.08] bg-surface enabled:hover:border-accent/40'
       }`}>
-      <span className={`mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border-2 ${on ? 'border-[#17815F]' : 'border-ink-300'}`}>
-        {on && <span className="h-2 w-2 rounded-full bg-[#17815F]" />}
+      <span className={`mt-0.5 flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border-2 ${on ? 'border-accent' : 'border-ink-300'}`}>
+        {on && <span className="h-2 w-2 rounded-full bg-accent" />}
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5 text-[13px] font-bold text-ink-900">
@@ -639,8 +639,8 @@ function Verdict({ a }: { a: Assignment }) {
   const active = a.status === 'active'
   return (
     <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold"
-      style={active ? { background: '#EFF8F4', color: '#145643' } : { background: '#ECEFE2', color: '#6F7B74' }}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: active ? '#1F8163' : '#ADB5A8' }} />
+      style={active ? { background: 'var(--color-success-50)', color: 'var(--text-success-800)' } : { background: 'var(--color-ink-100)', color: 'var(--text-ink-500)' }}>
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: active ? 'var(--color-success-600)' : 'var(--color-ink-350)' }} />
       {active ? 'In progress' : a.status === 'completed' ? 'Completed' : 'Suspended'}
     </span>
   )
@@ -649,12 +649,12 @@ function Verdict({ a }: { a: Assignment }) {
 function Actions({ a, onBonus, onHours, onMove }: {
   a: Assignment; onBonus: (a: Assignment) => void; onHours: (a: Assignment) => void; onMove: (a: Assignment) => void
 }) {
-  const btn = 'inline-flex h-8 items-center gap-1 rounded-lg border border-ink-900/[.08] bg-white px-2.5 text-[12px] font-semibold transition-colors hover:bg-ink-50'
+  const btn = 'inline-flex h-8 items-center gap-1 rounded-lg border border-ink-900/[.08] bg-surface px-2.5 text-[12px] font-semibold transition-colors hover:bg-ink-50'
   return (
     <div className="flex gap-1.5 md:justify-end">
       <button onClick={() => onBonus(a)} className={`${btn} text-gold-700`} title="Add bonus hours (the supervisor verifies them)"><Sparkles className="h-3.5 w-3.5" /> Bonus</button>
       <button onClick={() => onHours(a)} className={`${btn} text-info-500`} title="Ask to change the required hours"><Target className="h-3.5 w-3.5" /> Hours</button>
-      <button onClick={() => onMove(a)} className={`${btn} text-[#17815F]`} title="Move to another office"><MapPin className="h-3.5 w-3.5" /> Move</button>
+      <button onClick={() => onMove(a)} className={`${btn} text-accent`} title="Move to another office"><MapPin className="h-3.5 w-3.5" /> Move</button>
     </div>
   )
 }

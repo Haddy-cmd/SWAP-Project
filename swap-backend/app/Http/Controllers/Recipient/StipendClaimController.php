@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Recipient;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\StipendHistory;
+use App\Services\StipendService;
 use App\Services\StipendSlipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -41,6 +43,17 @@ class StipendClaimController extends Controller
             $stipend->update(['slip_path' => $path]);
         }
 
-        return Storage::disk($disk)->download($stipend->slip_path, "swap-claim-stub-{$stipend->control_number}.pdf");
+        // Opening the stub (view or download) is the recipient receiving it: record it once.
+        $view = $request->boolean('view');
+        if ($stipend->received_at === null && in_array($stipend->status, StipendService::RELEASED_STATUSES, true)) {
+            $stipend->update(['received_at' => now()]);
+            AuditLog::record('stipend_received', $stipend, null, ['via' => $view ? 'view' : 'download'], $request->user()->id);
+        }
+
+        $name = "swap-claim-stub-{$stipend->control_number}.pdf";
+
+        return $view
+            ? Storage::disk($disk)->response($stipend->slip_path, $name, ['Content-Type' => 'application/pdf'], 'inline')
+            : Storage::disk($disk)->download($stipend->slip_path, $name);
     }
 }

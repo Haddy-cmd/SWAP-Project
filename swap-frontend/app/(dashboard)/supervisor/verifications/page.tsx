@@ -15,8 +15,8 @@ import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { TimeLog } from '@/types/attendance.types'
 
 const PALETTE: [string, string][] = [
-  ['#E3EEE5', '#1F5B3A'], ['#F3F7FB', '#4A82B8'], ['#EFF8F4', '#1F8163'],
-  ['#FDF8E4', '#9A7412'], ['#EFE9F7', '#6B4E9A'], ['#FEF3F2', '#E2483B'], ['#F3F7FB', '#234A70'],
+  ['var(--color-brand-100)', 'var(--color-brand-700)'], ['var(--color-info-50)', 'var(--color-info-500)'], ['var(--color-success-50)', 'var(--color-success-600)'],
+  ['var(--color-gold-50)', 'var(--color-gold-600)'], ['var(--color-violet-100)', 'var(--color-violet-600)'], ['var(--color-danger-50)', 'var(--color-danger-500)'], ['var(--color-info-50)', 'var(--color-info-800)'],
 ]
 const fmtDate = (iso?: string | null) => (iso ? format(new Date(iso), 'MMM d, yyyy') : '—')
 const fmtTime = (iso?: string | null) => (iso ? format(new Date(iso), 'h:mm a') : '')
@@ -29,8 +29,8 @@ const narrativeOf = (l: TimeLog) => l.narrative_report?.content || l.narrative_r
 const hoursOf = (l: TimeLog) => (Number(l.duration_hours) || 0).toFixed(2)
 
 const REVIEWED_META: Record<string, { label: string; color: string; bg: string; Icon: typeof CheckCircle2 }> = {
-  verified: { label: 'Verified', color: '#145643', bg: '#EFF8F4', Icon: CheckCircle2 },
-  rejected: { label: 'Rejected', color: '#B42318', bg: '#FEF3F2', Icon: XCircle },
+  verified: { label: 'Verified', color: 'var(--text-success-800)', bg: 'var(--color-success-50)', Icon: CheckCircle2 },
+  rejected: { label: 'Rejected', color: 'var(--text-danger-700)', bg: 'var(--color-danger-50)', Icon: XCircle },
 }
 
 export default function VerificationsPage() {
@@ -176,7 +176,7 @@ export default function VerificationsPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search student…"
-              className="h-[42px] w-full rounded-[11px] border border-ink-200 bg-white pl-10 pr-3.5 text-[13.5px] text-ink-900 focus:border-brand-700 focus:outline-none"
+              className="h-[42px] w-full rounded-[11px] border border-ink-200 bg-surface pl-10 pr-3.5 text-[13.5px] text-ink-900 focus:border-brand-700 focus:outline-none"
             />
           </div>
           <div className="inline-flex gap-[3px] rounded-[10px] bg-ink-100 p-1">
@@ -185,7 +185,7 @@ export default function VerificationsPage() {
               return (
                 <button key={key} onClick={() => { setTab(key); setSel({}) }}
                   className="rounded-[7px] px-4 py-2 text-[12.5px] transition-colors"
-                  style={on ? { background: '#fff', color: '#1F5B3A', fontWeight: 700, boxShadow: '0 1px 3px rgba(19,36,26,.1)' } : { color: '#6F7B74', fontWeight: 500 }}>
+                  style={on ? { background: 'var(--color-surface)', color: 'var(--text-brand-700)', fontWeight: 700, boxShadow: '0 1px 3px rgba(19,36,26,.1)' } : { color: 'var(--text-ink-500)', fontWeight: 500 }}>
                   {label}
                 </button>
               )
@@ -195,14 +195,14 @@ export default function VerificationsPage() {
       </div>
 
       {/* table */}
-      <div className="overflow-hidden rounded-[15px] border border-ink-200 bg-white">
+      <div className="overflow-hidden rounded-[15px] border border-ink-200 bg-surface">
         {/* head */}
         <div className="hidden grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] items-center gap-3 border-b border-ink-200 bg-ink-50 px-5 py-3 md:grid">
           {tab !== 'reviewed' && visibleIds.length > 0 ? (
             <button onClick={toggleAll} title="Select all (location-flagged logs are excluded)"
               className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
-              style={{ borderColor: someSel ? '#1F5B3A' : '#ADB5A8', background: someSel ? '#1F5B3A' : '#fff' }}>
-              {someSel && (allSel ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} /> : <span className="h-0.5 w-2.5 rounded bg-white" />)}
+              style={{ borderColor: someSel ? 'var(--color-brand-700)' : 'var(--color-ink-350)', background: someSel ? 'var(--color-brand-700)' : 'var(--color-surface)' }}>
+              {someSel && (allSel ? <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} /> : <span className="h-0.5 w-2.5 rounded bg-surface" />)}
             </button>
           ) : <span />}
           {(['Student', 'Date & Time', 'Hours', 'Narrative'] as const).map((h) => (
@@ -244,7 +244,7 @@ export default function VerificationsPage() {
             return (
               <div key={l.id}
                 className="grid grid-cols-1 items-center gap-2 border-b border-ink-100 px-5 py-3 last:border-0 md:grid-cols-[36px_180px_130px_58px_minmax(150px,1fr)_190px] md:gap-3"
-                style={{ background: isSel ? '#FDF8E4' : 'transparent' }}>
+                style={{ background: isSel ? 'var(--color-gold-50)' : 'transparent' }}>
                 {/* checkbox / status icon */}
                 <div className="hidden md:block">
                   {!pending ? (
@@ -256,7 +256,7 @@ export default function VerificationsPage() {
                     </span>
                   ) : (
                     <button onClick={() => toggleOne(l.id)} className="flex h-[19px] w-[19px] items-center justify-center rounded-[5px] border-[1.5px] transition-colors"
-                      style={{ borderColor: isSel ? '#1F5B3A' : '#ADB5A8', background: isSel ? '#1F5B3A' : '#fff' }}>
+                      style={{ borderColor: isSel ? 'var(--color-brand-700)' : 'var(--color-ink-350)', background: isSel ? 'var(--color-brand-700)' : 'var(--color-surface)' }}>
                       {isSel && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
                     </button>
                   )}
@@ -299,12 +299,12 @@ export default function VerificationsPage() {
                 {pending ? (
                   <div className="flex items-center gap-2 md:justify-end">
                     <button onClick={() => verify.mutate(l.id)} disabled={busy}
-                      className="flex h-[34px] items-center gap-1.5 rounded-[9px] px-3.5 text-[12px] font-semibold text-ink-25 disabled:opacity-50"
+                      className="flex h-[34px] items-center gap-1.5 rounded-[9px] px-3.5 text-[12px] font-semibold text-cream disabled:opacity-50"
                       style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
                       <Check className="h-[15px] w-[15px]" strokeWidth={2.5} /> Verify
                     </button>
                     <button onClick={() => startReject(l.id)} disabled={busy} title="Reject log"
-                      className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-ink-200 bg-white text-danger-700 hover:bg-danger-50 disabled:opacity-50">
+                      className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-ink-200 bg-surface text-danger-700 hover:bg-danger-50 disabled:opacity-50">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -332,7 +332,7 @@ export default function VerificationsPage() {
       {selIds.length > 0 && (
         <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-[14px] border border-brand-800 bg-brand-950 px-3 py-3 pl-5 shadow-[0_20px_48px_rgba(11,39,22,.4)]">
           <span className="whitespace-nowrap text-[13px] text-ink-100">
-            <strong className="text-ink-25">{selIds.length} {selIds.length === 1 ? 'log' : 'logs'} selected</strong> · {selHrs.toFixed(2)} hrs
+            <strong className="text-cream">{selIds.length} {selIds.length === 1 ? 'log' : 'logs'} selected</strong> · {selHrs.toFixed(2)} hrs
           </span>
           <div className="flex items-center gap-2">
             <button onClick={() => confirmBulk(selIds, selHrs)} disabled={bulkVerify.isPending}
@@ -363,15 +363,15 @@ export default function VerificationsPage() {
 
       {/* reject reason prompt */}
       {rejecting && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(11,39,22,.5)] p-4" onClick={() => setRejecting(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-overlay fixed inset-0 z-[60] flex items-center justify-center bg-[rgba(11,39,22,.5)] p-4" onClick={() => setRejecting(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-serif text-lg font-semibold text-ink-950">Reject this log?</h3>
             <p className="mt-1 text-sm text-ink-500">The student will be notified with your reason.</p>
             <textarea autoFocus value={rejecting.reason} onChange={(e) => setRejecting((r) => r && { ...r, reason: e.target.value })}
               rows={3} placeholder="Reason for rejection (required)…"
               className="mt-4 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2.5 text-sm text-ink-900 focus:border-brand-700 focus:outline-none" />
             <div className="mt-4 flex justify-end gap-3">
-              <button onClick={() => setRejecting(null)} className="h-11 rounded-xl border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
+              <button onClick={() => setRejecting(null)} className="h-11 rounded-xl border border-ink-200 bg-surface px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
               <button onClick={() => reject.mutate({ id: rejecting.id, feedback: rejecting.reason.trim() })}
                 disabled={!rejecting.reason.trim() || reject.isPending}
                 className="flex h-11 items-center gap-2 rounded-xl bg-danger-700 px-5 text-sm font-semibold text-white disabled:opacity-50">
@@ -398,22 +398,22 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
   return (
     <>
       <div onClick={onClose} className="fixed inset-0 z-50 bg-[rgba(11,39,22,.46)]" />
-      <div className="fixed left-1/2 top-1/2 z-[60] max-h-[86vh] w-[600px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 overflow-auto rounded-[18px] bg-ink-25 shadow-[0_32px_80px_rgba(11,39,22,.4)]">
+      <div className="fixed inset-x-0 bottom-0 z-[60] max-h-[92dvh] w-full overflow-auto overscroll-contain rounded-t-[18px] pb-safe sm:inset-x-auto sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:max-h-[86vh] sm:w-[600px] sm:max-w-[92vw] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[18px] bg-ink-25 shadow-[0_32px_80px_rgba(11,39,22,.4)]">
         {/* header */}
-        <div className="bg-gradient-to-br from-brand-700 to-brand-950 px-6 py-5 text-ink-25">
+        <div className="bg-gradient-to-br from-brand-700 to-brand-950 px-6 py-5 text-cream">
           <div className="mb-3.5 flex items-center justify-between">
             <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-gold-300/80">Attendance Log · {posLabel}</span>
             <div className="flex items-center gap-1.5">
               <button onClick={onPrev} disabled={!canPrev} className="p-1 disabled:opacity-30"><ChevronLeft className="h-5 w-5" /></button>
               <button onClick={onNext} disabled={!canNext} className="p-1 disabled:opacity-30"><ChevronRight className="h-5 w-5" /></button>
-              <button onClick={onClose} className="ml-1.5 p-1 text-ink-25/75"><X className="h-5 w-5" /></button>
+              <button onClick={onClose} className="ml-1.5 p-1 text-cream/75"><X className="h-5 w-5" /></button>
             </div>
           </div>
           <div className="flex items-center gap-3.5">
             <UserAvatar name={log.user?.name} avatarUrl={log.user?.avatar_url}
               className="h-[46px] w-[46px] rounded-full bg-gold-300/[0.16] text-[15px] font-bold text-gold-300 ring-1 ring-white/20" />
             <div className="leading-tight">
-              <div className="font-serif text-[21px] font-semibold text-ink-25">{log.user?.name ?? '—'}</div>
+              <div className="font-serif text-[21px] font-semibold text-cream">{log.user?.name ?? '—'}</div>
               <div className="text-[12px] text-ink-100/75">{log.office?.name ?? '—'}</div>
             </div>
           </div>
@@ -485,7 +485,7 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
                 <X className="h-[17px] w-[17px]" /> Reject
               </button>
               <button onClick={onVerify} disabled={busy}
-                className="flex h-[42px] items-center gap-2 rounded-[11px] px-[22px] text-[13px] font-bold text-ink-25 shadow-[0_10px_22px_rgba(22,69,43,.28)] disabled:opacity-50"
+                className="flex h-[42px] items-center gap-2 rounded-[11px] px-[22px] text-[13px] font-bold text-cream shadow-[0_10px_22px_rgba(22,69,43,.28)] disabled:opacity-50"
                 style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
                 {busy ? <Loader2 className="h-[17px] w-[17px] animate-spin" /> : <Check className="h-[17px] w-[17px]" strokeWidth={2.5} />} {verifyLabel}
               </button>

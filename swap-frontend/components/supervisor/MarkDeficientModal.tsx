@@ -37,8 +37,8 @@ export function MarkDeficientModal({ studentId, studentName, term, shortfall, on
   })
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <CircleAlert className="h-5 w-5 text-danger-600" />

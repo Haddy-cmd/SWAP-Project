@@ -75,10 +75,25 @@ class ConcernService
         return Concern::with('messages.user:id,name')->where('user_id', $user->id)->latest()->get();
     }
 
-    public function inbox(?string $status, int $perPage = 20): LengthAwarePaginator
+    /** `$search` matches the subject, any message, or the sender's name, email, student ID or employee ID. */
+    public function inbox(?string $status, ?string $search = null, int $perPage = 20): LengthAwarePaginator
     {
+        $term = trim((string) $search);
+
         return Concern::with(['user.profile', 'respondedBy:id,name', 'messages.user:id,name'])
             ->when($status, fn ($q) => $q->where('status', $status))
+            ->when($term !== '', function ($q) use ($term) {
+                $like = "%{$term}%";
+                $q->where(fn ($w) => $w
+                    ->where('subject', 'ilike', $like)
+                    ->orWhere('message', 'ilike', $like)
+                    ->orWhereHas('messages', fn ($m) => $m->where('body', 'ilike', $like))
+                    ->orWhereHas('user', fn ($u) => $u->where(fn ($x) => $x
+                        ->where('name', 'ilike', $like)
+                        ->orWhere('email', 'ilike', $like)
+                        ->orWhere('employee_id', 'ilike', $like)
+                        ->orWhereHas('profile', fn ($p) => $p->where('student_id_number', 'ilike', $like)))));
+            })
             // Open first, then in progress, then resolved; newest first within each.
             ->orderByRaw("CASE status WHEN 'open' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END")
             ->latest()

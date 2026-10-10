@@ -3,11 +3,11 @@ import { File, FileSpreadsheet, FileText, Presentation, type LucideIcon } from '
 /** Icon and colours for an attached document, by its extension (photos are shown as thumbnails). */
 export function fileKind(name: string): { Icon: LucideIcon; fg: string; bg: string } {
   const ext = (name.split('.').pop() ?? '').toLowerCase()
-  if (ext === 'pdf') return { Icon: FileText, fg: '#A3201F', bg: '#F6E1E0' }
-  if (ext === 'doc' || ext === 'docx') return { Icon: FileText, fg: '#2E5C8A', bg: '#E3ECF6' }
-  if (ext === 'xls' || ext === 'xlsx') return { Icon: FileSpreadsheet, fg: '#0B5234', bg: '#DFF0E7' }
-  if (ext === 'ppt' || ext === 'pptx') return { Icon: Presentation, fg: '#B5561F', bg: '#FBE7DA' }
-  return { Icon: File, fg: '#5B6B62', bg: '#EEF0EC' }
+  if (ext === 'pdf') return { Icon: FileText, fg: 'var(--text-red-strong)', bg: 'var(--color-danger-100)' }
+  if (ext === 'doc' || ext === 'docx') return { Icon: FileText, fg: 'var(--text-info-700)', bg: 'var(--color-info-100)' }
+  if (ext === 'xls' || ext === 'xlsx') return { Icon: FileSpreadsheet, fg: 'var(--text-accent-strong)', bg: 'var(--color-accent-soft)' }
+  if (ext === 'ppt' || ext === 'pptx') return { Icon: Presentation, fg: 'var(--text-warning-700)', bg: 'var(--color-warning-100)' }
+  return { Icon: File, fg: 'var(--text-ink-600)', bg: 'var(--color-surface-3)' }
 }
 
 export function fileSize(bytes: number): string {

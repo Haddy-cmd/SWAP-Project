@@ -136,7 +136,7 @@ export function ApplicationForm() {
 
       {step === 1 && (
         <div className="space-y-5">
-          <div className="rounded-xl border border-ink-200 bg-white p-4">
+          <div className="rounded-xl border border-ink-200 bg-surface p-4">
             <p className="flex items-center gap-1.5 text-sm font-medium text-ink-900">
               <CalendarRange className="h-4 w-4 text-brand-700" /> Applying for
             </p>
@@ -203,7 +203,7 @@ export function ApplicationForm() {
             <button
               type="button"
               onClick={() => setStep(1)}
-              className="flex items-center gap-1.5 rounded-xl border border-ink-300 bg-white px-5 py-3 text-sm font-semibold text-ink-900 hover:bg-ink-50 transition-colors"
+              className="flex items-center gap-1.5 rounded-xl border border-ink-300 bg-surface px-5 py-3 text-sm font-semibold text-ink-900 hover:bg-ink-50 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
               Back

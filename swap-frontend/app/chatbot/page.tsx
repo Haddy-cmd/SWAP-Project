@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 export default function ChatbotPage() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8" style={{ height: 'calc(100vh - 8rem)' }}>
+    <div className="mx-auto h-[calc(100vh-8rem)] max-w-2xl px-4 py-6 supports-[height:100dvh]:h-[calc(100dvh-8rem)] sm:py-8">
       <div className="mb-4 flex items-center gap-3">
         <Link href="/" className="text-sm text-ink-500 hover:text-brand-700 transition-colors">← Home</Link>
         <div className="flex items-center gap-2">

@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { formatHours } from '@/lib/utils/formatHours'
 import type { Office } from '@/types/assignment.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { copyText } from '@/lib/utils/clipboard'
 
 const OfficeMapPicker = dynamic(() => import('@/components/admin/OfficeMapPicker'), {
   ssr: false,
@@ -22,14 +23,14 @@ const OfficeMapPicker = dynamic(() => import('@/components/admin/OfficeMapPicker
 
 // Soft icon backgrounds, mirrored from the mockup (bg / fg pairs).
 const PALETTE: [string, string][] = [
-  ['#F3F7FB', '#234A70'],
-  ['#FDF8E4', '#9A7412'],
-  ['#EFF8F4', '#1F8163'],
-  ['#EFE9F7', '#6B4E9A'],
-  ['#F3F7FB', '#4A82B8'],
-  ['#E3EEE5', '#1F5B3A'],
-  ['#FEF3F2', '#E2483B'],
-  ['#EFF8F4', '#196B53'],
+  ['var(--color-info-50)', 'var(--color-info-800)'],
+  ['var(--color-gold-50)', 'var(--color-gold-600)'],
+  ['var(--color-success-50)', 'var(--color-success-600)'],
+  ['var(--color-violet-100)', 'var(--color-violet-600)'],
+  ['var(--color-info-50)', 'var(--color-info-500)'],
+  ['var(--color-brand-100)', 'var(--color-brand-700)'],
+  ['var(--color-danger-50)', 'var(--color-danger-500)'],
+  ['var(--color-success-50)', 'var(--color-success-700)'],
 ]
 const palette = (i: number) => PALETTE[((i % PALETTE.length) + PALETTE.length) % PALETTE.length]
 
@@ -57,7 +58,7 @@ function OfficeLogo({ office, bg, fg, size = 44 }: { office: Office; bg: string;
   return (
     <span
       className="flex flex-none items-center justify-center overflow-hidden rounded-full"
-      style={{ width: size, height: size, background: showImage ? '#FFFFFF' : bg, color: fg, border: showImage ? '1px solid #DCE0CF' : 'none' }}
+      style={{ width: size, height: size, background: showImage ? '#FFFFFF' : bg, color: fg, border: showImage ? '1px solid var(--color-ink-200)' : 'none' }}
     >
       {showImage ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -81,16 +82,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
 
   const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(value)
-    } catch {
-      const ta = document.createElement('textarea')
-      ta.value = value
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    }
+    if (!(await copyText(value))) return
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
@@ -192,18 +184,18 @@ function LogoPicker({ name, currentUrl, file, remove, onPick, onRemove, onUndoRe
             onChange={(e) => { choose(e.target.files?.[0]); e.target.value = '' }}
           />
           <button type="button" onClick={() => inputRef.current?.click()}
-            className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[12.5px] font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
+            className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
             {shown ? 'Replace logo' : 'Upload logo'}
           </button>
           {shown && (
             <button type="button" onClick={onRemove}
-              className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[12.5px] font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
+              className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
               Remove
             </button>
           )}
           {remove && !previewUrl && currentUrl && (
             <button type="button" onClick={onUndoRemove}
-              className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-[12.5px] font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
+              className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-[12.5px] font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
               Undo
             </button>
           )}
@@ -238,9 +230,9 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
   const editing = !!initial?.id
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-950/45 p-4 sm:p-6" onClick={onCancel}>
+    <div className="sheet-overlay fixed inset-0 z-[60] flex items-center justify-center bg-brand-950/45 p-4 sm:p-6" onClick={onCancel}>
       <div
-        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_30px_70px_rgba(11,39,22,.4)]"
+        className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-[20px] bg-surface shadow-[0_30px_70px_rgba(11,39,22,.4)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -335,14 +327,14 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
                     <input type="number" step={0.000001} min={-90} max={90} value={lat ?? ''}
                       onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value ? parseFloat(e.target.value) : null }))}
                       placeholder="7.9986"
-                      className="w-full rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs focus:border-brand-700 focus:outline-none" />
+                      className="w-full rounded-lg border border-ink-200 bg-surface px-2.5 py-1.5 text-xs focus:border-brand-700 focus:outline-none" />
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-ink-500">Longitude (-180 to 180)</label>
                     <input type="number" step={0.000001} min={-180} max={180} value={lng ?? ''}
                       onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value ? parseFloat(e.target.value) : null }))}
                       placeholder="124.2928"
-                      className="w-full rounded-lg border border-ink-200 bg-white px-2.5 py-1.5 text-xs focus:border-brand-700 focus:outline-none" />
+                      className="w-full rounded-lg border border-ink-200 bg-surface px-2.5 py-1.5 text-xs focus:border-brand-700 focus:outline-none" />
                   </div>
                 </div>
 
@@ -365,11 +357,11 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
         {/* Footer */}
         <div className="flex justify-end gap-3 border-t border-ink-200 bg-ink-50 px-6 py-4">
           <button onClick={onCancel}
-            className="h-11 rounded-xl border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
+            className="h-11 rounded-xl border border-ink-200 bg-surface px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
             Cancel
           </button>
           <button onClick={() => onSave(form, { file: logoFile, remove: removeLogo })} disabled={loading || geoInvalid}
-            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity disabled:opacity-50"
+            className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity disabled:opacity-50"
             style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
             <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
             {loading ? 'Saving…' : editing ? 'Save Changes' : 'Create Office'}
@@ -429,8 +421,8 @@ function OfficeRecipientsModal({ office, onClose }: { office: Office; onClose: (
   const available = (allSupervisors?.data ?? []).filter((s) => s.office_id == null)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="font-serif text-xl font-semibold text-ink-950">{office.name}</h2>
@@ -642,7 +634,7 @@ export default function AdminOfficesPage() {
           </p>
         </div>
         <button onClick={() => setShowNew(true)}
-          className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity hover:opacity-95 sm:self-auto"
+          className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity hover:opacity-95 sm:self-auto"
           style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
           <Plus className="h-[19px] w-[19px]" />
           Add Office
@@ -658,7 +650,7 @@ export default function AdminOfficesPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search offices by name or head…"
-            className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-11 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10"
+            className="h-11 w-full rounded-xl border border-ink-200 bg-surface pl-11 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10"
           />
         </div>
 
@@ -671,8 +663,8 @@ export default function AdminOfficesPage() {
                 onClick={() => setFilter(f)}
                 className="rounded-lg px-4 py-2 text-[12.5px] transition-colors"
                 style={{
-                  background: on ? '#FFFFFF' : 'transparent',
-                  color: on ? '#1F5B3A' : '#6F7B74',
+                  background: on ? 'var(--color-surface)' : 'transparent',
+                  color: on ? 'var(--text-brand-700)' : 'var(--text-ink-500)',
                   fontWeight: on ? 600 : 500,
                   boxShadow: on ? '0 1px 3px rgba(19,36,26,.08)' : 'none',
                 }}
@@ -686,7 +678,7 @@ export default function AdminOfficesPage() {
         <div className="relative">
           <button
             onClick={() => setSortOpen((s) => !s)}
-            className="flex h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-[13px] font-semibold text-ink-900"
+            className="flex h-11 items-center gap-2 rounded-xl border border-ink-200 bg-surface px-4 text-[13px] font-semibold text-ink-900"
           >
             Sort: {sort}
             <ChevronDown className="h-4 w-4 text-ink-400" />
@@ -694,7 +686,7 @@ export default function AdminOfficesPage() {
           {sortOpen && (
             <>
               <div className="fixed inset-0 z-20" onClick={() => setSortOpen(false)} />
-              <div className="absolute right-0 top-[52px] z-30 w-48 rounded-xl border border-ink-200 bg-white p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
+              <div className="absolute right-0 top-[52px] z-30 w-48 rounded-xl border border-ink-200 bg-surface p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
                 {SORTS.map((s) => {
                   const on = sort === s
                   return (
@@ -702,7 +694,7 @@ export default function AdminOfficesPage() {
                       key={s}
                       onClick={() => { setSort(s); setSortOpen(false) }}
                       className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-ink-900"
-                      style={{ background: on ? '#FDF8E4' : 'transparent', fontWeight: on ? 700 : 500 }}
+                      style={{ background: on ? 'var(--color-gold-50)' : 'transparent', fontWeight: on ? 700 : 500 }}
                     >
                       {s}
                       {on && <Check className="h-[17px] w-[17px] text-brand-700" />}
@@ -721,12 +713,12 @@ export default function AdminOfficesPage() {
           {[1, 2, 3, 4, 5, 6].map((n) => <div key={n} className="h-64 animate-pulse rounded-[15px] bg-ink-200/50" />)}
         </div>
       ) : offices.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-[15px] border border-dashed border-ink-300 bg-white py-16 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-[15px] border border-dashed border-ink-300 bg-surface py-16 text-center">
           <Building2 className="h-10 w-10 text-ink-300" />
           <p className="text-sm font-medium text-ink-400">No offices yet — add your first host office.</p>
         </div>
       ) : list.length === 0 ? (
-        <div className="rounded-[15px] border border-dashed border-ink-300 bg-white py-12 text-center text-sm text-ink-400">
+        <div className="rounded-[15px] border border-dashed border-ink-300 bg-surface py-12 text-center text-sm text-ink-400">
           No offices match your search or filter.
         </div>
       ) : (
@@ -737,11 +729,11 @@ export default function AdminOfficesPage() {
             const max = office.max_recipients || 0
             const ratio = max ? filled / max : 0
             const full = max > 0 && filled >= max
-            const barColor = full ? '#E2483B' : ratio >= 0.75 ? '#F59E0B' : '#1F8163'
+            const barColor = full ? 'var(--color-danger-500)' : ratio >= 0.75 ? 'var(--color-warning-500)' : 'var(--color-success-600)'
             const pct = Math.min(100, Math.round(ratio * 100))
 
             return (
-              <div key={office.id} className="rounded-[15px] border border-ink-200 bg-white p-5 shadow-[0_2px_8px_rgba(19,36,26,.04)]">
+              <div key={office.id} className="rounded-[15px] border border-ink-200 bg-surface p-5 shadow-[0_2px_8px_rgba(19,36,26,.04)]">
                 {/* Header: logo + name + edit */}
                 <div className="mb-3.5 flex items-start gap-3">
                   <OfficeLogo office={office} bg={bg} fg={fg} />
@@ -790,10 +782,10 @@ export default function AdminOfficesPage() {
                   <span
                     className="inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-[11px] font-bold"
                     style={office.is_active
-                      ? { color: '#145643', background: '#EFF8F4' }
-                      : { color: '#6F7B74', background: '#ECEFE2' }}
+                      ? { color: 'var(--text-success-800)', background: 'var(--color-success-50)' }
+                      : { color: 'var(--text-ink-500)', background: 'var(--color-ink-100)' }}
                   >
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: office.is_active ? '#1F8163' : '#ADB5A8' }} />
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ background: office.is_active ? 'var(--color-success-600)' : 'var(--color-ink-350)' }} />
                     {office.is_active ? 'Active' : 'Inactive'}
                   </span>
                   {office.geofence_enabled && (
@@ -810,8 +802,8 @@ export default function AdminOfficesPage() {
                   <span
                     className="inline-flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-[11px] font-semibold"
                     style={office.supervisors_count
-                      ? { color: '#56625A', background: '#ECEFE2' }
-                      : { color: '#92400E', background: '#FFFBEB' }}
+                      ? { color: 'var(--text-ink-600)', background: 'var(--color-ink-100)' }
+                      : { color: 'var(--text-warning-800)', background: 'var(--color-warning-50)' }}
                   >
                     <UserCog className="h-3.5 w-3.5 text-violet-600" />
                     {office.supervisors_count
@@ -854,8 +846,8 @@ export default function AdminOfficesPage() {
 
       {/* Office QR modal */}
       {qrView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setQrView(null)}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setQrView(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="mb-4 flex items-start justify-between">
               <h2 className="font-semibold text-ink-900">Office QR — {qrView.name}</h2>
               <button onClick={() => setQrView(null)} className="text-ink-350 hover:text-danger-600 transition-colors">

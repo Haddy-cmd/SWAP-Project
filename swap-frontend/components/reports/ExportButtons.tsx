@@ -41,7 +41,7 @@ export function ExportButtons({ download, fallbackName, disabled, summary, forma
   return (
     <div className="flex flex-wrap items-center gap-2">
       {chartOption && formats.includes('pdf') && (
-        <label className="flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-[10px] border border-ink-200 bg-white px-2.5 text-[12.5px] font-medium text-ink-600"
+        <label className="flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-[10px] border border-ink-200 bg-surface px-2.5 text-[12.5px] font-medium text-ink-600"
           title="Print the graph in the PDF (the KPIs and the table are always included)">
           <input type="checkbox" checked={includeChart} onChange={(e) => setIncludeChart(e.target.checked)}
             disabled={disabled || run.isPending} className="h-3.5 w-3.5 accent-brand-700" />
@@ -53,7 +53,7 @@ export function ExportButtons({ download, fallbackName, disabled, summary, forma
         {busy === 'pdf' ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />} {label}
       </button>}
       {formats.includes('csv') && <button onClick={() => run.mutate('csv')} disabled={disabled || run.isPending}
-        className="flex h-9 items-center gap-2 rounded-[10px] border border-ink-200 bg-white px-3.5 text-[13px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">
+        className="flex h-9 items-center gap-2 rounded-[10px] border border-ink-200 bg-surface px-3.5 text-[13px] font-semibold text-brand-700 hover:bg-brand-50 disabled:opacity-50">
         {busy === 'csv' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Table2 className="h-4 w-4" />} CSV
       </button>}
     </div>

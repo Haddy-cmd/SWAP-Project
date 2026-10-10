@@ -18,8 +18,11 @@ class ConcernController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $validated = $request->validate(['status' => ['nullable', Rule::in(Concern::STATUSES)]]);
-        $page = $this->concerns->inbox($validated['status'] ?? null);
+        $validated = $request->validate([
+            'status' => ['nullable', Rule::in(Concern::STATUSES)],
+            'search' => ['nullable', 'string', 'max:100'],
+        ]);
+        $page = $this->concerns->inbox($validated['status'] ?? null, $validated['search'] ?? null);
 
         return response()->json([
             'data' => ConcernResource::collection($page->items()),

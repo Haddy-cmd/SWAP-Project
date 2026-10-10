@@ -22,12 +22,17 @@ describe('ReportTable', () => {
     const onSort = vi.fn()
     render(<ReportTable columns={columns} rows={rows} sort="deficient_hours" dir="desc" onSort={onSort} />)
 
-    expect(screen.getByText('Deficient')).toHaveClass('rounded-full')
+    // Both the phone cards and the table are rendered (CSS shows one); every status is a badge.
+    for (const el of screen.getAllByText('Deficient')) expect(el).toHaveClass('rounded-full')
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
     expect(screen.getByRole('columnheader', { name: /Deficient Hours/ })).toHaveAttribute('aria-sort', 'descending')
 
     fireEvent.click(screen.getByRole('button', { name: /College/ }))
     expect(onSort).toHaveBeenCalledWith('college')
+
+    // Phones sort from a picker instead of the column headers.
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'recipient' } })
+    expect(onSort).toHaveBeenCalledWith('recipient')
   })
 
   it('says so when no row matches', () => {

@@ -54,7 +54,7 @@ class TermReportReminderTest extends TestCase
 
             return $channels === ['mail', 'database']
                 && $data['type'] === 'term_report'
-                && $data['message'] === "You've completed the 5 required hours for 1st Semester 2024-2025. Submit your end-of-term narrative report on the Hours page — your stipend can't be released without it.";
+                && $data['message'] === "You've completed the 5 required hours for 1st Semester 2024-2025. Submit your end-of-term narrative report on the Hours & Attendance page — your stipend can't be released without it.";
         });
         $this->assertNotNull($assignment->fresh()->report_due_hours_at);
         $this->assertDatabaseHas('audit_logs', ['action' => 'term_report_reminder', 'auditable_id' => $assignment->id]);
@@ -109,7 +109,7 @@ class TermReportReminderTest extends TestCase
 
         Notification::assertSentToTimes($without, TermReportDueNotification::class, 1);
         Notification::assertSentTo($without, TermReportDueNotification::class, fn ($n) => $n->toArray($without)['message']
-            === '1st Semester 2024-2025 has ended. Submit your end-of-term narrative report on the Hours page — your stipend and renewal need it.');
+            === '1st Semester 2024-2025 has ended. Submit your end-of-term narrative report on the Hours & Attendance page — your stipend and renewal need it.');
         Notification::assertNotSentTo($with, TermReportDueNotification::class);
         $this->assertNotNull($withoutTerm->fresh()->report_due_ended_at);
     }

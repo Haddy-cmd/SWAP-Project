@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import {
@@ -16,8 +16,8 @@ const WD_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const WD_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 const AVATARS: [string, string][] = [
-  ['#E3EEE5', '#1F5B3A'], ['#F3F7FB', '#4A82B8'], ['#EFF8F4', '#1F8163'],
-  ['#FDF8E4', '#9A7412'], ['#EFE9F7', '#6B4E9A'], ['#FEF3F2', '#E2483B'], ['#F3F7FB', '#234A70'],
+  ['var(--color-brand-100)', 'var(--color-brand-700)'], ['var(--color-info-50)', 'var(--color-info-500)'], ['var(--color-success-50)', 'var(--color-success-600)'],
+  ['var(--color-gold-50)', 'var(--color-gold-600)'], ['var(--color-violet-100)', 'var(--color-violet-600)'], ['var(--color-danger-50)', 'var(--color-danger-500)'], ['var(--color-info-50)', 'var(--color-info-800)'],
 ]
 const avatar = (id: number) => AVATARS[id % AVATARS.length]
 
@@ -32,13 +32,15 @@ function manilaYMD(iso: string | Date): { y: number; m0: number; d: number } {
 
 const modeStyle = (mode: Interview['mode']) =>
   mode === 'online'
-    ? { label: 'Online', color: '#6B4E9A', bg: '#EFE9F7', dot: '#6B4E9A', Icon: Video }
-    : { label: 'In Person', color: '#2F5D8A', bg: '#F3F7FB', dot: '#2F5D8A', Icon: Users }
+    ? { label: 'Online', color: 'var(--text-violet-600)', bg: 'var(--color-violet-100)', dot: 'var(--color-violet-600)', Icon: Video }
+    : { label: 'In Person', color: 'var(--text-info-700)', bg: 'var(--color-info-50)', dot: 'var(--color-info-700)', Icon: Users }
 
 type IvItem = { app: Application; iv: Interview; y: number; m0: number; d: number; ts: number }
 
 export default function AdminInterviewsPage() {
   const [view, setView] = useState<'month' | 'list'>('month')
+  // Phones open on the list; the month grid is too tight to read there.
+  useEffect(() => { if (window.matchMedia('(max-width: 639px)').matches) setView('list') }, [])
   const today = useMemo(() => manilaYMD(new Date()), [])
   const [cursor, setCursor] = useState(() => ({ y: today.y, m: today.m0 }))
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -132,15 +134,15 @@ export default function AdminInterviewsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-[12.5px] text-ink-500"><strong className="text-[14px] text-brand-700">{monthCount}</strong> this month</span>
           <div className="flex items-center gap-1.5">
-            <button onClick={prevMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-ink-200 bg-white text-ink-500 hover:bg-ink-50">
+            <button onClick={prevMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50">
               <ChevronLeft className="h-5 w-5" />
             </button>
             <div className="min-w-[150px] text-center text-[15px] font-bold text-ink-900">{monthLabel}</div>
-            <button onClick={nextMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-ink-200 bg-white text-ink-500 hover:bg-ink-50">
+            <button onClick={nextMonth} className="flex h-[42px] w-[38px] items-center justify-center rounded-[10px] border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50">
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
-          <button onClick={goToday} className="flex h-[42px] items-center rounded-[10px] border border-ink-200 bg-white px-4 text-[13px] font-semibold text-ink-900 hover:bg-ink-50">Today</button>
+          <button onClick={goToday} className="flex h-[42px] items-center rounded-[10px] border border-ink-200 bg-surface px-4 text-[13px] font-semibold text-ink-900 hover:bg-ink-50">Today</button>
           <div className="inline-flex gap-[3px] rounded-[10px] bg-ink-100 p-1">
             {(['month', 'list'] as const).map((v) => {
               const on = view === v
@@ -148,7 +150,7 @@ export default function AdminInterviewsPage() {
                 <button
                   key={v}
                   onClick={() => setView(v)}
-                  className={`rounded-[7px] px-4 py-2 text-[12.5px] capitalize transition-colors ${on ? 'bg-white font-semibold text-brand-700 shadow-[0_1px_3px_rgba(19,36,26,.08)]' : 'font-medium text-ink-500'}`}
+                  className={`rounded-[7px] px-4 py-2 text-[12.5px] capitalize transition-colors ${on ? 'bg-surface font-semibold text-brand-700 shadow-[0_1px_3px_rgba(19,36,26,.08)]' : 'font-medium text-ink-500'}`}
                 >
                   {v}
                 </button>
@@ -162,15 +164,15 @@ export default function AdminInterviewsPage() {
         <div className="h-[560px] animate-pulse rounded-2xl bg-ink-200/50" />
       ) : view === 'month' ? (
         /* ── MONTH VIEW ─────────────────────────────────────────────── */
-        <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-[0_2px_8px_rgba(19,36,26,.04)]">
-          <div className="mb-2 grid grid-cols-7 gap-2">
+        <div className="rounded-2xl border border-ink-200 bg-surface p-2.5 shadow-[0_2px_8px_rgba(19,36,26,.04)] sm:p-5">
+          <div className="mb-2 grid grid-cols-7 gap-1 sm:gap-2">
             {WD_SHORT.map((w) => (
               <div key={w} className="text-center text-[11px] font-bold uppercase tracking-[0.06em] text-ink-400">{w}</div>
             ))}
           </div>
           <div className="flex flex-col gap-2">
             {weeks.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7 gap-2">
+              <div key={wi} className="grid grid-cols-7 gap-1 sm:gap-2">
                 {week.map((c) => {
                   const has = c.inMonth && c.items.length > 0
                   return (
@@ -178,11 +180,11 @@ export default function AdminInterviewsPage() {
                       key={c.key}
                       onClick={has ? () => setSelectedKey(c.key) : undefined}
                       disabled={!has}
-                      className="min-h-[108px] rounded-[11px] border p-2.5 text-left align-top"
+                      className="min-h-[52px] rounded-[9px] border p-1 text-left align-top sm:min-h-[108px] sm:rounded-[11px] sm:p-2.5"
                       style={{
-                        background: !c.inMonth ? '#F7F6EE' : c.items.length ? '#FAF8EC' : '#FFFFFF',
-                        borderColor: c.items.length ? '#DCE0CF' : '#DCE0CF',
-                        boxShadow: c.isToday ? 'inset 0 0 0 2px #1F5B3A' : 'none',
+                        background: !c.inMonth ? 'var(--color-ink-50)' : c.items.length ? 'var(--color-ink-25)' : 'var(--color-surface)',
+                        borderColor: c.items.length ? 'var(--color-ink-200)' : 'var(--color-ink-200)',
+                        boxShadow: c.isToday ? 'inset 0 0 0 2px var(--color-brand-700)' : 'none',
                         cursor: has ? 'pointer' : 'default',
                       }}
                     >
@@ -191,15 +193,15 @@ export default function AdminInterviewsPage() {
                           className="flex h-[22px] min-w-[22px] items-center justify-center rounded-full text-[13px]"
                           style={{
                             fontWeight: c.items.length ? 700 : 500,
-                            color: !c.inMonth ? '#ADB5A8' : c.isToday ? '#FAF8EC' : '#34433A',
-                            background: c.isToday ? '#1F5B3A' : 'transparent',
+                            color: !c.inMonth ? 'var(--text-ink-350)' : c.isToday ? 'var(--text-ink-25)' : 'var(--text-ink-700)',
+                            background: c.isToday ? 'var(--color-brand-700)' : 'transparent',
                           }}
                         >
                           {c.num}
                         </span>
-                        {has && <span className="rounded-full bg-brand-700 px-1.5 py-px text-[10px] font-bold text-ink-25">{c.items.length}</span>}
+                        {has && <span className="rounded-full bg-brand-700 px-1.5 py-px text-[10px] font-bold text-cream">{c.items.length}</span>}
                       </div>
-                      <div className="flex flex-col gap-1">
+                      <div className="hidden flex-col gap-1 sm:flex">
                         {c.items.slice(0, 2).map((it) => (
                           <div key={it.app.id} className="flex items-center gap-1.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-md border border-ink-200 bg-ink-50 px-1.5 py-0.5 text-[10.5px] text-ink-600">
                             <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: modeStyle(it.iv.mode).dot }} />
@@ -218,7 +220,7 @@ export default function AdminInterviewsPage() {
           <div className="mt-4 flex flex-wrap gap-4 border-t border-ink-100 pt-3.5">
             <span className="flex items-center gap-1.5 text-[12px] text-ink-600"><span className="h-1.5 w-1.5 rounded-full bg-info-700" />In Person</span>
             <span className="flex items-center gap-1.5 text-[12px] text-ink-600"><span className="h-1.5 w-1.5 rounded-full bg-violet-600" />Online</span>
-            <span className="flex items-center gap-1.5 text-[12px] text-ink-600"><span className="rounded-full bg-brand-700 px-1.5 py-px text-[10px] font-bold text-ink-25">N</span>Interviews that day · click to view</span>
+            <span className="flex items-center gap-1.5 text-[12px] text-ink-600"><span className="rounded-full bg-brand-700 px-1.5 py-px text-[10px] font-bold text-cream">N</span>Interviews that day · click to view</span>
           </div>
         </div>
       ) : (
@@ -234,7 +236,7 @@ export default function AdminInterviewsPage() {
                   <span className="rounded-full bg-brand-100 px-2 py-px text-[11px] font-bold text-brand-700">{g.items.length}</span>
                   <span className="h-px flex-1 bg-ink-200" />
                 </div>
-                <div className="overflow-hidden rounded-[13px] border border-ink-200 bg-white">
+                <div className="overflow-hidden rounded-[13px] border border-ink-200 bg-surface">
                   {g.items.map((it, i) => {
                     const ms = modeStyle(it.iv.mode)
                     const [avBg, avFg] = avatar(it.app.id)
@@ -272,16 +274,16 @@ export default function AdminInterviewsPage() {
       {/* ── DAY DRAWER ───────────────────────────────────────────────── */}
       {selectedKey && <div onClick={() => setSelectedKey(null)} className="fixed inset-0 z-40 bg-[rgba(11,39,22,.42)]" />}
       <div
-        className="fixed bottom-0 right-0 top-0 z-50 flex w-[420px] max-w-[90vw] flex-col bg-ink-50 shadow-[-12px_0_44px_rgba(11,39,22,.28)] transition-transform duration-300"
+        className="fixed bottom-0 right-0 top-0 z-50 flex w-full flex-col pb-safe sm:w-[420px] bg-ink-50 shadow-[-12px_0_44px_rgba(11,39,22,.28)] transition-transform duration-300"
         style={{ transform: selectedKey ? 'translateX(0)' : 'translateX(100%)' }}
       >
-        <div className="bg-gradient-to-br from-brand-700 to-brand-950 px-6 py-5 text-ink-25">
+        <div className="bg-gradient-to-br from-brand-700 to-brand-950 px-6 py-5 text-cream">
           <div className="mb-3.5 flex items-center justify-between">
             <span className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-gold-300/80">Interview Schedule</span>
-            <button onClick={() => setSelectedKey(null)} className="text-ink-25/75 hover:text-ink-25"><X className="h-5 w-5" /></button>
+            <button onClick={() => setSelectedKey(null)} className="text-cream/75 hover:text-cream"><X className="h-5 w-5" /></button>
           </div>
           <div className="flex items-end justify-between">
-            <div className="font-serif text-2xl font-semibold text-ink-25">{drawerDate}</div>
+            <div className="font-serif text-2xl font-semibold text-cream">{drawerDate}</div>
             <span className="rounded-full bg-gold-300/20 px-3 py-1 text-[12px] font-bold text-gold-300">
               {drawerItems.length} {drawerItems.length === 1 ? 'interview' : 'interviews'}
             </span>
@@ -292,7 +294,7 @@ export default function AdminInterviewsPage() {
             const ms = modeStyle(it.iv.mode)
             const [avBg, avFg] = avatar(it.app.id)
             return (
-              <div key={it.app.id} className="rounded-[13px] border border-ink-200 bg-white p-4 shadow-[0_1px_3px_rgba(19,36,26,.05)]">
+              <div key={it.app.id} className="rounded-[13px] border border-ink-200 bg-surface p-4 shadow-[0_1px_3px_rgba(19,36,26,.05)]">
                 <div className="mb-3 flex items-center gap-3">
                   <UserAvatar name={it.app.user?.name} avatarUrl={it.app.user?.avatar_url} className="h-[42px] w-[42px] rounded-full text-[14px] font-bold" style={{ background: avBg, color: avFg }} />
                   <div className="min-w-0 flex-1 leading-tight">
@@ -332,7 +334,7 @@ export default function AdminInterviewsPage() {
 
 function EmptyState({ monthLabel }: { monthLabel: string }) {
   return (
-    <div className="rounded-[15px] border border-dashed border-ink-300 bg-white px-5 py-[60px] text-center">
+    <div className="rounded-[15px] border border-dashed border-ink-300 bg-surface px-5 py-[60px] text-center">
       <CalendarOff className="mx-auto h-10 w-10 text-ink-350" />
       <p className="mt-3 text-[15px] font-semibold text-ink-700">No interviews in {monthLabel}</p>
       <p className="mt-1 text-[13px] text-ink-400">

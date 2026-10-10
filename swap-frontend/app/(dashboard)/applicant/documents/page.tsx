@@ -37,12 +37,12 @@ export default function DocumentsPage() {
           <p className="text-sm font-medium text-ink-400">No documents uploaded yet</p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-ink-200 bg-white shadow-sm overflow-hidden">
-          <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-sm">
+        <div className="rounded-2xl border border-ink-200 bg-surface shadow-sm overflow-hidden">
+          <div className="overflow-x-auto"><table className="w-full text-sm sm:min-w-[600px]">
             <thead className="border-b border-ink-200 bg-ink-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-ink-500">Document</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-ink-500">Application</th>
+                <th className="hidden px-4 py-3 text-left text-xs font-semibold text-ink-500 sm:table-cell">Application</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold text-ink-500">Action</th>
               </tr>
             </thead>
@@ -52,15 +52,16 @@ export default function DocumentsPage() {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       <FileText className="h-4 w-4 text-ink-400" />
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-ink-900 capitalize">
                           {doc.document_type.replace(/_/g, ' ')}
                         </p>
-                        <p className="text-xs text-ink-400">{doc.file_name}</p>
+                        <p className="break-all text-xs text-ink-400">{doc.file_name}</p>
+                        <p className="text-xs text-ink-500 sm:hidden">{doc.application.academic_year} — {doc.application.semester}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-ink-500">
+                  <td className="hidden px-4 py-3 text-ink-500 sm:table-cell">
                     {doc.application.academic_year} — {doc.application.semester}
                   </td>
                   <td className="px-4 py-3 text-right">

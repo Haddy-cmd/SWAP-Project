@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Stipend\ReleaseBulkStipendRequest;
 use App\Http\Requests\Stipend\ReleaseStipendRequest;
+use App\Http\Requests\Stipend\RemindStipendRequest;
 use App\Http\Requests\Stipend\UnlockStipendRequest;
 use App\Http\Requests\Stipend\VoidStipendRequest;
 use App\Models\StipendHistory;
 use App\Resources\StipendResource;
 use App\Services\StipendClaimService;
+use App\Services\StipendReminderService;
 use App\Services\StipendService;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
@@ -25,9 +27,8 @@ class StipendController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $records = $this->stipendService->paginateAll(
-            $request->only(['status', 'academic_year', 'search'])
-        );
+        $filters = $request->only(['status', 'academic_year', 'search']);
+        $records = $this->stipendService->paginateAll($filters);
 
         return response()->json([
             'data' => StipendResource::collection($records->items()),
@@ -36,8 +37,18 @@ class StipendController extends Controller
                 'last_page' => $records->lastPage(),
                 'per_page' => $records->perPage(),
                 'total' => $records->total(),
+                // History cards and chip counts (the status chip doesn't narrow them).
+                'summary' => $this->stipendService->summary($filters),
             ],
         ]);
+    }
+
+    /** "Can't release yet" → Remind: tell blocked recipients what's missing (once a day each). */
+    public function remind(RemindStipendRequest $request, StipendReminderService $reminders): JsonResponse
+    {
+        $result = $reminders->remind($request->validated('user_ids'), $request->user());
+
+        return response()->json(['data' => $result]);
     }
 
     public function eligible(): JsonResponse

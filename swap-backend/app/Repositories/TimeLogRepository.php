@@ -183,4 +183,13 @@ class TimeLogRepository implements TimeLogRepositoryInterface
             ->where('verified_at', '>=', Carbon::now()->startOfWeek())
             ->count();
     }
+
+    /** Hours verified since the start of the week (the dashboard's "Verified this week"). */
+    public function getVerifiedThisWeekHours(int $supervisorId): float
+    {
+        return round((float) TimeLog::whereHas('assignment', $this->assignmentClauseFor($supervisorId))
+            ->where('status', 'verified')
+            ->where('verified_at', '>=', Carbon::now()->startOfWeek())
+            ->sum('duration_hours'), 2);
+    }
 }

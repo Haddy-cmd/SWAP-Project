@@ -118,7 +118,7 @@ export function QrScanner({ onScan, onError }: QrScannerProps) {
           <button
             type="button"
             onClick={() => setFacing((f) => (f === 'user' ? 'environment' : 'user'))}
-            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50 transition-colors"
+            className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50 transition-colors"
           >
             <SwitchCamera className="h-4 w-4" /> Try the other camera
           </button>

@@ -8,7 +8,7 @@ use App\Services\TermReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/** The recipient's end-of-term narrative report (Hours page). */
+/** The recipient's end-of-term narrative report (Hours & Attendance page). */
 class TermReportController extends Controller
 {
     public function __construct(private readonly TermReportService $reports) {}

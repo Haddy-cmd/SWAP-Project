@@ -170,8 +170,8 @@ export default function ScanPage() {
   const office = kind === 'out'
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-800 to-brand-950 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 text-center shadow-xl">
+    <div className="flex min-h-app items-center justify-center bg-gradient-to-b from-brand-800 to-brand-950 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 text-center shadow-xl">
         {phase === 'working' && (
           <>
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
@@ -229,8 +229,8 @@ export default function ScanPage() {
               <div
                 className="mx-auto mt-4 flex max-w-xs items-start gap-2 rounded-xl border px-3.5 py-2.5 text-left text-[13px] font-medium"
                 style={premises.ok
-                  ? { borderColor: '#B4E1CF', background: '#EFF8F4', color: '#145643' }
-                  : { borderColor: '#F4D76E', background: '#FFFBEB', color: '#92400E' }}
+                  ? { borderColor: 'var(--color-success-200)', background: 'var(--color-success-50)', color: 'var(--text-success-800)' }
+                  : { borderColor: 'var(--color-gold-300)', background: 'var(--color-warning-50)', color: 'var(--text-warning-800)' }}
               >
                 {premises.ok
                   ? <MapPin className="mt-0.5 h-4 w-4 flex-none text-success-600" />

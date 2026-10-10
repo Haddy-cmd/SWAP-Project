@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\AuditLog;
 use App\Resources\UserResource;
+use App\Services\AuditLogService;
 use App\Services\StipendClaimService;
 use App\Support\PasswordPolicy;
 use App\Support\StipendUnlock;
@@ -25,8 +26,17 @@ class ProfileController extends Controller
         // Own profile only (one storage lookup): a specimen on record whose file was
         // lost, so the page asks for a new drawing instead of showing a broken image.
         return response()->json([
-            'data' => (new UserResource($user))->resolve($request) + ['signature_missing' => $user->signatureFileMissing()],
+            'data' => (new UserResource($user))->resolve($request) + [
+                'signature_missing' => $user->signatureFileMissing(),
+                'password_changed_at' => AuditLogService::passwordChangedAt($user),
+            ],
         ]);
+    }
+
+    /** Profile → Activity: the signed-in person's own audit entries, as sentences. */
+    public function activity(Request $request, AuditLogService $audit): JsonResponse
+    {
+        return response()->json($audit->mine($request->user(), (int) $request->query('page', 1)));
     }
 
     public function update(UpdateProfileRequest $request): JsonResponse

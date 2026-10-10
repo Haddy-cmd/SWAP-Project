@@ -1,6 +1,6 @@
 import apiClient from './axios'
-import type { AuthResponse, LoginCredentials, RegisterData, RegisterResponse, User } from '@/types/auth.types'
-import type { ApiResponse } from '@/types/api.types'
+import type { AuthResponse, LoginCredentials, MyActivityEntry, ProfileSession, RegisterData, RegisterResponse, User } from '@/types/auth.types'
+import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
 export const authApi = {
   register: (data: RegisterData) =>
@@ -63,4 +63,18 @@ export const authApi = {
 
   updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) =>
     apiClient.put('/profile/password', data).then((r) => r.data),
+
+  // Profile → Security: this account's logins, and signing them out.
+  sessions: () =>
+    apiClient.get<ApiResponse<ProfileSession[]>>('/profile/sessions').then((r) => r.data.data),
+
+  revokeSession: (id: number) =>
+    apiClient.delete<{ message: string }>(`/profile/sessions/${id}`).then((r) => r.data),
+
+  revokeOtherSessions: () =>
+    apiClient.delete<ApiResponse<{ count: number }>>('/profile/sessions/others').then((r) => r.data),
+
+  // Profile → Activity: what you did yourself (your audit entries).
+  myActivity: (page = 1) =>
+    apiClient.get<PaginatedResponse<MyActivityEntry>>('/profile/activity', { params: { page } }).then((r) => r.data),
 }

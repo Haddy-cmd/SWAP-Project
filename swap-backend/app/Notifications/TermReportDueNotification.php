@@ -24,9 +24,15 @@ class TermReportDueNotification extends Notification implements ShouldQueue
     {
         $term = $this->data['term'] ?? 'this term';
 
+        if (($this->data['kind'] ?? '') === TermReportReminderService::KIND_SUPERVISOR) {
+            $who = $this->data['supervisor'] ?? 'Your supervisor';
+
+            return "{$who} reminds you to submit your end-of-term report for {$term} on the Hours & Attendance page — your stipend and renewal need it.";
+        }
+
         return ($this->data['kind'] ?? '') === TermReportReminderService::KIND_HOURS_MET
-            ? "You've completed the {$this->data['required_hours']} required hours for {$term}. Submit your end-of-term narrative report on the Hours page — your stipend can't be released without it."
-            : "{$term} has ended. Submit your end-of-term narrative report on the Hours page — your stipend and renewal need it.";
+            ? "You've completed the {$this->data['required_hours']} required hours for {$term}. Submit your end-of-term narrative report on the Hours & Attendance page — your stipend can't be released without it."
+            : "{$term} has ended. Submit your end-of-term narrative report on the Hours & Attendance page — your stipend and renewal need it.";
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -35,7 +41,7 @@ class TermReportDueNotification extends Notification implements ShouldQueue
             ->subject('Submit Your End-of-Term Report')
             ->greeting("Dear {$notifiable->name},")
             ->line($this->message())
-            ->action('Write My Report', \App\Support\Frontend::url('/recipient/hours'));
+            ->action('Write My Report', \App\Support\Frontend::url('/recipient/attendance#report'));
     }
 
     public function toArray(object $notifiable): array

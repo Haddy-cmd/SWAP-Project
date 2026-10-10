@@ -6,6 +6,7 @@ import { Menu } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useUIStore } from '@/lib/store/uiStore'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import { avatarSrc } from '@/lib/utils/avatar'
 
 export function Topbar() {
@@ -29,8 +30,8 @@ export function Topbar() {
   const onButtonLeave = () => { if (!desktopSidebarOpen) scheduleHideSidebar() }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-5 border-b border-ink-900/10 bg-white/70 px-4 backdrop-blur-md md:pl-8 md:pr-6 print:hidden">
-      <div className="flex min-w-0 flex-1 items-center gap-[18px]">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-2 border-b sm:gap-5 border-ink-900/10 bg-surface/75 px-4 backdrop-blur-md md:pl-8 md:pr-6 print:hidden">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5 sm:gap-[18px]">
         <button
           onClick={toggleSidebar}
           onMouseEnter={onButtonEnter}
@@ -41,7 +42,7 @@ export function Topbar() {
         >
           <Menu className="h-6 w-6" />
         </button>
-        <div className="min-w-0 border-l-2 border-brand-600 pl-3.5 leading-[1.3]">
+        <div className="min-w-0 border-l-2 border-brand-600 pl-2.5 leading-[1.3] sm:pl-3.5">
           <p className="truncate text-[14.5px] font-bold text-ink-900 capitalize">
             {user?.role} Portal
           </p>
@@ -51,14 +52,15 @@ export function Topbar() {
         </div>
       </div>
 
-      <div className="flex flex-shrink-0 items-center gap-2.5">
+      <div className="flex flex-shrink-0 items-center gap-1.5 sm:gap-2.5">
         {/* A page's own control (TopbarSlot), e.g. the admin dashboard's semester picker. */}
         <div id={TOPBAR_SLOT_ID} className="flex items-center empty:hidden" />
+        <ThemeToggle />
         <NotificationBell />
 
         <Link
           href="/profile"
-          className="flex h-[38px] items-center gap-[9px] rounded-[10px] border border-ink-900/15 bg-white pl-[5px] pr-[5px] text-[13.5px] font-semibold text-ink-900 transition-colors hover:bg-ink-50 sm:pr-3.5"
+          className="flex h-[38px] items-center gap-[9px] rounded-[10px] border border-ink-900/15 bg-surface pl-[5px] pr-[5px] text-[13.5px] font-semibold text-ink-900 transition-colors hover:bg-ink-50 sm:pr-3.5"
         >
           <div className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-[11px] font-bold text-brand-900">
             {/* eslint-disable-next-line @next/next/no-img-element */}

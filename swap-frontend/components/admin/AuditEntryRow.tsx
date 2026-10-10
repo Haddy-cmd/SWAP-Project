@@ -16,7 +16,7 @@ const AREA_STYLE: Record<AuditArea, string> = {
   settings: 'bg-ink-100 text-ink-700',
   exports: 'bg-ink-100 text-ink-700',
   communication: 'bg-info-50 text-brand-700',
-  testing: 'bg-amber-50 text-amber-800',
+  testing: 'bg-gold-50 text-gold-800',
   other: 'bg-ink-100 text-ink-600',
 }
 
@@ -61,7 +61,8 @@ export function AuditEntryRow({ entry, compact = false }: { entry: AuditEntry; c
       {open && (
         <div className="space-y-2 px-4 pb-3">
           {entry.changes.length > 0 && (
-            <table className="w-full overflow-hidden rounded-lg border border-ink-100 text-[12px]">
+            <div className="overflow-x-auto rounded-lg border border-ink-100">
+            <table className="w-full min-w-[300px] text-[12px]">
               <thead className="bg-ink-50 text-left text-ink-500">
                 <tr><th className="px-3 py-1.5 font-semibold">Field</th><th className="px-3 py-1.5 font-semibold">Before</th><th className="w-6" /><th className="px-3 py-1.5 font-semibold">After</th></tr>
               </thead>
@@ -76,6 +77,7 @@ export function AuditEntryRow({ entry, compact = false }: { entry: AuditEntry; c
                 ))}
               </tbody>
             </table>
+            </div>
           )}
           <p className="text-[11px] text-ink-400">
             {entry.entity}

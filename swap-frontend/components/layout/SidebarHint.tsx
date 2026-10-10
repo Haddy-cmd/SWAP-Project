@@ -30,9 +30,9 @@ export function SidebarHint({ hidden }: { hidden: boolean }) {
 
   return (
     <div role="status"
-      className="fixed left-4 top-[70px] z-40 hidden w-[280px] rounded-xl border border-brand-200 bg-white p-3.5 shadow-[0_10px_30px_rgba(19,36,26,.18)] md:block md:left-7 print:hidden">
+      className="fixed left-4 top-[70px] z-40 hidden w-[280px] rounded-xl border border-brand-200 bg-surface p-3.5 shadow-[0_10px_30px_rgba(19,36,26,.18)] md:block md:left-7 print:hidden">
       {/* Arrow pointing up at the ☰ button */}
-      <span className="absolute -top-[7px] left-4 h-3.5 w-3.5 rotate-45 border-l border-t border-brand-200 bg-white" aria-hidden />
+      <span className="absolute -top-[7px] left-4 h-3.5 w-3.5 rotate-45 border-l border-t border-brand-200 bg-surface" aria-hidden />
       <div className="flex items-start gap-2.5">
         <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-brand-50 text-brand-700"><Menu className="h-4 w-4" /></span>
         <div className="min-w-0 flex-1">

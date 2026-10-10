@@ -64,7 +64,7 @@ export default function OfficeMapPicker({ latitude, longitude, radius, onChange,
               <Circle
                 center={[latitude as number, longitude as number]}
                 radius={radius}
-                pathOptions={{ color: '#1F5B3A', fillColor: '#1F5B3A', fillOpacity: 0.12 }}
+                pathOptions={{ color: 'var(--text-brand-700)', fillColor: 'var(--color-brand-700)', fillOpacity: 0.12 }}
               />
             </>
           )}
@@ -73,7 +73,7 @@ export default function OfficeMapPicker({ latitude, longitude, radius, onChange,
 
         {pending && (
           <div role="alertdialog" aria-label="Confirm the office location"
-            className="absolute inset-x-3 bottom-3 z-[1000] flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 bg-white/95 px-3.5 py-2.5 text-sm shadow-lg">
+            className="absolute inset-x-3 bottom-3 z-[1000] flex flex-wrap items-center gap-2 rounded-xl border border-ink-200 bg-surface/95 px-3.5 py-2.5 text-sm shadow-lg">
             <span className="min-w-0 flex-1 font-semibold text-ink-900">
               {hasPos ? 'Move the office location here?' : 'Set the office location here?'}
               <span className="block text-xs font-normal text-ink-500">{pending[0].toFixed(6)}, {pending[1].toFixed(6)}</span>

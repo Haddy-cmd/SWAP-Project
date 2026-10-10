@@ -36,7 +36,7 @@ export function CurrentSemesterCard() {
 
   return (
     <Link href="/admin/semesters"
-      className={`group flex flex-wrap items-center gap-4 rounded-[14px] border bg-white px-5 py-4 transition hover:shadow-md ${
+      className={`group flex flex-wrap items-center gap-4 rounded-[14px] border bg-surface px-5 py-4 transition hover:shadow-md ${
         current ? 'border-ink-200 hover:border-ink-300' : 'border-warning-200 bg-warning-50/40 hover:border-warning-300'
       }`}>
       <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${current ? 'bg-brand-50' : 'bg-warning-100'}`}>

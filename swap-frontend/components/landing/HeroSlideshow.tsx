@@ -101,7 +101,7 @@ export function HeroSlideshow({
               aria-label={`Show photo ${k + 1}: ${p.caption}`}
               className="flex h-[22px] flex-1 cursor-pointer items-center"
             >
-              <span className="relative block h-[2px] w-full overflow-hidden bg-ink-25/30">
+              <span className="relative block h-[2px] w-full overflow-hidden bg-cream/30">
                 <span
                   key={k === index ? `a-${index}-${playing}` : `s-${k}`}
                   className="absolute inset-y-0 left-0 bg-gold-400"
@@ -117,8 +117,8 @@ export function HeroSlideshow({
 
         <div className="flex items-center gap-5">
           <div className="hidden text-right leading-[1.45] sm:block" aria-live="polite">
-            <div className="font-serif text-[15px] italic text-ink-25">{current.caption}</div>
-            <div className="text-[11.5px] tabular-nums text-ink-25/60">
+            <div className="font-serif text-[15px] italic text-cream">{current.caption}</div>
+            <div className="text-[11.5px] tabular-nums text-cream/60">
               {String(index + 1).padStart(2, '0')} / {String(count).padStart(2, '0')}
             </div>
           </div>
@@ -137,7 +137,7 @@ export function HeroSlideshow({
                 type="button"
                 onClick={b.onClick}
                 aria-label={b.label}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-ink-25/35 text-ink-25 transition-colors hover:bg-ink-25/10"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-cream/35 text-cream transition-colors hover:bg-cream/10"
               >
                 {b.icon}
               </button>

@@ -30,4 +30,6 @@ interface TimeLogRepositoryInterface
     public function getPendingVerificationsCount(int $supervisorId): int;
 
     public function getVerifiedThisWeekCount(int $supervisorId): int;
+
+    public function getVerifiedThisWeekHours(int $supervisorId): float;
 }

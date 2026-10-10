@@ -14,7 +14,7 @@ export const attendanceApi = {
   getMyLogs: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<TimeLog>>('/recipient/attendance/logs', { params }).then((r) => r.data),
 
-  // Earlier terms with their hours, verdict and stipend (Hours page → Past terms).
+  // Earlier terms with their hours, verdict and stipend (Hours & Attendance → Past terms).
   getProgress: () =>
     apiClient.get<{ data: import('@/types/attendance.types').RecipientProgress | null }>('/recipient/progress').then((r) => r.data.data),
 
@@ -68,7 +68,7 @@ export const attendanceApi = {
     apiClient.get<{ data: TimeLog[] }>('/supervisor/students/clocked-in').then((r) => r.data.data),
 
   getStudentSummary: (studentId: number) =>
-    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; carried_over_hours?: number; pace?: Pace }; term_report?: TermReport | null; term?: import('@/types/assignment.types').StudentTerm; assignment_id?: number; hours_met?: boolean }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
+    apiClient.get<{ data: HoursSummary; student: { id: number; name: string; avatar_url?: string | null; student_id_number?: string | null; email?: string; program?: string | null; year_level?: number | null; office?: string | null; supervisor?: string | null; signature_url?: string | null; supervisor_signature_url?: string | null; academic_year?: string; semester?: string; required_hours?: number; carried_over_hours?: number; pace?: Pace; start_date?: string | null }; term_report?: TermReport | null; term?: import('@/types/assignment.types').StudentTerm; assignment_id?: number; hours_met?: boolean; bonuses?: { id: number; hours: number; date: string; reason: string | null }[]; report_reminded_today?: boolean; report_locked?: boolean }>(`/supervisor/students/${studentId}/summary`).then((r) => r.data),
 
   // The supervisor accepts the end-of-term report, marking the student eligible or not for renewal.
   reviewTermReport: (assignmentId: number, data: { renewal_eligible: boolean; remarks: string | null }) =>
@@ -86,6 +86,14 @@ export const attendanceApi = {
 
   addManualHours: (studentId: number, data: { hours: number; date: string; reason: string }) =>
     apiClient.post<ApiResponse<TimeLog>>(`/supervisor/students/${studentId}/manual-hours`, data).then((r) => r.data.data),
+
+  // Student page → "Remind to submit" the end-of-term report (once a day; notification + email).
+  remindReport: (studentId: number) =>
+    apiClient.post<{ message: string }>(`/supervisor/students/${studentId}/remind-report`).then((r) => r.data),
+
+  // Dashboard → Falling behind → bell: remind a behind student (once a day; notification + email).
+  remindPace: (studentId: number) =>
+    apiClient.post<{ message: string }>(`/supervisor/students/${studentId}/remind-pace`).then((r) => r.data),
 
   // Supervisor marks the student's current term deficient (reason goes to the student).
   markDeficient: (studentId: number, reason: string) =>

@@ -15,9 +15,9 @@ import { CARD, GOLD, GREEN, READY, RED, Card, Seg, Skeleton, pct, plural, useAna
 type Icon = ComponentType<{ className?: string }>
 type Tone = 'gold' | 'red' | 'grey'
 const TONE: Record<Tone, { bg: string; border: string; fg: string }> = {
-  gold: { bg: '#FFFBEA', border: '#F0E2A6', fg: '#8A6A00' },
-  red: { bg: '#FDF3F2', border: '#F0D3D0', fg: '#A3201F' },
-  grey: { bg: '#F6F7F3', border: '#E8EAE4', fg: '#5B6B62' },
+  gold: { bg: 'var(--color-gold-50)', border: 'var(--color-gold-200)', fg: 'var(--text-gold-700)' },
+  red: { bg: 'var(--color-danger-50)', border: 'var(--color-danger-200)', fg: 'var(--text-red-strong)' },
+  grey: { bg: 'var(--color-surface-2)', border: 'var(--color-surface-3)', fg: 'var(--text-ink-600)' },
 }
 
 /**
@@ -34,13 +34,13 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
 
   const pending = overview?.pending_applications ?? 0
   const kpis: { label: string; value: string | number; hint: string; Icon: Icon; bg: string; fg: string; onClick: () => void }[] = [
-    { label: 'Applications', value: overview?.total_applications ?? 0, hint: 'this semester', Icon: FileText, bg: '#FBF1C7', fg: '#7A5E00',
+    { label: 'Applications', value: overview?.total_applications ?? 0, hint: 'this semester', Icon: FileText, bg: 'var(--color-gold-100)', fg: 'var(--text-gold-700)',
       onClick: () => onDrill({ tab: 'applications' }) },
     { label: 'Active recipients', value: overview?.active_recipients ?? 0, hint: `in ${plural(overview?.office_distribution_all?.filter((o) => o.recipient_count > 0).length ?? 0, 'office', 'offices')}`,
-      Icon: Users, bg: '#DFF0E7', fg: '#0B5234', onClick: () => onDrill({ tab: 'recipients', filters: { status: ['Active'] } }) },
-    { label: 'Waiting for a decision', value: pending, hint: pending ? 'applications not yet decided' : 'all caught up', Icon: Hourglass, bg: '#E3ECF6', fg: '#2E5C8A',
+      Icon: Users, bg: 'var(--color-accent-soft)', fg: 'var(--text-accent-strong)', onClick: () => onDrill({ tab: 'recipients', filters: { status: ['Active'] } }) },
+    { label: 'Waiting for a decision', value: pending, hint: pending ? 'applications not yet decided' : 'all caught up', Icon: Hourglass, bg: 'var(--color-info-100)', fg: 'var(--text-info-700)',
       onClick: () => onDrill({ tab: 'applications', filters: { status: ['Submitted', 'Under Review', 'Interview Scheduled'] } }) },
-    { label: 'Avg. completion', value: `${Number(overview?.avg_completion_rate ?? 0).toFixed(1)}%`, hint: 'of the required hours', Icon: Timer, bg: '#F6E1E0', fg: '#A3201F',
+    { label: 'Avg. completion', value: `${Number(overview?.avg_completion_rate ?? 0).toFixed(1)}%`, hint: 'of the required hours', Icon: Timer, bg: 'var(--color-danger-100)', fg: 'var(--text-red-strong)',
       onClick: () => onDrill({ tab: 'recipients', sort: 'verified_hours', dir: 'asc' }) },
   ]
 
@@ -102,8 +102,8 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
         <Card title="Worth a look" hint="We picked out what stands out. Click one to see the details.">
           <div className="mt-4 flex flex-col gap-2.5">
             {items.length === 0 ? (
-              <p className="flex items-center gap-2.5 rounded-[14px] border border-ink-900/[.06] bg-[#F6F7F3] px-4 py-3.5 text-[13.5px] text-ink-600">
-                <CheckCircle2 className="h-5 w-5 text-[#17815F]" /> Nothing stands out this semester.
+              <p className="flex items-center gap-2.5 rounded-[14px] border border-ink-900/[.06] bg-surface-2 px-4 py-3.5 text-[13.5px] text-ink-600">
+                <CheckCircle2 className="h-5 w-5 text-accent" /> Nothing stands out this semester.
               </p>
             ) : items.map((i) => {
               const t = TONE[i.tone]
@@ -111,7 +111,7 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
                 <button key={i.title} onClick={() => onTab(i.tab)}
                   className="flex items-center gap-3.5 rounded-[14px] border px-4 py-3.5 text-left transition-shadow hover:shadow-[0_4px_14px_rgba(19,36,26,0.08)]"
                   style={{ background: t.bg, borderColor: t.border }}>
-                  <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[11px] bg-white" style={{ color: t.fg }}><i.Icon className="h-5 w-5" /></span>
+                  <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[11px] bg-surface" style={{ color: t.fg }}><i.Icon className="h-5 w-5" /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14px] font-bold text-ink-950">{i.title}</span>
                     <span className="mt-0.5 block text-[12.5px] text-ink-600">{i.detail}</span>
@@ -138,7 +138,7 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
                 <div className="relative h-[150px] w-[150px] rounded-full" style={{
                   background: `conic-gradient(${GREEN} 0 ${pct(approved, total)}%, ${GOLD} ${pct(approved, total)}% ${pct(approved + waiting, total)}%, ${RED} ${pct(approved + waiting, total)}% 100%)`,
                 }}>
-                  <div className="absolute inset-6 flex flex-col items-center justify-center rounded-full bg-white">
+                  <div className="absolute inset-6 flex flex-col items-center justify-center rounded-full bg-surface">
                     <span className="text-2xl font-extrabold leading-none">{pct(approved, total)}%</span>
                     <span className="mt-1 text-[11.5px] text-ink-500">approved</span>
                   </div>
@@ -197,13 +197,13 @@ function ReadyReports({ academicYear, semester, recipients }: { academicYear: st
     <div className="mt-2.5 flex flex-col">
       {reports.map((r) => (
         <div key={r.key} className="flex items-center gap-3 border-b border-ink-900/[.05] py-[11px] last:border-0">
-          <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] bg-[#F1F3EE] text-ink-700"><r.Icon className="h-[18px] w-[18px]" /></span>
+          <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] bg-surface-3 text-ink-700"><r.Icon className="h-[18px] w-[18px]" /></span>
           <div className="min-w-0 flex-1">
             <p className="text-[13.5px] font-semibold text-ink-950">{r.name}</p>
             <p className="text-xs text-ink-500">{r.desc}</p>
           </div>
           <button onClick={() => dl.mutate(r)} disabled={dl.isPending}
-            className="flex h-[34px] flex-none items-center gap-1.5 rounded-[9px] border border-ink-200 bg-white px-3 text-[12.5px] font-semibold text-[#0B5234] hover:border-[#17815F] disabled:opacity-50">
+            className="flex h-[34px] flex-none items-center gap-1.5 rounded-[9px] border border-ink-200 bg-surface px-3 text-[12.5px] font-semibold text-accent-strong hover:border-accent disabled:opacity-50">
             {busy === r.key ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} {r.fmt}
           </button>
         </div>

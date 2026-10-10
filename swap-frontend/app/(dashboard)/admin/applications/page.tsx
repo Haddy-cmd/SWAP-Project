@@ -26,21 +26,21 @@ import type { ApplicationStatus, Interview } from '@/types/application.types'
  */
 
 const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
-const GREEN = '#17815F'
-const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-white shadow-[0_1px_3px_rgba(20,40,30,.05)]'
+const GREEN = 'var(--color-accent)'
+const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 
 const AVATARS: [string, string][] = [
-  ['#E3EEE5', '#1F5B3A'], ['#F3F7FB', '#4A82B8'], ['#EFF8F4', '#1F8163'],
-  ['#FDF8E4', '#9A7412'], ['#EFE9F7', '#6B4E9A'], ['#FEF3F2', '#E2483B'], ['#F3F7FB', '#234A70'],
+  ['var(--color-brand-100)', 'var(--color-brand-700)'], ['var(--color-info-50)', 'var(--color-info-500)'], ['var(--color-success-50)', 'var(--color-success-600)'],
+  ['var(--color-gold-50)', 'var(--color-gold-600)'], ['var(--color-violet-100)', 'var(--color-violet-600)'], ['var(--color-danger-50)', 'var(--color-danger-500)'], ['var(--color-info-50)', 'var(--color-info-800)'],
 ]
 const avatar = (id: number) => AVATARS[id % AVATARS.length]
 
 const STATUS_META: Record<string, { label: string; bg: string; fg: string; dot: string }> = {
-  submitted: { label: 'Submitted', bg: '#EEF4FA', fg: '#2F5D8A', dot: '#4A82B8' },
-  under_review: { label: 'Under review', bg: '#FFF7E6', fg: '#9A5B06', dot: '#F59E0B' },
-  interview_scheduled: { label: 'Interview set', bg: '#F1ECF8', fg: '#5A3E86', dot: '#6B4E9A' },
-  approved: { label: 'Approved', bg: '#EAF6F0', fg: '#145643', dot: '#1F8163' },
-  rejected: { label: 'Rejected', bg: '#FDEDEC', fg: '#B42318', dot: '#E2483B' },
+  submitted: { label: 'Submitted', bg: 'var(--color-info-50)', fg: 'var(--text-info-700)', dot: 'var(--color-info-500)' },
+  under_review: { label: 'Under review', bg: 'var(--color-warning-50)', fg: 'var(--text-warning-700)', dot: 'var(--color-warning-500)' },
+  interview_scheduled: { label: 'Interview set', bg: 'var(--color-violet-100)', fg: 'var(--text-violet-700)', dot: 'var(--color-violet-600)' },
+  approved: { label: 'Approved', bg: 'var(--color-accent-tint)', fg: 'var(--text-success-800)', dot: 'var(--color-success-600)' },
+  rejected: { label: 'Rejected', bg: 'var(--color-danger-50)', fg: 'var(--text-danger-700)', dot: 'var(--color-danger-500)' },
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -220,13 +220,13 @@ export default function AdminApplicationsPage() {
           ? { title: 'Renewal approved', detail: 'The new term\'s placement was created and the recipient has been notified.' }
           : { title: 'Application approved', detail: 'They are now a recipient (announcements reach them) and wait in the Assignments queue for an office. They have been notified.' }
         : data.type === 'renewal'
-          ? { title: 'Renewal rejected', detail: 'The recipient is back in the applicant portal and has been notified.' }
+          ? { title: 'Renewal rejected', detail: 'They are back to an applicant account, deactivated (reactivate them in Users to let them apply again), and have been notified.' }
           : { title: 'Application rejected', detail: 'The applicant has been notified with your remarks.' })
     },
     onError: showError,
   })
 
-  // Rejecting is final (and sends a recipient back to the applicant portal): ask first.
+  // Rejecting is final (a renewal also deactivates the recipient's account): ask first.
   const confirmAndReject = async () => {
     if (await confirm(rejectConfirm(selected))) decide.mutate('rejected')
   }
@@ -303,7 +303,7 @@ export default function AdminApplicationsPage() {
           return (
             <button key={t.label} role="tab" aria-selected={active} onClick={() => setFilter(t.status)}
               className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-                active ? 'border-[#17815F] bg-[#17815F] text-white shadow-[0_6px_16px_rgba(23,129,95,.22)]' : 'border-ink-900/[.08] bg-white text-ink-600 hover:border-[#17815F]/40 hover:text-[#17815F]'
+                active ? 'border-accent bg-accent text-white shadow-[0_6px_16px_rgba(23,129,95,.22)]' : 'border-ink-900/[.08] bg-surface text-ink-600 hover:border-accent/40 hover:text-accent'
               }`}>
               <t.Icon className="h-4 w-4" />
               {t.label}
@@ -326,14 +326,14 @@ export default function AdminApplicationsPage() {
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); setSelectedId(null) }}
                 placeholder="Search name or student ID"
-                className="h-10 w-full rounded-xl border border-ink-200 bg-ink-50/60 pl-10 pr-4 text-sm text-ink-900 placeholder:text-ink-400 focus:border-[#17815F] focus:bg-white focus:outline-none"
+                className="h-10 w-full rounded-xl border border-ink-200 bg-ink-50/60 pl-10 pr-4 text-sm text-ink-900 placeholder:text-ink-400 focus:border-accent focus:bg-surface focus:outline-none"
               />
             </div>
-            <div className="flex gap-1 rounded-[11px] bg-ink-100 p-1" role="tablist" aria-label="Application type">
+            <div className="no-scrollbar flex max-w-full gap-1 overflow-x-auto rounded-[11px] bg-ink-100 p-1" role="tablist" aria-label="Application type">
               {TYPE_TABS.map((t) => (
                 <button key={t.value} role="tab" aria-selected={typeFilter === t.value} onClick={() => setType(t.value)}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                    typeFilter === t.value ? 'bg-white text-[#17815F] shadow-sm' : 'text-ink-500 hover:text-[#17815F]'
+                    typeFilter === t.value ? 'bg-surface text-accent shadow-sm' : 'text-ink-500 hover:text-accent'
                   }`}>
                   {t.label}
                   {t.value === 'renewal' && !!renewalsWaiting && (
@@ -368,7 +368,7 @@ export default function AdminApplicationsPage() {
                         onClick={() => setSelectedId(a.id)}
                         aria-current={isActive}
                         className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors ${
-                          isActive ? 'bg-[#F1F8F4] shadow-[inset_3px_0_0_#17815F]' : 'hover:bg-ink-50/70'
+                          isActive ? 'bg-accent-tint shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-ink-50/70'
                         }`}
                       >
                         <UserAvatar name={a.user?.name} avatarUrl={a.user?.avatar_url}
@@ -398,14 +398,14 @@ export default function AdminApplicationsPage() {
                 <button
                   onClick={() => { setPage((p) => Math.max(1, p - 1)); setSelectedId(null) }}
                   disabled={page === 1} aria-label="Previous page"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-600 hover:text-[#17815F] disabled:opacity-40"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-surface text-ink-600 hover:text-accent disabled:opacity-40"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => { setPage((p) => p + 1); setSelectedId(null) }}
                   disabled={page >= meta.last_page} aria-label="Next page"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-600 hover:text-[#17815F] disabled:opacity-40"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-ink-200 bg-surface text-ink-600 hover:text-accent disabled:opacity-40"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -444,7 +444,7 @@ export default function AdminApplicationsPage() {
                         <RefreshCw className="h-3 w-3" /> Renewal
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF6F0] px-2 py-0.5 font-sans text-[11px] font-bold text-[#145643]">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-accent-tint px-2 py-0.5 font-sans text-[11px] font-bold text-success-800">
                         <UserPlus className="h-3 w-3" /> New applicant
                       </span>
                     )}
@@ -463,7 +463,7 @@ export default function AdminApplicationsPage() {
                     ['Submitted', formatDate(selected.created_at)],
                     ['For term', `${selected.academic_year} · ${selected.semester}`],
                   ].map(([label, value]) => (
-                    <div key={label} className="bg-white px-3.5 py-2.5">
+                    <div key={label} className="bg-surface px-3.5 py-2.5">
                       <p className="text-[11px] text-ink-400">{label}</p>
                       <p className="truncate text-[13px] font-semibold text-ink-900" title={value}>{value}</p>
                     </div>
@@ -518,7 +518,7 @@ export default function AdminApplicationsPage() {
                     <div className="flex flex-wrap gap-2">
                       {documents.map((doc) => (
                         <button key={doc.id} onClick={() => setViewDoc(doc)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-ink-900/[.08] bg-white px-3 py-2 text-[12.5px] font-semibold capitalize text-[#17815F] hover:border-[#17815F]/40 hover:bg-[#F1F8F4]">
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-ink-900/[.08] bg-surface px-3 py-2 text-[12.5px] font-semibold capitalize text-accent hover:border-accent/40 hover:bg-accent-tint">
                           <FileText className="h-3.5 w-3.5" />
                           {doc.document_type.replace(/_/g, ' ')}
                         </button>
@@ -531,23 +531,23 @@ export default function AdminApplicationsPage() {
                 {(status === 'approved' || status === 'rejected') && (
                   <div
                     className="flex items-center gap-3.5 rounded-[13px] border px-[18px] py-4"
-                    style={status === 'approved' ? { background: '#EFF8F4', borderColor: '#B4E1CF' } : { background: '#FEF3F2', borderColor: '#FBCBC6' }}
+                    style={status === 'approved' ? { background: 'var(--color-success-50)', borderColor: 'var(--color-success-200)' } : { background: 'var(--color-danger-50)', borderColor: 'var(--color-danger-200)' }}
                   >
                     {status === 'approved'
                       ? <BadgeCheck className="h-6 w-6 flex-shrink-0 text-success-800" />
                       : <Ban className="h-6 w-6 flex-shrink-0 text-danger-700" />}
                     <div className="min-w-0 flex-1 leading-snug">
-                      <p className="text-sm font-bold" style={{ color: status === 'approved' ? '#145643' : '#B42318' }}>
+                      <p className="text-sm font-bold" style={{ color: status === 'approved' ? 'var(--text-success-800)' : 'var(--text-danger-700)' }}>
                         {status === 'approved' ? (isRenewal ? 'Renewal approved' : 'Approved, waiting for an office') : 'Application rejected'}
                       </p>
-                      <p className="text-[12.5px]" style={{ color: status === 'approved' ? '#145643' : '#B42318', opacity: 0.85 }}>
+                      <p className="text-[12.5px]" style={{ color: status === 'approved' ? 'var(--text-success-800)' : 'var(--text-danger-700)', opacity: 0.85 }}>
                         {status === 'approved'
                           ? isRenewal ? 'Their placement continues in the new term.' : 'This student is now in the Assignments queue.'
                           : selected.remarks || 'This applicant was not accepted this cycle.'}
                       </p>
                     </div>
                     {status === 'approved' && !isRenewal && (
-                      <Link href="/admin/assignments" className="inline-flex flex-none items-center gap-1 text-[12.5px] font-semibold text-[#17815F] hover:underline">
+                      <Link href="/admin/assignments" className="inline-flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent hover:underline">
                         Go to Assignments <ArrowRight className="h-3.5 w-3.5" />
                       </Link>
                     )}
@@ -563,7 +563,7 @@ export default function AdminApplicationsPage() {
                     onChange={(e) => setRemarks(e.target.value)}
                     placeholder="Remarks (needed if you reject)"
                     rows={2}
-                    className="w-full resize-none rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm text-ink-900 focus:border-[#17815F] focus:outline-none"
+                    className="w-full resize-none rounded-xl border border-ink-200 bg-surface px-3 py-2.5 text-sm text-ink-900 focus:border-accent focus:outline-none"
                   />
                   <div className="mt-3 flex flex-wrap items-center gap-2.5">
                     <p className="min-w-0 flex-1 text-[12px] leading-snug text-ink-500">{hint}</p>
@@ -571,7 +571,7 @@ export default function AdminApplicationsPage() {
                       onClick={confirmAndReject}
                       disabled={decide.isPending || !remarks.trim()}
                       title={!remarks.trim() ? 'Write remarks to reject' : undefined}
-                      className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-danger-200 bg-white px-4 text-sm font-semibold text-[#C8322B] hover:bg-danger-50 disabled:cursor-not-allowed disabled:opacity-45"
+                      className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-danger-200 bg-surface px-4 text-sm font-semibold text-red-accent hover:bg-danger-50 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       <XCircle className="h-4 w-4" /> Reject
                     </button>
@@ -625,12 +625,12 @@ function InterviewBanner({ status, interview: iv, onMarkReview, markingReview, o
 
   if (status === 'submitted') {
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#BFD3E6] bg-[#EEF4FA] px-4 py-3">
-        <Inbox className="h-5 w-5 flex-none text-[#2F5D8A]" />
-        <p className="min-w-0 flex-1 text-[13px] text-[#2F5D8A]">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-info-200 bg-info-50 px-4 py-3">
+        <Inbox className="h-5 w-5 flex-none text-info-700" />
+        <p className="min-w-0 flex-1 text-[13px] text-info-700">
           <b>Not reviewed yet.</b> Start the review to set an interview.
         </p>
-        <button onClick={onMarkReview} disabled={markingReview} className={`${btn} bg-[#17815F] text-white disabled:opacity-50`}>
+        <button onClick={onMarkReview} disabled={markingReview} className={`${btn} bg-accent text-white disabled:opacity-50`}>
           <Clock className="h-4 w-4" /> {markingReview ? 'Moving…' : 'Mark under review'}
         </button>
       </div>
@@ -642,7 +642,7 @@ function InterviewBanner({ status, interview: iv, onMarkReview, markingReview, o
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3">
         <CalendarClock className="h-5 w-5 flex-none text-warning-700" />
         <p className="min-w-0 flex-1 text-[13px] text-warning-700"><b>No interview scheduled yet.</b> Set one before approving.</p>
-        <button onClick={onSchedule} className={`${btn} bg-[#17815F] text-white`}>
+        <button onClick={onSchedule} className={`${btn} bg-accent text-white`}>
           <CalendarCheck className="h-4 w-4" /> Set interview
         </button>
       </div>
@@ -667,11 +667,11 @@ function InterviewBanner({ status, interview: iv, onMarkReview, markingReview, o
           </p>
         </div>
         {!missed && (
-          <button onClick={onNoShow} disabled={markingNoShow} className={`${btn} border border-gold-200 bg-white text-warning-700 disabled:opacity-50`}>
+          <button onClick={onNoShow} disabled={markingNoShow} className={`${btn} border border-gold-200 bg-surface text-warning-700 disabled:opacity-50`}>
             <Ban className="h-4 w-4" /> No-show
           </button>
         )}
-        <button onClick={onReschedule} className={`${btn} border border-violet-200 bg-white text-violet-700`}>
+        <button onClick={onReschedule} className={`${btn} border border-violet-200 bg-surface text-violet-700`}>
           <CalendarClock className="h-4 w-4" /> Reschedule
         </button>
       </div>
@@ -700,11 +700,11 @@ function InterviewDialog({ kind, name, date, setDate, mode, setMode, location, s
   onClose: () => void
   onSubmit: () => void
 }) {
-  const field = 'h-11 w-full rounded-xl border border-ink-200 bg-ink-50/60 px-3 text-sm text-ink-900 focus:border-[#17815F] focus:bg-white focus:outline-none'
+  const field = 'h-11 w-full rounded-xl border border-ink-200 bg-ink-50/60 px-3 text-sm text-ink-900 focus:border-accent focus:bg-surface focus:outline-none'
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-label={kind === 'schedule' ? 'Set interview' : 'Reschedule interview'}
-        className="w-full max-w-md rounded-[18px] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        className="w-full max-w-md rounded-[18px] bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 className="font-serif text-xl font-semibold text-ink-950">{kind === 'schedule' ? 'Set interview' : 'Reschedule interview'}</h2>

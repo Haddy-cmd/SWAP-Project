@@ -129,7 +129,7 @@ export default function AdminApplicationDetailPage() {
           ? { title: 'Renewal approved', detail: 'The new term\'s placement was created and the recipient has been notified.' }
           : { title: 'Application approved', detail: 'They are now a recipient (announcements reach them) and wait in the Assignments queue for an office. They have been notified.' }
         : { title: data.type === 'renewal' ? 'Renewal rejected' : 'Application rejected',
-            detail: data.type === 'renewal' ? 'The recipient is back in the applicant portal and has been notified.' : 'The applicant has been notified with your remarks.' })
+            detail: data.type === 'renewal' ? 'They are back to an applicant account, deactivated (reactivate them in Users to let them apply again), and have been notified.' : 'The applicant has been notified with your remarks.' })
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
       queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
       router.push('/admin/applications')
@@ -165,7 +165,7 @@ export default function AdminApplicationDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1">
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
             <h2 className="mb-5 font-semibold text-ink-900">Timeline</h2>
             <ApplicationTimeline application={application} />
           </div>
@@ -173,7 +173,7 @@ export default function AdminApplicationDetailPage() {
 
         <div className="space-y-5 lg:col-span-2">
           {/* Info */}
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
             <h2 className="mb-4 font-semibold text-ink-900">Applicant Details</h2>
             <dl className="grid grid-cols-2 gap-3 text-sm">
               <div><dt className="text-ink-500">Name</dt><dd className="font-medium text-ink-900">{application.user?.name ?? '—'}</dd></div>
@@ -186,7 +186,7 @@ export default function AdminApplicationDetailPage() {
 
           {/* Documents */}
           {application.documents && application.documents.length > 0 && (
-            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
               <h2 className="mb-4 font-semibold text-ink-900">Documents</h2>
               <ul className="space-y-2">
                 {application.documents.map((doc) => (
@@ -204,7 +204,7 @@ export default function AdminApplicationDetailPage() {
 
           {/* Actions (fresh applications; a renewal is decided directly, no review stage) */}
           {application.status === 'submitted' && application.type !== 'renewal' && (
-            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
               <h2 className="mb-4 font-semibold text-ink-900">Action</h2>
               <button
                 onClick={() => markReview.mutate()}
@@ -217,7 +217,7 @@ export default function AdminApplicationDetailPage() {
           )}
 
           {application.status === 'under_review' && (
-            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm space-y-4">
               <h2 className="font-semibold text-ink-900">Schedule Interview</h2>
 
               <div>
@@ -238,7 +238,7 @@ export default function AdminApplicationDetailPage() {
                 <p className="rounded-xl bg-warning-50 px-3 py-2 text-xs text-warning-800">{modeNotice}</p>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 xs:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-ink-500">Date</label>
                   <input
@@ -271,7 +271,7 @@ export default function AdminApplicationDetailPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 xs:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-ink-500">Duration</label>
                   <select value={duration} onChange={(e) => { setDuration(Number(e.target.value)); setSlotMinute(null) }}
@@ -318,7 +318,7 @@ export default function AdminApplicationDetailPage() {
 
           {(application.status === 'under_review' || application.status === 'interview_scheduled'
             || (application.type === 'renewal' && application.status === 'submitted')) && (
-            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm space-y-4">
               <h2 className="font-semibold text-ink-900">Decision</h2>
               {application.type === 'renewal' && application.renewal_readiness && (
                 <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3">

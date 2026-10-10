@@ -67,7 +67,7 @@ export function ChartTypeToggle<T extends ChartType>({ value, options, onChange,
               onChange(option)
             }}
             className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
-              active ? 'bg-white text-brand-700 shadow-sm' : 'text-ink-400 hover:text-ink-700'
+              active ? 'bg-surface text-brand-700 shadow-sm' : 'text-ink-400 hover:text-ink-700'
             }`}
           >
             <Icon className="h-3.5 w-3.5" />
@@ -96,7 +96,7 @@ export function SegmentedToggle<T extends string>({ value, options, onChange, la
           <button key={v} type="button" aria-pressed={active}
             onClick={(e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); onChange(v) }}
             className={`flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
-              active ? 'bg-white text-ink-950 shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-500 hover:text-ink-800'}`}>
+              active ? 'bg-surface text-ink-950 shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-500 hover:text-ink-800'}`}>
             <Icon className="h-3.5 w-3.5" /> {name}
           </button>
         )

@@ -2,6 +2,8 @@
 
 /* Brand typography: Newsreader (serif headings) + Plus Jakarta Sans (body). */
 @theme {
+  /* Small phones vs the rest (360 vs 390+): stat rows go 3-across from here. */
+  --breakpoint-xs: 23.75rem;
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
 
@@ -114,7 +116,49 @@
   --color-violet-700: #5A3E86;
   --color-violet-800: #48316C;
   --color-violet-900: #36244F;
+
+  /* ── Semantic tokens (light values; dark ones below) ──────────────────────
+     Use these instead of raw hex so every screen follows the theme.
+     surface   = cards, inputs, menus (was bg-white); surface-2/3 = quiet fills
+     accent*   = the v2 layouts' green; gold/red-accent = their gold and red
+     cream     = light text on the green chrome (same in both themes) */
+  --color-surface: #FFFFFF;
+  --color-surface-2: #F6F7F3;
+  --color-surface-3: #EEF1EC;
+  --color-canvas: #F7F6EE;
+  --color-cream: #FAF8EC;
+  --color-accent: #17815F;
+  --color-accent-hover: #0F6A4D;
+  --color-accent-strong: #0B5234;
+  --color-accent-deep: #063D27;
+  --color-accent-bright: #2FA57C;
+  --color-accent-soft: #DFF0E7;
+  --color-accent-tint: #F1F7F3;
+  --color-accent-muted: #B9CFC3;
+  --color-gold-accent: #DDBB38;
+  --color-red-accent: #C8322B;
+  --color-red-strong: #A3201F;
 }
+
+/* The deep-green hero banners (dashboards, assignments, announcements preview). */
+:root {
+  --hero-gradient: radial-gradient(110% 150% at 100% 0%, rgba(221,187,56,.28), transparent 45%),
+    radial-gradient(90% 120% at 0% 100%, rgba(47,165,124,.30), transparent 55%),
+    linear-gradient(120deg, #0B5234 0%, #063D27 55%, #08301F 100%);
+  --hero-gradient-plain: linear-gradient(120deg, #0B5234, #063D27);
+  --shadow-color: 19, 36, 26;
+  /* The white lift in the middle of the dashboard backdrop (none in dark mode). */
+  --ambient-lift: rgba(255,255,255,.7);
+  /* The sign-in splash veil (LoginSplash). */
+  --splash-veil: rgba(246,246,239,.82);
+  color-scheme: light;
+}
+
+/* Dark mode: `data-theme="dark"` on <html> (lib/theme.ts). One-off tweaks can use `dark:`. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Devices with a real hover pointer (mouse/trackpad): hover-only helpers stay off touch screens. */
+@custom-variant can-hover (@media (hover: hover) and (pointer: fine));
 
 * {
   box-sizing: border-box;
@@ -122,10 +166,74 @@
 
 html {
   scroll-behavior: smooth;
+  /* Phones in landscape must not inflate text on their own. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
+/* ─── Responsive & cross-browser foundations ───────────────────────────────
+   Unlayered on purpose: these win over utilities. */
+
+/* Full-height screens that follow the mobile browser bar (dvh), with a 100vh fallback. */
+.h-app { height: 100vh; height: 100dvh; }
+.min-h-app { min-height: 100vh; min-height: 100dvh; }
+
+/* Keeps fixed/sticky bars clear of the iPhone home indicator. */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.mb-safe { margin-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Sideways-swipe rows (tabs, chips) without a visible scrollbar. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar > button, .no-scrollbar > a { flex-shrink: 0; white-space: nowrap; }
+
+/* No double-tap zoom delay on controls. */
+button, a, [role="button"], label, summary { touch-action: manipulation; }
+
+/* iOS Safari zooms into any field under 16px when it's focused: never on phones. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px; }
+}
+
+/* Date/time fields: iOS Safari gives them a wide intrinsic size and centred text. */
+input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] { min-width: 0; }
+@supports (-webkit-touch-callout: none) {
+  input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"] { -webkit-appearance: none; appearance: none; min-height: 2.5rem; }
+}
+input::-webkit-date-and-time-value { text-align: left; }
+
+/* Finger-sized hit areas for small icon buttons on touch screens. */
+@media (pointer: coarse) {
+  .tap { min-width: 40px; min-height: 40px; }
+}
+
+/* Dialogs become bottom sheets on phones: full width, docked to the bottom, scrolling inside.
+   Put `sheet-overlay` on the dark backdrop; its panel (direct child) is reshaped. */
+@media (max-width: 639px) {
+  .sheet-overlay { align-items: flex-end !important; padding: 0 !important; }
+  .sheet-overlay > *:not(.no-sheet) {
+    width: 100% !important; max-width: 100% !important;
+    max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
+    border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important;
+    margin: 0 !important;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.22);
+  }
+  /* Keep the last button clear of the iPhone home indicator. */
+  .sheet-overlay > *:not(.no-sheet)::after { content: ""; display: block; height: env(safe-area-inset-bottom, 0px); }
+}
+
+/* Browsers too old for this UI (no color-mix / :where): a plain notice instead of a broken page.
+   Only old-school CSS here, so it renders everywhere. */
+#browser-notice { display: none; }
+html.unsupported #browser-notice {
+  display: block; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 2147483647;
+  overflow: auto; background: #F6F6EF; color: #16241C; font-family: Arial, Helvetica, sans-serif; padding: 48px 24px; text-align: center;
+}
+html.unsupported body > *:not(#browser-notice) { display: none !important; }
+
 body {
-  background-color: var(--color-ink-50);
+  background-color: var(--color-canvas);
   color: var(--color-ink-900);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -189,6 +297,25 @@ body {
   .hero-drift { animation: none !important; }
 }
 
+/* Gold call-to-action buttons and pills: always dark text on the gold (the dark theme's
+   text brightening skips these — see notLight in scripts/theme-dark.mjs). In dark mode
+   the gold is a little deeper and the glow softer, so it doesn't glare. */
+.btn-gold {
+  background: linear-gradient(180deg, #E6C649, #D4AF2A);
+  color: #2B2200;
+  box-shadow: 0 2px 8px rgba(212, 175, 42, 0.3);
+}
+.btn-gold:hover:not(:disabled) { filter: brightness(1.05); }
+.pill-gold { background: var(--color-gold-accent); color: #2B2200; }
+@media screen {
+  :root[data-theme=dark] .btn-gold {
+    background: linear-gradient(180deg, #D9B83F, #C29D22);
+    color: #1F1800;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme=dark] .pill-gold { background: #C9A52C; color: #1F1800; }
+}
+
 /* Themed scrollbar for the dark green sidebar — slim, gold-tinted, transparent track */
 .sidebar-scroll {
   scrollbar-width: thin;
@@ -217,3 +344,675 @@ body {
 @media (prefers-reduced-motion: reduce) {
   [class*="animate-[sidebarPeek"] { animation: none !important; }
 }
+
+/* @generated dark-theme:start — scripts/theme-dark.mjs */
+:root {
+    --text-brand-50: var(--color-brand-50);
+    --text-brand-100: var(--color-brand-100);
+    --text-brand-200: var(--color-brand-200);
+    --text-brand-300: var(--color-brand-300);
+    --text-brand-400: var(--color-brand-400);
+    --text-brand-500: var(--color-brand-500);
+    --text-brand-600: var(--color-brand-600);
+    --text-brand-700: var(--color-brand-700);
+    --text-brand-800: var(--color-brand-800);
+    --text-brand-900: var(--color-brand-900);
+    --text-brand-950: var(--color-brand-950);
+    --text-maroon-50: var(--color-maroon-50);
+    --text-maroon-100: var(--color-maroon-100);
+    --text-maroon-200: var(--color-maroon-200);
+    --text-maroon-300: var(--color-maroon-300);
+    --text-maroon-400: var(--color-maroon-400);
+    --text-maroon-500: var(--color-maroon-500);
+    --text-maroon-600: var(--color-maroon-600);
+    --text-maroon-700: var(--color-maroon-700);
+    --text-maroon-800: var(--color-maroon-800);
+    --text-maroon-900: var(--color-maroon-900);
+    --text-maroon-950: var(--color-maroon-950);
+    --text-gold-50: var(--color-gold-50);
+    --text-gold-100: var(--color-gold-100);
+    --text-gold-200: var(--color-gold-200);
+    --text-gold-300: var(--color-gold-300);
+    --text-gold-400: var(--color-gold-400);
+    --text-gold-500: var(--color-gold-500);
+    --text-gold-600: var(--color-gold-600);
+    --text-gold-700: var(--color-gold-700);
+    --text-gold-800: var(--color-gold-800);
+    --text-gold-900: var(--color-gold-900);
+    --text-success-50: var(--color-success-50);
+    --text-success-100: var(--color-success-100);
+    --text-success-200: var(--color-success-200);
+    --text-success-300: var(--color-success-300);
+    --text-success-400: var(--color-success-400);
+    --text-success-500: var(--color-success-500);
+    --text-success-600: var(--color-success-600);
+    --text-success-700: var(--color-success-700);
+    --text-success-800: var(--color-success-800);
+    --text-success-900: var(--color-success-900);
+    --text-warning-50: var(--color-warning-50);
+    --text-warning-100: var(--color-warning-100);
+    --text-warning-200: var(--color-warning-200);
+    --text-warning-300: var(--color-warning-300);
+    --text-warning-400: var(--color-warning-400);
+    --text-warning-500: var(--color-warning-500);
+    --text-warning-600: var(--color-warning-600);
+    --text-warning-700: var(--color-warning-700);
+    --text-warning-800: var(--color-warning-800);
+    --text-warning-900: var(--color-warning-900);
+    --text-danger-50: var(--color-danger-50);
+    --text-danger-100: var(--color-danger-100);
+    --text-danger-200: var(--color-danger-200);
+    --text-danger-300: var(--color-danger-300);
+    --text-danger-400: var(--color-danger-400);
+    --text-danger-500: var(--color-danger-500);
+    --text-danger-600: var(--color-danger-600);
+    --text-danger-700: var(--color-danger-700);
+    --text-danger-800: var(--color-danger-800);
+    --text-danger-900: var(--color-danger-900);
+    --text-info-50: var(--color-info-50);
+    --text-info-100: var(--color-info-100);
+    --text-info-200: var(--color-info-200);
+    --text-info-300: var(--color-info-300);
+    --text-info-400: var(--color-info-400);
+    --text-info-500: var(--color-info-500);
+    --text-info-600: var(--color-info-600);
+    --text-info-700: var(--color-info-700);
+    --text-info-800: var(--color-info-800);
+    --text-info-900: var(--color-info-900);
+    --text-violet-50: var(--color-violet-50);
+    --text-violet-100: var(--color-violet-100);
+    --text-violet-200: var(--color-violet-200);
+    --text-violet-300: var(--color-violet-300);
+    --text-violet-400: var(--color-violet-400);
+    --text-violet-500: var(--color-violet-500);
+    --text-violet-600: var(--color-violet-600);
+    --text-violet-700: var(--color-violet-700);
+    --text-violet-800: var(--color-violet-800);
+    --text-violet-900: var(--color-violet-900);
+    --text-accent: var(--color-accent);
+    --text-accent-hover: var(--color-accent-hover);
+    --text-accent-strong: var(--color-accent-strong);
+    --text-accent-deep: var(--color-accent-deep);
+    --text-accent-bright: var(--color-accent-bright);
+    --text-red-strong: var(--color-red-strong);
+    --text-red-accent: var(--color-red-accent);
+    --text-gold-accent: var(--color-gold-accent);
+    --text-ink-25: var(--color-ink-25);
+    --text-ink-50: var(--color-ink-50);
+    --text-ink-100: var(--color-ink-100);
+    --text-ink-200: var(--color-ink-200);
+    --text-ink-300: var(--color-ink-300);
+    --text-ink-350: var(--color-ink-350);
+    --text-ink-400: var(--color-ink-400);
+    --text-ink-500: var(--color-ink-500);
+    --text-ink-600: var(--color-ink-600);
+    --text-ink-700: var(--color-ink-700);
+    --text-ink-800: var(--color-ink-800);
+    --text-ink-900: var(--color-ink-900);
+    --text-ink-950: var(--color-ink-950);
+    --text-surface: var(--color-surface);
+    --text-surface-2: var(--color-surface-2);
+    --text-surface-3: var(--color-surface-3);
+    --text-canvas: var(--color-canvas);
+    --text-cream: var(--color-cream);
+    --text-accent-soft: var(--color-accent-soft);
+    --text-accent-tint: var(--color-accent-tint);
+    --text-accent-muted: var(--color-accent-muted);
+}
+@media screen {
+  :root[data-theme=dark] {
+    --color-ink-25: #0C140F;
+    --color-ink-50: #121C16;
+    --color-ink-100: #1F2C24;
+    --color-ink-200: #2B3A31;
+    --color-ink-300: #3B4C41;
+    --color-ink-350: #5A695F;
+    --color-ink-400: #7E8C83;
+    --color-ink-500: #9DA9A1;
+    --color-ink-600: #B7C1BA;
+    --color-ink-700: #CED6D0;
+    --color-ink-800: #DEE4DF;
+    --color-ink-900: #E9EEEA;
+    --color-ink-950: #F2F5F2;
+    --color-surface: #17211B;
+    --color-surface-2: #1C2821;
+    --color-surface-3: #233129;
+    --color-canvas: #0F1712;
+    --color-accent: #1F8A63;
+    --color-accent-hover: #2BAE7E;
+    --color-accent-strong: #48B488;
+    --color-accent-deep: #1F6B4B;
+    --color-accent-bright: #34B486;
+    --color-accent-muted: #3A5247;
+    --color-red-accent: #E0544B;
+    --color-red-strong: #EF8A82;
+    --color-accent-soft: #1A3E2F;
+    --color-accent-tint: #193126;
+    --color-brand-50: #1A2C21;
+    --color-brand-100: #1B3325;
+    --color-brand-200: #1D3C2A;
+    --color-brand-600: #347E52;
+    --color-brand-700: #368155;
+    --color-brand-800: #327B50;
+    --color-brand-900: #2A7148;
+    --color-brand-950: #1F5B3A;
+    --color-maroon-50: #2B201B;
+    --color-maroon-100: #361F1C;
+    --color-maroon-200: #471F1C;
+    --color-maroon-600: #AB2A2B;
+    --color-maroon-700: #AD2F2E;
+    --color-maroon-800: #A92728;
+    --color-maroon-900: #A31A1E;
+    --color-maroon-950: #8E1B1E;
+    --color-gold-50: #292D1A;
+    --color-gold-100: #343319;
+    --color-gold-200: #443D18;
+    --color-gold-600: #B7911A;
+    --color-gold-700: #C09A1C;
+    --color-gold-800: #B18B18;
+    --color-gold-900: #9A7412;
+    --color-success-50: #182E25;
+    --color-success-100: #19362B;
+    --color-success-200: #1A4233;
+    --color-success-600: #268C6C;
+    --color-success-700: #278F6F;
+    --color-success-800: #24896A;
+    --color-success-900: #1F8163;
+    --color-warning-50: #322D18;
+    --color-warning-100: #423416;
+    --color-warning-200: #593E14;
+    --color-warning-600: #E78B09;
+    --color-warning-700: #EB9009;
+    --color-warning-800: #E48708;
+    --color-warning-900: #D97706;
+    --color-danger-50: #32231C;
+    --color-danger-100: #42241C;
+    --color-danger-200: #59251D;
+    --color-danger-600: #DE3B2E;
+    --color-danger-700: #DF3F32;
+    --color-danger-800: #DD382B;
+    --color-danger-900: #D92D20;
+    --color-info-50: #1C2C2F;
+    --color-info-100: #1F333A;
+    --color-info-200: #233D4B;
+    --color-info-600: #437AB0;
+    --color-info-700: #457CB2;
+    --color-info-800: #4178AE;
+    --color-info-900: #3B72A8;
+    --color-violet-50: #23272D;
+    --color-violet-100: #292B37;
+    --color-violet-200: #343046;
+    --color-violet-600: #785BA7;
+    --color-violet-700: #7B5FAA;
+    --color-violet-800: #7558A4;
+    --color-violet-900: #6B4E9A;
+    --hero-gradient: radial-gradient(110% 150% at 100% 0%, rgba(221,187,56,.16), transparent 45%),
+      radial-gradient(90% 120% at 0% 100%, rgba(47,165,124,.18), transparent 55%),
+      linear-gradient(120deg, #0A3A26 0%, #062A1B 55%, #051F14 100%);
+    --hero-gradient-plain: linear-gradient(120deg, #0A3A26, #062A1B);
+    --shadow-color: 0, 0, 0;
+    --ambient-lift: rgba(255,255,255,0);
+    --splash-veil: rgba(15,23,18,.86);
+    --text-brand-50: var(--color-brand-50);
+    --text-brand-100: var(--color-brand-100);
+    --text-brand-200: var(--color-brand-200);
+    --text-brand-300: var(--color-brand-300);
+    --text-brand-400: var(--color-brand-400);
+    --text-brand-500: #9FC0A8;
+    --text-brand-600: #9FC0A8;
+    --text-brand-700: #C9DCCD;
+    --text-brand-800: #C9DCCD;
+    --text-brand-900: #E3EEE5;
+    --text-brand-950: #E3EEE5;
+    --text-maroon-50: var(--color-maroon-50);
+    --text-maroon-100: var(--color-maroon-100);
+    --text-maroon-200: var(--color-maroon-200);
+    --text-maroon-300: var(--color-maroon-300);
+    --text-maroon-400: var(--color-maroon-400);
+    --text-maroon-500: #E3B7B2;
+    --text-maroon-600: #E3B7B2;
+    --text-maroon-700: #E9C3C1;
+    --text-maroon-800: #E9C3C1;
+    --text-maroon-900: #F6E3E2;
+    --text-maroon-950: #F6E3E2;
+    --text-gold-50: var(--color-gold-50);
+    --text-gold-100: var(--color-gold-100);
+    --text-gold-200: var(--color-gold-200);
+    --text-gold-300: var(--color-gold-300);
+    --text-gold-400: var(--color-gold-400);
+    --text-gold-500: #F4D76E;
+    --text-gold-600: #F4D76E;
+    --text-gold-700: #F4D76E;
+    --text-gold-800: #F4D76E;
+    --text-gold-900: #F4D76E;
+    --text-success-50: var(--color-success-50);
+    --text-success-100: var(--color-success-100);
+    --text-success-200: var(--color-success-200);
+    --text-success-300: var(--color-success-300);
+    --text-success-400: var(--color-success-400);
+    --text-success-500: #82CBB0;
+    --text-success-600: #82CBB0;
+    --text-success-700: #B4E1CF;
+    --text-success-800: #B4E1CF;
+    --text-success-900: #DCF1E8;
+    --text-warning-50: var(--color-warning-50);
+    --text-warning-100: var(--color-warning-100);
+    --text-warning-200: var(--color-warning-200);
+    --text-warning-300: var(--color-warning-300);
+    --text-warning-400: var(--color-warning-400);
+    --text-warning-500: #FCD34D;
+    --text-warning-600: #FCD34D;
+    --text-warning-700: #FDE68A;
+    --text-warning-800: #FDE68A;
+    --text-warning-900: #FEF3C7;
+    --text-danger-50: var(--color-danger-50);
+    --text-danger-100: var(--color-danger-100);
+    --text-danger-200: var(--color-danger-200);
+    --text-danger-300: var(--color-danger-300);
+    --text-danger-400: var(--color-danger-400);
+    --text-danger-500: #F6A098;
+    --text-danger-600: #F6A098;
+    --text-danger-700: #FBCBC6;
+    --text-danger-800: #FBCBC6;
+    --text-danger-900: #FDE8E6;
+    --text-info-50: var(--color-info-50);
+    --text-info-100: var(--color-info-100);
+    --text-info-200: var(--color-info-200);
+    --text-info-300: var(--color-info-300);
+    --text-info-400: var(--color-info-400);
+    --text-info-500: #9BBCDC;
+    --text-info-600: #9BBCDC;
+    --text-info-700: #C7D9EC;
+    --text-info-800: #C7D9EC;
+    --text-info-900: #E6EEF6;
+    --text-violet-50: var(--color-violet-50);
+    --text-violet-100: var(--color-violet-100);
+    --text-violet-200: var(--color-violet-200);
+    --text-violet-300: var(--color-violet-300);
+    --text-violet-400: var(--color-violet-400);
+    --text-violet-500: #C4B3DF;
+    --text-violet-600: #C4B3DF;
+    --text-violet-700: #E0D5EF;
+    --text-violet-800: #E0D5EF;
+    --text-violet-900: #EFE9F7;
+    --text-accent: #5CCB9E;
+    --text-accent-hover: #7AD6B0;
+    --text-accent-strong: #8FDCBB;
+    --text-accent-deep: #8FDCBB;
+    --text-accent-bright: #7AD6B0;
+    --text-red-strong: #F19A92;
+    --text-red-accent: #F08077;
+    --text-gold-accent: #E6C649;
+    --text-ink-25: var(--color-ink-25);
+    --text-ink-50: var(--color-ink-50);
+    --text-ink-100: var(--color-ink-100);
+    --text-ink-200: var(--color-ink-200);
+    --text-ink-300: var(--color-ink-300);
+    --text-ink-350: var(--color-ink-350);
+    --text-ink-400: var(--color-ink-400);
+    --text-ink-500: var(--color-ink-500);
+    --text-ink-600: var(--color-ink-600);
+    --text-ink-700: var(--color-ink-700);
+    --text-ink-800: var(--color-ink-800);
+    --text-ink-900: var(--color-ink-900);
+    --text-ink-950: var(--color-ink-950);
+    --text-surface: var(--color-surface);
+    --text-surface-2: var(--color-surface-2);
+    --text-surface-3: var(--color-surface-3);
+    --text-canvas: var(--color-canvas);
+    --text-cream: var(--color-cream);
+    --text-accent-soft: var(--color-accent-soft);
+    --text-accent-tint: var(--color-accent-tint);
+    --text-accent-muted: var(--color-accent-muted);
+    color-scheme: dark;
+  }
+
+  /* Printouts and signature/QR backings keep the light palette inside a dark page. */
+  [data-theme=light] {
+    --color-ink-25: #FAF8EC;
+    --color-ink-50: #F7F6EE;
+    --color-ink-100: #ECEFE2;
+    --color-ink-200: #DCE0CF;
+    --color-ink-300: #CAD2BC;
+    --color-ink-350: #ADB5A8;
+    --color-ink-400: #8C968F;
+    --color-ink-500: #6F7B74;
+    --color-ink-600: #56625A;
+    --color-ink-700: #34433A;
+    --color-ink-800: #25332A;
+    --color-ink-900: #1A2A20;
+    --color-ink-950: #13241A;
+    --color-surface: #FFFFFF;
+    --color-surface-2: #F6F7F3;
+    --color-surface-3: #EEF1EC;
+    --color-canvas: #F7F6EE;
+    --color-accent: #17815F;
+    --color-accent-hover: #0F6A4D;
+    --color-accent-strong: #0B5234;
+    --color-accent-deep: #063D27;
+    --color-accent-bright: #2FA57C;
+    --color-accent-muted: #B9CFC3;
+    --color-red-accent: #C8322B;
+    --color-red-strong: #A3201F;
+    --color-accent-soft: #DFF0E7;
+    --color-accent-tint: #F1F7F3;
+    --color-brand-50: #F1F6F1;
+    --color-brand-100: #E3EEE5;
+    --color-brand-200: #C9DCCD;
+    --color-brand-600: #2A7148;
+    --color-brand-700: #1F5B3A;
+    --color-brand-800: #16452B;
+    --color-brand-900: #10331F;
+    --color-brand-950: #0B2716;
+    --color-maroon-50: #FBF1F0;
+    --color-maroon-100: #F6E3E2;
+    --color-maroon-200: #E9C3C1;
+    --color-maroon-600: #A31A1E;
+    --color-maroon-700: #8E1B1E;
+    --color-maroon-800: #7A181C;
+    --color-maroon-900: #5C1215;
+    --color-maroon-950: #3A0B0D;
+    --color-gold-50: #FDF8E4;
+    --color-gold-100: #FBF1C9;
+    --color-gold-200: #F7E39A;
+    --color-gold-600: #9A7412;
+    --color-gold-700: #7A5C0C;
+    --color-gold-800: #5C450A;
+    --color-gold-900: #3E2F07;
+    --color-success-50: #EFF8F4;
+    --color-success-100: #DCF1E8;
+    --color-success-200: #B4E1CF;
+    --color-success-600: #1F8163;
+    --color-success-700: #196B53;
+    --color-success-800: #145643;
+    --color-success-900: #0F4133;
+    --color-warning-50: #FFFBEB;
+    --color-warning-100: #FEF3C7;
+    --color-warning-200: #FDE68A;
+    --color-warning-600: #D97706;
+    --color-warning-700: #B45309;
+    --color-warning-800: #92400E;
+    --color-warning-900: #78350F;
+    --color-danger-50: #FEF3F2;
+    --color-danger-100: #FDE8E6;
+    --color-danger-200: #FBCBC6;
+    --color-danger-600: #D92D20;
+    --color-danger-700: #B42318;
+    --color-danger-800: #912018;
+    --color-danger-900: #7A1A14;
+    --color-info-50: #F3F7FB;
+    --color-info-100: #E6EEF6;
+    --color-info-200: #C7D9EC;
+    --color-info-600: #3B72A8;
+    --color-info-700: #2F5D8A;
+    --color-info-800: #234A70;
+    --color-info-900: #1A3855;
+    --color-violet-50: #F6F2FB;
+    --color-violet-100: #EFE9F7;
+    --color-violet-200: #E0D5EF;
+    --color-violet-600: #6B4E9A;
+    --color-violet-700: #5A3E86;
+    --color-violet-800: #48316C;
+    --color-violet-900: #36244F;
+    --hero-gradient-plain: linear-gradient(120deg, #0B5234, #063D27);
+    color-scheme: light;
+    color: var(--color-ink-900);
+    --text-brand-50: var(--color-brand-50);
+    --text-brand-100: var(--color-brand-100);
+    --text-brand-200: var(--color-brand-200);
+    --text-brand-300: var(--color-brand-300);
+    --text-brand-400: var(--color-brand-400);
+    --text-brand-500: var(--color-brand-500);
+    --text-brand-600: var(--color-brand-600);
+    --text-brand-700: var(--color-brand-700);
+    --text-brand-800: var(--color-brand-800);
+    --text-brand-900: var(--color-brand-900);
+    --text-brand-950: var(--color-brand-950);
+    --text-maroon-50: var(--color-maroon-50);
+    --text-maroon-100: var(--color-maroon-100);
+    --text-maroon-200: var(--color-maroon-200);
+    --text-maroon-300: var(--color-maroon-300);
+    --text-maroon-400: var(--color-maroon-400);
+    --text-maroon-500: var(--color-maroon-500);
+    --text-maroon-600: var(--color-maroon-600);
+    --text-maroon-700: var(--color-maroon-700);
+    --text-maroon-800: var(--color-maroon-800);
+    --text-maroon-900: var(--color-maroon-900);
+    --text-maroon-950: var(--color-maroon-950);
+    --text-gold-50: var(--color-gold-50);
+    --text-gold-100: var(--color-gold-100);
+    --text-gold-200: var(--color-gold-200);
+    --text-gold-300: var(--color-gold-300);
+    --text-gold-400: var(--color-gold-400);
+    --text-gold-500: var(--color-gold-500);
+    --text-gold-600: var(--color-gold-600);
+    --text-gold-700: var(--color-gold-700);
+    --text-gold-800: var(--color-gold-800);
+    --text-gold-900: var(--color-gold-900);
+    --text-success-50: var(--color-success-50);
+    --text-success-100: var(--color-success-100);
+    --text-success-200: var(--color-success-200);
+    --text-success-300: var(--color-success-300);
+    --text-success-400: var(--color-success-400);
+    --text-success-500: var(--color-success-500);
+    --text-success-600: var(--color-success-600);
+    --text-success-700: var(--color-success-700);
+    --text-success-800: var(--color-success-800);
+    --text-success-900: var(--color-success-900);
+    --text-warning-50: var(--color-warning-50);
+    --text-warning-100: var(--color-warning-100);
+    --text-warning-200: var(--color-warning-200);
+    --text-warning-300: var(--color-warning-300);
+    --text-warning-400: var(--color-warning-400);
+    --text-warning-500: var(--color-warning-500);
+    --text-warning-600: var(--color-warning-600);
+    --text-warning-700: var(--color-warning-700);
+    --text-warning-800: var(--color-warning-800);
+    --text-warning-900: var(--color-warning-900);
+    --text-danger-50: var(--color-danger-50);
+    --text-danger-100: var(--color-danger-100);
+    --text-danger-200: var(--color-danger-200);
+    --text-danger-300: var(--color-danger-300);
+    --text-danger-400: var(--color-danger-400);
+    --text-danger-500: var(--color-danger-500);
+    --text-danger-600: var(--color-danger-600);
+    --text-danger-700: var(--color-danger-700);
+    --text-danger-800: var(--color-danger-800);
+    --text-danger-900: var(--color-danger-900);
+    --text-info-50: var(--color-info-50);
+    --text-info-100: var(--color-info-100);
+    --text-info-200: var(--color-info-200);
+    --text-info-300: var(--color-info-300);
+    --text-info-400: var(--color-info-400);
+    --text-info-500: var(--color-info-500);
+    --text-info-600: var(--color-info-600);
+    --text-info-700: var(--color-info-700);
+    --text-info-800: var(--color-info-800);
+    --text-info-900: var(--color-info-900);
+    --text-violet-50: var(--color-violet-50);
+    --text-violet-100: var(--color-violet-100);
+    --text-violet-200: var(--color-violet-200);
+    --text-violet-300: var(--color-violet-300);
+    --text-violet-400: var(--color-violet-400);
+    --text-violet-500: var(--color-violet-500);
+    --text-violet-600: var(--color-violet-600);
+    --text-violet-700: var(--color-violet-700);
+    --text-violet-800: var(--color-violet-800);
+    --text-violet-900: var(--color-violet-900);
+    --text-accent: var(--color-accent);
+    --text-accent-hover: var(--color-accent-hover);
+    --text-accent-strong: var(--color-accent-strong);
+    --text-accent-deep: var(--color-accent-deep);
+    --text-accent-bright: var(--color-accent-bright);
+    --text-red-strong: var(--color-red-strong);
+    --text-red-accent: var(--color-red-accent);
+    --text-gold-accent: var(--color-gold-accent);
+    --text-ink-25: var(--color-ink-25);
+    --text-ink-50: var(--color-ink-50);
+    --text-ink-100: var(--color-ink-100);
+    --text-ink-200: var(--color-ink-200);
+    --text-ink-300: var(--color-ink-300);
+    --text-ink-350: var(--color-ink-350);
+    --text-ink-400: var(--color-ink-400);
+    --text-ink-500: var(--color-ink-500);
+    --text-ink-600: var(--color-ink-600);
+    --text-ink-700: var(--color-ink-700);
+    --text-ink-800: var(--color-ink-800);
+    --text-ink-900: var(--color-ink-900);
+    --text-ink-950: var(--color-ink-950);
+    --text-surface: var(--color-surface);
+    --text-surface-2: var(--color-surface-2);
+    --text-surface-3: var(--color-surface-3);
+    --text-canvas: var(--color-canvas);
+    --text-cream: var(--color-cream);
+    --text-accent-soft: var(--color-accent-soft);
+    --text-accent-tint: var(--color-accent-tint);
+    --text-accent-muted: var(--color-accent-muted);
+  }
+
+  :where([data-theme=dark]) .text-brand-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9FC0A8; }
+  :where([data-theme=dark]) .hover\:text-brand-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9FC0A8; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-brand-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9FC0A8; }
+  :where([data-theme=dark]) .text-brand-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9FC0A8; }
+  :where([data-theme=dark]) .hover\:text-brand-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9FC0A8; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-brand-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9FC0A8; }
+  :where([data-theme=dark]) .text-brand-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C9DCCD; }
+  :where([data-theme=dark]) .hover\:text-brand-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C9DCCD; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-brand-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C9DCCD; }
+  :where([data-theme=dark]) .text-brand-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C9DCCD; }
+  :where([data-theme=dark]) .hover\:text-brand-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C9DCCD; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-brand-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C9DCCD; }
+  :where([data-theme=dark]) .text-brand-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3EEE5; }
+  :where([data-theme=dark]) .hover\:text-brand-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3EEE5; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-brand-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3EEE5; }
+  :where([data-theme=dark]) .text-brand-950:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3EEE5; }
+  :where([data-theme=dark]) .hover\:text-brand-950:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3EEE5; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-brand-950:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3EEE5; }
+  :where([data-theme=dark]) .text-maroon-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3B7B2; }
+  :where([data-theme=dark]) .hover\:text-maroon-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3B7B2; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-maroon-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3B7B2; }
+  :where([data-theme=dark]) .text-maroon-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3B7B2; }
+  :where([data-theme=dark]) .hover\:text-maroon-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3B7B2; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-maroon-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E3B7B2; }
+  :where([data-theme=dark]) .text-maroon-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E9C3C1; }
+  :where([data-theme=dark]) .hover\:text-maroon-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E9C3C1; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-maroon-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E9C3C1; }
+  :where([data-theme=dark]) .text-maroon-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E9C3C1; }
+  :where([data-theme=dark]) .hover\:text-maroon-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E9C3C1; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-maroon-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E9C3C1; }
+  :where([data-theme=dark]) .text-maroon-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6E3E2; }
+  :where([data-theme=dark]) .hover\:text-maroon-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6E3E2; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-maroon-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6E3E2; }
+  :where([data-theme=dark]) .text-maroon-950:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6E3E2; }
+  :where([data-theme=dark]) .hover\:text-maroon-950:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6E3E2; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-maroon-950:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6E3E2; }
+  :where([data-theme=dark]) .text-gold-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .hover\:text-gold-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-gold-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .text-gold-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .hover\:text-gold-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-gold-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .text-gold-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .hover\:text-gold-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-gold-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .text-gold-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .hover\:text-gold-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-gold-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .text-gold-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .hover\:text-gold-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-gold-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F4D76E; }
+  :where([data-theme=dark]) .text-success-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #82CBB0; }
+  :where([data-theme=dark]) .hover\:text-success-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #82CBB0; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-success-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #82CBB0; }
+  :where([data-theme=dark]) .text-success-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #82CBB0; }
+  :where([data-theme=dark]) .hover\:text-success-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #82CBB0; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-success-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #82CBB0; }
+  :where([data-theme=dark]) .text-success-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #B4E1CF; }
+  :where([data-theme=dark]) .hover\:text-success-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #B4E1CF; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-success-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #B4E1CF; }
+  :where([data-theme=dark]) .text-success-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #B4E1CF; }
+  :where([data-theme=dark]) .hover\:text-success-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #B4E1CF; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-success-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #B4E1CF; }
+  :where([data-theme=dark]) .text-success-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #DCF1E8; }
+  :where([data-theme=dark]) .hover\:text-success-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #DCF1E8; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-success-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #DCF1E8; }
+  :where([data-theme=dark]) .text-warning-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FCD34D; }
+  :where([data-theme=dark]) .hover\:text-warning-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FCD34D; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-warning-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FCD34D; }
+  :where([data-theme=dark]) .text-warning-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FCD34D; }
+  :where([data-theme=dark]) .hover\:text-warning-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FCD34D; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-warning-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FCD34D; }
+  :where([data-theme=dark]) .text-warning-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE68A; }
+  :where([data-theme=dark]) .hover\:text-warning-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE68A; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-warning-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE68A; }
+  :where([data-theme=dark]) .text-warning-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE68A; }
+  :where([data-theme=dark]) .hover\:text-warning-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE68A; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-warning-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE68A; }
+  :where([data-theme=dark]) .text-warning-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FEF3C7; }
+  :where([data-theme=dark]) .hover\:text-warning-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FEF3C7; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-warning-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FEF3C7; }
+  :where([data-theme=dark]) .text-danger-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6A098; }
+  :where([data-theme=dark]) .hover\:text-danger-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6A098; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-danger-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6A098; }
+  :where([data-theme=dark]) .text-danger-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6A098; }
+  :where([data-theme=dark]) .hover\:text-danger-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6A098; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-danger-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F6A098; }
+  :where([data-theme=dark]) .text-danger-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FBCBC6; }
+  :where([data-theme=dark]) .hover\:text-danger-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FBCBC6; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-danger-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FBCBC6; }
+  :where([data-theme=dark]) .text-danger-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FBCBC6; }
+  :where([data-theme=dark]) .hover\:text-danger-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FBCBC6; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-danger-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FBCBC6; }
+  :where([data-theme=dark]) .text-danger-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE8E6; }
+  :where([data-theme=dark]) .hover\:text-danger-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE8E6; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-danger-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #FDE8E6; }
+  :where([data-theme=dark]) .text-info-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9BBCDC; }
+  :where([data-theme=dark]) .hover\:text-info-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9BBCDC; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-info-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9BBCDC; }
+  :where([data-theme=dark]) .text-info-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9BBCDC; }
+  :where([data-theme=dark]) .hover\:text-info-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9BBCDC; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-info-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #9BBCDC; }
+  :where([data-theme=dark]) .text-info-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C7D9EC; }
+  :where([data-theme=dark]) .hover\:text-info-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C7D9EC; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-info-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C7D9EC; }
+  :where([data-theme=dark]) .text-info-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C7D9EC; }
+  :where([data-theme=dark]) .hover\:text-info-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C7D9EC; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-info-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C7D9EC; }
+  :where([data-theme=dark]) .text-info-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E6EEF6; }
+  :where([data-theme=dark]) .hover\:text-info-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E6EEF6; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-info-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E6EEF6; }
+  :where([data-theme=dark]) .text-violet-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C4B3DF; }
+  :where([data-theme=dark]) .hover\:text-violet-500:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C4B3DF; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-violet-500:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C4B3DF; }
+  :where([data-theme=dark]) .text-violet-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C4B3DF; }
+  :where([data-theme=dark]) .hover\:text-violet-600:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C4B3DF; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-violet-600:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #C4B3DF; }
+  :where([data-theme=dark]) .text-violet-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E0D5EF; }
+  :where([data-theme=dark]) .hover\:text-violet-700:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E0D5EF; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-violet-700:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E0D5EF; }
+  :where([data-theme=dark]) .text-violet-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E0D5EF; }
+  :where([data-theme=dark]) .hover\:text-violet-800:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E0D5EF; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-violet-800:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #E0D5EF; }
+  :where([data-theme=dark]) .text-violet-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #EFE9F7; }
+  :where([data-theme=dark]) .hover\:text-violet-900:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #EFE9F7; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-violet-900:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #EFE9F7; }
+  :where([data-theme=dark]) .text-accent:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #5CCB9E; }
+  :where([data-theme=dark]) .hover\:text-accent:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #5CCB9E; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-accent:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #5CCB9E; }
+  :where([data-theme=dark]) .text-accent-hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #7AD6B0; }
+  :where([data-theme=dark]) .hover\:text-accent-hover:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #7AD6B0; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-accent-hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #7AD6B0; }
+  :where([data-theme=dark]) .text-accent-strong:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #8FDCBB; }
+  :where([data-theme=dark]) .hover\:text-accent-strong:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #8FDCBB; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-accent-strong:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #8FDCBB; }
+  :where([data-theme=dark]) .text-accent-deep:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #8FDCBB; }
+  :where([data-theme=dark]) .hover\:text-accent-deep:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #8FDCBB; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-accent-deep:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #8FDCBB; }
+  :where([data-theme=dark]) .text-red-strong:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F19A92; }
+  :where([data-theme=dark]) .hover\:text-red-strong:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F19A92; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-red-strong:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F19A92; }
+  :where([data-theme=dark]) .text-red-accent:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F08077; }
+  :where([data-theme=dark]) .hover\:text-red-accent:hover:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F08077; }
+  :where([data-theme=dark]) .group:hover .group-hover\:text-red-accent:not(:where([data-theme=light], [data-theme=light] *)):not([class*="bg-gold-3"], [class*="bg-gold-4"], [class*="bg-gold-5"], [class*="bg-gold-accent"], [class*="from-gold-"], [class*="btn-gold"], [class*="pill-gold"]) { color: #F08077; }
+}
+/* @generated dark-theme:end */

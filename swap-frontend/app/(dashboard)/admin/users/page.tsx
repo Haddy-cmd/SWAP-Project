@@ -14,23 +14,23 @@ import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
 
 // Soft avatar palettes (bg / fg), mirrored from the mockup.
 const AV: [string, string][] = [
-  ['#E3EEE5', '#1F5B3A'],
-  ['#F3F7FB', '#4A82B8'],
-  ['#EFF8F4', '#1F8163'],
-  ['#FDF8E4', '#9A7412'],
-  ['#EFE9F7', '#6B4E9A'],
-  ['#FEF3F2', '#E2483B'],
-  ['#F3F7FB', '#234A70'],
+  ['var(--color-brand-100)', 'var(--color-brand-700)'],
+  ['var(--color-info-50)', 'var(--color-info-500)'],
+  ['var(--color-success-50)', 'var(--color-success-600)'],
+  ['var(--color-gold-50)', 'var(--color-gold-600)'],
+  ['var(--color-violet-100)', 'var(--color-violet-600)'],
+  ['var(--color-danger-50)', 'var(--color-danger-500)'],
+  ['var(--color-info-50)', 'var(--color-info-800)'],
 ]
 const av = (i: number) => AV[((i % AV.length) + AV.length) % AV.length]
 
 // Role chip colors: [text, background]
 function roleStyle(role: string): [string, string] {
   switch (role) {
-    case 'supervisor': return ['#6B4E9A', '#EFE9F7']
-    case 'admin': return ['#B45309', '#FDF8E4']
-    case 'applicant': return ['#234A70', '#F3F7FB']
-    default: return ['#1F5B3A', '#E3EEE5'] // recipient
+    case 'supervisor': return ['var(--color-violet-600)', 'var(--color-violet-100)']
+    case 'admin': return ['var(--color-warning-700)', 'var(--color-gold-50)']
+    case 'applicant': return ['var(--color-info-800)', 'var(--color-info-50)']
+    default: return ['var(--color-brand-700)', 'var(--color-brand-100)'] // recipient
   }
 }
 
@@ -80,8 +80,8 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
   const canSave = form.email.trim().length > 3
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-brand-950/45 p-4" onClick={onClose}>
-      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-[20px] bg-white shadow-[0_30px_70px_rgba(11,39,22,.4)]" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-overlay fixed inset-0 z-[60] flex items-center justify-center bg-brand-950/45 p-4" onClick={onClose}>
+      <div className="flex max-h-[92vh] w-full max-w-md flex-col overflow-hidden rounded-[20px] bg-surface shadow-[0_30px_70px_rgba(11,39,22,.4)]" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-ink-200 px-6 py-5">
           <div className="flex items-center gap-3">
@@ -151,18 +151,18 @@ function AddUserModal({ onClose }: { onClose: () => void }) {
         <div className="flex justify-end gap-3 border-t border-ink-200 bg-ink-50 px-6 py-4">
           {sent ? (
             <button onClick={onClose}
-              className="h-11 rounded-xl px-6 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)]"
+              className="h-11 rounded-xl px-6 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,.26)]"
               style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
               Done
             </button>
           ) : (
             <>
               <button onClick={onClose}
-                className="h-11 rounded-xl border border-ink-200 bg-white px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
+                className="h-11 rounded-xl border border-ink-200 bg-surface px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
                 Cancel
               </button>
               <button onClick={() => { setError(''); invite.mutate() }} disabled={!canSave || invite.isPending}
-                className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity disabled:opacity-50"
+                className="flex h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity disabled:opacity-50"
                 style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
                 <Send className="h-[17px] w-[17px]" />
                 {invite.isPending ? 'Sending…' : 'Send Invitation'}
@@ -255,7 +255,7 @@ export default function AdminUsersPage() {
           <h1 className="font-serif text-3xl font-medium text-ink-950">Users</h1>
         </div>
         <button onClick={() => setShowAdd(true)}
-          className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity hover:opacity-95 sm:self-auto"
+          className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity hover:opacity-95 sm:self-auto"
           style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
           <UserPlus className="h-[19px] w-[19px]" />
           Invite User
@@ -263,7 +263,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Role tabs */}
-      <div className="flex items-center gap-5 overflow-x-auto border-b border-ink-200">
+      <div className="no-scrollbar flex items-center gap-5 overflow-x-auto border-b border-ink-200">
         {ROLE_TABS.map((t) => {
           const on = role === t.key
           return (
@@ -271,12 +271,12 @@ export default function AdminUsersPage() {
               key={t.key || 'all'}
               onClick={() => { setRole(t.key); setPage(1) }}
               className="-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-0.5 pb-3 text-sm transition-colors"
-              style={{ borderColor: on ? '#1F5B3A' : 'transparent', color: on ? '#1F5B3A' : '#6F7B74', fontWeight: on ? 600 : 500 }}
+              style={{ borderColor: on ? 'var(--color-brand-700)' : 'transparent', color: on ? 'var(--text-brand-700)' : 'var(--text-ink-500)', fontWeight: on ? 600 : 500 }}
             >
               {t.label}
               <span
                 className="rounded-full px-2 py-px text-[11.5px] font-bold"
-                style={on ? { background: '#E3EEE5', color: '#1F5B3A' } : { background: '#ECEFE2', color: '#6F7B74' }}
+                style={on ? { background: 'var(--color-brand-100)', color: 'var(--text-brand-700)' } : { background: 'var(--color-ink-100)', color: 'var(--text-ink-500)' }}
               >
                 {tabCount(t.key)}
               </span>
@@ -293,13 +293,13 @@ export default function AdminUsersPage() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1) }}
             placeholder="Search name, email, student or employee ID…"
-            className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-11 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10"
+            className="h-11 w-full rounded-xl border border-ink-200 bg-surface pl-11 pr-4 text-sm text-ink-900 placeholder:text-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/10"
           />
         </div>
         <div className="relative">
           <button
             onClick={() => setStatusOpen((s) => !s)}
-            className="flex h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-[13px] font-semibold text-ink-900"
+            className="flex h-11 items-center gap-2 rounded-xl border border-ink-200 bg-surface px-4 text-[13px] font-semibold text-ink-900"
           >
             <Filter className="h-[18px] w-[18px] text-gold-600" />
             Status: {status}
@@ -308,7 +308,7 @@ export default function AdminUsersPage() {
           {statusOpen && (
             <>
               <div className="fixed inset-0 z-20" onClick={() => setStatusOpen(false)} />
-              <div className="absolute right-0 top-[52px] z-30 w-44 rounded-xl border border-ink-200 bg-white p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
+              <div className="absolute right-0 top-[52px] z-30 w-44 rounded-xl border border-ink-200 bg-surface p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
                 {STATUS_OPTIONS.map((s) => {
                   const on = status === s
                   return (
@@ -316,7 +316,7 @@ export default function AdminUsersPage() {
                       key={s}
                       onClick={() => { setStatus(s); setStatusOpen(false); setPage(1) }}
                       className="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-[13px] text-ink-900"
-                      style={{ background: on ? '#FDF8E4' : 'transparent', fontWeight: on ? 700 : 500 }}
+                      style={{ background: on ? 'var(--color-gold-50)' : 'transparent', fontWeight: on ? 700 : 500 }}
                     >
                       {s}
                       {on && <Check className="h-[17px] w-[17px] text-brand-700" />}
@@ -330,11 +330,11 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-[15px] border border-ink-200 bg-white">
+      <div className="overflow-hidden rounded-[15px] border border-ink-200 bg-surface">
         <div className="overflow-x-auto">
-          <div className="min-w-[760px]">
+          <div className="sm:min-w-[760px]">
             {/* Head */}
-            <div className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_180px] gap-4 border-b border-ink-200 bg-ink-50 px-5 py-3 text-[11px] font-bold uppercase tracking-[0.1em] text-ink-400">
+            <div className="hidden grid-cols-[2fr_1fr_1.1fr_0.9fr_180px] gap-4 border-b border-ink-200 bg-ink-50 px-5 py-3 sm:grid text-[11px] font-bold uppercase tracking-[0.1em] text-ink-400">
               <span>User</span>
               <span>Role</span>
               <span>Joined</span>
@@ -357,8 +357,8 @@ export default function AdminUsersPage() {
                 // shown distinctly from an admin-deactivated (Inactive) account.
                 const pending = !user.email_verified_at
                 return (
-                  <div key={user.id} className="grid grid-cols-[2fr_1fr_1.1fr_0.9fr_180px] items-center gap-4 border-b border-ink-100 px-5 py-3 last:border-0 hover:bg-ink-50/60">
-                    <div className="flex min-w-0 items-center gap-3">
+                  <div key={user.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink-100 px-4 py-3 last:border-0 hover:bg-ink-50/60 sm:grid sm:grid-cols-[2fr_1fr_1.1fr_0.9fr_180px] sm:gap-4 sm:px-5">
+                    <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto">
                       <UserAvatar name={user.name} avatarUrl={user.avatar_url}
                         className="h-[38px] w-[38px] rounded-full text-[13px] font-bold"
                         style={{ background: avBg, color: avFg }} />
@@ -383,15 +383,15 @@ export default function AdminUsersPage() {
 
                     <span className="inline-flex items-center gap-1.5 justify-self-start rounded-full px-2.5 py-1 text-xs font-bold"
                       style={pending
-                        ? { color: '#B45309', background: '#FDF8E4' }
-                        : active ? { color: '#145643', background: '#EFF8F4' } : { color: '#6F7B74', background: '#ECEFE2' }}>
-                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: pending ? '#F59E0B' : active ? '#1F8163' : '#ADB5A8' }} />
+                        ? { color: 'var(--text-warning-700)', background: 'var(--color-gold-50)' }
+                        : active ? { color: 'var(--text-success-800)', background: 'var(--color-success-50)' } : { color: 'var(--text-ink-500)', background: 'var(--color-ink-100)' }}>
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ background: pending ? 'var(--color-warning-500)' : active ? 'var(--color-success-600)' : 'var(--color-ink-350)' }} />
                       {pending ? 'Unverified' : active ? 'Active' : 'Inactive'}
                     </span>
 
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="ml-auto flex items-center justify-end gap-2">
                       <button onClick={() => setHistory({ id: user.id, name: user.name })} title="History" aria-label={`History of ${user.name}`}
-                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-ink-200 bg-white text-ink-500 transition-colors hover:bg-ink-50 hover:text-brand-700">
+                        className="flex h-[34px] w-[34px] items-center justify-center rounded-[9px] border border-ink-200 bg-surface text-ink-500 transition-colors hover:bg-ink-50 hover:text-brand-700">
                         <History className="h-4 w-4" />
                       </button>
                       {/* Admins can't be deactivated (protected), but an inactive
@@ -402,8 +402,8 @@ export default function AdminUsersPage() {
                         <button
                           onClick={() => toggleActive(user.id, user.name, active)}
                           disabled={toggle.isPending}
-                          className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-ink-200 bg-white px-3 text-xs font-semibold transition-colors hover:bg-ink-50 disabled:opacity-50"
-                          style={{ color: active ? '#B45309' : '#145643' }}
+                          className="flex h-[34px] items-center gap-1.5 rounded-[9px] border border-ink-200 bg-surface px-3 text-xs font-semibold transition-colors hover:bg-ink-50 disabled:opacity-50"
+                          style={{ color: active ? 'var(--text-warning-700)' : 'var(--text-success-800)' }}
                         >
                           {active ? <UserX className="h-[15px] w-[15px]" /> : <UserCheck className="h-[15px] w-[15px]" />}
                           {active ? 'Deactivate' : 'Activate'}
@@ -433,11 +433,11 @@ export default function AdminUsersPage() {
               </span>
               <div className="flex gap-2">
                 <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={!meta || page <= 1}
-                  className="h-9 rounded-[9px] border border-ink-200 bg-white px-4 text-[13px] font-semibold text-brand-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:text-ink-350 transition-colors">
+                  className="h-9 rounded-[9px] border border-ink-200 bg-surface px-4 text-[13px] font-semibold text-brand-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:text-ink-350 transition-colors">
                   Prev
                 </button>
                 <button onClick={() => setPage((p) => p + 1)} disabled={!meta || page >= meta.last_page}
-                  className="h-9 rounded-[9px] border border-ink-200 bg-white px-4 text-[13px] font-semibold text-brand-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:text-ink-350 transition-colors">
+                  className="h-9 rounded-[9px] border border-ink-200 bg-surface px-4 text-[13px] font-semibold text-brand-700 hover:bg-ink-50 disabled:cursor-not-allowed disabled:text-ink-350 transition-colors">
                   Next
                 </button>
               </div>

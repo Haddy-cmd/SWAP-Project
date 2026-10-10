@@ -23,8 +23,11 @@ export interface Concern {
   created_at: string | null
   /** The whole conversation, oldest first (opener + every reply). */
   messages?: ConcernMessage[]
+  /** Admin inbox: the sender wrote last and the DSA hasn't answered yet (not resolved). */
+  waiting_on_staff?: boolean
+  last_message_at?: string | null
   // Admin inbox only.
-  user?: { id: number; name: string; email: string; role: string; student_id_number?: string | null } | null
+  user?: { id: number; name: string; email: string; role: string; student_id_number?: string | null; employee_id?: string | null } | null
 }
 
 export const CONCERN_STATUS_META: Record<ConcernStatus, { label: string; cls: string }> = {

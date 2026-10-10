@@ -129,10 +129,10 @@ class RecipientProgressService
 
         $report = $a->termReport;
         $reportItem = match (true) {
-            !$report?->submitted_at => $item('report', 'todo', 'Submit your end-of-term narrative report', '/recipient/hours'),
-            !$report->reviewed_at => $item('report', 'waiting', 'End-of-term report submitted — waiting for your supervisor to accept it', '/recipient/hours'),
-            (bool) $report->renewal_eligible => $item('report', 'done', 'End-of-term report accepted — eligible for renewal', '/recipient/hours'),
-            default => $item('report', 'blocked', 'End-of-term report accepted — marked not eligible for renewal', '/recipient/hours'),
+            !$report?->submitted_at => $item('report', 'todo', 'Submit your end-of-term narrative report', '/recipient/attendance#report'),
+            !$report->reviewed_at => $item('report', 'waiting', 'End-of-term report submitted — waiting for your supervisor to accept it', '/recipient/attendance#report'),
+            (bool) $report->renewal_eligible => $item('report', 'done', 'End-of-term report accepted — eligible for renewal', '/recipient/attendance#report'),
+            default => $item('report', 'blocked', 'End-of-term report accepted — marked not eligible for renewal', '/recipient/attendance#report'),
         };
 
         // A release is final: any live stub means the stipend was released.

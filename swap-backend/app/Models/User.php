@@ -165,13 +165,16 @@ class User extends Authenticatable implements MustVerifyEmail
     /** Matches the frontend's 7-day `swap_token` cookie; Sanctum's guard enforces expires_at. */
     public const TOKEN_TTL_DAYS = 7;
 
-    public function createToken(string $name): object
+    /** A login token; with the request, it remembers the device (Profile → "Where you're signed in"). */
+    public function createToken(string $name, ?\Illuminate\Http\Request $request = null): object
     {
         $token = bin2hex(random_bytes(32));
         $this->tokens()->create([
             'name' => $name,
             'token' => hash('sha256', $token),
             'expires_at' => now()->addDays(self::TOKEN_TTL_DAYS),
+            'ip_address' => $request?->ip(),
+            'user_agent' => $request ? mb_substr((string) $request->userAgent(), 0, 1000) ?: null : null,
         ]);
         return (object) ['plainTextToken' => $token];
     }

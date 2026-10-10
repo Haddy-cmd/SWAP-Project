@@ -78,7 +78,7 @@ export function ApplicationTimeline({ application }: ApplicationTimelineProps) {
                 ? event.danger
                   ? 'border-danger-600 bg-danger-50 text-danger-600'
                   : 'border-brand-700 bg-brand-50 text-brand-700'
-                : 'border-ink-300 bg-white text-ink-400'
+                : 'border-ink-300 bg-surface text-ink-400'
             }`}
           >
             {event.icon}

@@ -18,15 +18,15 @@ import { TopbarSlot } from '@/components/layout/TopbarSlot'
 const FALLBACK_YEAR = '2024-2025'
 const FALLBACK_SEM = '1st Semester'
 
-const GREEN = '#17815F'
-const GOLD = '#DDBB38'
-const RED = '#C8322B'
+const GREEN = 'var(--color-accent)'
+const GOLD = 'var(--color-gold-accent)'
+const RED = 'var(--color-red-accent)'
 
 const periodKey = (year: string, sem: string) => `${year}__${sem}`
 const shortSem = (sem: string) => sem.replace(' Semester', ' Sem')
 const shortYear = (ay: string) => ay.replace(/^(\d{4})-\d{2}(\d{2})$/, '$1–$2')
 
-const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-white shadow-[0_1px_3px_rgba(20,40,30,.05)]'
+const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 
 /** "Good morning/afternoon/evening" by the Manila clock. */
 function greeting(): string {
@@ -72,10 +72,10 @@ export default function AdminDashboard() {
       {/* The term every number and graph shows: in the top bar, beside the bell. */}
       <TopbarSlot>
         <div className="relative">
-          <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#17815F]" />
+          <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-accent" />
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-500" />
           <select aria-label="Semester" value={selected ?? ''} onChange={(e) => setSelected(e.target.value)} disabled={!periods.length}
-            className="h-[38px] max-w-[150px] cursor-pointer appearance-none truncate rounded-[10px] border border-ink-900/15 bg-white pl-9 pr-8 text-[12.5px] font-semibold text-ink-950 transition-colors hover:bg-ink-50 focus:border-brand-700 focus:outline-none disabled:opacity-50 sm:max-w-none sm:text-[13px]">
+            className="h-[38px] max-w-[150px] cursor-pointer appearance-none truncate rounded-[10px] border border-ink-900/15 bg-surface pl-9 pr-8 text-[12.5px] font-semibold text-ink-950 transition-colors hover:bg-ink-50 focus:border-brand-700 focus:outline-none disabled:opacity-50 sm:max-w-none sm:text-[13px]">
             {periods.length === 0 && <option value="">{shortSem(FALLBACK_SEM)} {shortYear(FALLBACK_YEAR)}</option>}
             {periods.map((p) => (
               <option key={periodKey(p.academic_year, p.semester)} value={periodKey(p.academic_year, p.semester)}>
@@ -88,11 +88,11 @@ export default function AdminDashboard() {
 
       {/* Welcome banner */}
       <section className="relative grid gap-8 overflow-hidden rounded-[20px] px-7 py-7 lg:grid-cols-[1fr_auto] lg:items-center"
-        style={{ background: 'radial-gradient(110% 150% at 100% 0%, rgba(221,187,56,.28), transparent 45%), radial-gradient(90% 120% at 0% 100%, rgba(47,165,124,.30), transparent 55%), linear-gradient(120deg,#0B5234 0%,#063D27 55%,#08301F 100%)' }}>
+        style={{ background: 'var(--hero-gradient)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/dsa-logo.png" alt="" aria-hidden className="pointer-events-none absolute right-[14%] top-1/2 hidden h-[200%] -translate-y-1/2 opacity-[.11] lg:block" style={{ filter: 'grayscale(1) brightness(2.4)' }} />
         <div className="relative">
-          <p className="text-[11.5px] font-extrabold tracking-[0.16em] text-[#DDBB38]">{greeting().toUpperCase()}</p>
+          <p className="text-[11.5px] font-extrabold tracking-[0.16em] text-gold-accent">{greeting().toUpperCase()}</p>
           <p className="mb-1.5 mt-1 text-[28px] font-extrabold text-white">Welcome back, {user?.name ?? 'Admin'}</p>
           <TodayTasks tasks={overview?.tasks} loading={isLoading} />
           <SemesterProgress calendar={calendar} />
@@ -100,7 +100,7 @@ export default function AdminDashboard() {
         <div className="relative grid grid-cols-3 gap-2.5 sm:w-[344px]">
           {[
             { href: '/admin/interviews', label: 'Schedule interviews', Icon: CalendarClock, bg: GOLD, fg: '#2B2200' },
-            { href: '/admin/offices', label: 'Manage offices', Icon: Building2, bg: '#2FA57C', fg: '#FFFFFF' },
+            { href: '/admin/offices', label: 'Manage offices', Icon: Building2, bg: 'var(--color-accent-bright)', fg: '#FFFFFF' },
             { href: '/admin/analytics', label: 'Export report', Icon: BarChart3, bg: 'rgba(255,255,255,.9)', fg: '#063D27' },
           ].map(({ href, label, Icon, bg, fg }) => (
             <Link key={href} href={href}
@@ -115,7 +115,7 @@ export default function AdminDashboard() {
       {/* Action cards */}
       <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr_0.85fr]">
         <div className={`${CARD} flex flex-col gap-4 p-[22px]`}>
-          <CardHead icon={<FileText className="h-[22px] w-[22px]" />} iconBg="#FBF1C7" iconFg="#7A5E00"
+          <CardHead icon={<FileText className="h-[22px] w-[22px]" />} iconBg="var(--color-gold-100)" iconFg="var(--color-gold-700)"
             title="Applications to review" sub={`${overview?.total_applicants ?? 0} received this semester`} />
           <BigNumber value={overview?.pending ?? 0} text="waiting for your decision" />
           <div>
@@ -130,14 +130,13 @@ export default function AdminDashboard() {
             </div>
           </div>
           <Link href="/admin/applications"
-            className="mt-auto flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold text-[#2B2200] shadow-[0_2px_8px_rgba(212,175,42,.3)]"
-            style={{ background: 'linear-gradient(180deg,#E6C649,#D4AF2A)' }}>
+            className="btn-gold mt-auto flex h-11 items-center justify-center gap-2 rounded-xl text-sm font-bold">
             Start reviewing <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
         <div className={`${CARD} flex flex-col gap-4 p-[22px]`}>
-          <CardHead icon={<Wallet className="h-[22px] w-[22px]" />} iconBg="#DFF0E7" iconFg="#0B5234"
+          <CardHead icon={<Wallet className="h-[22px] w-[22px]" />} iconBg="var(--color-accent-soft)" iconFg="var(--color-accent-strong)"
             title="Stipends to release" sub="Hours completed and verified" />
           <BigNumber value={stipendReady} text={stipendReady === 1 ? 'recipient is ready to be paid' : 'recipients are ready to be paid'} />
           <p className="flex-1 text-[12.5px] leading-relaxed text-ink-500">
@@ -151,7 +150,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className={`${CARD} flex flex-col gap-4 p-[22px]`}>
-          <CardHead icon={<RefreshCw className="h-[22px] w-[22px]" />} iconBg="#EEF0EC" iconFg="#35483D"
+          <CardHead icon={<RefreshCw className="h-[22px] w-[22px]" />} iconBg="var(--color-surface-3)" iconFg="var(--color-ink-700)"
             title="Program status" sub="What students can do right now" />
           <div className="flex flex-col">
             <StatusRow href="/admin/applications" Icon={FilePenLine} label="New applications"
@@ -168,14 +167,14 @@ export default function AdminDashboard() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <Kpi href="/admin/assignments" Icon={Users} bg="#DFF0E7" fg="#0B5234" value={overview?.active_recipients ?? '—'} label="Active recipients" hint="currently serving" />
-        <Kpi href="/admin/analytics" Icon={BadgeCheck} bg="#E3ECF6" fg="#2E5C8A" value={overview ? `${Math.round(overview.total_verified_hours)}h` : '—'} label="Verified hours" hint="logged this semester" />
-        <Kpi href="/admin/analytics" Icon={Timer} bg="#F6E1E0" fg="#A3201F" value={overview ? `${overview.avg_completion_rate}%` : '—'} label="Avg. completion" hint="of required hours" />
+        <Kpi href="/admin/assignments" Icon={Users} bg="var(--color-accent-soft)" fg="var(--color-accent-strong)" value={overview?.active_recipients ?? '—'} label="Active recipients" hint="currently serving" />
+        <Kpi href="/admin/analytics" Icon={BadgeCheck} bg="var(--color-info-100)" fg="var(--color-info-700)" value={overview ? `${Math.round(overview.total_verified_hours)}h` : '—'} label="Verified hours" hint="logged this semester" />
+        <Kpi href="/admin/analytics" Icon={Timer} bg="var(--color-danger-100)" fg="var(--color-red-strong)" value={overview ? `${overview.avg_completion_rate}%` : '—'} label="Avg. completion" hint="of required hours" />
       </div>
 
       {/* The graphs live in Analytics & Reports. */}
       <div className="flex justify-end">
-        <Link href="/admin/analytics" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#17815F] hover:text-[#0F6A4D]">
+        <Link href="/admin/analytics" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent hover:text-accent-hover">
           See graphs and reports in Analytics &amp; Reports <ArrowRight className="h-4 w-4" />
         </Link>
       </div>
@@ -192,7 +191,7 @@ function SemesterProgress({ calendar }: { calendar?: Awaited<ReturnType<typeof s
     return (
       <p className="mt-5 text-[12.5px] text-white/75">
         No current semester{calendar.next ? ` — the next starts ${formatDay(calendar.next.start_date)}` : ''}.{' '}
-        <Link href="/admin/semesters" className="font-semibold text-[#DDBB38] hover:text-[#F0D468]">Open Semesters →</Link>
+        <Link href="/admin/semesters" className="font-semibold text-gold-accent hover:text-gold-300">Open Semesters →</Link>
       </p>
     )
   }
@@ -208,7 +207,7 @@ function SemesterProgress({ calendar }: { calendar?: Awaited<ReturnType<typeof s
           <span>{formatDay(term.start_date)}</span><span>Day {day} of {total}</span><span>{formatDay(term.end_date)}</span>
         </div>
       </div>
-      <span className="-mt-4 flex-none rounded-full px-3 py-1.5 text-[12.5px] font-bold text-[#2B2200]" style={{ background: GOLD }}>
+      <span className="pill-gold -mt-4 flex-none rounded-full px-3 py-1.5 text-[12.5px] font-bold">
         {term.days_left ?? 0} days left
       </span>
     </div>
@@ -233,7 +232,7 @@ function TodayTasks({ tasks, loading }: { tasks?: { key: string; count: number; 
   if (!tasks?.length) {
     return (
       <p className="flex items-center gap-2 text-sm text-white/80">
-        <CheckCircle2 className="h-4 w-4 text-[#DDBB38]" /> You&apos;re all caught up. Nothing needs you today.
+        <CheckCircle2 className="h-4 w-4 text-gold-accent" /> You&apos;re all caught up. Nothing needs you today.
       </p>
     )
   }
@@ -246,7 +245,7 @@ function TodayTasks({ tasks, loading }: { tasks?: { key: string; count: number; 
         return (
           <Link key={t.key} href={t.href} title={t.label} aria-label={t.label}
             className="inline-flex h-7 items-center gap-1.5 rounded-full border border-white/[.14] bg-white/[.08] px-2.5 text-xs text-white/85 transition-colors hover:bg-white/[.18] hover:text-white">
-            <Icon className="h-[13px] w-[13px] text-[#DDBB38]" />
+            <Icon className="h-[13px] w-[13px] text-gold-accent" />
             <strong className="font-bold text-white">{t.count}</strong>
             {t.count === 1 ? one : many}
           </Link>
@@ -287,10 +286,10 @@ function StatusRow({ href, Icon, label, badge, open, last = false }: {
   href: string; Icon: typeof Clock3; label: string; badge: string; open: boolean; last?: boolean
 }) {
   return (
-    <Link href={href} className={`flex items-center gap-2.5 py-[11px] text-ink-950 hover:text-[#17815F] ${last ? '' : 'border-b border-ink-100'}`}>
+    <Link href={href} className={`flex items-center gap-2.5 py-[11px] text-ink-950 hover:text-accent ${last ? '' : 'border-b border-ink-100'}`}>
       <Icon className="h-[18px] w-[18px] text-ink-500" />
       <span className="flex-1 text-[13.5px] font-medium">{label}</span>
-      <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${open ? 'bg-[#DFF0E7] text-[#0B5234]' : 'bg-[#EEF0EC] text-[#5B6B62]'}`}>{badge}</span>
+      <span className={`rounded-full px-2.5 py-0.5 text-[11.5px] font-bold ${open ? 'bg-accent-soft text-accent-strong' : 'bg-surface-3 text-ink-600'}`}>{badge}</span>
     </Link>
   )
 }
@@ -299,10 +298,10 @@ function Kpi({ href, Icon, bg, fg, value, label, hint }: {
   href: string; Icon: typeof Clock3; bg: string; fg: string; value: ReactNode; label: string; hint: string
 }) {
   return (
-    <div className="rounded-2xl border border-ink-900/[.08] bg-white px-5 py-[18px] shadow-[0_1px_3px_rgba(20,40,30,.05)]">
+    <div className="rounded-2xl border border-ink-900/[.08] bg-surface px-5 py-[18px] shadow-[0_1px_3px_rgba(20,40,30,.05)]">
       <div className="flex items-center justify-between">
         <span className="flex h-[38px] w-[38px] items-center justify-center rounded-[11px]" style={{ background: bg, color: fg }}><Icon className="h-5 w-5" /></span>
-        <Link href={href} className="text-xs font-semibold text-[#17815F] hover:text-[#0F6A4D]">View</Link>
+        <Link href={href} className="text-xs font-semibold text-accent hover:text-accent-hover">View</Link>
       </div>
       <p className="mt-3.5 text-[30px] font-extrabold leading-none">{value}</p>
       <p className="mt-1.5 text-[13px] font-semibold">{label}</p>

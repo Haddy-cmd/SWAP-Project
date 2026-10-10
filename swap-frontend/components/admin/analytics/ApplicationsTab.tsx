@@ -76,7 +76,7 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
 
   if (isLoading && !data) return <div className="space-y-4"><Skeleton h="h-16" /><Skeleton h="h-24" /><Skeleton h="h-96" /></div>
 
-  const hi = (on: boolean, color: string) => (on ? { color, fontWeight: 800 } : { color: '#4E5E55' })
+  const hi = (on: boolean, color: string) => (on ? { color, fontWeight: 800 } : { color: 'var(--text-ink-600)' })
   const collegeName = college === REPORT_BLANK ? 'No college set' : college
 
   return (
@@ -94,7 +94,7 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
             options={[['all', 'All'], ['approved', 'Approved'], ['rejected', 'Rejected'], ['waiting', 'Waiting']] as const} />
         </Labeled>
         {college !== 'all' && (
-          <button onClick={() => focus('all')} className="ml-auto flex h-[34px] items-center gap-1.5 rounded-full bg-[#063D27] pl-3 pr-2 text-[12.5px] font-semibold text-white">
+          <button onClick={() => focus('all')} className="ml-auto flex h-[34px] items-center gap-1.5 rounded-full bg-accent-deep pl-3 pr-2 text-[12.5px] font-semibold text-white">
             Showing {collegeName} only <X className="h-4 w-4" />
           </button>
         )}
@@ -141,15 +141,15 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
           ))}
         </div>
         <div className="mt-3 overflow-x-auto">
-          <div className="min-w-[720px]">
-            <div className="grid grid-cols-[minmax(170px,1.3fr)_minmax(160px,1.6fr)_74px_74px_74px_74px_92px] gap-3 rounded-[10px] bg-[#F6F7F3] px-3 py-2.5 text-[11.5px] font-bold text-ink-500">
+          <div className="sm:min-w-[720px]">
+            <div className="hidden grid-cols-[minmax(170px,1.3fr)_minmax(160px,1.6fr)_74px_74px_74px_74px_92px] gap-3 sm:grid rounded-[10px] bg-surface-2 px-3 py-2.5 text-[11.5px] font-bold text-ink-500">
               <span>{GROUP_LABEL[group]}</span><span>Breakdown</span>
               <span className="text-right">Applicants</span><span className="text-right">Approved</span><span className="text-right">Rejected</span>
               <span className="text-right">Waiting</span><span className="text-right">Rejection rate</span>
             </div>
             {shown.map((g) => {
               const rate = Math.round(g.rr * 100)
-              const tone = rate >= 15 ? ['#A3201F', '#F6E1E0'] : rate >= 8 ? ['#7A5E00', '#FBF1C7'] : ['#0B5234', '#DFF0E7']
+              const tone = rate >= 15 ? ['var(--color-red-strong)', 'var(--color-danger-100)'] : rate >= 8 ? ['var(--color-gold-700)', 'var(--color-gold-100)'] : ['var(--color-accent-strong)', 'var(--color-accent-soft)']
               const clickable = group === 'college'
               const w = (v: number, on: boolean) => `${on ? (v / maxN) * 100 : 0}%`
               return (
@@ -157,21 +157,22 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
                   onClick={clickable ? () => focus(g.name) : undefined}
                   onKeyDown={clickable ? (e) => { if (e.key === 'Enter') focus(g.name) } : undefined}
                   title={clickable ? `Focus on ${g.name}` : undefined}
-                  className={`grid grid-cols-[minmax(170px,1.3fr)_minmax(160px,1.6fr)_74px_74px_74px_74px_92px] items-center gap-3 border-b border-ink-900/[.04] px-3 py-[11px] text-[13px] ${clickable ? 'cursor-pointer hover:bg-[#FAFBF8]' : ''}`}>
-                  <span className="flex min-w-0 items-center gap-1.5">
+                  className={`flex flex-wrap items-center gap-x-3 gap-y-2 sm:grid sm:grid-cols-[minmax(170px,1.3fr)_minmax(160px,1.6fr)_74px_74px_74px_74px_92px] border-b border-ink-900/[.04] px-3 py-[11px] text-[13px] ${clickable ? 'cursor-pointer hover:bg-surface-2' : ''}`}>
+                  <span className="order-1 flex w-[calc(100%-4.5rem)] min-w-0 items-center gap-1.5 sm:order-none sm:w-auto">
                     <span className="truncate font-semibold">{g.name === REPORT_BLANK ? 'Not set' : g.name}</span>
                     {clickable && <Filter className="h-3.5 w-3.5 flex-none text-ink-400" />}
                   </span>
-                  <div className="flex h-3 overflow-hidden rounded-md bg-[#EEF1EC]">
+                  <div className="order-3 flex h-3 w-full overflow-hidden rounded-md bg-surface-3 sm:order-none sm:w-auto">
                     <div style={{ width: w(g.a, status === 'all' || status === 'approved'), background: GREEN }} />
                     <div style={{ width: w(g.r, status === 'all' || status === 'rejected'), background: RED }} />
                     <div style={{ width: w(g.w, status === 'all' || status === 'waiting'), background: GOLD }} />
                   </div>
-                  <strong className="text-right">{g.n}</strong>
-                  <span className="text-right" style={hi(status === 'approved' || sort === 'a', '#0B5234')}>{g.a}</span>
-                  <span className="text-right" style={hi(status === 'rejected' || sort === 'r' || sort === 'rr', '#A3201F')}>{g.r}</span>
-                  <span className="text-right" style={hi(status === 'waiting' || sort === 'w', '#7A5E00')}>{g.w}</span>
-                  <span className="text-right"><span className="rounded-full px-2 py-0.5 text-xs font-bold" style={{ color: tone[0], background: tone[1] }}>{rate}%</span></span>
+                  <span className="order-4 w-full text-[12px] text-ink-500 sm:hidden">{g.n} applicants · {g.a} approved · {g.r} rejected · {g.w} waiting</span>
+                  <strong className="hidden text-right sm:block">{g.n}</strong>
+                  <span className="hidden text-right sm:block" style={hi(status === 'approved' || sort === 'a', 'var(--color-accent-strong)')}>{g.a}</span>
+                  <span className="hidden text-right sm:block" style={hi(status === 'rejected' || sort === 'r' || sort === 'rr', 'var(--color-red-strong)')}>{g.r}</span>
+                  <span className="hidden text-right sm:block" style={hi(status === 'waiting' || sort === 'w', 'var(--color-gold-700)')}>{g.w}</span>
+                  <span className="order-2 ml-auto text-right sm:order-none sm:ml-0"><span className="rounded-full px-2 py-0.5 text-xs font-bold" style={{ color: tone[0], background: tone[1] }}>{rate}%</span></span>
                 </div>
               )
             })}
@@ -179,12 +180,12 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           {rows.length > 8 ? (
-            <button onClick={() => setShowAll((v) => !v)} className="h-[34px] rounded-[9px] border border-ink-200 bg-white px-3.5 text-[12.5px] font-semibold text-[#0B5234]">
+            <button onClick={() => setShowAll((v) => !v)} className="h-[34px] rounded-[9px] border border-ink-200 bg-surface px-3.5 text-[12.5px] font-semibold text-accent-strong">
               {showAll ? 'Show fewer' : `Show all ${rows.length}`}
             </button>
           ) : <span />}
           <button onClick={() => onDrill({ tab: 'applications', filters: college === 'all' ? {} : { college: [college] } })}
-            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#17815F] hover:text-[#0F6A4D]">
+            className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent hover:text-accent-hover">
             See every application <ArrowRight className="h-4 w-4" />
           </button>
         </div>

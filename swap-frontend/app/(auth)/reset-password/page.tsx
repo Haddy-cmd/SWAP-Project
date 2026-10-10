@@ -54,7 +54,7 @@ function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="rounded-2xl border border-ink-200 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-ink-200 bg-surface p-8 text-center shadow-sm">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-success-50">
           <CheckCircle className="h-7 w-7 text-success-600" />
         </div>
@@ -68,7 +68,7 @@ function ResetPasswordForm() {
   const invalidLink = !token || !email
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-8 shadow-sm">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm">
       <Link href="/login" className="mb-6 flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors">
         <ArrowLeft className="h-4 w-4" />
         Back to sign in
@@ -134,7 +134,7 @@ function ResetPasswordForm() {
         <button
           type="submit"
           disabled={reset.isPending || invalidLink}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-60"
         >
           {reset.isPending ? 'Updating…' : 'Reset Password'}
         </button>
@@ -145,7 +145,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-white/60" />}>
+    <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl bg-surface/60" />}>
       <ResetPasswordForm />
     </Suspense>
   )

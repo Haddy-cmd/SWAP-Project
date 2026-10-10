@@ -31,8 +31,8 @@ class AuthTest extends TestCase
             'student_id_number' => '202400999',
             'first_name' => 'Juan',
             'last_name' => 'Dela Cruz',
-            'college' => 'CSST',
-            'program' => 'BSCS',
+            'college' => 'CICS',
+            'program' => 'BS Computer Science',
             'year_level' => 3,
         ], $overrides);
     }

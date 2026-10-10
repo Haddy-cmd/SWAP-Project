@@ -93,7 +93,7 @@ export default function ScanAttendancePage() {
       )}
 
       {pendingToken ? (
-        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
           <SelfieCapture
             onCapture={(blob) => timeIn.mutate({ token: pendingToken, photo: blob })}
             onSkip={() => timeIn.mutate({ token: pendingToken })}
@@ -102,7 +102,7 @@ export default function ScanAttendancePage() {
           />
         </div>
       ) : !scanned ? (
-        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
           <QrScanner onScan={handleScan} onError={(e) => setResult({ type: 'error', text: e })} />
         </div>
       ) : (

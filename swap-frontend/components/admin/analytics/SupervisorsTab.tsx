@@ -55,13 +55,13 @@ export function SupervisorsTab({ academicYear, semester }: TabProps) {
       right={
         <button onClick={ask} disabled={busy.length === 0 || remind.isPending}
           title={busy.length === 0 ? 'No supervisor is busy right now' : undefined}
-          className="flex h-[38px] items-center gap-1.5 rounded-[10px] border border-ink-200 bg-white px-3.5 text-[13px] font-semibold text-[#0B5234] hover:border-[#17815F] disabled:opacity-45">
+          className="flex h-[38px] items-center gap-1.5 rounded-[10px] border border-ink-200 bg-surface px-3.5 text-[13px] font-semibold text-accent-strong hover:border-accent disabled:opacity-45">
           <Send className="h-[18px] w-[18px]" /> {remind.isPending ? 'Sending…' : 'Remind busy supervisors'}
         </button>
       }>
       {all.length === 0 ? (
-        <p className="mt-5 flex items-center gap-2.5 rounded-[14px] bg-[#F6F7F3] px-4 py-3.5 text-[13.5px] text-ink-600">
-          <CheckCircle2 className="h-5 w-5 text-[#17815F]" /> Every supervisor is on top of their verifications.
+        <p className="mt-5 flex items-center gap-2.5 rounded-[14px] bg-surface-2 px-4 py-3.5 text-[13.5px] text-ink-600">
+          <CheckCircle2 className="h-5 w-5 text-accent" /> Every supervisor is on top of their verifications.
         </p>
       ) : (
         <>
@@ -81,20 +81,20 @@ export function SupervisorsTab({ academicYear, semester }: TabProps) {
               return (
                 <div key={s.supervisor_id} className="grid grid-cols-[minmax(0,1fr)_96px] items-center gap-x-4 gap-y-1.5 sm:grid-cols-[minmax(150px,220px)_minmax(0,1fr)_120px]">
                   <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#E7EFE9] text-[11px] font-bold text-[#063D27]">{initials(s.name)}</span>
+                    <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-brand-100 text-[11px] font-bold text-accent-deep">{initials(s.name)}</span>
                     <span className="min-w-0">
                       <span className="block truncate text-[13.5px] font-semibold">{s.name}</span>
                       {s.oldest_pending_days != null && <span className="block text-[11px] text-ink-500">oldest {plural(s.oldest_pending_days, 'day', 'days')}</span>}
                     </span>
                   </div>
                   <div className="order-3 col-span-2 flex items-center gap-2.5 sm:order-none sm:col-span-1">
-                    <div className="h-3 flex-1 rounded-md bg-[#EEF1EC]">
+                    <div className="h-3 flex-1 rounded-md bg-surface-3">
                       <div className="h-full rounded-md" style={{ width: `${(s.pending / max) * 100}%`, background: b ? GOLD : GREEN }} />
                     </div>
                     <strong className="w-8 text-[13.5px]">{s.pending}</strong>
                   </div>
                   <span className="rounded-full px-2.5 py-1 text-center text-xs font-bold"
-                    style={b ? { color: '#7A5E00', background: '#FBF1C7' } : { color: '#0B5234', background: '#DFF0E7' }}>
+                    style={b ? { color: 'var(--text-gold-700)', background: 'var(--color-gold-100)' } : { color: 'var(--text-accent-strong)', background: 'var(--color-accent-soft)' }}>
                     {b ? 'Busy' : 'On top of it'}
                   </span>
                 </div>

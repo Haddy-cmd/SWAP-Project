@@ -51,7 +51,7 @@ export function NotificationDropdown({ notifications, onClose, onAnnouncement }:
   const recent = notifications.slice(0, 5)
 
   return (
-    <div className="fixed inset-x-3 top-[4.25rem] z-50 rounded-xl border border-ink-200 bg-white shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-[calc(100vw-2rem)]">
+    <div className="fixed inset-x-3 top-[4.25rem] z-50 rounded-xl border border-ink-200 bg-surface shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-w-[calc(100vw-2rem)]">
       <div className="flex items-center justify-between border-b border-ink-100 px-4 py-3">
         <p className="text-sm font-semibold text-ink-900">Notifications</p>
         <button

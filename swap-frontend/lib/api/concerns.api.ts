@@ -16,8 +16,11 @@ export const concernsApi = {
 
   // ─── Admin inbox ────────────────────────────────────────────────────────
   // meta.counts carries the open / in_progress / resolved totals for the tabs.
-  getInbox: (params?: { status?: ConcernStatus; page?: number }) =>
-    apiClient.get<PaginatedResponse<Concern>>('/admin/concerns', { params }).then((r) => r.data),
+  // `search` matches the subject, any message, or the sender's name, email, student or employee ID.
+  getInbox: (params?: { status?: ConcernStatus; page?: number; search?: string }) =>
+    apiClient.get<PaginatedResponse<Concern>>('/admin/concerns', {
+      params: { ...params, search: params?.search?.trim() || undefined },
+    }).then((r) => r.data),
 
   update: (id: number, data: { status: ConcernStatus; response?: string | null }) =>
     apiClient.put<ApiResponse<Concern>>(`/admin/concerns/${id}`, data).then((r) => r.data),

@@ -83,7 +83,7 @@ export default function RenewalPage() {
         </div>
       ) : existing ? (
         /* already submitted for the target term */
-        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
           <div className="flex items-start gap-3">
             <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${
               approved ? 'bg-success-50' : existing.status === 'rejected' ? 'bg-danger-50' : 'bg-warning-50'
@@ -123,7 +123,7 @@ export default function RenewalPage() {
           </div>
 
           {assignment && (
-            <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+            <div className="rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm">
               <p className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-400">Your current placement</p>
               <div className="space-y-2 text-sm text-ink-600">
                 <p className="flex items-center gap-2"><Building2 className="h-4 w-4 text-ink-400" /> {assignment.office?.name ?? '—'}</p>
@@ -135,7 +135,7 @@ export default function RenewalPage() {
             </div>
           )}
 
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
             <DocumentUpload
               label={`Updated COR for ${target.year} — ${target.semester}`}
               value={cor}

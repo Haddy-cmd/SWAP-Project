@@ -66,7 +66,7 @@ export function LoginSplash() {
       onClick={finish}
       className="fixed inset-0 z-[1000] flex cursor-pointer items-center justify-center print:hidden"
       style={{
-        background: 'rgba(246,246,239,0.82)',
+        background: 'var(--splash-veil)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
         transform: !reduced && lifted ? 'translateY(-100%)' : 'translateY(0)',

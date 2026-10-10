@@ -17,7 +17,7 @@ export function PasswordGuide({ value, children }: { value?: string; children: R
     <div className="relative" onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}>
       {children}
       {focused && (
-        <div role="status" className="absolute left-0 top-full z-20 mt-2 w-full max-w-xs rounded-xl border border-ink-200 bg-white p-3 shadow-lg">
+        <div role="status" className="absolute left-0 top-full z-20 mt-2 w-full max-w-xs rounded-xl border border-ink-200 bg-surface p-3 shadow-lg">
           <p className="mb-1.5 text-[11.5px] font-semibold text-ink-700">Your password needs</p>
           <ul className="space-y-1 text-[11.5px]">
             {PASSWORD_CHECKS.map((c) => {

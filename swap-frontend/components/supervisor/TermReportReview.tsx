@@ -50,7 +50,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
   if (!report?.submitted_at) {
     return (
       <p className="mt-3 text-sm text-ink-500">
-        Not submitted yet. The student writes it on their Hours page; the stipend can&apos;t be released and the renewal can&apos;t be approved without it.
+        Not submitted yet. The student writes it on their Hours &amp; Attendance page; the stipend can&apos;t be released and the renewal can&apos;t be approved without it.
       </p>
     )
   }
@@ -61,7 +61,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
 
       <div className="mt-4 rounded-xl border border-ink-200 bg-ink-50 p-4">
         {!hoursMet && (
-          <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <p className="mb-3 rounded-lg bg-gold-50 px-3 py-2 text-xs text-gold-900">
             Short on hours: the approved promissory note and this report are enough for renewal. Accept it only if you want to record a mark;
             &ldquo;Not eligible&rdquo; still blocks the renewal.
           </p>
@@ -77,7 +77,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
               <p className="mt-1 text-[11.5px] text-ink-400">{formatDateTime(report.reviewed_at)}{report.reviewer ? ` · ${report.reviewer}` : ''}</p>
             </div>
             <button onClick={() => setEditing(true)}
-              className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50">Change</button>
+              className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50">Change</button>
           </div>
         ) : (
           <>
@@ -89,7 +89,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
                   className={cn('rounded-xl border px-3 py-2 text-xs font-semibold transition-colors',
                     eligible === value
                       ? value ? 'border-success-600 bg-success-50 text-success-800' : 'border-danger-600 bg-danger-50 text-danger-700'
-                      : 'border-ink-200 bg-white text-ink-600 hover:bg-ink-50')}>
+                      : 'border-ink-200 bg-surface text-ink-600 hover:bg-ink-50')}>
                   {label}
                 </button>
               ))}
@@ -98,12 +98,12 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
               <span className="text-xs font-semibold text-ink-700">Remarks <span className="font-normal text-ink-400">(optional)</span></span>
               <textarea value={remarks} onChange={(e) => { setRemarks(e.target.value); setError(null) }} rows={2} maxLength={2000}
                 placeholder="Anything the student or the DSA should know"
-                className="mt-1 w-full rounded-xl border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
+                className="mt-1 w-full rounded-xl border border-ink-300 bg-surface px-3 py-2 text-sm focus:border-brand-700 focus:outline-none" />
             </label>
             {error && <p className="mt-2 text-sm text-danger-700">{error}</p>}
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               {report.reviewed_at && (
-                <button onClick={() => setEditing(false)} className="rounded-xl border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-500 hover:bg-white">Cancel</button>
+                <button onClick={() => setEditing(false)} className="rounded-xl border border-ink-200 px-4 py-2 text-sm font-semibold text-ink-500 hover:bg-surface">Cancel</button>
               )}
               <button onClick={() => save.mutate()} disabled={eligible === null || save.isPending}
                 className="rounded-xl bg-brand-700 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
@@ -126,8 +126,8 @@ export function TermReportReviewModal({ studentId, studentName, onClose }: { stu
   const term = [data?.student?.semester, data?.student?.academic_year].filter(Boolean).join(' ')
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-brand-700" />

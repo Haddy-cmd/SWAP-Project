@@ -11,7 +11,7 @@ export interface ReportTab {
 /** The Overview + report tabs across the top of Analytics & Reports. */
 export function ReportTabs({ tabs, active, onSelect }: { tabs: ReportTab[]; active: string; onSelect: (key: string) => void }) {
   return (
-    <div role="tablist" className="flex gap-1 overflow-x-auto rounded-[13px] border border-ink-200 bg-white p-1 shadow-[0_2px_8px_rgba(19,36,26,0.04)]">
+    <div role="tablist" className="no-scrollbar flex gap-1 overflow-x-auto rounded-[13px] border border-ink-200 bg-surface p-1 shadow-[0_2px_8px_rgba(19,36,26,0.04)]">
       {tabs.map((t) => {
         const on = t.key === active
         return (

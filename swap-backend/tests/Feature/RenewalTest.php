@@ -356,10 +356,12 @@ class RenewalTest extends TestCase
 
         $this->decide($renewal, 'rejected')->assertOk()->assertJsonPath('data.status', 'rejected');
         $this->assertSame('applicant', $recipient->fresh()->role);
+        $this->assertFalse($recipient->fresh()->is_active, 'and the account is deactivated');
         $this->assertSame('completed', $previous->fresh()->status);
         Sanctum::actingAs($recipient->fresh());
         $this->getJson('/api/recipient/hours/summary')->assertForbidden();
-        $this->getJson('/api/applicant/applications')->assertOk();
+        $this->getJson('/api/applicant/applications')->assertForbidden()
+            ->assertJsonPath('message', \App\Http\Middleware\EnsureActive::MESSAGE);
     }
 
     public function test_a_renewal_without_its_cor_or_an_earlier_placement_is_not_approved(): void
@@ -442,13 +444,22 @@ class RenewalTest extends TestCase
         $this->decide($renewal, 'rejected')->assertOk()->assertJsonPath('data.status', 'rejected');
 
         $this->assertSame('applicant', $recipient->fresh()->role);
+        $this->assertFalse($recipient->fresh()->is_active, 'a rejected renewal also deactivates the account');
+        $this->assertSame(0, $recipient->tokens()->count(), 'signed out everywhere');
         $this->assertSame('completed', $previous->fresh()->status, 'the placement is closed, and stays payable');
         $this->assertDatabaseHas('audit_logs', ['action' => 'returned_to_applicant', 'auditable_id' => $recipient->id, 'user_id' => $admin->id]);
         Notification::assertSentTo($recipient, ApplicationRejectedNotification::class, fn ($n) =>
             $n->toArray($recipient)['message'] === 'Your SWAP renewal for 2nd Semester 2024-2025 was not approved. ' . ApplicationRejectedNotification::MSG_BACK_TO_APPLICANT
             && in_array(ApplicationRejectedNotification::MSG_BACK_TO_APPLICANT, $n->toMail($recipient)->introLines, true));
 
-        // Recipient features are closed to them now; the applicant ones are open.
+        // Deactivated: refused everywhere until the DSA reactivates the account.
+        Sanctum::actingAs($recipient->fresh());
+        $this->getJson('/api/applicant/applications')->assertForbidden()
+            ->assertJsonPath('message', \App\Http\Middleware\EnsureActive::MESSAGE);
+        Sanctum::actingAs($admin);
+        $this->putJson("/api/admin/users/{$recipient->id}", ['is_active' => true])->assertOk();
+
+        // Reactivated: recipient features stay closed; the applicant ones are open.
         Sanctum::actingAs($recipient->fresh());
         $this->getJson('/api/recipient/hours/summary')->assertForbidden();
         $this->getJson('/api/applicant/applications')->assertOk()->assertJsonCount(2, 'data');

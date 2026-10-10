@@ -6,7 +6,7 @@ const manilaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Man
 
 /**
  * What rejecting a renewal costs the recipient right now (ApplicationService::returnToApplicant
- * switches them to the applicant portal at once): a term still running, a stipend not
+ * switches them to a deactivated applicant account at once): a term still running, a stipend not
  * released, a missing end-of-term report. A released stipend is final and unaffected.
  */
 export function renewalRejectWarnings(readiness: RenewalReadiness | null | undefined): string[] {
@@ -21,6 +21,10 @@ export function renewalRejectWarnings(readiness: RenewalReadiness | null | undef
   }
   if (!readiness.report.submitted) {
     warnings.push(`They haven't submitted the ${term} end-of-term report, and won't be able to after this.`)
+  }
+  if (!readiness.stipend_status && (readiness.payment === 'owed' || readiness.payment === 'promissory') && readiness.report.submitted) {
+    // Release itself still works for a deactivated account; they just can't sign in to check.
+    warnings.push('You can still release that stipend after rejecting.')
   }
   return warnings
 }
@@ -41,7 +45,7 @@ export function rejectConfirm(application: Application | null | undefined): Conf
   return application?.type === 'renewal'
     ? {
         title: 'Reject this renewal?',
-        body: `${name} will be moved back to the applicant portal right away. They lose clock-in, hours, end-of-term report and stipend pages, and their current placement is closed. They can apply again as a new applicant while the application period is open.`,
+        body: `${name} goes back to an applicant account and the account is deactivated right away: they're signed out and can't sign in, and their current placement is closed. To apply again they contact the DSA Office, and you reactivate them in Users.`,
         details: renewalRejectWarnings(application.renewal_readiness),
         confirmLabel: 'Yes, reject renewal',
         tone: 'danger',

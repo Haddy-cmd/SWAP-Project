@@ -4,6 +4,9 @@ import { QueryProvider } from '@/lib/providers/QueryProvider'
 import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget'
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider'
 import { LoginSplash } from '@/components/layout/LoginSplash'
+import { THEME_BOOT_SCRIPT } from '@/lib/theme'
+import { BROWSER_CHECK_SCRIPT } from '@/lib/browserSupport'
+import { BrowserNotice } from '@/components/layout/BrowserNotice'
 import '@/app/globals.css'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-jakarta', display: 'swap' })
@@ -15,15 +18,28 @@ export const metadata: Metadata = {
     'Digital Monitoring and Application System for the Student Welfare Assistantship Program at Mindanao State University — Marawi',
 }
 
-// Browser UI tint (mobile address bar) in the seal's deep green.
+// Browser UI tint (mobile address bar): the seal's deep green, darker in dark mode.
 export const viewport: Viewport = {
-  themeColor: '#10331F',
+  // Phones render at their own width (zoom stays allowed); viewport-fit lets the safe-area insets apply.
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#10331F' },
+    { media: '(prefers-color-scheme: dark)', color: '#0B1A12' },
+  ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // data-theme is set before paint by the script below (lib/theme.ts), so React must not touch it.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: BROWSER_CHECK_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
+      </head>
       <body className={`${jakarta.variable} ${newsreader.variable} font-sans`} suppressHydrationWarning>
+        <BrowserNotice />
         <QueryProvider>
           {/* Action pop-outs and "Are you sure?" dialogs for every page (useFeedback). */}
           <FeedbackProvider>

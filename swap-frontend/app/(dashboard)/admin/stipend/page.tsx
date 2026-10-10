@@ -1,9 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { DollarSign, Send, CheckCircle, Ban, Lock, Search, History } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import Link from 'next/link'
+import {
+  Lock, Wallet, Receipt, Check, Minus, Pencil, Undo2, AlertCircle, Ban, ChevronDown, ChevronUp, BellRing, PenLine,
+  FileText, NotebookPen, Search, History, Loader2, X, CheckCircle2,
+} from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 import { formatDate } from '@/lib/utils/formatDate'
 import { useAuthStore } from '@/lib/store/authStore'
@@ -11,20 +14,22 @@ import type { StipendRecord, EligibleStipend, StipendStatus } from '@/types/anal
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
 
-const pesoAmount = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-
-const PHP = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })
+const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
+const peso = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const initials = (name: string) => name.split(/\s+/).slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
+const toNumber = (v: string) => { const n = parseFloat(v.replace(/,/g, '')); return Number.isFinite(n) ? n : NaN }
+const DEFAULT_REMARKS = 'Completed required service hours.'
 
 // A release is final. `claimed` (paid at the Banking Office) and `certified`/`pending`
 // (ready to claim, migrated to released) are legacy stubs from before 2026-10-05.
-const STATUS_META: Record<StipendStatus, { label: string; cls: string }> = {
-  released: { label: 'Released', cls: 'bg-success-50 text-success-600' },
-  claimed: { label: 'Received', cls: 'bg-success-50 text-success-600' },
-  certified: { label: 'Released', cls: 'bg-success-50 text-success-600' },
-  pending: { label: 'Released', cls: 'bg-success-50 text-success-600' },
-  void: { label: 'Void', cls: 'bg-danger-50 text-danger-700' },
+const STATUS_META: Record<StipendStatus, { label: string; fg: string; bg: string }> = {
+  released: { label: 'Released', fg: 'var(--text-accent-strong)', bg: 'var(--color-accent-soft)' },
+  certified: { label: 'Released', fg: 'var(--text-accent-strong)', bg: 'var(--color-accent-soft)' },
+  pending: { label: 'Released', fg: 'var(--text-accent-strong)', bg: 'var(--color-accent-soft)' },
+  // Legacy Banking Office pickup: paid; the row's "Received {date}" line says when.
+  claimed: { label: 'Released', fg: 'var(--text-accent-strong)', bg: 'var(--color-accent-soft)' },
+  void: { label: 'Void', fg: 'var(--text-red-strong)', bg: 'var(--color-danger-100)' },
 }
-
 // Same rule as StipendClaimService::void: anything but a void stub or a legacy Banking Office payout.
 const canVoid = (status: StipendStatus) => status !== 'void' && status !== 'claimed'
 
@@ -32,35 +37,37 @@ const canVoid = (status: StipendStatus) => status !== 'void' && status !== 'clai
 const GATE_TIMEOUT_MS = 15 * 60 * 1000
 
 type ApiError = { response?: { data?: { message?: string; errors?: Record<string, string[]> } } }
+type Tab = 'release' | 'history'
+type Chip = 'all' | 'released' | 'received' | 'not_received' | 'void'
 
+const keyOf = (e: EligibleStipend) => `${e.user_id}|${e.academic_year}|${e.semester}`
+const shortHours = (e: EligibleStipend) => e.deficient_hours ?? e.lacking_hours ?? Math.max(0, e.required_hours - e.verified_hours)
+
+/**
+ * Admin → Stipend (layout "SWAP Admin Stipend v2"), behind the page password. "To release":
+ * tick who's ready, adjust amounts, release from the bottom bar (final; each recipient is
+ * notified); the ones still missing a signature or end-of-term report are listed with Remind.
+ * "History": every stub with paid-out totals, filters, search, its history and Void.
+ */
 export default function AdminStipendPage() {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
-  const [page, setPage] = useState(1)
-  const [recordSearch, setRecordSearch] = useState('')
-  const [voiding, setVoiding] = useState<{ id: number; reason: string } | null>(null)
-  // The stub whose audit trail (release, void…) is open in the side drawer.
-  const [history, setHistory] = useState<{ id: number; label: string } | null>(null)
+  const { notify, notifyError } = useFeedback()
+  const [tab, setTab] = useState<Tab>('release')
   // Page gate: the unlock token lives in memory only — never persisted.
   const [unlockToken, setUnlockToken] = useState<string | null>(null)
   const [unlockPw, setUnlockPw] = useState('')
   const [unlockError, setUnlockError] = useState<string | null>(null)
-  // Bulk checklist over the eligible list (keys user_id|ay|sem).
-  const [selected, setSelected] = useState<string[]>([])
-  const [bulkAmount, setBulkAmount] = useState('')
-  const [bulkRemarks, setBulkRemarks] = useState('')
-  const { notify, notifyError, confirm } = useFeedback()
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // No data (or page) before the password gate — queries stay disabled until unlock.
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin-stipend', page, recordSearch],
-    queryFn: () => adminApi.getStipendRecords({ page: String(page), ...(recordSearch.trim() && { search: recordSearch.trim() }) }),
-    enabled: !!unlockToken,
-  })
-  const { data: eligible = [] } = useQuery({
+  const { data: eligible = [], isLoading: eligibleLoading } = useQuery({
     queryKey: ['admin-stipend-eligible'],
     queryFn: () => adminApi.getEligibleStipends(),
+    enabled: !!unlockToken,
+  })
+  const { data: totals } = useQuery({
+    queryKey: ['admin-stipend', 'totals'],
+    queryFn: () => adminApi.getStipendRecords({ page: '1' }).then((r) => r.meta),
     enabled: !!unlockToken,
   })
 
@@ -82,113 +89,43 @@ export default function AdminStipendPage() {
   }, [unlockToken])
 
   // An expired/rejected token re-locks the page so the password is re-entered.
-  function gateExpired(message: string) {
-    setUnlockToken(null)
-    setUnlockPw('')
-    setUnlockError(message)
-  }
-
-  function mutationError(e: ApiError, fallback: string) {
+  const onMoneyError = (e: ApiError, fallback: string) => {
     const tokenErr = e.response?.data?.errors?.unlock_token?.[0]
-    if (tokenErr) { gateExpired(tokenErr); return }
+    if (tokenErr) { setUnlockToken(null); setUnlockPw(''); setUnlockError(tokenErr); return }
     notifyError(e, fallback)
   }
-
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-stipend'] })
     queryClient.invalidateQueries({ queryKey: ['admin-stipend-eligible'] })
   }
 
-  const keyOf = (e: EligibleStipend) => `${e.user_id}|${e.academic_year}|${e.semester}`
-  // Hours met but the stub can't be issued yet: same order and wording as the backend refusal.
-  const blockedReason = (e: EligibleStipend) =>
-    !e.has_signature ? 'This recipient has not saved a digital signature yet.'
-      : !e.narrative_submitted ? 'This recipient has not submitted their end-of-term narrative report yet.'
-      : null
-  const ready = eligible.filter((e) => !blockedReason(e))
-
   const unlock = useMutation({
     mutationFn: () => adminApi.unlockStipend(unlockPw),
     onSuccess: (d) => {
       setUnlockToken(d.unlock_token); setUnlockPw(''); setUnlockError(null)
-      notify({ title: 'Stipend actions unlocked', detail: 'The page locks again after 15 minutes of inactivity.' })
+      notify({ title: 'Stipend unlocked', detail: 'The page locks again after 15 minutes of inactivity.' })
     },
-    onError: (e: ApiError) =>
-      setUnlockError(e.response?.data?.errors?.password?.[0] ?? e.response?.data?.message ?? 'Could not unlock.'),
+    onError: (e: ApiError) => setUnlockError(e.response?.data?.errors?.password?.[0] ?? e.response?.data?.message ?? 'Could not unlock.'),
   })
-
-  const releaseBulk = useMutation({
-    mutationFn: () => {
-      const items = eligible.filter((e) => selected.includes(keyOf(e))).map((e) => ({
-        user_id: e.user_id,
-        amount: bulkAmount ? Number(bulkAmount) : e.suggested_amount,
-        academic_year: e.academic_year,
-        semester: e.semester,
-        remarks: bulkRemarks || 'Completed required service hours.',
-      }))
-      return adminApi.releaseBulkStipend({ unlock_token: unlockToken ?? '', items })
-    },
-    onSuccess: (res) => {
-      invalidate()
-      setSelected([]); setBulkAmount(''); setBulkRemarks('')
-      const released = res.data.released.length
-      const nameOf = (id: number) => eligible.find((e) => e.user_id === id)?.name ?? `User #${id}`
-      notify({
-        tone: released ? 'success' : 'error',
-        title: released ? `${released} stipend${released === 1 ? '' : 's'} released` : 'Nothing was released',
-        detail: [
-          released ? 'Each recipient is notified. Their stub, signed with their saved signature, is on their Stipend page.' : '',
-          ...res.data.skipped.map((sk: { user_id: number; reason: string }) => `Skipped ${nameOf(sk.user_id)}: ${sk.reason}`),
-        ].filter(Boolean).join('\n'),
-      })
-    },
-    onError: (e: ApiError) => mutationError(e, 'Could not release the selected stipends'),
-  })
-
-  // Money leaves with this: say how much, to how many, before releasing.
-  const confirmRelease = async () => {
-    const items = eligible.filter((e) => selected.includes(keyOf(e)))
-    const total = items.reduce((sum, e) => sum + (bulkAmount ? Number(bulkAmount) : e.suggested_amount), 0)
-    const ok = await confirm({
-      title: `Release ${items.length} stipend${items.length === 1 ? '' : 's'}?`,
-      body: `${pesoAmount(total)} in total. They are marked Released with the supervisor's, director's and recipient's signatures, and each recipient is notified. Only a void with a reason undoes a release.`,
-      details: items.length <= 6 ? items.map((e) => `${e.name} · ${pesoAmount(bulkAmount ? Number(bulkAmount) : e.suggested_amount)}`) : undefined,
-      confirmLabel: 'Release',
-    })
-    if (ok) releaseBulk.mutate()
-  }
-
-  const voidStipend = useMutation({
-    mutationFn: (v: { id: number; reason: string }) =>
-      adminApi.voidStipend(v.id, v.reason, { unlock_token: unlockToken ?? '' }),
-    onSuccess: () => {
-      invalidate(); setVoiding(null)
-      notify({ title: 'Stipend voided', detail: 'The stub now prints VOID. The recipient can be released a new stub.' })
-    },
-    onError: (e: ApiError) => mutationError(e, 'Could not void the stub'),
-  })
-
-  const records = data?.data ?? []
 
   // The password gate: nothing on this page is accessible before unlock.
   if (!unlockToken) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="w-full max-w-sm rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Lock className="h-5 w-5 text-brand-700" />
-            <h1 className="text-lg font-bold text-ink-900">Stipend Management</h1>
-          </div>
-          <p className="mt-1 text-sm text-ink-500">Re-enter your password to access stipend releases. The gate re-locks after 15 minutes of inactivity.</p>
+        <div className={`${CARD} w-full max-w-sm p-6`}>
+          <span className="flex h-11 w-11 items-center justify-center rounded-[13px] bg-accent-soft text-accent-strong"><Lock className="h-5 w-5" /></span>
+          <h1 className="mt-3 text-[20px] font-extrabold text-ink-950">Stipend</h1>
+          <p className="mt-1 text-[13px] text-ink-500">Money leaves from this page, so enter your password again. It locks after 15 minutes of inactivity.</p>
           <div className="relative mt-4">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-350" />
-            <input type="password" value={unlockPw} onChange={(e) => setUnlockPw(e.target.value)}
+            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+            <input type="password" value={unlockPw} onChange={(e) => setUnlockPw(e.target.value)} autoFocus
               onKeyDown={(e) => { if (e.key === 'Enter' && unlockPw && !unlock.isPending) unlock.mutate() }}
-              placeholder="Your password" className={`${INPUT} pl-9`} />
+              placeholder="Your password" aria-label="Your password"
+              className="h-11 w-full rounded-xl border border-ink-200 bg-ink-50 pl-9 pr-3 text-sm text-ink-950 focus:border-accent focus:outline-none" />
           </div>
           {unlockError && <p className="mt-2 text-sm text-danger-700">{unlockError}</p>}
           <button onClick={() => unlock.mutate()} disabled={unlock.isPending || !unlockPw}
-            className="mt-4 w-full rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
+            className="mt-4 h-11 w-full rounded-xl bg-accent text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-50">
             {unlock.isPending ? 'Unlocking…' : 'Unlock'}
           </button>
         </div>
@@ -196,186 +133,445 @@ export default function AdminStipendPage() {
     )
   }
 
+  const ready = eligible.filter((e) => e.has_signature && e.narrative_submitted)
+  const blocked = eligible.filter((e) => !(e.has_signature && e.narrative_submitted))
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-[18px] pb-24">
       <div>
-        <h1 className="text-2xl font-bold text-ink-900">Stipend Management</h1>
-        <p className="mt-1 text-sm text-ink-500">Tick eligible recipients and release their stipends in one go. A release is final: the stub is marked Released with the supervisor&apos;s, director&apos;s and recipient&apos;s signatures, and each recipient is notified.</p>
+        <h1 className="font-serif text-[30px] font-medium leading-tight text-ink-950">Stipend</h1>
+        <p className="mt-1 text-[13.5px] text-ink-500">Tick who&apos;s ready, then release. Releasing is final, and each recipient is notified.</p>
       </div>
 
-      {/* Releases are blocked server-side without a title — say so up front. */}
+      {/* Releases are refused server-side without a title — say so up front (same wording as StipendClaimService). */}
       {!user?.position_title && (
-        <div className="rounded-2xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
-          {/* Same wording as the backend refusal (StipendClaimService). */}
+        <p className="rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-800">
           Set your position title on your <Link href="/profile" className="font-semibold underline">Profile page</Link> before releasing stipends.
+        </p>
+      )}
+
+      <div role="tablist" className="no-scrollbar flex gap-1 overflow-x-auto border-b border-ink-900/[.08]">
+        {([['release', 'To release', Wallet, ready.length], ['history', 'History', Receipt, totals?.total]] as const).map(([key, label, Icon, count]) => {
+          const on = tab === key
+          return (
+            <button key={key} role="tab" aria-selected={on} onClick={() => setTab(key)}
+              className={`-mb-px flex h-[46px] items-center gap-2 border-b-[3px] px-4 text-[14px] ${on ? 'border-accent font-bold text-ink-950' : 'border-transparent font-semibold text-ink-500 hover:text-ink-800'}`}>
+              <Icon className="h-5 w-5" /> {label}
+              <span className={`rounded-full px-2 py-px text-xs font-bold ${on ? 'bg-gold-accent text-[#2B2200]' : 'bg-surface-3 text-ink-600'}`}>{count ?? '·'}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {tab === 'release'
+        ? <ReleaseTab ready={ready} blocked={blocked} loading={eligibleLoading} unlockToken={unlockToken} onDone={invalidate} onMoneyError={onMoneyError} />
+        : <HistoryTab unlockToken={unlockToken} onDone={invalidate} onMoneyError={onMoneyError} />}
+    </div>
+  )
+}
+
+// ── To release ─────────────────────────────────────────────────────────────
+
+function ReleaseTab({ ready, blocked, loading, unlockToken, onDone, onMoneyError }: {
+  ready: EligibleStipend[]
+  blocked: EligibleStipend[]
+  loading: boolean
+  unlockToken: string
+  onDone: () => void
+  onMoneyError: (e: ApiError, fallback: string) => void
+}) {
+  const { notify, notifyError } = useFeedback()
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [amounts, setAmounts] = useState<Record<string, string>>({})
+  const [bulk, setBulk] = useState('')
+  const [showBlocked, setShowBlocked] = useState(true)
+  const [confirming, setConfirming] = useState(false)
+  const [remarks, setRemarks] = useState('')
+  const [reminded, setReminded] = useState<Record<number, 'sent' | 'today'>>({})
+
+  // Forget selections that left the list (released, or no longer eligible).
+  useEffect(() => {
+    const keys = new Set(ready.map(keyOf))
+    setSelected((s) => new Set([...s].filter((k) => keys.has(k))))
+  }, [ready])
+
+  const amountOf = (e: EligibleStipend) => { const v = amounts[keyOf(e)]; return v === undefined ? e.suggested_amount : toNumber(v) }
+  const picked = ready.filter((e) => selected.has(keyOf(e)))
+  const total = picked.reduce((a, e) => a + (amountOf(e) || 0), 0)
+  const badAmount = picked.some((e) => !(amountOf(e) > 0))
+  const allOn = ready.length > 0 && picked.length === ready.length
+  const toggle = (k: string) => setSelected((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
+
+  const applyBulk = () => {
+    const n = toNumber(bulk)
+    if (!picked.length || !(n > 0)) return
+    setAmounts((a) => ({ ...a, ...Object.fromEntries(picked.map((e) => [keyOf(e), String(n)])) }))
+    setBulk('')
+    notify({ title: `Amount set for ${picked.length} selected`, detail: null })
+  }
+
+  const release = useMutation({
+    mutationFn: () => adminApi.releaseBulkStipend({
+      unlock_token: unlockToken,
+      items: picked.map((e) => ({
+        user_id: e.user_id, amount: amountOf(e), academic_year: e.academic_year, semester: e.semester,
+        remarks: remarks.trim() || DEFAULT_REMARKS,
+      })),
+    }),
+    onSuccess: (res) => {
+      onDone()
+      const count = res.data.released.length
+      const sum = res.data.released.reduce((a, r) => a + Number(r.amount), 0)
+      const nameOf = (id: number) => ready.find((e) => e.user_id === id)?.name ?? `User #${id}`
+      setConfirming(false); setRemarks(''); setSelected(new Set()); setAmounts({})
+      notify({
+        tone: count ? 'success' : 'error',
+        title: count ? `${peso(sum)} released to ${count} ${count === 1 ? 'recipient' : 'recipients'}` : 'Nothing was released',
+        detail: [
+          count ? 'Each recipient is notified; their signed stub is on their Stipend page.' : '',
+          ...res.data.skipped.map((sk) => `Skipped ${nameOf(sk.user_id)}: ${sk.reason}`),
+        ].filter(Boolean).join('\n'),
+      })
+    },
+    onError: (e: ApiError) => { setConfirming(false); onMoneyError(e, 'Could not release the selected stipends') },
+  })
+
+  const remind = useMutation({
+    mutationFn: (ids?: number[]) => adminApi.remindStipend(ids),
+    onSuccess: (r, ids) => {
+      const targets = ids ?? blocked.map((e) => e.user_id)
+      setReminded((m) => ({ ...m, ...Object.fromEntries(targets.map((id) => [id, 'sent' as const])) }))
+      notify(r.reminded
+        ? { title: `Reminded ${r.reminded} ${r.reminded === 1 ? 'recipient' : 'recipients'}`, detail: `They got a bell notification and an email saying what's missing.${r.already_today ? ` ${r.already_today} already reminded today.` : ''}` }
+        : { tone: 'info', title: 'Already reminded today', detail: 'Each recipient is reminded at most once a day.' })
+      if (!r.reminded && ids?.length === 1) setReminded((m) => ({ ...m, [ids[0]]: 'today' }))
+    },
+    onError: (e) => notifyError(e, 'Could not send the reminder'),
+  })
+
+  return (
+    <div className="flex flex-col gap-[18px]">
+      {/* Ready */}
+      <div className={`${CARD} overflow-hidden`}>
+        <div className="flex flex-wrap items-center gap-3 border-b border-ink-900/[.05] px-5 py-4">
+          <CheckBox state={allOn ? 'on' : picked.length ? 'some' : 'off'} label="Select all"
+            onClick={() => setSelected(allOn ? new Set() : new Set(ready.map(keyOf)))} disabled={!ready.length} />
+          <div className="min-w-[200px] flex-1">
+            <p className="text-[15px] font-bold text-ink-950">Ready to release</p>
+            <p className="mt-px text-[12.5px] text-ink-500">Hours done, signature saved and end-of-term report in. Click an amount to change it.</p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-semibold text-ink-500">Set selected to</span>
+            <span className="flex h-[34px] items-center gap-1 rounded-[9px] border border-ink-200 bg-surface pl-2.5 pr-1">
+              <span className="text-[13px] font-bold text-ink-600">₱</span>
+              <input value={bulk} onChange={(e) => setBulk(e.target.value)} inputMode="decimal" aria-label="Amount for the selected"
+                onKeyDown={(e) => { if (e.key === 'Enter') applyBulk() }}
+                className="w-[70px] border-none bg-transparent text-right text-[13px] font-bold text-ink-950 focus:outline-none" />
+            </span>
+            <button onClick={applyBulk} disabled={!picked.length || !(toNumber(bulk) > 0)}
+              className="h-[34px] rounded-[9px] bg-accent px-3 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:bg-accent-muted">Apply</button>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2 p-4">{[1, 2, 3].map((n) => <div key={n} className="h-12 animate-pulse rounded-lg bg-ink-100" />)}</div>
+        ) : ready.length === 0 ? (
+          <p className="flex items-center justify-center gap-2 px-5 py-10 text-[13.5px] text-ink-500"><CheckCircle2 className="h-5 w-5 text-accent" /> No one is ready to release.</p>
+        ) : ready.map((e) => {
+          const k = keyOf(e)
+          const on = selected.has(k)
+          const v = amountOf(e)
+          const bad = !(v > 0)
+          const changed = !bad && v !== e.suggested_amount
+          return (
+            <div key={k} onClick={() => toggle(k)} role="button" tabIndex={0} aria-pressed={on}
+              onKeyDown={(ev) => { if (ev.key === ' ' && ev.target === ev.currentTarget) { ev.preventDefault(); toggle(k) } }}
+              className={`flex cursor-pointer flex-wrap items-center gap-3.5 border-b border-ink-900/[.04] px-5 py-[13px] last:border-0 ${on ? 'bg-accent-tint' : 'hover:bg-surface-2'}`}>
+              <CheckBox state={on ? 'on' : 'off'} label={`Select ${e.name}`} />
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-accent-deep">{initials(e.name)}</span>
+              <div className="min-w-[180px] flex-1">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="text-[14px] font-semibold text-ink-950">{e.name}</span>
+                  {e.student_id_number && <span className="text-[11.5px] text-ink-400">ID {e.student_id_number}</span>}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-ink-500">
+                  <span>{e.semester} {e.academic_year} · {e.verified_hours}/{e.required_hours}h verified</span>
+                  {e.via_promissory && <span className="rounded-md bg-gold-100 px-2 py-px text-[11px] font-bold text-gold-700">Promissory · short {shortHours(e)}h</span>}
+                </p>
+              </div>
+              <div onClick={(ev) => ev.stopPropagation()}
+                className={`flex h-9 flex-none items-center gap-1 rounded-[10px] border bg-surface pl-2.5 pr-1 ${bad ? 'border-red-accent' : changed ? 'border-gold-accent' : 'border-ink-200'}`}>
+                <span className="text-[14px] font-extrabold text-ink-600">₱</span>
+                <input value={amounts[k] ?? e.suggested_amount.toLocaleString('en-PH')} inputMode="decimal" aria-label={`Amount for ${e.name}`}
+                  onChange={(ev) => setAmounts((a) => ({ ...a, [k]: ev.target.value }))}
+                  className="w-[84px] border-none bg-transparent text-right text-[14.5px] font-extrabold text-ink-950 focus:outline-none" />
+                {bad ? <span title="Enter an amount above 0" className="flex w-6 justify-center text-red-accent"><AlertCircle className="h-4 w-4" /></span>
+                  : changed ? (
+                    <button type="button" title={`Back to ${peso(e.suggested_amount)}`} aria-label="Reset the amount"
+                      onClick={() => setAmounts((a) => { const n = { ...a }; delete n[k]; return n })}
+                      className="flex w-6 justify-center text-gold-700"><Undo2 className="h-4 w-4" /></button>
+                  ) : <span className="flex w-6 justify-center text-ink-350"><Pencil className="h-3.5 w-3.5" /></span>}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Blocked */}
+      {blocked.length > 0 && (
+        <div className={`${CARD} overflow-hidden`}>
+          <div className="flex items-center gap-3 px-5 py-4">
+            <button onClick={() => setShowBlocked((s) => !s)} aria-expanded={showBlocked} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-danger-100 text-red-strong"><Ban className="h-[19px] w-[19px]" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold text-ink-950">Can&apos;t release yet · {blocked.length}</span>
+                <span className="mt-px block text-[12.5px] text-ink-500">Something is missing. Ask the student to finish it.</span>
+              </span>
+              {showBlocked ? <ChevronUp className="h-5 w-5 text-ink-500" /> : <ChevronDown className="h-5 w-5 text-ink-500" />}
+            </button>
+            <button onClick={() => remind.mutate(undefined)} disabled={remind.isPending}
+              className="flex h-8 flex-none items-center gap-1.5 rounded-[9px] border border-ink-200 bg-surface px-3 text-xs font-semibold text-ink-700 hover:border-accent hover:text-accent-strong disabled:opacity-50">
+              <BellRing className="h-4 w-4" /> Remind all
+            </button>
+          </div>
+          {showBlocked && blocked.map((e) => {
+            const state = reminded[e.user_id]
+            return (
+              <div key={keyOf(e)} className="flex flex-wrap items-center gap-3.5 border-t border-ink-900/[.04] px-5 py-3">
+                <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-surface-3 text-xs font-bold text-ink-400">{initials(e.name)}</span>
+                <div className="min-w-[160px] flex-1">
+                  <p className="text-[13.5px] font-semibold text-ink-600">{e.name}{e.student_id_number && <span className="ml-1.5 text-[11.5px] font-normal text-ink-400">ID {e.student_id_number}</span>}</p>
+                  <p className="mt-px text-xs text-ink-400">{e.semester} {e.academic_year} · {e.verified_hours}/{e.required_hours}h verified</p>
+                </div>
+                <div className="flex flex-wrap justify-end gap-1.5">
+                  {!e.has_signature && <Missing icon={PenLine} label="No signature" />}
+                  {!e.narrative_submitted && <Missing icon={FileText} label="No end-of-term report" />}
+                  {e.via_promissory && <Missing icon={NotebookPen} label={`Promissory · short ${shortHours(e)}h`} gold />}
+                </div>
+                <button onClick={() => remind.mutate([e.user_id])} disabled={remind.isPending || !!state}
+                  title="Bell notification + email saying what's missing (once a day)"
+                  className="flex h-8 flex-none items-center gap-1.5 rounded-[9px] border border-ink-200 bg-surface px-3 text-xs font-semibold text-ink-700 hover:border-accent hover:text-accent-strong disabled:opacity-60">
+                  {state ? <Check className="h-4 w-4 text-accent" /> : <BellRing className="h-4 w-4" />} {state === 'today' ? 'Reminded today' : state ? 'Reminded' : 'Remind'}
+                </button>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {/* Always render this section: hiding it when nobody qualifies left the page
-          looking exactly like the pre-checklist layout, with no hint why. */}
-      {eligible.length > 0 ? (
-        <div className="rounded-2xl border border-success-200 bg-success-50 p-5 shadow-sm">
-          <div className="mb-3 flex items-center gap-2">
-            <input type="checkbox" checked={ready.length > 0 && selected.length === ready.length} disabled={!ready.length}
-              onChange={(e) => setSelected(e.target.checked ? ready.map(keyOf) : [])}
-              className="h-4 w-4 accent-brand-700" aria-label="Select all eligible" />
-            <CheckCircle className="h-4 w-4 text-brand-700" />
-            <h2 className="font-semibold text-success-800">Eligible for Release</h2>
-            <span className="rounded-full bg-success-100 px-2 py-0.5 text-xs font-medium text-success-800">{eligible.length}</span>
-            {selected.length > 0 && (
-              <span className="rounded-full bg-brand-700 px-2 py-0.5 text-xs font-medium text-white">{selected.length} selected</span>
-            )}
+      {/* Bottom bar */}
+      {picked.length > 0 && (
+        <div className="fixed bottom-[22px] left-1/2 z-40 flex w-[min(720px,calc(100%-32px))] -translate-x-1/2 flex-wrap items-center gap-3 rounded-2xl bg-accent-deep py-3 pl-5 pr-3 text-white shadow-[0_12px_32px_rgba(6,61,39,.35)] print:hidden">
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] font-bold">{picked.length} selected · {peso(total)}</p>
+            <p className="text-xs text-white/70">Stubs are signed and each recipient is notified.</p>
           </div>
-          <p className="mb-3 text-xs text-success-700">Recipients who completed their required verified hours and have not been paid for the period. Tick one or many, then release. A recipient without a saved signature or an end-of-term report can&apos;t be released yet.</p>
-          <div className="space-y-2">
-            {eligible.map((e) => {
-              const key = keyOf(e)
-              const checked = selected.includes(key)
-              const blocked = blockedReason(e)
+          <button onClick={() => setSelected(new Set())} className="h-[42px] rounded-[11px] border border-white/25 px-3.5 text-[13px] font-semibold hover:bg-white/10">Clear</button>
+          <button onClick={() => badAmount ? notify({ tone: 'error', title: 'Fix the amounts marked in red first', detail: null }) : setConfirming(true)}
+            className="btn-gold flex h-[42px] items-center gap-1.5 rounded-[11px] px-[18px] text-[14px] font-bold">
+            <Wallet className="h-[18px] w-[18px]" /> Release
+          </button>
+        </div>
+      )}
+
+      {/* Confirm */}
+      {confirming && (
+        <Dialog onClose={() => !release.isPending && setConfirming(false)} label="Release stipends">
+          <span className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gold-100 text-gold-700"><Wallet className="h-6 w-6" /></span>
+          <p className="mt-3.5 text-[19px] font-extrabold text-ink-950">Release {peso(total)} to {picked.length} {picked.length === 1 ? 'recipient' : 'recipients'}?</p>
+          <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-600">This can&apos;t be undone. You can only void a stub afterwards.</p>
+          <div className="mt-3.5 flex max-h-[170px] flex-col gap-1.5 overflow-auto rounded-xl bg-surface-2 px-3 py-2.5">
+            {picked.map((e) => (
+              <div key={keyOf(e)} className="flex justify-between gap-2.5 text-[13px]">
+                <span className="text-ink-800">{e.name}</span>
+                <span className="flex items-baseline gap-1.5">
+                  {amountOf(e) !== e.suggested_amount && <span className="text-[11.5px] text-ink-400 line-through">{peso(e.suggested_amount)}</span>}
+                  <strong className="text-ink-950">{peso(amountOf(e))}</strong>
+                </span>
+              </div>
+            ))}
+          </div>
+          <label className="mt-3.5 block">
+            <span className="text-xs font-semibold text-ink-600">Remarks on the stubs <span className="font-normal text-ink-400">(optional)</span></span>
+            <input value={remarks} onChange={(e) => setRemarks(e.target.value)} maxLength={500} placeholder={DEFAULT_REMARKS}
+              className="mt-1 h-10 w-full rounded-xl border border-ink-200 bg-surface px-3 text-[13.5px] text-ink-950 focus:border-accent focus:outline-none" />
+          </label>
+          <div className="mt-5 flex justify-end gap-2.5">
+            <button onClick={() => setConfirming(false)} disabled={release.isPending} className="h-11 rounded-xl border border-ink-200 px-4 text-sm font-semibold text-ink-700">Cancel</button>
+            <button onClick={() => release.mutate()} disabled={release.isPending}
+              className="flex h-11 items-center gap-1.5 rounded-xl bg-accent px-5 text-sm font-bold text-white hover:bg-accent-hover disabled:opacity-60">
+              {release.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Yes, release
+            </button>
+          </div>
+        </Dialog>
+      )}
+    </div>
+  )
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+
+function HistoryTab({ unlockToken, onDone, onMoneyError }: {
+  unlockToken: string
+  onDone: () => void
+  onMoneyError: (e: ApiError, fallback: string) => void
+}) {
+  const { notify } = useFeedback()
+  const [chip, setChip] = useState<Chip>('all')
+  const [search, setSearch] = useState('')
+  const [q, setQ] = useState('')
+  const [page, setPage] = useState(1)
+  const [voiding, setVoiding] = useState<StipendRecord | null>(null)
+  const [reason, setReason] = useState('')
+  const [history, setHistory] = useState<{ id: number; label: string } | null>(null)
+
+  useEffect(() => { const t = setTimeout(() => { setQ(search.trim()); setPage(1) }, 300); return () => clearTimeout(t) }, [search])
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-stipend', page, chip, q],
+    queryFn: () => adminApi.getStipendRecords({ page: String(page), ...(chip !== 'all' && { status: chip }), ...(q && { search: q }) }),
+    placeholderData: keepPreviousData,
+  })
+  const records = data?.data ?? []
+  const s = data?.meta.summary
+  const lastPage = data?.meta.last_page ?? 1
+
+  const voidStub = useMutation({
+    mutationFn: () => adminApi.voidStipend(voiding!.id, reason.trim(), { unlock_token: unlockToken }),
+    onSuccess: () => {
+      onDone(); setVoiding(null); setReason('')
+      notify({ title: 'Stub voided', detail: 'The stub now prints VOID, and the recipient can be released a new one.' })
+    },
+    onError: (e: ApiError) => { setVoiding(null); onMoneyError(e, 'Could not void the stub') },
+  })
+
+  // Received = the recipient opened (viewed or downloaded) the stub; old Banking Office pickups count too.
+  const chips: [Chip, string, number | undefined][] = [
+    ['all', 'All', s ? s.released + s.void : undefined],
+    ['released', 'Released', s?.released],
+    ['received', 'Received', s?.received],
+    ['not_received', 'Not yet opened', s?.not_received],
+    ['void', 'Void', s?.void],
+  ]
+
+  return (
+    <div className="flex flex-col gap-3.5">
+      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+        {[
+          { label: 'Paid out', value: s ? peso(s.paid_out) : '—', hint: 'every stub not voided', color: 'var(--color-accent)' },
+          { label: 'Released', value: s?.released ?? '—', hint: s ? `${s.received} received · ${s.not_received} not yet opened` : 'final; the recipient was notified', color: 'var(--color-gold-accent)' },
+          { label: 'Voided', value: s?.void ?? '—', hint: 'cancelled stubs', color: 'var(--color-red-accent)' },
+        ].map((k) => (
+          <div key={k.label} className={`${CARD} px-[18px] py-4`}>
+            <p className="flex items-center gap-2 text-[12.5px] font-semibold text-ink-600"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: k.color }} />{k.label}</p>
+            <p className="mt-2 text-[24px] font-extrabold text-ink-950">{k.value}</p>
+            <p className="mt-0.5 text-xs text-ink-500">{k.hint}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className={`${CARD} overflow-hidden`}>
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-ink-900/[.05] px-[18px] py-3.5">
+          {chips.map(([key, label, count]) => {
+            const on = chip === key
+            return (
+              <button key={key} onClick={() => { setChip(key); setPage(1) }} aria-pressed={on}
+                className={`flex h-[34px] items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold ${on ? 'border-accent-deep bg-accent-deep text-white' : 'border-ink-200 bg-surface text-ink-700'}`}>
+                {label}<span className="font-extrabold">{count ?? '·'}</span>
+              </button>
+            )
+          })}
+          <div className="ml-auto flex h-[38px] w-[280px] max-w-full items-center gap-2 rounded-[10px] bg-surface-2 px-3">
+            <Search className="h-[18px] w-[18px] text-ink-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, ID or control no." aria-label="Search stipend records"
+              className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-ink-950 focus:outline-none" />
+            {search && <button onClick={() => setSearch('')} aria-label="Clear search" className="text-ink-400"><X className="h-4 w-4" /></button>}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <div className="sm:min-w-[820px]">
+            <div className="hidden grid-cols-[minmax(200px,1.5fr)_minmax(170px,1.2fr)_110px_minmax(150px,1fr)_minmax(150px,1fr)_84px] gap-3.5 sm:grid bg-surface-2 px-[18px] py-2.5 text-xs font-bold text-ink-500">
+              <span>Recipient</span><span>Control no.</span><span className="text-right">Amount</span><span>Period</span><span>Status</span><span />
+            </div>
+            {isLoading ? (
+              <div className="space-y-2 p-4">{[1, 2, 3].map((n) => <div key={n} className="h-10 animate-pulse rounded-lg bg-ink-100" />)}</div>
+            ) : records.length === 0 ? (
+              <p className="px-5 py-9 text-center text-[13.5px] text-ink-500">No stipends match.</p>
+            ) : records.map((r) => {
+              const meta = STATUS_META[r.status] ?? STATUS_META.released
+              const isVoid = r.status === 'void'
               return (
-                <div key={key} className={`flex items-center gap-3 rounded-xl border border-success-200 bg-white px-4 py-3 ${blocked ? 'opacity-70' : ''}`}>
-                  <input type="checkbox" checked={checked} disabled={!!blocked} title={blocked ?? undefined}
-                    onChange={() => setSelected((s) => checked ? s.filter((k) => k !== key) : [...s, key])}
-                    className="h-4 w-4 flex-shrink-0 accent-brand-700 disabled:cursor-not-allowed" aria-label={`Select ${e.name}`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-ink-900">
-                      {e.name}{e.student_id_number && <span className="ml-1.5 font-mono text-[11px] font-normal text-ink-500">ID {e.student_id_number}</span>}
+                <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-ink-900/[.04] px-4 py-3 sm:grid sm:grid-cols-[minmax(200px,1.5fr)_minmax(170px,1.2fr)_110px_minmax(150px,1fr)_minmax(150px,1fr)_84px] sm:gap-3.5 sm:px-[18px] hover:bg-surface-2 ${isVoid ? 'opacity-70' : ''}`}>
+                  <div className="order-1 w-[calc(100%-7rem)] min-w-0 sm:order-none sm:w-auto">
+                    <p className="truncate text-[13.5px] font-semibold text-ink-950">{r.recipient?.name ?? `User #${r.user_id}`}</p>
+                    <p className="text-[11.5px] text-ink-400">{r.recipient?.profile?.student_id_number ? `ID ${r.recipient.profile.student_id_number}` : '—'}</p>
+                  </div>
+                  <span className="order-3 truncate font-mono text-xs text-ink-600 sm:order-none">{r.control_number ?? '—'}</span>
+                  <span className="order-2 ml-auto text-right text-[13.5px] font-bold text-ink-950 sm:order-none sm:ml-0">{peso(Number(r.amount))}</span>
+                  <span className="order-4 text-[12.5px] text-ink-600 sm:order-none">{r.semester} {r.academic_year}</span>
+                  <div className="order-5 w-full min-w-0 sm:order-none sm:w-auto">
+                    <p className="flex items-center gap-1.5">
+                      <span className="rounded-full px-2.5 py-[3px] text-[11.5px] font-bold" style={{ color: meta.fg, background: meta.bg }}>{meta.label}</span>
+                      {!isVoid && r.released_at && <span className="text-[11.5px] text-ink-400">{formatDate(r.released_at)}</span>}
                     </p>
-                    <p className="text-xs text-ink-500">{e.academic_year} — {e.semester} · {e.verified_hours}/{e.required_hours} hrs verified</p>
-                    {(e.via_promissory || !e.has_signature || !e.narrative_submitted) && (
-                      <p className="mt-1 flex flex-wrap gap-1.5">
-                        {e.via_promissory && (
-                          <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
-                            Promissory · deficient {e.deficient_hours ?? e.lacking_hours} hrs
-                          </span>
-                        )}
-                        {!e.has_signature && (
-                          <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-700">No signature</span>
-                        )}
-                        {!e.narrative_submitted && (
-                          <span className="rounded-full bg-danger-50 px-2 py-0.5 text-[11px] font-semibold text-danger-700">No end-of-term report</span>
-                        )}
-                      </p>
+                    {!isVoid && (r.received_at
+                      ? <p className="mt-1 text-[11.5px] font-semibold text-info-700" title="The recipient opened the stub">Received {formatDate(r.received_at)}</p>
+                      : <p className="mt-1 text-[11.5px] text-ink-400" title="The recipient hasn't viewed or downloaded it yet">Not yet opened</p>)}
+                    {isVoid && r.void_reason && <p className="mt-1 truncate text-[11.5px] text-red-strong" title={r.void_reason}>{r.void_reason}</p>}
+                    {!isVoid && r.via_promissory && <p className="mt-1 truncate text-[11.5px] text-gold-700">Promissory · short {r.deficient_hours ?? '—'}h</p>}
+                  </div>
+                  <div className="order-6 ml-auto flex justify-end gap-1.5 sm:order-none">
+                    <button onClick={() => setHistory({ id: r.id, label: r.control_number ?? `#${r.id}` })} title="See history" aria-label={`History of ${r.control_number ?? r.id}`}
+                      className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-ink-200 bg-surface text-ink-600 hover:border-accent hover:text-accent-strong">
+                      <History className="h-4 w-4" />
+                    </button>
+                    {canVoid(r.status) && (
+                      <button onClick={() => { setVoiding(r); setReason('') }} title="Void" aria-label={`Void ${r.control_number ?? r.id}`}
+                        className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-danger-200 bg-surface text-red-strong hover:bg-danger-50">
+                        <Ban className="h-4 w-4" />
+                      </button>
                     )}
                   </div>
-                  <span className="flex-shrink-0 text-xs font-semibold text-brand-700">{PHP.format(e.suggested_amount)}</span>
                 </div>
               )
             })}
           </div>
-          {selected.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <input value={bulkAmount} onChange={(e) => setBulkAmount(e.target.value)} type="number" min="0"
-                placeholder="Amount each (default per-student)" className="w-52 rounded-lg border border-success-200 bg-white px-3 py-2 text-xs focus:outline-none" />
-              <input value={bulkRemarks} onChange={(e) => setBulkRemarks(e.target.value)}
-                placeholder="Remarks (optional)" className="min-w-52 flex-1 rounded-lg border border-success-200 bg-white px-3 py-2 text-xs focus:outline-none" />
-              <button onClick={confirmRelease} disabled={releaseBulk.isPending}
-                className="flex items-center gap-1.5 rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
-                <Send className="h-3.5 w-3.5" /> {releaseBulk.isPending ? 'Releasing…' : `Release ${selected.length} selected`}
-              </button>
-            </div>
-          )}
         </div>
-      ) : (
-        <div className="rounded-2xl border border-success-200 bg-success-50 p-5 shadow-sm">
-          <div className="mb-1 flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-brand-700" />
-            <h2 className="font-semibold text-success-800">Eligible for Release</h2>
-            <span className="rounded-full bg-success-100 px-2 py-0.5 text-xs font-medium text-success-800">0</span>
+        {lastPage > 1 && (
+          <div className="flex items-center justify-center gap-3 border-t border-ink-900/[.05] py-3 text-sm">
+            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="rounded-lg border border-ink-200 px-3 py-1.5 font-semibold text-ink-600 disabled:opacity-40">Previous</button>
+            <span className="text-ink-500">Page {page} of {lastPage}</span>
+            <button onClick={() => setPage((p) => Math.min(lastPage, p + 1))} disabled={page >= lastPage} className="rounded-lg border border-ink-200 px-3 py-1.5 font-semibold text-ink-600 disabled:opacity-40">Next</button>
           </div>
-          <p className="text-xs text-success-700">No students are eligible yet. A recipient appears here, with a checkbox for bulk release, once their verified hours reach the required hours for the period.</p>
-        </div>
-      )}
-
-      <div className="relative max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-        <input value={recordSearch} onChange={(e) => { setRecordSearch(e.target.value); setPage(1) }}
-          placeholder="Search name, student ID or control no.…" aria-label="Search stipend records"
-          className="w-full rounded-xl border border-ink-200 bg-white py-2.5 pl-9 pr-4 text-sm focus:border-brand-700 focus:outline-none" />
-      </div>
-
-      <div className="rounded-2xl border border-ink-200 bg-white shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="p-6 space-y-3">{[1, 2, 3].map(n => <div key={n} className="h-12 animate-pulse rounded-lg bg-ink-200" />)}</div>
-        ) : !records.length ? (
-          <div className="flex flex-col items-center gap-3 py-16 text-center"><DollarSign className="h-10 w-10 text-ink-300" /><p className="text-sm text-ink-350">No stipend records.</p></div>
-        ) : (
-          <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-sm">
-            <thead className="border-b border-ink-200 bg-ink-50">
-              <tr>
-                {['Recipient', 'Control No.', 'Amount', 'Period', 'Status', ''].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-ink-500">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {records.map((r: StipendRecord) => {
-                const meta = STATUS_META[r.status] ?? STATUS_META.pending
-                return (
-                  <tr key={r.id} className="border-b border-ink-100 last:border-0 align-middle">
-                    <td className="px-4 py-3 font-medium text-ink-900">
-                      {r.recipient?.name ?? `User #${r.user_id}`}
-                      {r.recipient?.profile?.student_id_number && (
-                        <span className="block font-mono text-[11px] font-normal text-ink-500">ID {r.recipient.profile.student_id_number}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-500">{r.control_number ?? '—'}</td>
-                    <td className="px-4 py-3 font-semibold text-brand-700">{PHP.format(r.amount)}</td>
-                    <td className="px-4 py-3 text-ink-500">{r.academic_year} — {r.semester}</td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
-                      {r.status === 'void' && r.void_reason && <p className="mt-0.5 text-[11px] text-danger-700">{r.void_reason}</p>}
-                      {r.status !== 'void' && r.released_at && <p className="mt-0.5 text-[11px] text-ink-500">{formatDate(r.released_at)}</p>}
-                      {r.via_promissory && (
-                        <p className="mt-1">
-                          <span className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800">
-                            Promissory · deficient {r.deficient_hours ?? '—'} hrs
-                          </span>
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-1.5">
-                      <button onClick={() => setHistory({ id: r.id, label: r.control_number ?? `#${r.id}` })} title="History"
-                        aria-label={`History of ${r.control_number ?? r.id}`}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-ink-200 text-ink-500 hover:bg-ink-50 hover:text-brand-700">
-                        <History className="h-3.5 w-3.5" />
-                      </button>
-                      {canVoid(r.status) && (
-                        voiding?.id === r.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <input autoFocus value={voiding.reason} onChange={e => setVoiding(v => v && ({ ...v, reason: e.target.value }))}
-                              placeholder="Reason" className="w-32 rounded-lg border border-ink-200 px-2 py-1 text-xs focus:outline-none" />
-                            <button onClick={async () => {
-                                if (!voiding.reason) return
-                                const ok = await confirm({
-                                  title: 'Void this stipend?',
-                                  body: `${r.recipient?.name ?? 'The recipient'} · ${r.control_number ?? 'no control number'} · ${pesoAmount(Number(r.amount))}. The stub is marked VOID and the recipient becomes eligible to be released again.`,
-                                  details: [`Reason: ${voiding.reason}`],
-                                  confirmLabel: 'Void stub',
-                                  tone: 'danger',
-                                })
-                                if (ok) voidStipend.mutate(voiding)
-                              }} disabled={voidStipend.isPending || !voiding.reason}
-                              className="rounded-lg bg-danger-700 px-2.5 py-1 text-xs font-semibold text-white disabled:opacity-50">Void</button>
-                            <button onClick={() => setVoiding(null)} className="text-xs text-ink-350">✕</button>
-                          </div>
-                        ) : (
-                          <button onClick={() => setVoiding({ id: r.id, reason: '' })}
-                            className="inline-flex items-center gap-1 rounded-lg border border-ink-200 px-2.5 py-1 text-xs font-semibold text-danger-700 hover:bg-danger-50">
-                            <Ban className="h-3.5 w-3.5" /> Void
-                          </button>
-                        )
-                      )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table></div>
         )}
       </div>
+
+      {voiding && (
+        <Dialog onClose={() => !voidStub.isPending && setVoiding(null)} label="Void stub">
+          <span className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-danger-100 text-red-strong"><Ban className="h-6 w-6" /></span>
+          <p className="mt-3.5 text-[19px] font-extrabold text-ink-950">Void {(voiding.recipient?.name ?? 'this recipient').split(' ')[0]}&apos;s stub?</p>
+          <p className="mt-1.5 text-[13.5px] text-ink-600">
+            {voiding.control_number ?? 'No control number'} · {peso(Number(voiding.amount))}. The stub prints VOID and the recipient becomes eligible again. Tell them why.
+          </p>
+          {voiding.received_at && (
+            <p className="mt-2.5 rounded-xl bg-gold-50 px-3 py-2 text-[12.5px] font-medium text-gold-800">
+              They already received it on {formatDate(voiding.received_at)}: make sure the money is settled before voiding.
+            </p>
+          )}
+          <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={3} maxLength={500} autoFocus
+            placeholder="Reason (required), e.g. issued with the wrong amount"
+            className="mt-3.5 w-full resize-y rounded-xl border border-ink-200 bg-surface px-3.5 py-3 text-[13.5px] text-ink-950 focus:border-accent focus:outline-none" />
+          <div className="mt-4 flex justify-end gap-2.5">
+            <button onClick={() => setVoiding(null)} disabled={voidStub.isPending} className="h-11 rounded-xl border border-ink-200 px-4 text-sm font-semibold text-ink-700">Cancel</button>
+            <button onClick={() => voidStub.mutate()} disabled={!reason.trim() || voidStub.isPending}
+              className="flex h-11 items-center gap-1.5 rounded-xl bg-red-accent px-5 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">
+              {voidStub.isPending && <Loader2 className="h-4 w-4 animate-spin" />} Void stub
+            </button>
+          </div>
+        </Dialog>
+      )}
+
       {history && (
         <AuditHistoryDrawer scope={{ record: `stipend:${history.id}` }} title={`History · Stipend ${history.label}`} onClose={() => setHistory(null)} />
       )}
@@ -383,4 +579,42 @@ export default function AdminStipendPage() {
   )
 }
 
-const INPUT = 'w-full rounded-xl border border-ink-300 bg-ink-50 px-3 py-2 text-sm focus:border-brand-700 focus:outline-none'
+// ── Small pieces ───────────────────────────────────────────────────────────
+
+function CheckBox({ state, label, onClick, disabled }: { state: 'on' | 'some' | 'off'; label: string; onClick?: () => void; disabled?: boolean }) {
+  const filled = state !== 'off'
+  const box = (
+    <span className={`flex h-[22px] w-[22px] flex-none items-center justify-center rounded-md border-2 text-white ${filled ? 'border-accent bg-accent' : 'border-ink-300 bg-surface'}`}>
+      {state === 'on' ? <Check className="h-4 w-4" strokeWidth={3} /> : state === 'some' ? <Minus className="h-4 w-4" strokeWidth={3} /> : null}
+    </span>
+  )
+  if (!onClick) return <span role="checkbox" aria-checked={state === 'on'} aria-label={label}>{box}</span>
+  return (
+    <button type="button" role="checkbox" aria-checked={state === 'on' ? true : state === 'some' ? 'mixed' : false} aria-label={label}
+      onClick={onClick} disabled={disabled} className="disabled:opacity-40">{box}</button>
+  )
+}
+
+function Missing({ icon: Icon, label, gold }: { icon: typeof PenLine; label: string; gold?: boolean }) {
+  return (
+    <span className={`flex items-center gap-1 rounded-full px-2.5 py-[3px] text-[11.5px] font-bold ${gold ? 'bg-gold-100 text-gold-700' : 'bg-danger-100 text-red-strong'}`}>
+      <Icon className="h-3.5 w-3.5" /> {label}
+    </span>
+  )
+}
+
+function Dialog({ children, onClose, label }: { children: React.ReactNode; onClose: () => void; label: string }) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onClose])
+  return (
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-[rgba(10,30,20,.45)] p-5" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}
+        className="w-[460px] max-w-full rounded-[20px] bg-surface p-[26px] shadow-[0_20px_60px_rgba(0,0,0,.3)]">
+        {children}
+      </div>
+    </div>
+  )
+}

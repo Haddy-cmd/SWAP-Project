@@ -100,6 +100,8 @@ export interface StipendRecord {
   certified_at: string | null
   released_by: number | null
   released_at: string | null
+  /** When the recipient first viewed or downloaded the stub (legacy Banking Office stubs: when paid). */
+  received_at?: string | null
   void_reason: string | null
   has_slip: boolean
   remarks: string | null
@@ -199,4 +201,26 @@ export interface ProgramInsights {
     by_college: { college: string; total: number; approved: number; rejected: number }[]
   }
   offices: { office: string; capacity: number; filled: number; verified_hours: number; avg_completion: number | null }[]
+}
+
+/** Admin → Stipend → History cards (StipendService::summary): over the search, not the status chip. */
+export interface StipendHistorySummary {
+  /** Sum of every live stub (released + legacy received). */
+  paid_out: number
+  /** Released, legacy ready-to-claim stubs included. */
+  released: number
+  /** Opened by the recipient (received_at), legacy Banking Office pickups included. */
+  received: number
+  /** Released, not opened yet by the recipient. */
+  not_received: number
+  /** Legacy stubs received at the Banking Office (before 2026-10-05). */
+  legacy_received: number
+  void: number
+}
+
+/** POST /admin/stipend/remind (StipendReminderService). */
+export interface StipendReminderResult {
+  reminded: number
+  already_today: number
+  not_blocked: number
 }

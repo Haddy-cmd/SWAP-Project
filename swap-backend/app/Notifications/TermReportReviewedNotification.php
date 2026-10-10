@@ -39,7 +39,7 @@ class TermReportReviewedNotification extends Notification implements ShouldQueue
             $mail->line("Supervisor's remarks: {$this->data['review_remarks']}");
         }
 
-        return $mail->action('View My Report', \App\Support\Frontend::url('/recipient/hours'));
+        return $mail->action('View My Report', \App\Support\Frontend::url('/recipient/attendance#report'));
     }
 
     public function toArray(object $notifiable): array

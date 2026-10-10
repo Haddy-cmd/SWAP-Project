@@ -62,7 +62,7 @@ export default function ApplicationDetailPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Timeline */}
         <div className="lg:col-span-1">
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
             <h2 className="mb-5 font-semibold text-ink-900">Status Timeline</h2>
             <ApplicationTimeline application={application} />
           </div>
@@ -70,7 +70,7 @@ export default function ApplicationDetailPage() {
 
         {/* Details */}
         <div className="space-y-5 lg:col-span-2">
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
             <h2 className="mb-4 font-semibold text-ink-900">Application Details</h2>
             <dl className="space-y-3 text-sm">
               <div className="flex justify-between">
@@ -147,7 +147,7 @@ export default function ApplicationDetailPage() {
                 )}
 
                 {application.interview.notes && (
-                  <div className="rounded-lg border border-info-200 bg-white px-3 py-2">
+                  <div className="rounded-lg border border-info-200 bg-surface px-3 py-2">
                     <dt className="mb-0.5 text-xs text-ink-500">Notes</dt>
                     <dd className="text-ink-900">{application.interview.notes}</dd>
                   </div>
@@ -158,7 +158,7 @@ export default function ApplicationDetailPage() {
 
           {/* Documents */}
           {application.documents && application.documents.length > 0 && (
-            <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
               <h2 className="mb-4 font-semibold text-ink-900">Uploaded Documents</h2>
               <ul className="space-y-2">
                 {application.documents.map((doc) => (

@@ -8,7 +8,7 @@ import { formatDate } from '@/lib/utils/formatDate'
 import { formatHours } from '@/lib/utils/formatHours'
 import type { RecipientProgress } from '@/types/attendance.types'
 
-const CARD = 'rounded-2xl border border-ink-900/10 bg-white/90 px-6 pb-6 pt-[22px] shadow-[0_2px_8px_rgba(19,36,26,0.04)]'
+const CARD = 'rounded-2xl border border-ink-900/10 bg-surface/90 px-6 pb-6 pt-[22px] shadow-[0_2px_8px_rgba(19,36,26,0.04)]'
 
 /** One query shared by the dashboard and Hours cards (GET /recipient/progress). */
 function useProgress() {
@@ -123,7 +123,7 @@ export function HoursBreakdownCard() {
   ]
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
       <h2 className="mb-1 flex items-center gap-2 font-semibold text-ink-900"><BarChart3 className="h-4 w-4 text-brand-700" /> Breakdown · {data.term}</h2>
       <p className="mb-4 text-sm text-ink-500">Bonus hours are granted by your supervisor; rejected hours don&apos;t count.</p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">

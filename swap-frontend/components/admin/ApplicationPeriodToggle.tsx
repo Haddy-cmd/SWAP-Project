@@ -41,7 +41,7 @@ export function ApplicationPeriodToggle() {
   return (
     <div
       title={open ? 'Students can submit new applications right now.' : 'Students see a "not yet open" notice and cannot apply.'}
-      className="inline-flex flex-shrink-0 items-center gap-2.5 rounded-full border border-ink-200 bg-white py-1.5 pl-3 pr-1.5 shadow-sm"
+      className="inline-flex flex-shrink-0 items-center gap-2.5 rounded-full border border-ink-200 bg-surface py-1.5 pl-3 pr-1.5 shadow-sm"
     >
       <span className={`h-2 w-2 rounded-full ${open ? 'bg-success-600' : 'bg-ink-350'}`} aria-hidden />
       <span className={`text-[13px] font-semibold ${open ? 'text-success-700' : 'text-ink-600'}`}>

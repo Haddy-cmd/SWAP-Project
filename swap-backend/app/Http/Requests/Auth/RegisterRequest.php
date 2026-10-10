@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Support\Colleges;
 use App\Support\PasswordPolicy;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -68,8 +69,9 @@ class RegisterRequest extends FormRequest
             'middle_name' => array_merge(['nullable'], $nameRules),
             'last_name' => array_merge(['required'], $nameRules),
             'contact_number' => ['nullable', 'string', 'max:20'],
-            'college' => ['required', 'string', 'max:150'],
-            'program' => ['required', 'string', 'max:150'],
+            // The official list (config/colleges.php), same as the form's dropdowns.
+            'college' => ['required', 'string', Rule::in(Colleges::codes())],
+            'program' => ['required', 'string', Rule::in(Colleges::programsOf($this->input('college')))],
             // 5th year only exists for the five-year programs (FIVE_YEAR_PROGRAMS);
             // everyone else caps at 4. The extra cap is enforced in withValidator().
             'year_level' => ['required', 'integer', 'min:1', 'max:5'],
@@ -165,6 +167,8 @@ class RegisterRequest extends FormRequest
             'middle_name.regex' => $nameMessage,
             'last_name.regex' => $nameMessage,
             'name.regex' => $nameMessage,
+            'college.in' => Colleges::MSG_COLLEGE,
+            'program.in' => Colleges::MSG_PROGRAM,
         ] + PasswordPolicy::messages();
     }
 }

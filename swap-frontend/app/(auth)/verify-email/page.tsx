@@ -5,7 +5,7 @@ import { MailCheck } from 'lucide-react'
 
 export default function VerifyEmailPage() {
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-8 shadow-sm text-center">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm text-center">
       <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
         <MailCheck className="h-8 w-8 text-brand-700" />
       </div>

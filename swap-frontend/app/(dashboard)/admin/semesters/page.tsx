@@ -89,7 +89,7 @@ export default function AdminSemestersPage() {
   const formRenewalBlocked = renewalTaken(editing)
 
   const formCard = (
-    <div className="rounded-2xl border border-brand-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-brand-200 bg-surface p-5 shadow-sm">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-ink-900">{editing === 'new' ? 'Add a semester' : 'Edit semester'}</h2>
         <button onClick={close} aria-label="Close" className="rounded-lg p-1.5 text-ink-400 hover:bg-ink-50"><X className="h-4 w-4" /></button>
@@ -155,7 +155,7 @@ export default function AdminSemestersPage() {
           {save.isPending ? 'Saving…' : 'Save semester'}
         </button>
         <button onClick={close} disabled={save.isPending}
-          className="rounded-xl border border-ink-200 bg-white px-5 py-2.5 text-sm font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
+          className="rounded-xl border border-ink-200 bg-surface px-5 py-2.5 text-sm font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
       </div>
     </div>
   )
@@ -180,7 +180,7 @@ export default function AdminSemestersPage() {
 
       {editing === 'new' && formCard}
 
-      <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
+      <div className="rounded-2xl border border-ink-200 bg-surface shadow-sm">
         <div className="border-b border-ink-100 px-5 py-4">
           <div className="flex items-center gap-2">
             <CalendarRange className="h-4 w-4 text-brand-700" />
@@ -275,7 +275,7 @@ export default function AdminSemestersPage() {
                           <Trash2 className="h-3.5 w-3.5" /> {remove.isPending ? 'Deleting…' : 'Yes, delete it'}
                         </button>
                         <button onClick={() => setDeletingId(null)} disabled={remove.isPending}
-                          className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
+                          className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
                       </div>
                     </div>
                   )}

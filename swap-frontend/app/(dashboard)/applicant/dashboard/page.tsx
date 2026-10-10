@@ -39,7 +39,7 @@ export default function ApplicantDashboard() {
 
       {/* Quick status */}
       {latest && (
-        <div className="flex items-center justify-between rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm">
           <div>
             <p className="text-xs text-ink-500">Latest Application</p>
             <p className="mt-0.5 font-semibold text-ink-900">
@@ -53,12 +53,12 @@ export default function ApplicantDashboard() {
       {/* The latest application's progress, dated, and its interview */}
       {latest && (
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-          <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
             <h2 className="mb-5 font-semibold text-ink-900">Application Progress</h2>
             <ApplicationTimeline application={latest} />
           </div>
           {latest.interview && (
-            <div className="self-start rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+            <div className="self-start rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
               <h2 className="mb-3 flex items-center gap-2 font-semibold text-ink-900"><CalendarClock className="h-4 w-4 text-brand-700" /> Interview</h2>
               <p className="text-sm font-semibold text-ink-900">{formatDateTime(latest.interview.scheduled_at)}</p>
               <p className="mt-2 flex items-start gap-1.5 text-sm text-ink-600">
@@ -81,7 +81,7 @@ export default function ApplicantDashboard() {
           <Info className="mt-0.5 h-5 w-5 flex-none text-brand-700" />
           <p className="text-sm text-ink-700">
             Your renewal for {latest!.semester} {latest!.academic_year} was not approved, so your account is now an applicant account.
-            You can apply again as a new applicant while the application period is open.
+            Now that the DSA Office has reactivated it, you can apply again as a new applicant while the application period is open.
           </p>
         </div>
       )}
@@ -119,7 +119,7 @@ export default function ApplicantDashboard() {
         ) : (
           <Link
             href="/applicant/application/new"
-            className="flex items-center gap-3 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+            className="flex items-center gap-3 rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm hover:shadow-md transition-shadow"
           >
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
               <Plus className="h-5 w-5 text-brand-700" />
@@ -133,7 +133,7 @@ export default function ApplicantDashboard() {
 
         <Link
           href="/applicant/documents"
-          className="flex items-center gap-3 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+          className="flex items-center gap-3 rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm hover:shadow-md transition-shadow"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50">
             <FileText className="h-5 w-5 text-brand-700" />

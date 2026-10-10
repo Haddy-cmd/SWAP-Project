@@ -47,12 +47,12 @@ class DemoDataSeeder extends Seeder
         ['CHS', 7, ['BS Midwifery', 'BS Nursing', 'BS Pharmacy']],
         ['CPA', 6, ['BS Social Work', 'BS Sustainable Community Development', 'Bachelor of Public Administration']],
         ['KFCIAAS', 6, ['AB Islamic Studies major in Shariah', 'BS International Relations', 'BS Islamic Banking and Finance', 'BS Teaching Arabic']],
-        ['CA', 5, ['BS Agribusiness Management', 'BS Agricultural Business Management', 'BS Agriculture (Major in Animal Science)', 'BS Agriculture major in Agricultural Food Processing', 'BS Agriculture major in Agronomy', 'BS Agriculture major in Extension Education', 'BSA Agricultural Extension', 'BSA Farming Systems', 'BSA Horticulture', 'BSA Soil Science', 'BSA major in Food Processing', 'DABMT-Food Processing', 'DAT Crop Production Technology']],
+        ['COA', 5, ['BS Agribusiness Management', 'BS Agricultural Business Management', 'BS Agriculture (Major in Animal Science)', 'BS Agriculture major in Agricultural Food Processing', 'BS Agriculture major in Agronomy', 'BS Agriculture major in Extension Education', 'BSA Agricultural Extension', 'BSA Farming Systems', 'BSA Horticulture', 'BSA Soil Science', 'BSA major in Food Processing', 'DABMT-Food Processing', 'DAT Crop Production Technology']],
         ['CHTM', 4, ['BS Hospitality Management', 'BS Tourism Management']],
         ['CFES', 3, ['BS Environmental Science', 'BS Forestry', 'BS Forestry major in Agroforestry']],
         ['CSPEAR', 3, ['BS Physical Education']],
         ['DET', 3, ['BSET Construction Engineering Management', 'BSET Electrical and Renewable Energy', 'BSET Machining and Fabrication', 'DT Machine Shop Technology', 'Diploma in Electrical Technology major in Renewable Energy', 'Diploma in Technology Major in Construction Technology']],
-        ['CF', 2, ['BS Fisheries', 'Diploma in Fisheries Technology (Ladderized Program) Major in Aquaculture', 'Diploma in Fisheries Technology (Ladderized Program) Major in Fish Processing']],
+        ['CFAS', 2, ['BS Fisheries', 'Diploma in Fisheries Technology (Ladderized Program) Major in Aquaculture', 'Diploma in Fisheries Technology (Ladderized Program) Major in Fish Processing']],
     ];
 
     private const FIRST = ['Abdul', 'Aisah', 'Alinor', 'Amina', 'Amirah', 'Anisah', 'Asnawi', 'Bai', 'Bashir', 'Farida', 'Fatimah', 'Hadji', 'Hamid',

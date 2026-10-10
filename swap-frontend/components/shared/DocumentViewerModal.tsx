@@ -173,7 +173,7 @@ export function DocumentViewerModal({ doc, docs, onClose }: {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
-        className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

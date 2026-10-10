@@ -9,8 +9,8 @@ import { AuditEntryRow } from '@/components/admin/AuditEntryRow'
 import type { AuditFilters, AuditOptions } from '@/types/audit.types'
 
 const KEYS: (keyof AuditFilters)[] = ['area', 'actor_id', 'subject', 'subject_user_id', 'record', 'from', 'to', 'sensitive', 'include_testing', 'page']
-const SELECT = 'h-9 w-full cursor-pointer appearance-none rounded-lg border border-ink-200 bg-white pl-3 pr-8 text-[13px] text-ink-800 focus:border-brand-700 focus:outline-none'
-const INPUT = 'h-9 rounded-lg border border-ink-200 bg-white px-2.5 text-[13px] text-ink-800 focus:border-brand-700 focus:outline-none'
+const SELECT = 'h-9 w-full cursor-pointer appearance-none rounded-lg border border-ink-200 bg-surface pl-3 pr-8 text-[13px] text-ink-800 focus:border-brand-700 focus:outline-none'
+const INPUT = 'h-9 rounded-lg border border-ink-200 bg-surface px-2.5 text-[13px] text-ink-800 focus:border-brand-700 focus:outline-none'
 
 // ── Dates: quick choices map to from/to (Manila days, like the API) ──
 type Preset = 'any' | 'today' | '7' | '30' | 'custom'
@@ -89,7 +89,7 @@ function AuditLogsView() {
         <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
           <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Search a student by name, email or ID"
-            aria-label="Search a student" className="h-11 w-full rounded-xl border border-ink-200 bg-white pl-10 pr-9 text-sm shadow-sm focus:border-brand-700 focus:outline-none" />
+            aria-label="Search a student" className="h-11 w-full rounded-xl border border-ink-200 bg-surface pl-10 pr-9 text-sm shadow-sm focus:border-brand-700 focus:outline-none" />
           {subject && (
             <button onClick={() => setSubject('')} aria-label="Clear search" className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-1 text-ink-400 hover:text-ink-700">
               <X className="h-4 w-4" />
@@ -98,7 +98,7 @@ function AuditLogsView() {
         </div>
         <button type="button" onClick={() => setPanelOpen((o) => !o)} aria-expanded={panelOpen} aria-haspopup="dialog"
           className={`flex h-11 flex-shrink-0 items-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm transition-colors ${
-            panelCount ? 'border-brand-700 bg-brand-50 text-brand-800' : 'border-ink-200 bg-white text-ink-700 hover:bg-ink-50'}`}>
+            panelCount ? 'border-brand-700 bg-brand-50 text-brand-800' : 'border-ink-200 bg-surface text-ink-700 hover:bg-ink-50'}`}>
           <SlidersHorizontal className="h-4 w-4" />
           Filters
           {panelCount > 0 && <span className="rounded-full bg-brand-700 px-1.5 text-[11px] text-white">{panelCount}</span>}
@@ -111,7 +111,7 @@ function AuditLogsView() {
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           {chips.map((c) => (
-            <span key={c.key} className="inline-flex items-center gap-1 rounded-full border border-ink-200 bg-white py-1 pl-3 pr-1.5 text-[12.5px] text-ink-700 shadow-sm">
+            <span key={c.key} className="inline-flex items-center gap-1 rounded-full border border-ink-200 bg-surface py-1 pl-3 pr-1.5 text-[12.5px] text-ink-700 shadow-sm">
               {c.label}
               <button onClick={() => { if (c.key === 'subject') setSubject(''); else set(c.clear) }} aria-label={`Remove ${c.label}`}
                 className="rounded-full p-0.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700"><X className="h-3.5 w-3.5" /></button>
@@ -121,7 +121,7 @@ function AuditLogsView() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl border border-ink-200 bg-surface shadow-sm">
         {isLoading ? (
           <div className="space-y-3 p-5">{[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-12 animate-pulse rounded-lg bg-ink-100" />)}</div>
         ) : entries.length === 0 ? (
@@ -177,7 +177,7 @@ function FiltersPanel({ filters, options, set, onClose }: {
 
   return (
     <div ref={ref} role="dialog" aria-label="Filters"
-      className="absolute right-0 top-[calc(100%+6px)] z-30 w-full space-y-4 rounded-2xl border border-ink-200 bg-white p-4 shadow-xl sm:w-[380px]">
+      className="absolute right-0 top-[calc(100%+6px)] z-30 w-full space-y-4 rounded-2xl border border-ink-200 bg-surface p-4 shadow-xl sm:w-[380px]">
       <div className="grid grid-cols-2 gap-3">
         <label className="text-[12px] font-semibold text-ink-600">
           Area

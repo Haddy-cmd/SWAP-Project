@@ -28,7 +28,7 @@ export function AuditHistory({ scope, title = 'History' }: { scope: AuditScope; 
   const meta = data?.meta
 
   return (
-    <section className="rounded-2xl border border-ink-200 bg-white shadow-sm">
+    <section className="rounded-2xl border border-ink-200 bg-surface shadow-sm">
       <div className="flex items-center justify-between gap-2 border-b border-ink-100 px-4 py-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink-900"><History className="h-4 w-4 text-brand-700" /> {title}</h2>
         <Link href={`/admin/audit-logs?${new URLSearchParams(filters).toString()}`} className="text-xs font-semibold text-brand-700 hover:underline">

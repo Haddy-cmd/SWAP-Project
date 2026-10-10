@@ -70,15 +70,15 @@ function AdminAnalyticsReports() {
         </div>
       </div>
 
-      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-ink-900/[.08]">
+      <div role="tablist" className="no-scrollbar flex gap-1 overflow-x-auto border-b border-ink-900/[.08]">
         {[...TABS, { key: 'reports', label: 'All reports', icon: Table2 }].map((t) => {
           const on = t.key === tab
           return (
             <button key={t.key} role="tab" aria-selected={on}
               onClick={() => openTab(t.key === 'reports' ? 'applications' : t.key)}
               className={`-mb-px flex h-[46px] flex-none items-center gap-2 border-b-[3px] px-3.5 text-[14px] transition-colors ${
-                on ? 'border-[#17815F] font-bold text-ink-950' : 'border-transparent font-semibold text-ink-500 hover:text-ink-800'}`}>
-              <t.icon className={`h-[18px] w-[18px] ${on ? 'text-[#17815F]' : ''}`} />
+                on ? 'border-accent font-bold text-ink-950' : 'border-transparent font-semibold text-ink-500 hover:text-ink-800'}`}>
+              <t.icon className={`h-[18px] w-[18px] ${on ? 'text-accent' : ''}`} />
               {t.label}
             </button>
           )
@@ -99,7 +99,7 @@ function AdminAnalyticsReports() {
               return (
                 <button key={r.key} role="tab" aria-selected={on} onClick={() => openTab(r.key)}
                   className={`flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors ${
-                    on ? 'border-[#063D27] bg-[#063D27] text-white' : 'border-ink-200 bg-white text-ink-600 hover:text-[#17815F]'}`}>
+                    on ? 'border-accent-deep bg-accent-deep text-white' : 'border-ink-200 bg-surface text-ink-600 hover:text-accent'}`}>
                   <r.icon className="h-4 w-4" /> {r.label}
                 </button>
               )

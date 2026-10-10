@@ -14,6 +14,8 @@ export interface User {
   signature_url?: string | null
   /** GET /profile only: a signature is on record but its file is gone from storage, so it must be drawn again. */
   signature_missing?: boolean
+  /** GET /profile only: when the password last changed (from the audit log); null if never. */
+  password_changed_at?: string | null
   position_title?: string | null
   /** Supervisors and admins: their employee ID (digits). */
   employee_id?: string | null
@@ -76,4 +78,24 @@ export interface AuthResponse {
 export interface RegisterResponse {
   message: string
   verification_required?: boolean
+}
+
+/** Profile → Security: one live login of this account. */
+export interface ProfileSession {
+  id: number
+  device: string
+  kind: 'phone' | 'tablet' | 'desktop' | 'unknown'
+  ip_address: string | null
+  last_used_at: string | null
+  created_at: string | null
+  current: boolean
+}
+
+/** Profile → Activity: something this person did, as one sentence. */
+export interface MyActivityEntry {
+  id: number
+  action: string
+  area: string
+  summary: string
+  created_at: string
 }

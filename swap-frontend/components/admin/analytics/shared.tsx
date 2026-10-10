@@ -7,11 +7,11 @@ import type { ReportDrill } from '@/lib/utils/reportQuery'
 
 /** Shared look and data for the Analytics & reports tabs (layout "SWAP Admin Analytics v2"). */
 
-export const GREEN = '#17815F'
-export const GOLD = '#DDBB38'
-export const RED = '#C8322B'
-export const BLUE = '#2E5C8A'
-export const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-white shadow-[0_1px_3px_rgba(20,40,30,.05)]'
+export const GREEN = 'var(--color-accent)'
+export const GOLD = 'var(--color-gold-accent)'
+export const RED = 'var(--color-red-accent)'
+export const BLUE = 'var(--color-info-700)'
+export const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 
 /** Busy supervisor: mirrors SupervisorReminderService::BUSY_PENDING / BUSY_DAYS. */
 export const BUSY_PENDING = 10
@@ -69,7 +69,7 @@ export function Seg<T extends string>({ value, options, onChange, label }: {
       {options.map(([v, name]) => (
         <button key={v} type="button" aria-pressed={v === value} onClick={() => onChange(v)}
           className={`h-7 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition-colors ${
-            v === value ? 'bg-white text-ink-950 shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-500 hover:text-ink-800'}`}>
+            v === value ? 'bg-surface text-ink-950 shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-500 hover:text-ink-800'}`}>
           {name}
         </button>
       ))}
@@ -86,7 +86,7 @@ export function Labeled({ label, children }: { label: string; children: ReactNod
   )
 }
 
-export const SELECT = 'h-9 cursor-pointer rounded-[10px] border border-ink-200 bg-white pl-3 pr-8 text-[13px] font-semibold text-ink-900 focus:border-[#17815F] focus:outline-none'
+export const SELECT = 'h-9 cursor-pointer rounded-[10px] border border-ink-200 bg-surface pl-3 pr-8 text-[13px] font-semibold text-ink-900 focus:border-accent focus:outline-none'
 
 export function Skeleton({ h = 'h-40' }: { h?: string }) {
   return <div className={`${h} animate-pulse rounded-[18px] bg-ink-100`} />

@@ -6,11 +6,12 @@ import { QrCode, MapPin, Printer, Copy, Check, AlertCircle, Camera } from 'lucid
 import { supervisorApi } from '@/lib/api/supervisor.api'
 import { QrDisplay } from '@/components/attendance/QrDisplay'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { copyText } from '@/lib/utils/clipboard'
 
 function CopyField({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false)
   const copy = async () => {
-    await navigator.clipboard.writeText(value)
+    if (!(await copyText(value))) return
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }
@@ -55,7 +56,7 @@ function SelfieSettingCard() {
   const enabled = data?.require_clock_in_selfie ?? true
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm print:hidden">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm print:hidden">
       <div className="flex items-start gap-3">
         <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-50 text-brand-700">
           <Camera className="h-[18px] w-[18px]" />
@@ -134,7 +135,7 @@ export default function SupervisorQrPage() {
       ) : data ? (
         <>
           {/* Printable QR card */}
-          <div className="rounded-2xl border border-ink-200 bg-white p-8 shadow-sm print:border-0 print:shadow-none">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm print:border-0 print:shadow-none">
             <div className="flex flex-col items-center text-center">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                 <QrCode className="h-6 w-6" />
@@ -165,7 +166,7 @@ export default function SupervisorQrPage() {
               <Printer className="h-4 w-4" /> Print QR Code
             </button>
 
-            <div className="space-y-3 rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+            <div className="space-y-3 rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wide text-ink-350">Manual fallback</p>
               <CopyField label="Scan link — open in a phone browser" value={scanUrl} />
               <CopyField label="QR token — paste in Attendance → QR Token" value={data.qr_code} />

@@ -119,7 +119,7 @@ export function SemesterServiceReport({ logs, identity, term }: {
   const noData = !recipientThisTerm
 
   return (
-    <div className="duty-slip mx-auto w-full max-w-[880px] rounded-lg border border-ink-200 bg-white p-7 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
+    <div data-theme="light" className="duty-slip mx-auto w-full max-w-[880px] rounded-lg border border-ink-200 bg-white p-7 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
       <div className="min-w-[600px]">
         {/* Header */}
         <table className="w-full border-collapse text-[11px]">

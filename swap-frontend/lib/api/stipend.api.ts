@@ -13,6 +13,11 @@ export const stipendApi = {
   // Streams the stub PDF as a Blob so the caller can open/download it. `v`
   // cache-busts the download: a void re-renders the stub, so the same URL would
   // otherwise serve the old bytes.
-  getSlip: (id: number, v?: string | null) =>
-    apiClient.get<Blob>(`/recipient/stipend/${id}/slip`, { params: v ? { v } : undefined, responseType: 'blob' }).then((r) => r.data),
+  // Opening it (download, or `view` to show it in the browser) marks the stub received on the
+  // server the first time.
+  getSlip: (id: number, v?: string | null, options: { view?: boolean } = {}) =>
+    apiClient.get<Blob>(`/recipient/stipend/${id}/slip`, {
+      params: { ...(v ? { v } : {}), ...(options.view ? { view: 1 } : {}) },
+      responseType: 'blob',
+    }).then((r) => r.data),
 }

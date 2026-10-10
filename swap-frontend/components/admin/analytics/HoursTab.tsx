@@ -7,7 +7,7 @@ import { formatHours } from '@/lib/utils/formatHours'
 import { GREEN, Card, Labeled, Seg, Skeleton, plural, useAnalytics, type TabProps } from './shared'
 
 // Seal-derived office colours (same order as elsewhere in the admin pages).
-const OFFICE_COLORS = ['#1F5B3A', '#D4AF2A', '#A3201F', '#2E5C8A', '#1F8466', '#6B4E9A', '#8C968F']
+const OFFICE_COLORS = ['var(--color-brand-700)', 'var(--color-gold-500)', 'var(--color-red-strong)', 'var(--color-info-700)', 'var(--color-success-600)', 'var(--color-violet-600)', 'var(--color-ink-400)']
 
 /**
  * Hours & offices: service hours logged per week (verified + waiting), and every office's
@@ -65,7 +65,7 @@ export function HoursTab({ academicYear, semester, onDrill }: TabProps) {
         ) : (
           <>
             <div className="relative mt-[18px] h-[180px] border-b border-ink-900/[.08]"
-              style={{ backgroundImage: 'linear-gradient(#EEF1EC 1px, transparent 1px)', backgroundSize: '100% 25%' }}>
+              style={{ backgroundImage: 'linear-gradient(var(--color-surface-3) 1px, transparent 1px)', backgroundSize: '100% 25%' }}>
               <svg viewBox="0 0 300 180" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
                 <polygon points={area} fill="rgba(23,129,95,.12)" />
                 <polyline points={line} fill="none" stroke={GREEN} strokeWidth={3} vectorEffect="non-scaling-stroke" />
@@ -75,7 +75,7 @@ export function HoursTab({ academicYear, semester, onDrill }: TabProps) {
                 const bottom = `${(w.n / max) * 80}%`
                 return (
                   <span key={w.label} title={`${w.label}: ${formatHours(w.n)}`}>
-                    <span className="absolute -mb-1.5 -ml-1.5 h-3 w-3 rounded-full border-[3px] border-[#17815F] bg-white" style={{ left, bottom }} />
+                    <span className="absolute -mb-1.5 -ml-1.5 h-3 w-3 rounded-full border-[3px] border-accent bg-surface" style={{ left, bottom }} />
                     <span className="absolute mb-2.5 -translate-x-1/2 text-xs font-bold" style={{ left, bottom }}>{Math.round(w.n)}h</span>
                   </span>
                 )
@@ -94,7 +94,7 @@ export function HoursTab({ academicYear, semester, onDrill }: TabProps) {
             <Seg label="Sort offices" value={sort} onChange={setSort} options={[['hours', 'Most hours'], ['flag', 'Most flagged'], ['name', 'A–Z']] as const} />
           </Labeled>
           <button onClick={() => setOnlyFlagged((v) => !v)} aria-pressed={onlyFlagged}
-            className={`flex h-[34px] items-center gap-1.5 rounded-full border px-3 text-xs font-semibold ${onlyFlagged ? 'border-[#063D27] bg-[#063D27] text-white' : 'border-ink-200 bg-white text-ink-700'}`}>
+            className={`flex h-[34px] items-center gap-1.5 rounded-full border px-3 text-xs font-semibold ${onlyFlagged ? 'border-accent-deep bg-accent-deep text-white' : 'border-ink-200 bg-surface text-ink-700'}`}>
             <Flag className="h-4 w-4" /> Only flagged
           </button>
         </div>
@@ -105,12 +105,12 @@ export function HoursTab({ academicYear, semester, onDrill }: TabProps) {
           <p className="py-6 text-center text-[13px] text-ink-500">{onlyFlagged ? 'No office has flagged logs.' : 'No offices yet.'}</p>
         ) : offices.map((o) => (
           <button key={o.office} onClick={() => onDrill({ tab: 'recipients', filters: { office: [o.office] } })}
-            className="grid w-full grid-cols-[minmax(0,1fr)_70px_64px_58px_16px] items-center gap-2.5 border-b border-ink-900/[.04] py-[11px] text-left text-[13px] hover:bg-[#FAFBF8]">
+            className="grid w-full grid-cols-[minmax(0,1fr)_70px_64px_58px_16px] items-center gap-2.5 border-b border-ink-900/[.04] py-[11px] text-left text-[13px] hover:bg-surface-2">
             <span className="flex min-w-0 items-center gap-2"><span className="h-[9px] w-[9px] flex-none rounded-full" style={{ background: o.color }} /><span className="truncate">{o.office}</span></span>
-            <span className={`text-right ${o.filled > o.capacity ? 'font-semibold text-[#A3201F]' : ''}`} title={o.filled > o.capacity ? 'Over the office limit' : undefined}>{o.filled}/{o.capacity}</span>
+            <span className={`text-right ${o.filled > o.capacity ? 'font-semibold text-red-strong' : ''}`} title={o.filled > o.capacity ? 'Over the office limit' : undefined}>{o.filled}/{o.capacity}</span>
             <strong className="text-right">{Math.round(o.verified_hours)}h</strong>
             <span className="text-right">
-              <span className="rounded-full px-2 py-0.5 text-xs font-bold" style={o.flagged ? { color: '#A3201F', background: '#F6E1E0' } : { color: '#6B7A71', background: '#F1F3EE' }}>{o.flagged}</span>
+              <span className="rounded-full px-2 py-0.5 text-xs font-bold" style={o.flagged ? { color: 'var(--text-red-strong)', background: 'var(--color-danger-100)' } : { color: 'var(--text-ink-500)', background: 'var(--color-surface-3)' }}>{o.flagged}</span>
             </span>
             <ChevronRight className="h-4 w-4 text-ink-300" />
           </button>

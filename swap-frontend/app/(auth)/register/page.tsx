@@ -15,6 +15,7 @@ import { authApi } from '@/lib/api/auth.api'
 import { settingsApi } from '@/lib/api/settings.api'
 import type { ApiError } from '@/types/api.types'
 import { strongPassword } from '@/lib/utils/password'
+import { COLLEGES } from '@/lib/constants/colleges'
 import { PasswordGuide } from '@/components/auth/PasswordGuide'
 
 /** Only MSU Main Campus student addresses may register. Mirrors RegisterRequest::EMAIL_DOMAIN. */
@@ -92,28 +93,6 @@ type FormData = z.infer<typeof schema>
 const STEP1_FIELDS = ['first_name', 'middle_name', 'last_name', 'name', 'student_id_number', 'email'] as const
 const STEP2_FIELDS = ['college', 'program', 'year_level', 'password', 'password_confirmation'] as const
 
-/**
- * Colleges and programs from the official student masterlist (AY 2025–2026, 1st semester): main campus
- * only, bachelor's programs plus diplomas/certificates (graduate programs left out). Names as in the
- * masterlist. Value (code) is what gets stored; existing codes are kept so saved profiles still match.
- */
-const COLLEGES: { value: string; label: string; programs: string[] }[] = [
-  { value: 'CA', label: 'College of Agriculture', programs: ['BS Agribusiness Management', 'BS Agricultural Business Management', 'BS Agriculture (Major in Animal Science)', 'BS Agriculture major in Agricultural Food Processing', 'BS Agriculture major in Agronomy', 'BS Agriculture major in Extension Education', 'BSA Agricultural Extension', 'BSA Farming Systems', 'BSA Horticulture', 'BSA Soil Science', 'BSA major in Food Processing', 'DABMT-Food Processing', 'DAT Crop Production Technology'] },
-  { value: 'CBAA', label: 'College of Business Administration and Accountancy', programs: ['BS Accountancy', 'BS Entrepreneurship', 'BSBA Business Economics', 'BSBA Human Resource Management', 'BSBA Marketing Management (Advertising)', 'BSBA Marketing Management (Digital Marketing)'] },
-  { value: 'CED', label: 'College of Education', programs: ['BSEd English', 'BSEd Filipino', 'BSEd Mathematics', 'BSEd Sciences', 'BSEd Social Studies', 'BTLEd Home Economics', 'BTVTEd Home Economics', 'Bachelor of Early Childhood Education (BECEd)', 'Bachelor of Elementary Education (BEEd)'] },
-  { value: 'CoE', label: 'College of Engineering', programs: ['BS Agricultural and Biosystems Engineering', 'BS Chemical Engineering', 'BS Civil Engineering', 'BS Civil Engineering (Structural)', 'BS Electrical Engineering', 'BS Electronics Engineering', 'BS Mechanical Engineering'] },
-  { value: 'CF', label: 'College of Fisheries and Aquatic Sciences', programs: ['BS Fisheries', 'Diploma in Fisheries Technology (Ladderized Program) Major in Aquaculture', 'Diploma in Fisheries Technology (Ladderized Program) Major in Fish Processing'] },
-  { value: 'CFES', label: 'College of Forestry and Environmental Studies', programs: ['BS Environmental Science', 'BS Forestry', 'BS Forestry major in Agroforestry'] },
-  { value: 'CHS', label: 'College of Health Sciences', programs: ['BS Midwifery', 'BS Nursing', 'BS Pharmacy'] },
-  { value: 'CHTM', label: 'College of Hospitality and Tourism Management', programs: ['BS Hospitality Management', 'BS Tourism Management'] },
-  { value: 'CICS', label: 'College of Information and Computing Sciences', programs: ['BS Computer Science', 'BS Information Systems', 'BS Information Technology (Database Systems)', 'BS Information Technology (Network Systems)'] },
-  { value: 'CNSM', label: 'College of Natural Sciences and Mathematics', programs: ['BS Biology (Animal Biology)', 'BS Chemistry', 'BS Mathematics', 'BS Physics', 'BS Statistics', 'Certificate in Statistics'] },
-  { value: 'CPA', label: 'College of Public Affairs', programs: ['BS Social Work', 'BS Sustainable Community Development', 'Bachelor of Public Administration'] },
-  { value: 'CSSH', label: 'College of Social Sciences and Humanities', programs: ['AB Communication Studies major in Devt. Com.', 'AB Communication Studies major in Journalism', 'BA Communication Studies (Media Education)', 'BA English Language Studies', 'BA Filipino', 'BA History International History Track', 'BA History Philippine and Asian History Track', 'BA History Public History/Development Track', 'BA Journalism', 'BA Literary and Cultural Studies', 'BA Panitikan', 'BA Philosophy', 'BA Political Science', 'BA Psychology', 'BA Sociology', 'BS Development Communication', 'BS Psychology', 'Bachelor of Library and Information Science'] },
-  { value: 'CSPEAR', label: 'College of Sports, Physical Education and Recreation', programs: ['BS Physical Education'] },
-  { value: 'DET', label: 'Division of Engineering Technology', programs: ['BSET Construction Engineering Management', 'BSET Electrical and Renewable Energy', 'BSET Machining and Fabrication', 'DT Machine Shop Technology', 'Diploma in Electrical Technology major in Renewable Energy', 'Diploma in Technology Major in Construction Technology'] },
-  { value: 'KFCIAAS', label: 'King Faisal Center for Islamic, Arabic and Asian Studies', programs: ['AB Islamic Studies major in Shariah', 'BS International Relations', 'BS Islamic Banking and Finance', 'BS Teaching Arabic'] },
-]
 
 const STEP_META = [
   { title: 'Personal', sub: 'Name, ID & contact' },
@@ -127,7 +106,7 @@ const HEADINGS: Record<number, [string, string]> = {
   3: ['Review & Submit', 'Confirm everything is correct before submitting your application.'],
 }
 
-const FIELD = 'flex h-12 items-center gap-2.5 rounded-[11px] border border-ink-200 bg-white px-3.5 transition-colors focus-within:border-brand-700'
+const FIELD = 'flex h-12 items-center gap-2.5 rounded-[11px] border border-ink-200 bg-surface px-3.5 transition-colors focus-within:border-brand-700'
 const INPUT = 'min-w-0 flex-1 border-none bg-transparent text-sm text-ink-900 placeholder-ink-350 focus:outline-none'
 const LABEL = 'mb-[7px] block text-[12.5px] font-semibold text-ink-600'
 const ICON = 'h-[19px] w-[19px] flex-none text-ink-400'
@@ -167,8 +146,8 @@ function StepDot({ index, step }: { index: number; step: number }) {
         {done ? <Check className="h-[18px] w-[18px]" strokeWidth={3} /> : n}
       </span>
       <div>
-        <div className={`text-[15px] font-bold ${on ? 'text-ink-25' : 'text-ink-25/70'}`}>{meta.title}</div>
-        <div className="mt-0.5 text-xs text-ink-25/55">{meta.sub}</div>
+        <div className={`text-[15px] font-bold ${on ? 'text-cream' : 'text-cream/70'}`}>{meta.title}</div>
+        <div className="mt-0.5 text-xs text-cream/55">{meta.sub}</div>
       </div>
     </div>
   )
@@ -272,8 +251,8 @@ export default function RegisterPage() {
   // After a successful signup, ask the applicant to verify their email.
   if (verifyEmail) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-ink-100 p-4 sm:p-8">
-        <div className="w-full max-w-md rounded-[18px] bg-white p-8 text-center shadow-[0_24px_60px_rgba(19,36,26,0.20)]">
+      <div className="flex min-h-app w-full items-center justify-center bg-ink-100 p-4 sm:p-8">
+        <div className="w-full max-w-md rounded-[18px] bg-surface p-8 text-center shadow-[0_24px_60px_rgba(19,36,26,0.20)]">
           <Image src="/dsa-logo.png" alt="DSA Logo" width={64} height={64} className="mx-auto" priority />
           <div className="mx-auto mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-success-50">
             <MailCheck className="h-6 w-6 text-success-600" />
@@ -288,11 +267,11 @@ export default function RegisterPage() {
             <button
               onClick={() => resend.mutate(verifyEmail)}
               disabled={resend.isPending || resendSent}
-              className="rounded-xl border border-ink-200 bg-white px-6 py-3 text-sm font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-60 transition-colors"
+              className="rounded-xl border border-ink-200 bg-surface px-6 py-3 text-sm font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-60 transition-colors"
             >
               {resendSent ? 'Verification email resent ✓' : resend.isPending ? 'Resending…' : 'Resend verification email'}
             </button>
-            <Link href="/login" className="rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110">
+            <Link href="/login" className="rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110">
               Go to sign in
             </Link>
           </div>
@@ -303,8 +282,8 @@ export default function RegisterPage() {
 
   if (!statusLoading && appStatus && !appStatus.open) {
     return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-ink-100 p-4 sm:p-8">
-        <div className="w-full max-w-md rounded-[18px] bg-white p-8 text-center shadow-[0_24px_60px_rgba(19,36,26,0.20)]">
+      <div className="flex min-h-app w-full items-center justify-center bg-ink-100 p-4 sm:p-8">
+        <div className="w-full max-w-md rounded-[18px] bg-surface p-8 text-center shadow-[0_24px_60px_rgba(19,36,26,0.20)]">
           <Image src="/dsa-logo.png" alt="DSA Logo" width={64} height={64} className="mx-auto" priority />
           <div className="mx-auto mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-brand-100">
             <Lock className="h-6 w-6 text-brand-700" />
@@ -314,10 +293,10 @@ export default function RegisterPage() {
             {appStatus.message ?? 'The application period has not started yet. Please check back later.'}
           </p>
           <div className="mt-6 flex flex-col gap-2">
-            <Link href="/login" className="rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110">
+            <Link href="/login" className="rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110">
               Sign in to an existing account
             </Link>
-            <Link href="/" className="rounded-xl border border-ink-200 bg-white px-6 py-3 text-sm font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
+            <Link href="/" className="rounded-xl border border-ink-200 bg-surface px-6 py-3 text-sm font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
               Back to home
             </Link>
           </div>
@@ -327,14 +306,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-ink-100 p-4 sm:p-8">
-      <div className="flex w-full max-w-[1080px] overflow-hidden rounded-[18px] bg-white shadow-[0_24px_60px_rgba(19,36,26,0.20)] lg:h-[720px]">
+    <div className="flex min-h-app w-full items-center justify-center bg-ink-100 p-4 sm:p-8">
+      <div className="flex w-full max-w-[1080px] overflow-hidden rounded-[18px] bg-surface shadow-[0_24px_60px_rgba(19,36,26,0.20)] lg:h-[720px]">
         {/* Sidebar — vertical stepper */}
-        <div className="hidden w-[316px] flex-none flex-col bg-gradient-to-b from-brand-700 to-brand-950 p-9 text-ink-25 lg:flex">
+        <div className="hidden w-[316px] flex-none flex-col bg-gradient-to-b from-brand-700 to-brand-950 p-9 text-cream lg:flex">
           <div className="mb-14 flex items-center gap-3">
             <Image src="/dsa-logo.png" alt="DSA Logo" width={40} height={40} priority />
             <div className="leading-tight">
-              <p className="font-serif text-base font-semibold text-ink-25">SWAP Portal</p>
+              <p className="font-serif text-base font-semibold text-cream">SWAP Portal</p>
               <p className="text-[9.5px] font-semibold uppercase tracking-[0.16em] text-gold-300">MSU — Marawi</p>
             </div>
           </div>
@@ -349,7 +328,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <div className="text-xs text-ink-25/60">
+          <div className="text-xs text-cream/60">
             Need help?
             <br />
             <span className="text-gold-300">dsa@msumain.edu.ph</span>
@@ -484,7 +463,7 @@ export default function RegisterPage() {
               {/* STEP 3 — Review */}
               {step === 3 && (
                 <div>
-                  <div className="overflow-hidden rounded-[14px] border border-ink-200 bg-white">
+                  <div className="overflow-hidden rounded-[14px] border border-ink-200 bg-surface">
                     {[
                       ['Full Name', v.name],
                       ['Student ID', v.student_id_number],
@@ -514,17 +493,17 @@ export default function RegisterPage() {
                   <Link href="/login" className="font-bold text-brand-700 hover:text-brand-600 transition-colors">Sign in</Link>
                 </span>
               ) : (
-                <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))} className="flex h-12 items-center gap-2 rounded-[11px] border border-ink-200 bg-white px-5 text-[14.5px] font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
+                <button type="button" onClick={() => setStep((s) => Math.max(1, s - 1))} className="flex h-12 items-center gap-2 rounded-[11px] border border-ink-200 bg-surface px-5 text-[14.5px] font-semibold text-brand-700 hover:bg-ink-50 transition-colors">
                   <ArrowLeft className="h-[18px] w-[18px]" /> Back
                 </button>
               )}
 
               {step < 3 ? (
-                <button type="button" onClick={next} disabled={signup.isPending} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-brand-600 to-brand-800 px-6 text-[14.5px] font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-50">
+                <button type="button" onClick={next} disabled={signup.isPending} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-brand-600 to-brand-800 px-6 text-[14.5px] font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-50">
                   Continue <ArrowRight className="h-[18px] w-[18px]" />
                 </button>
               ) : (
-                <button type="submit" disabled={signup.isPending || !certified} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-brand-600 to-brand-800 px-6 text-[14.5px] font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-50">
+                <button type="submit" disabled={signup.isPending || !certified} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-brand-600 to-brand-800 px-6 text-[14.5px] font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-50">
                   {signup.isPending ? 'Submitting…' : 'Submit Application'} <Check className="h-[18px] w-[18px]" />
                 </button>
               )}

@@ -26,6 +26,8 @@ vi.mock('@/lib/api/attendance.api', () => ({
       required: 240, rendered: 0, verified: 0, pending: 0, rejected: 0, remaining: 240,
     }),
     getSupervisorStudents: vi.fn().mockResolvedValue({ data: [] }),
+    getClockedInStudents: vi.fn().mockResolvedValue([]),
+    getPendingVerifications: vi.fn().mockResolvedValue([]),
     getCurrentLog: vi.fn().mockResolvedValue(null),
     getMyAssignment: vi.fn().mockResolvedValue(null),
     getProgress: vi.fn().mockResolvedValue(null),
@@ -64,6 +66,6 @@ describe('dashboard pages render without crashing', () => {
   it('supervisor dashboard', async () => {
     const { default: Page } = await import('@/app/(dashboard)/supervisor/dashboard/page')
     renderWithQuery(<Page />)
-    expect(screen.getByText(/welcome, test user/i)).toBeInTheDocument()
+    expect(screen.getByText(/good day, test/i)).toBeInTheDocument()
   })
 })

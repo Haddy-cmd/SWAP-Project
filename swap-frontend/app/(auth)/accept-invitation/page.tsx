@@ -73,7 +73,7 @@ function AcceptInvitationForm() {
 
   if (!token || isError) {
     return (
-      <div className="rounded-2xl border border-ink-200 bg-white p-8 text-center shadow-sm">
+      <div className="rounded-2xl border border-ink-200 bg-surface p-8 text-center shadow-sm">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-danger-50">
           <AlertCircle className="h-7 w-7 text-danger-600" />
         </div>
@@ -93,7 +93,7 @@ function AcceptInvitationForm() {
   }
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-8 shadow-sm">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm">
       <div className="mb-6 text-center">
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100">
           <ShieldCheck className="h-6 w-6 text-brand-700" />

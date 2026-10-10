@@ -87,7 +87,7 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-sm">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-ink-200 bg-surface shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-ink-200 px-5 py-4">
         <div className="flex items-center gap-3">
@@ -126,7 +126,7 @@ export function ChatWindow({ onClose }: { onClose?: () => void }) {
           {([['assistant', 'Assistant', Bot], ['dsa', 'Ask the DSA', LifeBuoy]] as const).map(([value, label, Icon]) => (
             <button key={value} role="tab" aria-selected={tab === value} onClick={() => setChatTab(value)}
               className={cn('flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold transition-colors',
-                tab === value ? 'bg-white text-brand-800 shadow-sm' : 'text-ink-500 hover:text-brand-700')}>
+                tab === value ? 'bg-surface text-brand-800 shadow-sm' : 'text-ink-500 hover:text-brand-700')}>
               <Icon className="h-3.5 w-3.5" /> {label}
             </button>
           ))}

@@ -14,11 +14,12 @@ const TEXTAREA =
   'w-full rounded-xl border border-ink-300 bg-ink-50 px-4 py-2.5 text-sm text-ink-900 placeholder-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20'
 
 /**
- * The recipient's end-of-term narrative report (Hours page). One per term, editable
+ * The recipient's end-of-term narrative report (Hours & Attendance page). One per term, editable
  * until the supervisor accepts it or the stipend is released; the release is refused
  * without it. Once accepted it shows the supervisor's renewal mark.
  */
-export function TermReportCard() {
+/** `bare`: inside another card (the Hours & Attendance report strip) — no frame, no heading. */
+export function TermReportCard({ bare = false }: { bare?: boolean }) {
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({ queryKey: ['term-report'], queryFn: attendanceApi.getTermReport })
   const report = data?.data ?? null
@@ -55,9 +56,9 @@ export function TermReportCard() {
   const chars = form.content.trim().length
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+    <div className={bare ? '' : 'rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm'}>
+      <div className={`flex flex-wrap items-start justify-between gap-3 ${bare && !(report && meta.editable && !editing) ? 'hidden' : ''}`}>
+        <div className={bare ? 'hidden' : ''}>
           <div className="flex items-center gap-2">
             <NotebookPen className="h-4 w-4 text-brand-700" />
             <h2 className="font-semibold text-ink-900">End-of-Term Report</h2>

@@ -22,6 +22,8 @@ class StipendResource extends JsonResource
             'certified_at' => $this->certified_at?->toISOString(),
             'released_by' => $this->released_by,
             'released_at' => $this->released_at?->toISOString(),
+            // When the recipient first opened the stub (legacy Banking Office stubs: when they were paid).
+            'received_at' => ($this->received_at ?? ($this->status === 'claimed' ? ($this->claimed_at ?? $this->released_at) : null))?->toISOString(),
             'void_reason' => $this->void_reason,
             // The stub PDF is downloadable once released (via /recipient/stipend/{id}/slip).
             'has_slip' => in_array($this->status, ['released', 'claimed', 'certified'], true),

@@ -36,7 +36,7 @@ interface Props {
   onBarClick: (value: string) => void
 }
 
-const SELECT = 'h-8 cursor-pointer appearance-none rounded-lg border border-ink-200 bg-white pl-2.5 pr-7 text-[12.5px] font-semibold text-ink-800 focus:border-brand-700 focus:outline-none'
+const SELECT = 'h-8 cursor-pointer appearance-none rounded-lg border border-ink-200 bg-surface pl-2.5 pr-7 text-[12.5px] font-semibold text-ink-800 focus:border-brand-700 focus:outline-none'
 
 export function GroupChart({ columns, groups, groupBy, metric, selected, onGroupBy, onMetric, onBarClick }: Props) {
   const groupable = columns.filter((c) => c.filterable)
@@ -50,12 +50,12 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
   const height = type === 'bar' ? Math.max(180, data.length * 38 + 30) : 300
   // Clicking a mark filters the report to that value ("Others" isn't one value).
   const pick = (d?: { label?: string; others?: boolean } | null) => { if (d?.label && !d.others) onBarClick(d.label) }
-  const fillFor = (g: Datum, i: number) => (g.others ? '#CAD2BC' : SERIES[i % SERIES.length])
+  const fillFor = (g: Datum, i: number) => (g.others ? 'var(--color-ink-300)' : SERIES[i % SERIES.length])
   const dim = (g: Datum) => selected.length > 0 && !selected.includes(g.label)
   const tilted = data.length > 6
   const tooltip = (
-    <Tooltip cursor={type === 'line' ? { stroke: '#CAD2BC' } : { fill: '#F7F6EE' }}
-      contentStyle={{ borderRadius: '0.5rem', border: '1px solid #DCE0CF', fontSize: '0.75rem' }}
+    <Tooltip cursor={type === 'line' ? { stroke: 'var(--color-ink-300)' } : { fill: 'var(--color-ink-50)' }}
+      contentStyle={{ borderRadius: '0.5rem', border: '1px solid var(--color-ink-200)', fontSize: '0.75rem', background: 'var(--color-surface)', color: 'var(--color-ink-900)' }}
       formatter={(v: number, _n, item) => [
         metricCol ? `${fmt(v)} (${(item.payload as ReportGroup).count} records)` : fmt(v),
         metricCol ? metricCol.label : 'Records',
@@ -65,7 +65,7 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
   if (!groupable.length) return null
 
   return (
-    <div className="rounded-[15px] border border-ink-200 bg-white p-5 shadow-[0_2px_8px_rgba(19,36,26,0.04)]">
+    <div className="rounded-[15px] border border-ink-200 bg-surface p-5 shadow-[0_2px_8px_rgba(19,36,26,0.04)]">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="flex items-center gap-2 text-[14px] font-bold text-ink-950">
           <BarChart3 className="h-4 w-4 text-brand-700" />
@@ -105,46 +105,46 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
             <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
               {tooltip}
               <Pie data={data} dataKey="value" nameKey="label" innerRadius="45%" outerRadius="80%" paddingAngle={1}
-                stroke="#FFFFFF" strokeWidth={2} cursor="pointer" isAnimationActive={false}
+                stroke="var(--color-surface)" strokeWidth={2} cursor="pointer" isAnimationActive={false}
                 label={({ percent }: { percent: number }) => (percent >= 0.05 ? `${Math.round(percent * 100)}%` : '')}
                 onClick={(d: { payload?: Datum }) => pick(d?.payload)}>
                 {data.map((g, i) => <Cell key={g.label} fill={fillFor(g, i)} fillOpacity={dim(g) ? 0.3 : 1} />)}
               </Pie>
               <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" iconSize={9}
-                wrapperStyle={{ fontSize: '0.75rem', color: '#34433A', maxWidth: '45%' }} />
+                wrapperStyle={{ fontSize: '0.75rem', color: 'var(--text-ink-700)', maxWidth: '45%' }} />
             </PieChart>
           ) : type === 'line' ? (
             <LineChart data={data} margin={{ top: 12, right: 24, left: 4, bottom: 4 }}
               onClick={(state) => pick(state?.activePayload?.[0]?.payload as Datum | undefined)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ECEFE2" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#34433A' }} axisLine={false} tickLine={false} interval={0}
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-ink-100)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-ink-700)' }} axisLine={false} tickLine={false} interval={0}
                 angle={tilted ? -25 : 0} textAnchor={tilted ? 'end' : 'middle'} height={tilted ? 70 : 30} />
-              <YAxis tick={{ fontSize: 11.5, fill: '#6F7B74' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
+              <YAxis tick={{ fontSize: 11.5, fill: 'var(--color-ink-500)' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
               {tooltip}
               <Line type="monotone" dataKey="value" stroke={SERIES[0]} strokeWidth={2} cursor="pointer"
                 dot={{ r: 4, fill: SERIES[0] }} activeDot={{ r: 6 }} />
             </LineChart>
           ) : type === 'column' ? (
             <BarChart data={data} margin={{ top: 20, right: 12, left: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ECEFE2" vertical={false} />
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#34433A' }} axisLine={false} tickLine={false} interval={0}
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-ink-100)" vertical={false} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-ink-700)' }} axisLine={false} tickLine={false} interval={0}
                 angle={tilted ? -25 : 0} textAnchor={tilted ? 'end' : 'middle'} height={tilted ? 70 : 30} />
-              <YAxis tick={{ fontSize: 11.5, fill: '#6F7B74' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
+              <YAxis tick={{ fontSize: 11.5, fill: 'var(--color-ink-500)' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
               {tooltip}
               <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={44} cursor="pointer"
-                label={{ position: 'top', fontSize: 11, fill: '#34433A', formatter: fmt }}
+                label={{ position: 'top', fontSize: 11, fill: 'var(--color-ink-700)', formatter: fmt }}
                 onClick={(d: Datum) => pick(d)}>
                 {data.map((g, i) => <Cell key={g.label} fill={fillFor(g, i)} fillOpacity={dim(g) ? 0.3 : 1} />)}
               </Bar>
             </BarChart>
           ) : (
             <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, left: 4, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ECEFE2" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 11.5, fill: '#6F7B74' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
-              <YAxis type="category" dataKey="label" width={170} tick={{ fontSize: 11.5, fill: '#34433A' }} axisLine={false} tickLine={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-ink-100)" horizontal={false} />
+              <XAxis type="number" tick={{ fontSize: 11.5, fill: 'var(--color-ink-500)' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
+              <YAxis type="category" dataKey="label" width={170} tick={{ fontSize: 11.5, fill: 'var(--color-ink-700)' }} axisLine={false} tickLine={false} />
               {tooltip}
               <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} cursor="pointer"
-                label={{ position: 'right', fontSize: 11, fill: '#34433A', formatter: fmt }}
+                label={{ position: 'right', fontSize: 11, fill: 'var(--color-ink-700)', formatter: fmt }}
                 onClick={(d: Datum) => pick(d)}>
                 {data.map((g, i) => <Cell key={g.label} fill={fillFor(g, i)} fillOpacity={dim(g) ? 0.3 : 1} />)}
               </Bar>

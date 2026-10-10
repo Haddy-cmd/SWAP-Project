@@ -18,10 +18,10 @@ import type { TimeLog } from '@/types/attendance.types'
 type Tab = 'all' | 'verified' | 'pending' | 'rejected'
 
 const STATUS = {
-  verified: { key: 'verified', label: 'Verified', color: '#145643', bg: '#EFF8F4', accent: '#1F8163', Icon: CheckCircle2, Group: CheckCircle2 },
-  pending_verification: { key: 'pending', label: 'Pending', color: '#B45309', bg: '#FDF8E4', accent: '#F59E0B', Icon: Clock, Group: Hourglass },
-  rejected: { key: 'rejected', label: 'Rejected', color: '#B42318', bg: '#FEF3F2', accent: '#E2483B', Icon: XCircle, Group: CalendarX },
-  open: { key: 'open', label: 'In progress', color: '#2F5D8A', bg: '#F3F7FB', accent: '#4A82B8', Icon: Clock, Group: Clock },
+  verified: { key: 'verified', label: 'Verified', color: 'var(--text-success-800)', bg: 'var(--color-success-50)', accent: 'var(--color-success-600)', Icon: CheckCircle2, Group: CheckCircle2 },
+  pending_verification: { key: 'pending', label: 'Pending', color: 'var(--text-warning-700)', bg: 'var(--color-gold-50)', accent: 'var(--color-warning-500)', Icon: Clock, Group: Hourglass },
+  rejected: { key: 'rejected', label: 'Rejected', color: 'var(--text-danger-700)', bg: 'var(--color-danger-50)', accent: 'var(--color-danger-500)', Icon: XCircle, Group: CalendarX },
+  open: { key: 'open', label: 'In progress', color: 'var(--text-info-700)', bg: 'var(--color-info-50)', accent: 'var(--color-info-500)', Icon: Clock, Group: Clock },
 } as const
 
 const metaOf = (l: TimeLog) => STATUS[(l.status as keyof typeof STATUS)] ?? STATUS.pending_verification
@@ -173,7 +173,7 @@ export default function StudentLogsPage() {
           </div>
         </div>
         <button onClick={() => setModal('bonus')}
-          className="flex h-11 items-center gap-2 rounded-xl px-[18px] text-[13.5px] font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,.24)]"
+          className="flex h-11 items-center gap-2 rounded-xl px-[18px] text-[13.5px] font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,.24)]"
           style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
           <PlusCircle className="h-[19px] w-[19px]" /> Add Bonus Hours
         </button>
@@ -204,13 +204,13 @@ export default function StudentLogsPage() {
       )}
 
       {/* progress hero */}
-      <div className="flex flex-wrap overflow-hidden rounded-2xl border border-ink-200 bg-white">
+      <div className="flex flex-wrap overflow-hidden rounded-2xl border border-ink-200 bg-surface">
         <div className="flex-[1_1_340px] p-6">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400">Service Hours Progress</span>
             <button onClick={() => setModal('required')} title="Adjust required hours"
               className="rounded-full px-2.5 py-1 text-[12px] font-semibold"
-              style={{ color: onTrack ? '#145643' : '#B45309', background: onTrack ? '#EFF8F4' : '#FDF8E4' }}>
+              style={{ color: onTrack ? 'var(--text-success-800)' : 'var(--text-warning-700)', background: onTrack ? 'var(--color-success-50)' : 'var(--color-gold-50)' }}>
               {onTrack ? 'On track' : 'Behind pace'}
             </button>
           </div>
@@ -225,7 +225,7 @@ export default function StudentLogsPage() {
           <p className="text-[12.5px] text-ink-500">{fmtHrs(remaining)} hrs remaining to complete the requirement</p>
         </div>
         <div className="grid flex-[1_1_260px] grid-cols-3 border-l border-ink-200">
-          {([['Verified', counts.verified, '#145643'], ['Pending', counts.pending, '#B45309'], ['Rejected', counts.rejected, '#B42318']] as const).map(([label, n, c], i) => (
+          {([['Verified', counts.verified, 'var(--color-success-800)'], ['Pending', counts.pending, 'var(--color-warning-700)'], ['Rejected', counts.rejected, 'var(--color-danger-700)']] as const).map(([label, n, c], i) => (
             <div key={label} className={`px-3.5 py-5 text-center ${i < 2 ? 'border-r border-ink-200' : ''}`}>
               <div className="font-serif text-[24px] font-semibold" style={{ color: c }}>{n}</div>
               <div className="mt-0.5 text-[10.5px] font-bold uppercase tracking-wide text-ink-400">{label}</div>
@@ -235,16 +235,16 @@ export default function StudentLogsPage() {
       </div>
 
       {/* filter tabs */}
-      <div className="flex items-center gap-4 border-b border-ink-200 px-0.5">
+      <div className="no-scrollbar flex items-center gap-4 overflow-x-auto border-b border-ink-200 px-0.5">
         {TABS.map(([key, label]) => {
           const on = tab === key
           return (
             <button key={key} onClick={() => setTab(key)}
               className="-mb-px flex items-center gap-1.5 border-b-2 pb-2.5 text-[13.5px]"
-              style={{ borderColor: on ? '#1F5B3A' : 'transparent', color: on ? '#1F5B3A' : '#6F7B74', fontWeight: on ? 600 : 500 }}>
+              style={{ borderColor: on ? 'var(--color-brand-700)' : 'transparent', color: on ? 'var(--text-brand-700)' : 'var(--text-ink-500)', fontWeight: on ? 600 : 500 }}>
               {label}
               <span className="rounded-full px-2 py-px text-[11px] font-bold"
-                style={{ background: on ? '#E3EEE5' : '#ECEFE2', color: on ? '#1F5B3A' : '#6F7B74' }}>{counts[key]}</span>
+                style={{ background: on ? 'var(--color-brand-100)' : 'var(--color-ink-100)', color: on ? 'var(--text-brand-700)' : 'var(--text-ink-500)' }}>{counts[key]}</span>
             </button>
           )
         })}
@@ -254,7 +254,7 @@ export default function StudentLogsPage() {
       {isLoading ? (
         <div className="space-y-3">{[1, 2, 3].map((n) => <div key={n} className="h-20 animate-pulse rounded-xl bg-ink-200/60" />)}</div>
       ) : groups.length === 0 ? (
-        <div className="rounded-[15px] border border-dashed border-ink-300 bg-white py-16 text-center">
+        <div className="rounded-[15px] border border-dashed border-ink-300 bg-surface py-16 text-center">
           <CalendarX className="mx-auto h-10 w-10 text-ink-350" />
           <p className="mt-3 text-[15px] font-semibold text-ink-700">No {tab === 'all' ? '' : tab} logs</p>
           <p className="mt-1 text-[13px] text-ink-400">Try another filter to see this student&apos;s other logs.</p>
@@ -275,7 +275,7 @@ export default function StudentLogsPage() {
               const narrative = narrativeOf(l)
               const showNoNarrative = !narrative && !l.is_manual && l.status !== 'open'
               return (
-                <div key={l.id} className="overflow-hidden rounded-[14px] border border-ink-200 bg-white shadow-[0_2px_7px_rgba(19,36,26,.05)]">
+                <div key={l.id} className="overflow-hidden rounded-[14px] border border-ink-200 bg-surface shadow-[0_2px_7px_rgba(19,36,26,.05)]">
                   <div className="flex items-center gap-4 px-[18px] py-4">
                     <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-white shadow-[0_3px_8px_rgba(19,36,26,.16)]" style={{ background: m.accent }}>
                       {l.is_manual ? <Sparkles className="h-[22px] w-[22px]" /> : <m.Group className="h-[22px] w-[22px]" />}
@@ -373,7 +373,7 @@ export default function StudentLogsPage() {
                             rows={2} placeholder="Reason for rejection (required)…"
                             className="w-full resize-none rounded-lg border border-ink-200 bg-ink-50 px-3 py-2 text-[13px] text-ink-900 focus:border-brand-700 focus:outline-none" />
                           <div className="flex justify-end gap-2">
-                            <button onClick={() => setRejecting(null)} className="rounded-lg border border-ink-200 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-ink-500">Cancel</button>
+                            <button onClick={() => setRejecting(null)} className="rounded-lg border border-ink-200 bg-surface px-3.5 py-1.5 text-[12.5px] font-semibold text-ink-500">Cancel</button>
                             <button onClick={() => verify.mutate({ id: l.id, action: 'rejected', feedback: rejecting.reason.trim() })}
                               disabled={!rejecting.reason.trim() || busy}
                               className="flex items-center gap-1.5 rounded-lg bg-danger-700 px-3.5 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50">
@@ -384,11 +384,11 @@ export default function StudentLogsPage() {
                       ) : (
                         <div className="flex justify-end gap-2">
                           <button onClick={() => setRejecting({ id: l.id, reason: '' })} disabled={busy}
-                            className="flex items-center gap-1.5 rounded-lg border border-ink-200 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-danger-700 hover:bg-danger-50 disabled:opacity-50">
+                            className="flex items-center gap-1.5 rounded-lg border border-ink-200 bg-surface px-3.5 py-1.5 text-[12.5px] font-semibold text-danger-700 hover:bg-danger-50 disabled:opacity-50">
                             <XCircle className="h-4 w-4" /> Reject
                           </button>
                           <button onClick={() => verify.mutate({ id: l.id, action: 'verified' })} disabled={busy}
-                            className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-[12.5px] font-semibold text-ink-25 disabled:opacity-50"
+                            className="flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-[12.5px] font-semibold text-cream disabled:opacity-50"
                             style={{ background: 'linear-gradient(180deg,#2A7148,#16452B)' }}>
                             <CheckCircle className="h-4 w-4" /> Verify
                           </button>

@@ -32,7 +32,7 @@ function RecipientReports() {
           <p className="mt-1 text-sm text-ink-500">Your hours, pace and terms in one place — filter them and download a copy for your records.</p>
         </div>
         <Link href="/recipient/reports/duty-slip"
-          className="flex h-9 items-center gap-2 self-start rounded-[10px] border border-ink-200 bg-white px-3.5 text-[13px] font-semibold text-brand-700 hover:bg-brand-50 sm:self-auto">
+          className="flex h-9 items-center gap-2 self-start rounded-[10px] border border-ink-200 bg-surface px-3.5 text-[13px] font-semibold text-brand-700 hover:bg-brand-50 sm:self-auto">
           <FileText className="h-4 w-4" /> Printable Duty Slip
         </Link>
       </div>

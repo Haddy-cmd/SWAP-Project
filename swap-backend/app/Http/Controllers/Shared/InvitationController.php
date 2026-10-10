@@ -104,7 +104,7 @@ class InvitationController extends Controller
         AuditLog::record('created', $user);
 
         // Sign them straight in, mirroring the login response shape.
-        $authToken = $user->createToken('auth_token')->plainTextToken;
+        $authToken = $user->createToken('auth_token', $request)->plainTextToken;
 
         return response()->json([
             'data' => new UserResource($user),

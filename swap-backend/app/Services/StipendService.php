@@ -133,18 +133,59 @@ class StipendService
 
     public function paginateAll(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = StipendHistory::with(['recipient.profile', 'releasedBy'])
-            ->orderByDesc('created_at');
+        $query = $this->filtered($filters)->with(['recipient.profile', 'releasedBy'])->orderByDesc('created_at');
 
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
+        match ($filters['status'] ?? null) {
+            // Every paid stub: released (legacy ready-to-claim certified/pending included) and legacy received.
+            StipendHistory::STATUS_RELEASED => $query->whereIn('status', [...self::RELEASED_STATUSES, StipendHistory::STATUS_CLAIMED]),
+            // The recipient opened it (or, before 2026-10-05, collected it at the Banking Office).
+            'received' => $query->where(fn ($q) => $q->where('status', StipendHistory::STATUS_CLAIMED)
+                ->orWhere(fn ($r) => $r->whereIn('status', self::RELEASED_STATUSES)->whereNotNull('received_at'))),
+            'not_received' => $query->whereIn('status', self::RELEASED_STATUSES)->whereNull('received_at'),
+            null, '' => null,
+            default => $query->where('status', $filters['status']),
+        };
+
+        return $query->paginate($perPage);
+    }
+
+    /** Statuses that count as released (a release is final; certified/pending are legacy). */
+    public const RELEASED_STATUSES = ['released', 'certified', 'pending'];
+
+    /**
+     * Admin → Stipend → History cards and chip counts, over the same term/search as the list
+     * (the status chip doesn't narrow them): money paid out (every live stub), and counts.
+     * `received` = opened by the recipient (received_at) or legacy Banking Office pickup.
+     *
+     * @return array{paid_out: float, released: int, received: int, not_received: int, legacy_received: int, void: int}
+     */
+    public function summary(array $filters = []): array
+    {
+        $rows = $this->filtered($filters)
+            ->selectRaw('status, (received_at IS NOT NULL) as opened, COUNT(*) as n, COALESCE(SUM(amount), 0) as total')
+            ->groupBy('status', 'opened')->get();
+        $count = fn (callable $match) => (int) $rows->filter($match)->sum('n');
+        $released = fn ($r) => in_array($r->status, self::RELEASED_STATUSES, true);
+
+        return [
+            'paid_out' => round((float) $rows->where('status', '!=', StipendHistory::STATUS_VOID)->sum('total'), 2),
+            'released' => $count(fn ($r) => $released($r) || $r->status === StipendHistory::STATUS_CLAIMED),
+            'received' => $count(fn ($r) => ($released($r) && $r->opened) || $r->status === StipendHistory::STATUS_CLAIMED),
+            'not_received' => $count(fn ($r) => $released($r) && !$r->opened),
+            'legacy_received' => $count(fn ($r) => $r->status === StipendHistory::STATUS_CLAIMED),
+            'void' => $count(fn ($r) => $r->status === StipendHistory::STATUS_VOID),
+        ];
+    }
+
+    /** Stubs narrowed by term and by name, email, student ID or control number. */
+    private function filtered(array $filters): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = StipendHistory::query();
 
         if (!empty($filters['academic_year'])) {
             $query->where('academic_year', $filters['academic_year']);
         }
 
-        // Name, email, student ID or control number.
         if (!empty($filters['search'])) {
             $term = '%' . trim($filters['search']) . '%';
             $query->where(fn ($q) => $q
@@ -155,6 +196,6 @@ class StipendService
                     ->orWhereHas('profile', fn ($p) => $p->where('student_id_number', 'ilike', $term))));
         }
 
-        return $query->paginate($perPage);
+        return $query;
     }
 }

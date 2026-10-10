@@ -20,9 +20,10 @@ export function notificationLink(n: Notification, role?: string | null): string 
       return role === 'admin' ? '/admin/stipend' : '/recipient/stipend'
     case 'assignment': // placed at / moved to an office → dashboard shows office + supervisor
       return role === 'admin' ? '/admin/assignments' : '/recipient/dashboard'
-    case 'attendance': // hours verified / rejected → the recipient's hours
-      return '/recipient/hours'
+    case 'attendance': // hours verified / rejected → Hours & Attendance
+      return '/recipient/attendance'
     case 'verification': // a recipient's hours awaiting the supervisor
+    case 'verification_reminder': // the DSA's reminder about logs waiting
       return '/supervisor/verifications'
     case 'approval': // admin: a required-hours change request
       return '/admin/assignments'
@@ -33,7 +34,7 @@ export function notificationLink(n: Notification, role?: string | null): string 
     case 'promissory': // a note submitted (supervisor) / reviewed (student)
       return role === 'supervisor' ? '/supervisor/promissory' : '/recipient/stipend'
     case 'term_report': // a report submitted (supervisor) / accepted (student)
-      return role === 'supervisor' ? '/supervisor/students' : '/recipient/hours'
+      return role === 'supervisor' ? '/supervisor/students' : '/recipient/attendance#report'
     case 'announcement': // opens in a popup (AnnouncementModal), not a page
       return null
     default:

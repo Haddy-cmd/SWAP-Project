@@ -8,7 +8,7 @@ export interface Term {
 }
 
 const SEMESTERS = ['1st Semester', '2nd Semester', 'Summer']
-const SELECT = 'h-[42px] cursor-pointer appearance-none rounded-[11px] border border-ink-200 bg-white text-[13.5px] font-semibold text-ink-900 shadow-[0_2px_6px_rgba(19,36,26,0.05)] hover:bg-ink-50 focus:border-brand-700 focus:outline-none'
+const SELECT = 'h-[42px] cursor-pointer appearance-none rounded-[11px] border border-ink-200 bg-surface text-[13.5px] font-semibold text-ink-900 shadow-[0_2px_6px_rgba(19,36,26,0.05)] hover:bg-ink-50 focus:border-brand-700 focus:outline-none'
 
 /** The school year a date falls in (June starts a new one), e.g. "2026-2027". */
 export function schoolYearOf(d = new Date()): string {

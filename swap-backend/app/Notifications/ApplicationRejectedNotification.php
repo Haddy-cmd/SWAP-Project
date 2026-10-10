@@ -19,7 +19,7 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
         return ['mail', 'database'];
     }
 
-    public const MSG_BACK_TO_APPLICANT = 'Your account is now an applicant account. You can apply again as a new applicant while the application period is open.';
+    public const MSG_BACK_TO_APPLICANT = 'Your account is now an applicant account and has been deactivated. To apply again as a new applicant, contact the DSA Office to have it reactivated.';
 
     private function isRenewal(): bool
     {
@@ -42,8 +42,8 @@ class ApplicationRejectedNotification extends Notification implements ShouldQueu
                 ->line("We regret to inform you that your SWAP renewal for {$this->term()} has not been approved at this time.")
                 ->line("Remarks: {$remarks}")
                 ->line(self::MSG_BACK_TO_APPLICANT)
+                // No portal button: a deactivated account can't sign in.
                 ->line('If you have questions, please contact the DSA Office.')
-                ->action('Go to My Portal', \App\Support\Frontend::url('/applicant/dashboard'))
                 ->line('Thank you for your service in the SWAP program.');
         }
 

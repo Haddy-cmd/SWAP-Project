@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 const STATS = [
   { label: 'Recipients', value: '500+' },
@@ -15,10 +16,13 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
   // Login and register render their own self-contained layouts, so they opt out
   // of the shared brand-left shell used by forgot-password / verify-email.
-  if (pathname === '/login' || pathname === '/register') return <>{children}</>
+  // The theme button sits in the corner of every sign-in page.
+  const theme = <div className="fixed right-4 top-4 z-40 print:hidden"><ThemeToggle /></div>
+  if (pathname === '/login' || pathname === '/register') return <>{children}{theme}</>
 
   return (
-    <div className="flex min-h-screen bg-ink-50">
+    <div className="flex min-h-app bg-ink-50">
+      {theme}
       {/* Left panel — branding over a veiled MSU campus photo (hidden on mobile). */}
       <div className="relative hidden overflow-hidden lg:flex lg:w-[44%] lg:flex-col lg:items-center lg:justify-center lg:px-12">
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/campus.jpg)' }} />
@@ -31,16 +35,16 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         />
         <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_200px_rgba(11,39,22,0.45)]" />
 
-        <div className="relative z-10 max-w-md text-center text-ink-25">
+        <div className="relative z-10 max-w-md text-center text-cream">
           <div className="mx-auto mb-7">
             <Image src="/dsa-logo.png" alt="DSA Logo" width={96} height={96} className="mx-auto" priority />
           </div>
-          <h1 className="font-serif text-4xl font-semibold text-ink-25">SWAP Portal</h1>
+          <h1 className="font-serif text-4xl font-semibold text-cream">SWAP Portal</h1>
           <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-gold-300">
             Mindanao State University — Marawi
           </p>
           <div className="mx-auto mt-6 h-px w-14 bg-gold-300/50" />
-          <p className="mt-6 text-sm leading-relaxed text-ink-25/80">
+          <p className="mt-6 text-sm leading-relaxed text-cream/80">
             Digital monitoring and application system for the Student Welfare
             Assistantship Program.
           </p>
@@ -49,13 +53,13 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             {STATS.map((s) => (
               <div key={s.label}>
                 <p className="font-serif text-3xl font-semibold text-gold-300">{s.value}</p>
-                <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-ink-25/70">{s.label}</p>
+                <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-cream/70">{s.label}</p>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="absolute bottom-8 z-10 text-[11px] text-ink-25/55">
+        <p className="absolute bottom-8 z-10 text-[11px] text-cream/55">
           Division of Student Affairs · dsa@msumain.edu.ph
         </p>
       </div>

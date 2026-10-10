@@ -11,6 +11,8 @@ use App\Resources\AssignmentResource;
 use App\Resources\TimeLogResource;
 use App\Http\Requests\Supervisor\MarkDeficientRequest;
 use App\Services\AttendanceService;
+use App\Services\PaceReminderService;
+use App\Services\TermReportReminderService;
 use App\Services\TermStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +23,8 @@ class StudentController extends Controller
         private readonly TimeLogRepositoryInterface $timeLogRepository,
         private readonly AttendanceService $attendanceService,
         private readonly TermStatusService $termStatus,
+        private readonly PaceReminderService $paceReminders,
+        private readonly TermReportReminderService $reportReminders,
     ) {}
 
     /**
@@ -44,16 +48,20 @@ class StudentController extends Controller
             ->withSum(['timeLogs as rendered_sum' => fn ($q) => $q->whereNotNull('time_out')], 'duration_hours')
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->withSum(['timeLogs as pending_sum' => fn ($q) => $q->where('status', 'pending_verification')], 'duration_hours')
+            ->withSum(['timeLogs as bonus_sum' => fn ($q) => $q->where('status', 'verified')->where('is_manual', true)], 'duration_hours')
             ->withPromissoryFlags()
             ->visibleToSupervisor($request->user())
             ->where('status', 'active')
             ->get();
+        $reminded = $this->paceReminders->remindedToday($assignments->pluck('user_id'));
+        $assignments->each(fn (Assignment $a) => $a->setAttribute('pace_reminded_today', isset($reminded[$a->user_id])));
 
         return response()->json([
             'data' => AssignmentResource::collection($assignments),
             'meta' => [
                 'pending_verifications' => $this->timeLogRepository->getPendingVerificationsCount($request->user()->id),
                 'verified_this_week' => $this->timeLogRepository->getVerifiedThisWeekCount($request->user()->id),
+                'verified_hours_this_week' => $this->timeLogRepository->getVerifiedThisWeekHours($request->user()->id),
             ],
         ]);
     }
@@ -115,7 +123,16 @@ class StudentController extends Controller
                 'required_hours' => $assignment->required_hours,
                 'carried_over_hours' => (int) $assignment->carried_over_hours,
                 'pace' => $assignment->paceStatus(),
+                'start_date' => $assignment->start_date?->toDateString(),
             ],
+            // Bonus (manual) hours credited this placement, newest first.
+            'bonuses' => $assignment->timeLogs()->where('is_manual', true)->where('status', 'verified')
+                ->orderByDesc('date')->orderByDesc('id')->get(['id', 'duration_hours', 'date', 'manual_reason'])
+                ->map(fn ($l) => ['id' => $l->id, 'hours' => (float) $l->duration_hours,
+                    'date' => $l->date instanceof \DateTimeInterface ? $l->date->format('Y-m-d') : substr((string) $l->date, 0, 10), 'reason' => $l->manual_reason])
+                ->values(),
+            'report_reminded_today' => TermReportReminderService::supervisorRemindedToday($assignment),
+            'report_locked' => \App\Services\TermReportService::isLocked($assignment),
             'term' => $this->termPayload($assignment),
             // The report review (PUT /supervisor/assignments/{id}/term-report/review). A student
             // short on hours renews on an approved promissory note + the submitted report.
@@ -137,6 +154,32 @@ class StudentController extends Controller
             'effective_end_date' => $assignment->effectiveEndDate()?->toDateString(),
             'shortfall' => $this->termStatus->shortfall($assignment),
         ];
+    }
+
+    /** Falling behind → bell: remind a behind student (once a day; the student is notified). */
+    public function remindPace(Request $request, int $studentId): JsonResponse
+    {
+        $assignment = $this->ownedAssignment($request->user(), $studentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        $this->paceReminders->remind($assignment->load('user'), $request->user());
+
+        return response()->json(['message' => "Reminder sent to {$assignment->user->name}."]);
+    }
+
+    /** Student page → "Remind to submit": nudge the student about the end-of-term report (once a day). */
+    public function remindReport(Request $request, int $studentId): JsonResponse
+    {
+        $assignment = $this->ownedAssignment($request->user(), $studentId);
+        if (!$assignment) {
+            return response()->json(['message' => 'Student not found or not assigned to you.'], 404);
+        }
+
+        $this->reportReminders->remindBySupervisor($assignment->load('user'), $request->user());
+
+        return response()->json(['message' => "Reminder sent to {$assignment->user->name}."]);
     }
 
     /** Mark the student's current term deficient (reason required; the student is notified). */

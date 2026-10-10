@@ -26,6 +26,10 @@ class ConcernResource extends JsonResource
                 'body' => $m->body,
                 'created_at' => $m->created_at?->toISOString(),
             ])->all()),
+            // Admin inbox: the student wrote last and nobody has answered yet (the "unread" dot).
+            'waiting_on_staff' => $this->whenLoaded('messages', fn () => $this->status !== \App\Models\Concern::STATUS_RESOLVED
+                && !(bool) ($this->messages->last()?->from_staff ?? false)),
+            'last_message_at' => $this->whenLoaded('messages', fn () => ($this->messages->last()?->created_at ?? $this->created_at)?->toISOString()),
             // Only on the admin inbox; the student's own list does not load it.
             'user' => $this->whenLoaded('user', fn () => $this->user ? [
                 'id' => $this->user->id,
@@ -33,6 +37,7 @@ class ConcernResource extends JsonResource
                 'email' => $this->user->email,
                 'role' => $this->user->role,
                 'student_id_number' => $this->user->profile?->student_id_number,
+                'employee_id' => $this->user->employee_id,
             ] : null),
         ];
     }

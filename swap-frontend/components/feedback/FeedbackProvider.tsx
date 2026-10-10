@@ -121,7 +121,7 @@ function NotePopOut({ note, onClose, onPause }: { note: Note; onClose: () => voi
   useEffect(() => { okRef.current?.focus() }, [note.id])
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/25 p-4 print:hidden" onClick={onClose}>
+    <div className="sheet-overlay fixed inset-0 z-[90] flex items-center justify-center bg-black/25 p-4 print:hidden" onClick={onClose}>
       <div
         role={note.tone === 'error' ? 'alert' : 'status'}
         aria-live={note.tone === 'error' ? 'assertive' : 'polite'}
@@ -129,7 +129,7 @@ function NotePopOut({ note, onClose, onPause }: { note: Note; onClose: () => voi
         onMouseEnter={() => onPause(true)}
         onMouseLeave={() => onPause(false)}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-[0_24px_60px_rgba(11,39,22,.28)]"
+        className="w-full max-w-sm rounded-2xl bg-surface p-6 text-center shadow-[0_24px_60px_rgba(11,39,22,.28)]"
       >
         <span className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full ${ring}`}>
           <Icon className={`h-8 w-8 ${icon}`} />
@@ -152,10 +152,10 @@ function ConfirmDialog({ ask, onAnswer }: { ask: Ask; onAnswer: (ok: boolean) =>
   useEffect(() => { (danger ? cancelRef : okRef).current?.focus() }, [danger])
 
   return (
-    <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/45 p-4 print:hidden" onClick={() => onAnswer(false)}>
+    <div className="sheet-overlay fixed inset-0 z-[95] flex items-center justify-center bg-black/45 p-4 print:hidden" onClick={() => onAnswer(false)}>
       <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-body"
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_24px_60px_rgba(11,39,22,.32)]">
+        className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-[0_24px_60px_rgba(11,39,22,.32)]">
         <div className="flex items-start gap-3">
           <span className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl ${danger ? 'bg-danger-50 text-danger-600' : 'bg-brand-50 text-brand-700'}`}>
             {danger ? <AlertTriangle className="h-5 w-5" /> : <Info className="h-5 w-5" />}

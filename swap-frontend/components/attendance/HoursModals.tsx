@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { X, Plus, Target } from 'lucide-react'
 
 const FIELD =
-  'w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 text-sm text-ink-900 placeholder-ink-400 focus:border-brand-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-700/15'
+  'w-full rounded-xl border border-ink-300 bg-ink-50 px-3.5 py-2.5 text-sm text-ink-900 placeholder-ink-400 focus:border-brand-700 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand-700/15'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
@@ -12,8 +12,8 @@ function Shell({ title, subtitle, onClose, children }: {
   title: string; subtitle?: string; onClose: () => void; children: React.ReactNode
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="font-semibold text-ink-900">{title}</h2>

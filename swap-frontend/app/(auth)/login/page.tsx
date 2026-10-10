@@ -23,7 +23,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 const FIELD =
-  'flex h-[50px] items-center gap-2.5 rounded-xl border border-ink-200 bg-white px-3.5 shadow-[0_1px_2px_rgba(19,36,26,0.04)] transition-colors focus-within:border-brand-700'
+  'flex h-[50px] items-center gap-2.5 rounded-xl border border-ink-200 bg-surface px-3.5 shadow-[0_1px_2px_rgba(19,36,26,0.04)] transition-colors focus-within:border-brand-700'
 const INPUT = 'flex-1 border-none bg-transparent text-[14.5px] text-ink-900 placeholder-ink-350 focus:outline-none'
 
 const STATS = [
@@ -91,7 +91,7 @@ export default function LoginPage() {
   })
 
   return (
-    <div className="flex min-h-screen bg-ink-50">
+    <div className="flex min-h-app bg-ink-50">
       {/* Form panel */}
       <div className="flex flex-1 flex-col bg-gradient-to-b from-ink-50 to-ink-100 px-6 py-10 sm:px-12 lg:flex-[1.32] lg:px-16">
         {/* Brand header */}
@@ -186,7 +186,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={login.isPending}
-                className="group flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 text-[15px] font-semibold text-ink-25 shadow-[0_12px_24px_rgba(22,69,43,0.28)] transition hover:brightness-110 disabled:opacity-60"
+                className="group flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 text-[15px] font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.28)] transition hover:brightness-110 disabled:opacity-60"
               >
                 {login.isPending ? 'Signing in…' : 'Sign In'}
                 {!login.isPending && <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />}
@@ -216,19 +216,19 @@ export default function LoginPage() {
               'linear-gradient(180deg, rgba(16,51,31,0.20) 0%, rgba(16,51,31,0.45) 58%, rgba(11,39,22,0.88) 100%), linear-gradient(160deg, rgba(22,69,43,0.55), rgba(11,39,22,0.55))',
           }}
         />
-        <div className="absolute inset-x-11 bottom-11 z-10 text-ink-25">
+        <div className="absolute inset-x-11 bottom-11 z-10 text-cream">
           <div className="font-serif text-2xl font-medium leading-snug tracking-tight">
             Mindanao State University
             <br />— Marawi
           </div>
-          <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-ink-25/80">
+          <p className="mt-2 max-w-[300px] text-[13px] leading-relaxed text-cream/80">
             Digital monitoring and application system for the Student Welfare Assistantship Program.
           </p>
           <div className="mt-5 flex gap-7 border-t border-gold-300/28 pt-[18px]">
             {STATS.map(([value, label]) => (
               <div key={label}>
                 <div className="font-serif text-2xl font-semibold leading-none text-gold-300">{value}</div>
-                <div className="mt-1.5 text-[10.5px] uppercase tracking-[0.1em] text-ink-25/70">{label}</div>
+                <div className="mt-1.5 text-[10.5px] uppercase tracking-[0.1em] text-cream/70">{label}</div>
               </div>
             ))}
           </div>

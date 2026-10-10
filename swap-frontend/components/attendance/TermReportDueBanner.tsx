@@ -23,7 +23,7 @@ export function TermReportDueBanner({ assignment, hoursMet }: { assignment: Assi
   const term = `${assignment.semester} ${assignment.academic_year}`
 
   return (
-    <Link href="/recipient/hours"
+    <Link href="/recipient/attendance#report"
       className="flex flex-wrap items-center gap-3 rounded-2xl border border-warning-200 bg-warning-50 px-5 py-4 transition-colors hover:bg-warning-100/60">
       <NotebookPen className="h-5 w-5 flex-none text-warning-600" />
       <p className="min-w-0 flex-1 text-sm text-warning-800">

@@ -371,9 +371,10 @@ class ApplicationService
 
     /**
      * A rejected renewal ends the student's time as a recipient: their current placement
-     * is closed and the account goes back to the applicant portal, where they may apply
-     * again whenever the application period is open. Their past terms, stubs and hours
-     * stay on record (a completed placement can still be paid).
+     * is closed, the account goes back to an applicant account and is deactivated (signed
+     * out everywhere). To apply again they ask the DSA Office, which reactivates them in
+     * Users. Their past terms, stubs and hours stay on record (a completed placement can
+     * still be paid).
      */
     private function returnToApplicant(Application $renewal, User $admin): void
     {
@@ -386,10 +387,13 @@ class ApplicationService
         foreach ($closed as $assignment) {
             $assignment->update(['status' => 'completed']);
         }
-        $user->update(['role' => 'applicant']);
+        $user->update(['role' => 'applicant', 'is_active' => false]);
+        // Open sessions end now (the next request would be refused anyway).
+        $user->tokens()->delete();
 
-        AuditLog::record('returned_to_applicant', $user, ['role' => 'recipient'], [
+        AuditLog::record('returned_to_applicant', $user, ['role' => 'recipient', 'is_active' => true], [
             'role' => 'applicant',
+            'is_active' => false,
             'renewal_application_id' => $renewal->id,
             'closed_assignment_ids' => $closed->pluck('id')->all(),
         ], $admin->id);

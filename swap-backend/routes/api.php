@@ -12,6 +12,7 @@ use App\Http\Controllers\Shared\AnnouncementAttachmentController;
 use App\Http\Controllers\Shared\DocumentFileController;
 use App\Http\Controllers\Shared\NotificationController;
 use App\Http\Controllers\Shared\ProfileController;
+use App\Http\Controllers\Shared\SessionController;
 use App\Http\Controllers\Shared\ReportController;
 use App\Http\Controllers\Shared\ReportExplorerController;
 use App\Http\Controllers\Shared\InvitationController;
@@ -95,6 +96,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/profile/signature', [ProfileController::class, 'updateSignature']);
     Route::delete('/profile/signature', [ProfileController::class, 'deleteSignature']);
     Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->middleware('throttle:6,1');
+    Route::get('/profile/activity', [ProfileController::class, 'activity']);
+    Route::get('/profile/sessions', [SessionController::class, 'index']);
+    Route::delete('/profile/sessions/others', [SessionController::class, 'destroyOthers']);
+    Route::delete('/profile/sessions/{id}', [SessionController::class, 'destroy'])->whereNumber('id');
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::put('/notifications/read-all', [NotificationController::class, 'markAllRead']);
@@ -152,6 +157,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/students/{id}/required-hours', [StudentController::class, 'updateRequiredHours']);
         Route::post('/students/{id}/required-hours/decision', [StudentController::class, 'decideRequiredHours']);
         Route::post('/students/{id}/mark-deficient', [StudentController::class, 'markDeficient']);
+        Route::post('/students/{id}/remind-report', [StudentController::class, 'remindReport'])->whereNumber('id')->middleware('throttle:30,1');
+        Route::post('/students/{id}/remind-pace', [StudentController::class, 'remindPace'])->whereNumber('id')->middleware('throttle:30,1');
         Route::put('/assignments/{id}/term-report/review', [SupervisorTermReportController::class, 'review'])->whereNumber('id');
         // Analytics & Reports: insights first, so it isn't taken for a report type.
         Route::get('/reports/insights', [ReportController::class, 'supervisorInsights']);
@@ -210,6 +217,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/stipend/release', [StipendController::class, 'release'])->middleware('throttle:6,1');
         Route::post('/stipend/release-bulk', [StipendController::class, 'releaseBulk'])->middleware('throttle:6,1');
         Route::post('/stipend/{id}/void', [StipendController::class, 'void'])->middleware('throttle:6,1');
+        // Not money-moving: no unlock token. Each recipient is reminded at most once a day.
+        Route::post('/stipend/remind', [StipendController::class, 'remind'])->middleware('throttle:10,1');
         Route::get('/promissory', [AdminPromissoryController::class, 'index']);
         Route::get('/promissory/{id}/file', [AdminPromissoryController::class, 'file']);
 

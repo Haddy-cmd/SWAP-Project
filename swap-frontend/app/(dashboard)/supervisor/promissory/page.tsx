@@ -78,10 +78,10 @@ export default function SupervisorPromissoryPage() {
         <p className="mt-1 text-sm text-ink-500">Review promissory notes from students short on hours. Approving records the lacking hours they must render ASAP (deadline: 1 week after semester end).</p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${tab === t.key ? 'bg-brand-700 text-white' : 'border border-ink-200 bg-white text-ink-500 hover:bg-ink-50'}`}>
+            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${tab === t.key ? 'bg-brand-700 text-white' : 'border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50'}`}>
             {t.label}
           </button>
         ))}
@@ -90,7 +90,7 @@ export default function SupervisorPromissoryPage() {
       {isLoading ? (
         <div className="space-y-3">{[1, 2, 3].map((n) => <div key={n} className="h-24 animate-pulse rounded-2xl bg-ink-200" />)}</div>
       ) : !notes.length ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-ink-200 bg-white py-16 text-center">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-ink-200 bg-surface py-16 text-center">
           <FileText className="h-10 w-10 text-ink-300" />
           <p className="text-sm font-medium text-ink-350">No promissory notes.</p>
         </div>
@@ -99,7 +99,7 @@ export default function SupervisorPromissoryPage() {
           {notes.map((n) => {
             const meta = STATUS[n.status]
             return (
-              <div key={n.id} className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+              <div key={n.id} className="rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -153,7 +153,7 @@ export default function SupervisorPromissoryPage() {
                         className="rounded-lg bg-brand-700 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
                         {review.isPending ? 'Saving…' : action === 'approve' ? 'Confirm approval' : 'Confirm rejection'}
                       </button>
-                      <button onClick={() => setReviewing(null)} className="rounded-lg border border-ink-200 px-4 py-2 text-xs font-semibold text-ink-500 hover:bg-white">Cancel</button>
+                      <button onClick={() => setReviewing(null)} className="rounded-lg border border-ink-200 px-4 py-2 text-xs font-semibold text-ink-500 hover:bg-surface">Cancel</button>
                     </div>
                   </div>
                 )}
@@ -166,4 +166,4 @@ export default function SupervisorPromissoryPage() {
   )
 }
 
-const INPUT = 'w-full rounded-xl border border-ink-300 bg-white px-3 py-2 text-sm focus:border-brand-700 focus:outline-none'
+const INPUT = 'w-full rounded-xl border border-ink-300 bg-surface px-3 py-2 text-sm focus:border-brand-700 focus:outline-none'

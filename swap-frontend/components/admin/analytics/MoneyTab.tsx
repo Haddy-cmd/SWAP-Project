@@ -29,18 +29,18 @@ export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
         hint={r.submitted ? `${plural(r.submitted, 'returning student applied', 'returning students applied')} · ${r.approved} approved${r.rejected ? ` · ${r.rejected} rejected` : ''}` : 'No renewals this semester yet.'}>
         {r.submitted > 0 && (
           <>
-            <div className="mt-[18px] flex h-7 gap-[3px] overflow-hidden rounded-lg bg-[#EEF1EC]">
+            <div className="mt-[18px] flex h-7 gap-[3px] overflow-hidden rounded-lg bg-surface-3">
               {r.approved > 0 && <div style={{ flex: r.approved, background: GREEN }} title={`Approved: ${r.approved}`} />}
-              {ready > 0 && <div style={{ flex: ready, background: '#9CC9B5' }} title={`Ready to approve: ${ready}`} />}
+              {ready > 0 && <div style={{ flex: ready, background: 'var(--color-success-300)' }} title={`Ready to approve: ${ready}`} />}
               {blocked > 0 && <div style={{ flex: blocked, background: GOLD }} title={`Blocked: ${blocked}`} />}
-              {r.rejected > 0 && <div style={{ flex: r.rejected, background: '#D9DDD5' }} title={`Rejected: ${r.rejected}`} />}
+              {r.rejected > 0 && <div style={{ flex: r.rejected, background: 'var(--color-ink-200)' }} title={`Rejected: ${r.rejected}`} />}
             </div>
             <div className="mt-3.5 flex flex-col text-[13.5px]">
               {[
                 ['Approved', r.approved, GREEN, null],
-                ['Ready to approve now', ready, '#9CC9B5', null],
+                ['Ready to approve now', ready, 'var(--color-success-300)', null],
                 ['Blocked', blocked, GOLD, blockedReasons.map((w) => `${w.reason.toLowerCase()} (${w.count})`).join(', ')],
-                ...(r.rejected ? [['Rejected', r.rejected, '#D9DDD5', null] as const] : []),
+                ...(r.rejected ? [['Rejected', r.rejected, 'var(--color-ink-200)', null] as const] : []),
               ].map(([label, n, color, detail]) => (
                 <div key={label as string} className="flex items-start gap-2.5 border-b border-ink-900/[.05] py-2.5 last:border-0">
                   <span className="mt-1 h-2.5 w-2.5 flex-none rounded-[3px]" style={{ background: color as string }} />
@@ -53,7 +53,7 @@ export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
               <p className="mt-2 text-xs text-ink-500">{r.renewal_rate}% of {r.previous_term}&apos;s {r.previous_recipients} recipients renewed so far.</p>
             )}
             {ready > 0 && (
-              <Link href="/admin/applications?type=renewal" className="mt-3.5 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-[#17815F] hover:text-[#0F6A4D]">
+              <Link href="/admin/applications?type=renewal" className="mt-3.5 inline-flex items-center gap-1.5 text-[13.5px] font-bold text-accent hover:text-accent-hover">
                 Review the {plural(ready, 'ready renewal', 'ready renewals')} <ArrowRight className="h-4 w-4" />
               </Link>
             )}
@@ -64,8 +64,8 @@ export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
       <div className="flex flex-col gap-5">
         <Card title="Stipends">
           {nothingPaid ? (
-            <div className="mt-3.5 flex items-center gap-3.5 rounded-[14px] bg-[#F6F7F3] p-4">
-              <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-xl bg-white text-ink-400"><Wallet className="h-[22px] w-[22px]" /></span>
+            <div className="mt-3.5 flex items-center gap-3.5 rounded-[14px] bg-surface-2 p-4">
+              <span className="flex h-[42px] w-[42px] flex-none items-center justify-center rounded-xl bg-surface text-ink-400"><Wallet className="h-[22px] w-[22px]" /></span>
               <div>
                 <p className="text-[14px] font-bold">Nothing released yet this term</p>
                 <p className="mt-0.5 text-[12.5px] text-ink-500">Stipends open once students finish their hours and submit their report.</p>
@@ -73,10 +73,10 @@ export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
             </div>
           ) : (
             <>
-              <div className="mt-3.5 grid grid-cols-3 gap-2.5">
-                <Tile label="Released" value={st.released} sub={peso(st.released_amount)} bg="#DFF0E7" fg="#0B5234" />
-                <Tile label="Ready to release" value={st.ready_to_release} sub="signature + report in" bg="#FBF1C7" fg="#7A5E00" />
-                <Tile label="Missing a requirement" value={st.missing_requirements} sub="signature or report" bg="#F6F7F3" fg="#5B6B62" />
+              <div className="mt-3.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                <Tile label="Released" value={st.released} sub={peso(st.released_amount)} bg="var(--color-accent-soft)" fg="var(--color-accent-strong)" />
+                <Tile label="Ready to release" value={st.ready_to_release} sub="signature + report in" bg="var(--color-gold-100)" fg="var(--color-gold-700)" />
+                <Tile label="Missing a requirement" value={st.missing_requirements} sub="signature or report" bg="var(--color-surface-2)" fg="var(--color-ink-600)" />
               </div>
               {(st.via_promissory > 0 || st.voided > 0) && (
                 <p className="mt-2.5 text-xs text-ink-500">
@@ -85,7 +85,7 @@ export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
               )}
             </>
           )}
-          <Link href="/admin/stipend" className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#17815F] hover:text-[#0F6A4D]">
+          <Link href="/admin/stipend" className="mt-3.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-accent hover:text-accent-hover">
             Go to Stipend <ArrowRight className="h-4 w-4" />
           </Link>
         </Card>
@@ -93,11 +93,11 @@ export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
         <Card title="Term results" hint={tr.in_progress === tr.placements ? 'Final results appear when the term ends' : `${tr.placements} placements this term`}>
           <div className="mt-3.5 grid grid-cols-3 gap-2.5">
             {/* The filter values are the Term Results report's verdict labels. */}
-            {([['In progress', 'In Progress', tr.in_progress, '#E3ECF6', '#2E5C8A'], ['Qualified', 'Qualified', tr.qualified, '#DFF0E7', '#0B5234'], ['Deficient', 'Deficient', tr.deficient, '#F6E1E0', '#A3201F']] as const).map(([label, verdict, n, bg, fg]) => (
+            {([['In progress', 'In Progress', tr.in_progress, 'var(--color-info-100)', 'var(--color-info-700)'], ['Qualified', 'Qualified', tr.qualified, 'var(--color-accent-soft)', 'var(--color-accent-strong)'], ['Deficient', 'Deficient', tr.deficient, 'var(--color-danger-100)', 'var(--color-red-strong)']] as const).map(([label, verdict, n, bg, fg]) => (
               <button key={label} onClick={() => onDrill({ tab: 'term-results', filters: { verdict: [verdict] } })}
                 className="rounded-xl px-3.5 py-3 text-left transition-shadow hover:shadow-[0_4px_12px_rgba(19,36,26,0.08)]"
-                style={{ background: n ? bg : '#F6F7F3' }} title={`See the ${label.toLowerCase()} recipients`}>
-                <p className="text-xs font-semibold" style={{ color: n ? fg : '#5B6B62' }}>{label}</p>
+                style={{ background: n ? bg : 'var(--color-surface-2)' }} title={`See the ${label.toLowerCase()} recipients`}>
+                <p className="text-xs font-semibold" style={{ color: n ? fg : 'var(--text-ink-600)' }}>{label}</p>
                 <p className="mt-0.5 text-[22px] font-extrabold">{n}</p>
               </button>
             ))}

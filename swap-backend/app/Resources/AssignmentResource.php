@@ -49,6 +49,16 @@ class AssignmentResource extends JsonResource
             'report_to_review' => $this->when($this->resource->relationLoaded('termReport'),
                 fn () => $this->termReport?->submitted_at !== null && $this->termReport?->reviewed_at === null),
             'pending_logs_count' => (int) ($this->pending_logs_count ?? 0),
+            // Supervisor roster only: verified bonus (manual) hours, and promissory notes on file.
+            'bonus_hours' => $this->when(array_key_exists('bonus_sum', $this->resource->getAttributes()),
+                fn () => round((float) $this->resource->getAttribute('bonus_sum'), 2)),
+            'has_approved_promissory' => $this->when(array_key_exists('has_approved_promissory', $this->resource->getAttributes()),
+                fn () => (bool) $this->resource->getAttribute('has_approved_promissory')),
+            'has_pending_promissory' => $this->when(array_key_exists('has_pending_promissory', $this->resource->getAttributes()),
+                fn () => (bool) $this->resource->getAttribute('has_pending_promissory')),
+            // Supervisor roster only: a pace reminder already went out today (the bell shows a check).
+            'pace_reminded_today' => $this->when(array_key_exists('pace_reminded_today', $this->resource->getAttributes()),
+                fn () => (bool) $this->resource->getAttribute('pace_reminded_today')),
             'created_at' => $this->created_at->toISOString(),
             'user' => $this->whenLoaded('user', fn () => new UserResource($this->user)),
             'office' => $this->whenLoaded('office', fn () => [

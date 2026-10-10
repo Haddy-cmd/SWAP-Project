@@ -29,7 +29,7 @@ export function NotificationBell() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative flex h-[38px] w-[38px] items-center justify-center rounded-[10px] border border-ink-900/15 bg-white text-ink-700 hover:bg-ink-50 hover:text-brand-700 transition-colors"
+        className="relative flex h-[38px] w-[38px] items-center justify-center rounded-[10px] border border-ink-900/15 bg-surface text-ink-700 hover:bg-ink-50 hover:text-brand-700 transition-colors"
         aria-label="Notifications"
       >
         <Bell className="h-[21px] w-[21px]" />

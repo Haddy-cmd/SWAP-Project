@@ -113,7 +113,7 @@ export function FloatingShiftTimer() {
       onPointerUp={onPointerUp}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/recipient/attendance') } }}
       style={pos ? { left: pos.x, top: pos.y } : { right: DEFAULT_RIGHT, top: DEFAULT_TOP }}
-      className="fixed z-[55] flex touch-none select-none items-center gap-2 rounded-full border border-success-200 bg-white/95 py-1.5 pl-1.5 pr-3.5 shadow-lg backdrop-blur print:hidden"
+      className="fixed z-[55] flex touch-none select-none items-center gap-2 rounded-full border border-success-200 bg-surface/95 py-1.5 pl-1.5 pr-3.5 shadow-lg backdrop-blur print:hidden"
     >
       <GripVertical className="h-4 w-4 flex-none text-ink-300" aria-hidden="true" />
       <span className="relative flex h-2.5 w-2.5 flex-none" aria-hidden="true">

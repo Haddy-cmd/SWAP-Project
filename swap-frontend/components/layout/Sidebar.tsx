@@ -25,9 +25,8 @@ const ROLE_NAV: Record<string, NavLink[]> = {
   ],
   recipient: [
     { label: 'Dashboard', href: '/recipient/dashboard', icon: LayoutDashboard },
-    { label: 'Attendance', href: '/recipient/attendance', icon: Clock },
-    { label: 'Scan QR', href: '/recipient/attendance/scan', icon: CheckSquare },
-    { label: 'Hours', href: '/recipient/hours', icon: BarChart2 },
+    // Clock in/out, hours, logs and the end-of-term report in one page (Scan is inside it).
+    { label: 'Hours & attendance', href: '/recipient/attendance', icon: Clock },
     { label: 'My Reports', href: '/recipient/reports', icon: ClipboardList },
     { label: 'Duty Slip', href: '/recipient/reports/duty-slip', icon: FileText },
     { label: 'Renewal', href: '/recipient/renewal', icon: RefreshCw },
@@ -122,7 +121,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       {/* Utility */}
-      <div className="flex flex-col items-center gap-2 border-t border-white/10 px-2 py-3">
+      <div className="flex flex-col items-center gap-2 border-t border-white/10 px-2 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <Link
           href="/notifications"
           onClick={onNavigate}

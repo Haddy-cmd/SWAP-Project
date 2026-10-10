@@ -113,7 +113,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth_token', $request)->plainTextToken;
 
         return response()->json([
             'data' => new UserResource($user->load('profile')),

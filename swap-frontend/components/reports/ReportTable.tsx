@@ -32,8 +32,49 @@ export function ReportTable({ columns, rows, sort, dir, onSort }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[15px] border border-ink-200 bg-white shadow-[0_2px_8px_rgba(19,36,26,0.04)]">
-      <div className="max-h-[640px] overflow-auto">
+    <div className="overflow-hidden rounded-[15px] border border-ink-200 bg-surface shadow-[0_2px_8px_rgba(19,36,26,0.04)]">
+      {/* Phones: one card per record (first column as the title, the rest as label: value). */}
+      <div className="sm:hidden">
+        <label className="flex items-center gap-2 border-b border-ink-200 bg-ink-50 px-3 py-2 text-[12px] text-ink-500">
+          Sort by
+          <select value={sort ?? ''} onChange={(e) => e.target.value && onSort(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-ink-200 bg-surface px-2 py-1.5 text-ink-800">
+            {!sort && <option value="">—</option>}
+            {columns.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+          </select>
+          {sort && (
+            <button type="button" onClick={() => onSort(sort)} aria-label={dir === 'desc' ? 'Sorted descending; switch to ascending' : 'Sorted ascending; switch to descending'}
+              className="tap flex items-center justify-center rounded-lg border border-ink-200 bg-surface p-1.5 text-ink-700">
+              {dir === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+            </button>
+          )}
+        </label>
+        <ul className="divide-y divide-ink-100">
+          {shown.map((r, ri) => {
+            const [first, ...rest] = columns
+            const status = rest.find((c) => c.type === 'status')
+            const statusText = status ? formatCell(r[status.key] ?? null, status.type) : '—'
+            return (
+              <li key={page * PAGE_SIZE + ri} className="px-3.5 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 break-words text-[13.5px] font-semibold text-ink-900">{first ? formatCell(r[first.key] ?? null, first.type) : '—'}</p>
+                  {status && statusText !== '—' && <span className={`flex-none rounded-full px-2.5 py-0.5 text-[11px] font-bold ${statusTone(statusText)}`}>{statusText}</span>}
+                </div>
+                <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[12px]">
+                  {rest.filter((c) => c !== status).map((c) => (
+                    <div key={c.key} className={`min-w-0 ${c.key === 'task' ? 'col-span-2' : ''}`}>
+                      <dt className="text-[10.5px] font-semibold uppercase tracking-wide text-ink-400">{c.label}</dt>
+                      <dd className="break-words text-ink-800">{formatCell(r[c.key] ?? null, c.type)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+
+      <div className="hidden max-h-[640px] overflow-auto sm:block">
         <table className="w-full border-collapse text-[12.5px]">
           <thead className="sticky top-0 z-10 bg-ink-50">
             <tr>

@@ -67,7 +67,7 @@ export default function AdminLandingPage() {
           href="/"
           target="_blank"
           rel="noreferrer"
-          className="flex h-10 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-sm font-semibold text-brand-700 hover:bg-ink-50"
+          className="flex h-10 items-center gap-2 rounded-xl border border-ink-200 bg-surface px-4 text-sm font-semibold text-brand-700 hover:bg-ink-50"
         >
           <ExternalLink className="h-4 w-4" /> View landing page
         </a>
@@ -81,7 +81,7 @@ export default function AdminLandingPage() {
       />
 
 
-      <div className="rounded-2xl border border-ink-200 bg-white shadow-sm">
+      <div className="rounded-2xl border border-ink-200 bg-surface shadow-sm">
         <div className="flex items-center justify-between border-b border-ink-100 px-5 py-3.5">
           <h2 className="font-semibold text-ink-900">Slides, in order</h2>
           <span className="text-xs font-medium text-ink-500">
@@ -153,7 +153,7 @@ function UploadCard({ full, max, onUploaded, onError }: {
   }
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white p-5 shadow-sm">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
         <ImagePlus className="h-5 w-5 text-brand-700" />
         <h2 className="font-semibold text-ink-900">Add a photo</h2>
@@ -235,7 +235,7 @@ function PhotoRow({ photo, position, isFirst, isLast, busy, onMove, onSaveCaptio
             value={caption}
             maxLength={160}
             onChange={(e) => setCaption(e.target.value)}
-            className="h-9 min-w-0 flex-1 rounded-lg border border-ink-200 bg-white px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
+            className="h-9 min-w-0 flex-1 rounded-lg border border-ink-200 bg-surface px-3 text-sm text-ink-900 focus:border-brand-700 focus:outline-none"
           />
           {dirty && (
             <button type="button" onClick={() => onSaveCaption(caption.trim())} disabled={busy} className="flex h-9 items-center gap-1.5 rounded-lg bg-brand-700 px-3 text-xs font-semibold text-white disabled:opacity-50">
@@ -257,7 +257,7 @@ function PhotoRow({ photo, position, isFirst, isLast, busy, onMove, onSaveCaptio
           onClick={onToggle}
           disabled={busy}
           aria-label={photo.is_active ? 'Hide from the home page' : 'Show on the home page'}
-          className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40 ${photo.is_active ? 'border-success-200 bg-success-50 text-success-800' : 'border-ink-200 bg-white text-ink-500'}`}
+          className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold disabled:opacity-40 ${photo.is_active ? 'border-success-200 bg-success-50 text-success-800' : 'border-ink-200 bg-surface text-ink-500'}`}
         >
           {photo.is_active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
           {photo.is_active ? 'Shown' : 'Hidden'}

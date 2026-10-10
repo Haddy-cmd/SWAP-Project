@@ -48,7 +48,7 @@ export function FilterBar({ columns, facets, filters, search, onFilters, onSearc
         <div className="relative ml-auto w-full sm:w-64">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Search names, IDs, offices…" aria-label="Search the report"
-            className="h-9 w-full rounded-[10px] border border-ink-200 bg-white pl-9 pr-3 text-[13px] text-ink-900 placeholder:text-ink-400 focus:border-brand-700 focus:outline-none" />
+            className="h-9 w-full rounded-[10px] border border-ink-200 bg-surface pl-9 pr-3 text-[13px] text-ink-900 placeholder:text-ink-400 focus:border-brand-700 focus:outline-none" />
         </div>
       </div>
 
@@ -91,7 +91,7 @@ function FacetDropdown({ column, values, selected, onToggle, onClear }: {
   return (
     <div className="relative">
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
-        className={`flex h-9 items-center gap-1.5 rounded-[10px] border px-3 text-[12.5px] font-semibold transition-colors ${on ? 'border-brand-700 bg-brand-50 text-brand-800' : 'border-ink-200 bg-white text-ink-700 hover:bg-ink-50'}`}>
+        className={`flex h-9 items-center gap-1.5 rounded-[10px] border px-3 text-[12.5px] font-semibold transition-colors ${on ? 'border-brand-700 bg-brand-50 text-brand-800' : 'border-ink-200 bg-surface text-ink-700 hover:bg-ink-50'}`}>
         {column.label}
         {on && <span className="rounded-full bg-brand-700 px-1.5 text-[10.5px] leading-[18px] text-white">{selected.length}</span>}
         <ChevronDown className="h-3.5 w-3.5 text-ink-400" />
@@ -99,7 +99,7 @@ function FacetDropdown({ column, values, selected, onToggle, onClear }: {
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-[42px] z-30 w-64 rounded-xl border border-ink-200 bg-white p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
+          <div className="absolute left-0 top-[42px] z-30 w-64 rounded-xl border border-ink-200 bg-surface p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
             {values.length > 8 && (
               <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Find ${column.label.toLowerCase()}…`}
                 className="mb-1 h-8 w-full rounded-lg border border-ink-200 px-2.5 text-[12.5px] focus:border-brand-700 focus:outline-none" />

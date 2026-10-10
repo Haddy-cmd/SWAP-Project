@@ -6,6 +6,7 @@ import { Reveal } from '@/components/landing/Reveal'
 import { HeroSlideshow, type HeroPhoto } from '@/components/landing/HeroSlideshow'
 import { FaqAccordion } from '@/components/landing/FaqAccordion'
 import { AuthNavButton } from '@/components/landing/AuthNavButton'
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 // Hero slideshow photos are managed by admins (Admin → Landing Page). This built-in
 // list (files in /public) is the fallback when the API is unreachable — e.g. the
@@ -100,24 +101,24 @@ export default async function LandingPage() {
   const photos = await heroPhotos()
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-ink-50 text-ink-900">
+    <div className="min-h-app overflow-x-hidden bg-ink-50 text-ink-900">
       {/* ── Hero ── */}
       <section className="relative h-[100svh] max-h-[980px] min-h-[640px] overflow-hidden bg-brand-950">
         <HeroSlideshow photos={photos} intervalSec={6}>
           {/* Nav */}
           <div className="absolute inset-x-0 top-0 z-[3] flex items-center justify-between gap-6 px-5 py-5 sm:px-14 sm:py-[26px]">
-            <a href="#" className="flex min-w-0 items-center gap-3 text-ink-25 [text-shadow:0_1px_8px_rgba(0,0,0,.45)]">
-              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-ink-25/10">
+            <a href="#" className="flex min-w-0 items-center gap-3 text-cream [text-shadow:0_1px_8px_rgba(0,0,0,.45)]">
+              <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-cream/10">
                 <Image src="/dsa-logo.png" alt="DSA seal" width={40} height={40} className="rounded-full" />
               </span>
               <span className="min-w-0 leading-[1.2]">
-                <span className="block font-serif text-lg text-ink-25">SWAP</span>
-                <span className="block truncate text-[11px] text-ink-25/60">MSU Marawi · Division of Student Affairs</span>
+                <span className="block font-serif text-lg text-cream">SWAP</span>
+                <span className="block truncate text-[11px] text-cream/60">MSU Marawi · Division of Student Affairs</span>
               </span>
             </a>
             <nav className="flex flex-none items-center gap-3 text-[13.5px]">
               {/* Frosted pill keeps the links readable over any photo. */}
-              <div className="hidden items-center gap-[clamp(14px,2vw,26px)] rounded-full border border-ink-25/15 bg-brand-950/35 px-5 py-2 backdrop-blur-md md:flex">
+              <div className="hidden items-center gap-[clamp(14px,2vw,26px)] rounded-full border border-cream/15 bg-brand-950/35 px-5 py-2 backdrop-blur-md md:flex">
                 {[
                   ['#about', 'About'],
                   ['#eligibility', 'Eligibility'],
@@ -127,13 +128,15 @@ export default async function LandingPage() {
                   <a
                     key={href}
                     href={href}
-                    className="font-medium text-ink-25 transition-colors [text-shadow:0_1px_8px_rgba(0,0,0,.45)] hover:text-gold-400"
+                    className="font-medium text-cream transition-colors [text-shadow:0_1px_8px_rgba(0,0,0,.45)] hover:text-gold-400"
                   >
                     {label}
                   </a>
                 ))}
               </div>
-              <AuthNavButton className="whitespace-nowrap rounded-full bg-ink-25 px-[18px] py-[9px] font-semibold text-brand-800 shadow-[0_4px_14px_rgba(0,0,0,.25)] transition-colors hover:bg-white hover:text-brand-800" />
+              <ThemeToggle tone="onDark" />
+              {/* Always a cream pill on the photo, whatever the theme. */}
+              <span data-theme="light" className="contents"><AuthNavButton className="whitespace-nowrap rounded-full bg-ink-25 px-[18px] py-[9px] font-semibold text-brand-800 shadow-[0_4px_14px_rgba(0,0,0,.25)] transition-colors hover:bg-surface hover:text-brand-800" /></span>
             </nav>
           </div>
 
@@ -144,7 +147,7 @@ export default async function LandingPage() {
               Student Welfare Assistantship Program
             </div>
             <h1
-              className="mb-[26px] font-serif text-[clamp(46px,6.4vw,92px)] font-light leading-[.98] tracking-[-0.02em] text-ink-25 text-balance animate-fade-up"
+              className="mb-[26px] font-serif text-[clamp(46px,6.4vw,92px)] font-light leading-[.98] tracking-[-0.02em] text-cream text-balance animate-fade-up"
               style={{ animationDelay: '80ms' }}
             >
               Serve the university.
@@ -152,7 +155,7 @@ export default async function LandingPage() {
               <span className="italic text-gold-400">It serves you back.</span>
             </h1>
             <p
-              className="mb-[34px] max-w-[48ch] text-base leading-[1.65] text-ink-25/80 text-pretty animate-fade-up"
+              className="mb-[34px] max-w-[48ch] text-base leading-[1.65] text-cream/80 text-pretty animate-fade-up"
               style={{ animationDelay: '160ms' }}
             >
               Complete a semester-long campus office placement to receive a monthly allowance — helping MSU Marawi students get the financial support they need to finish their degrees.
@@ -166,7 +169,7 @@ export default async function LandingPage() {
               </Link>
               <a
                 href="#eligibility"
-                className="border-b border-ink-25/45 pb-[3px] text-sm font-semibold text-ink-25 transition-colors hover:border-ink-25"
+                className="border-b border-cream/45 pb-[3px] text-sm font-semibold text-cream transition-colors hover:border-ink-25"
               >
                 Check if you qualify
               </a>
@@ -306,10 +309,10 @@ export default async function LandingPage() {
         <div className="bg-gold-400" />
         <div className="bg-maroon-600" />
       </div>
-      <footer className="bg-brand-800 text-ink-25">
+      <footer className="bg-brand-800 text-cream">
         <div className="mx-auto max-w-[1240px] px-5 pb-10 pt-[90px] sm:px-14">
-          <div className="flex flex-wrap items-end justify-between gap-10 border-b border-ink-25/15 pb-[70px]">
-            <h2 className="max-w-[14ch] font-serif text-[clamp(36px,4.4vw,64px)] font-light leading-[1.02] text-ink-25">
+          <div className="flex flex-wrap items-end justify-between gap-10 border-b border-cream/15 pb-[70px]">
+            <h2 className="max-w-[14ch] font-serif text-[clamp(36px,4.4vw,64px)] font-light leading-[1.02] text-cream">
               Applications are open for <span className="italic text-gold-400">this semester.</span>
             </h2>
             <Link
@@ -319,7 +322,7 @@ export default async function LandingPage() {
               Start your application <ArrowRight className="h-[19px] w-[19px]" />
             </Link>
           </div>
-          <div className="grid gap-9 pb-14 pt-11 text-[13.5px] leading-[1.7] text-ink-25/80 sm:grid-cols-3">
+          <div className="grid gap-9 pb-14 pt-11 text-[13.5px] leading-[1.7] text-cream/80 sm:grid-cols-3">
             <div>
               <div className="mb-2 text-gold-400">Visit</div>
               Ground Floor, Domocao Alonto Hall, 1st Street, Mindanao State University, Marawi City
@@ -337,7 +340,7 @@ export default async function LandingPage() {
               8:00 A.M. – 5:00 P.M.
             </div>
           </div>
-          <div className="flex flex-wrap justify-between gap-5 text-xs text-ink-25/50">
+          <div className="flex flex-wrap justify-between gap-5 text-xs text-cream/50">
             <span>© {new Date().getFullYear()} Mindanao State University - Main Campus</span>
             <span>Built by the MSU - College of Information and Computing Sciences</span>
           </div>

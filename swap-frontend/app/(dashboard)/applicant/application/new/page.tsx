@@ -113,7 +113,7 @@ export default function NewApplicationPage() {
           </div>
         </div>
       ) : (
-        <div className="rounded-2xl border border-ink-200 bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
           <ApplicationForm />
         </div>
       )}
