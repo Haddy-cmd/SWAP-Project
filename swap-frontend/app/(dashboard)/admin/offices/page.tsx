@@ -555,7 +555,7 @@ export default function AdminOfficesPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-offices'],
-    queryFn: () => assignmentsApi.getOffices(),
+    queryFn: () => assignmentsApi.getOffices({ per_page: '100' }),
   })
 
   type LogoChange = { file: File | null; remove: boolean }
@@ -606,6 +606,8 @@ export default function AdminOfficesPage() {
   })
 
   const offices = data?.data ?? []
+  // The list loads up to 100 offices (the API's page cap); the count comes from the server.
+  const totalOffices = data?.meta?.total ?? offices.length
   const totalCap = offices.reduce((s, o) => s + (o.max_recipients || 0), 0)
 
   const q = search.trim().toLowerCase()
@@ -630,8 +632,11 @@ export default function AdminOfficesPage() {
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Host Offices</p>
           <h1 className="font-serif text-3xl font-medium text-ink-950">Offices</h1>
           <p className="mt-1.5 text-[13.5px] text-ink-500">
-            {offices.length} host office{offices.length === 1 ? '' : 's'} · {totalCap} total recipient capacity
+            {totalOffices} host office{totalOffices === 1 ? '' : 's'} · {totalCap} total recipient capacity
           </p>
+          {totalOffices > offices.length && (
+            <p className="mt-1 text-[12.5px] text-warning-700">Showing the first {offices.length} of {totalOffices} offices. Use search to find the rest.</p>
+          )}
         </div>
         <button onClick={() => setShowNew(true)}
           className="flex h-11 items-center gap-2 self-start rounded-xl px-5 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,.26)] transition-opacity hover:opacity-95 sm:self-auto"

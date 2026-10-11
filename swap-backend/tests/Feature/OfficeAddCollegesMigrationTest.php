@@ -4,12 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Office;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Tests\Concerns\MakesSwapData;
 use Tests\TestCase;
 
 /** The one-time addition of the college and campus offices. */
 class OfficeAddCollegesMigrationTest extends TestCase
 {
-    use RefreshDatabase;
+    use RefreshDatabase, MakesSwapData;
 
     private const FILE = 'migrations/2026_10_11_000005_add_college_and_campus_offices.php';
 
@@ -34,6 +36,18 @@ class OfficeAddCollegesMigrationTest extends TestCase
         // The existing Library and Registrar are not duplicated.
         $this->assertSame(1, Office::where('name', 'University Library')->count());
         $this->assertSame(1, Office::where('name', 'Office of the Registrar')->count());
+    }
+
+    public function test_the_offices_page_gets_every_office_past_the_default_page(): void
+    {
+        Sanctum::actingAs($this->makeUser('admin'));
+        $all = Office::count();
+        $this->assertGreaterThan(15, $all);
+
+        // Admin → Offices and the invite picker ask for per_page=100 (the API's cap).
+        $this->getJson('/api/admin/offices?per_page=100')->assertOk()
+            ->assertJsonCount($all, 'data')->assertJsonPath('meta.total', $all);
+        $this->getJson('/api/admin/offices')->assertOk()->assertJsonCount(15, 'data');
     }
 
     public function test_running_it_again_neither_duplicates_nor_overwrites_live_edits(): void

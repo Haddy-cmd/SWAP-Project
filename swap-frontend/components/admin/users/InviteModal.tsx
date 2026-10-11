@@ -18,7 +18,7 @@ export function InviteModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('')
   const [sent, setSent] = useState<string | null>(null)
 
-  const { data: officesData } = useQuery({ queryKey: ['admin-offices'], queryFn: () => assignmentsApi.getOffices() })
+  const { data: officesData } = useQuery({ queryKey: ['admin-offices'], queryFn: () => assignmentsApi.getOffices({ per_page: '100' }) })
   const offices = officesData?.data ?? []
 
   const invite = useMutation({
