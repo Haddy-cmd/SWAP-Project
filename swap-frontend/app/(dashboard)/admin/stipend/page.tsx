@@ -5,12 +5,13 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 import Link from 'next/link'
 import {
   Lock, Wallet, Receipt, Check, Minus, Pencil, Undo2, AlertCircle, Ban, ChevronDown, ChevronUp, BellRing, PenLine,
-  FileText, NotebookPen, Search, History, Loader2, X, CheckCircle2,
+  FileText, NotebookPen, Search, History, Loader2, X, CheckCircle2, ArrowUpDown, CalendarRange,
 } from 'lucide-react'
 import { adminApi } from '@/lib/api/admin.api'
 import { formatDate } from '@/lib/utils/formatDate'
+import { COLLEGES, collegeDisplay } from '@/lib/constants/colleges'
 import { useAuthStore } from '@/lib/store/authStore'
-import type { StipendRecord, EligibleStipend, StipendStatus } from '@/types/analytics.types'
+import type { StipendRecord, EligibleStipend, StipendStatus, StipendTerm } from '@/types/analytics.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
 
@@ -40,6 +41,30 @@ type ApiError = { response?: { data?: { message?: string; errors?: Record<string
 type Tab = 'release' | 'history'
 type Chip = 'all' | 'released' | 'received' | 'not_received' | 'void'
 
+type Sort = 'new' | 'old' | 'amount' | 'name'
+/** Shared by both tabs. `term` is "2025-2026|1st Semester" ('' = all terms). */
+type Filters = { term: string; college: string; promissory: boolean; search: string }
+const NO_FILTERS: Filters = { term: '', college: '', promissory: false, search: '' }
+const isFiltered = (f: Filters) => !!(f.term || f.college || f.promissory || f.search.trim())
+
+/** The same filters as query params for GET /admin/stipend (search is passed already debounced). */
+const apiParams = (f: Filters, q: string): Record<string, string> => {
+  const [academic_year, semester] = f.term ? f.term.split('|') : []
+  return {
+    ...(academic_year && { academic_year, semester }),
+    ...(f.college && { college: f.college }),
+    ...(f.promissory && { promissory: '1' }),
+    ...(q && { search: q }),
+  }
+}
+
+/** To release isn't paginated, so its rows are filtered here, by the same rules as the server. */
+const matches = (e: EligibleStipend, f: Filters, q: string) =>
+  (!f.term || `${e.academic_year}|${e.semester}` === f.term)
+  && (!f.college || e.college === f.college)
+  && (!f.promissory || e.via_promissory)
+  && (!q || `${e.name} ${e.student_id_number ?? ''}`.toLowerCase().includes(q.toLowerCase()))
+
 const keyOf = (e: EligibleStipend) => `${e.user_id}|${e.academic_year}|${e.semester}`
 const shortHours = (e: EligibleStipend) => e.deficient_hours ?? e.lacking_hours ?? Math.max(0, e.required_hours - e.verified_hours)
 
@@ -59,16 +84,22 @@ export default function AdminStipendPage() {
   const [unlockPw, setUnlockPw] = useState('')
   const [unlockError, setUnlockError] = useState<string | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
+  const [q, setQ] = useState('')
+  useEffect(() => { const t = setTimeout(() => setQ(filters.search.trim()), 300); return () => clearTimeout(t) }, [filters.search])
+  const params = apiParams(filters, q)
 
   const { data: eligible = [], isLoading: eligibleLoading } = useQuery({
     queryKey: ['admin-stipend-eligible'],
     queryFn: () => adminApi.getEligibleStipends(),
     enabled: !!unlockToken,
   })
+  // The History count (same filters) and the Term filter's options.
   const { data: totals } = useQuery({
-    queryKey: ['admin-stipend', 'totals'],
-    queryFn: () => adminApi.getStipendRecords({ page: '1' }).then((r) => r.meta),
+    queryKey: ['admin-stipend', 'totals', params],
+    queryFn: () => adminApi.getStipendRecords({ page: '1', ...params }).then((r) => r.meta),
     enabled: !!unlockToken,
+    placeholderData: keepPreviousData,
   })
 
   // Inactivity closes the gate; any pointer/keyboard activity re-arms the timer.
@@ -133,8 +164,10 @@ export default function AdminStipendPage() {
     )
   }
 
-  const ready = eligible.filter((e) => e.has_signature && e.narrative_submitted)
-  const blocked = eligible.filter((e) => !(e.has_signature && e.narrative_submitted))
+  const shown = eligible.filter((e) => matches(e, filters, q))
+  const ready = shown.filter((e) => e.has_signature && e.narrative_submitted)
+  const blocked = shown.filter((e) => !(e.has_signature && e.narrative_submitted))
+  const filtered = isFiltered(filters)
 
   return (
     <div className="space-y-[18px] pb-24">
@@ -163,22 +196,28 @@ export default function AdminStipendPage() {
         })}
       </div>
 
+      <FilterBar filters={filters} onChange={setFilters} terms={totals?.terms ?? []} />
+
       {tab === 'release'
-        ? <ReleaseTab ready={ready} blocked={blocked} loading={eligibleLoading} unlockToken={unlockToken} onDone={invalidate} onMoneyError={onMoneyError} />
-        : <HistoryTab unlockToken={unlockToken} onDone={invalidate} onMoneyError={onMoneyError} />}
+        ? <ReleaseTab ready={ready} blocked={blocked} loading={eligibleLoading} unlockToken={unlockToken} onDone={invalidate} onMoneyError={onMoneyError}
+            filtered={filtered} onClearFilters={() => setFilters(NO_FILTERS)} />
+        : <HistoryTab params={params} unlockToken={unlockToken} onDone={invalidate} onMoneyError={onMoneyError} />}
     </div>
   )
 }
 
 // ── To release ─────────────────────────────────────────────────────────────
 
-function ReleaseTab({ ready, blocked, loading, unlockToken, onDone, onMoneyError }: {
+function ReleaseTab({ ready, blocked, loading, unlockToken, onDone, onMoneyError, filtered, onClearFilters }: {
   ready: EligibleStipend[]
   blocked: EligibleStipend[]
   loading: boolean
   unlockToken: string
   onDone: () => void
   onMoneyError: (e: ApiError, fallback: string) => void
+  /** A filter is on: Select all / Remind all act on the rows shown only. */
+  filtered: boolean
+  onClearFilters: () => void
 }) {
   const { notify, notifyError } = useFeedback()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -276,7 +315,14 @@ function ReleaseTab({ ready, blocked, loading, unlockToken, onDone, onMoneyError
         {loading ? (
           <div className="space-y-2 p-4">{[1, 2, 3].map((n) => <div key={n} className="h-12 animate-pulse rounded-lg bg-ink-100" />)}</div>
         ) : ready.length === 0 ? (
-          <p className="flex items-center justify-center gap-2 px-5 py-10 text-[13.5px] text-ink-500"><CheckCircle2 className="h-5 w-5 text-accent" /> No one is ready to release.</p>
+          filtered ? (
+            <p className="px-5 py-10 text-center text-[13.5px] text-ink-500">
+              No one matches these filters.{' '}
+              <button type="button" onClick={onClearFilters} className="font-semibold text-accent-strong hover:underline">Clear filters</button>
+            </p>
+          ) : (
+            <p className="flex items-center justify-center gap-2 px-5 py-10 text-[13.5px] text-ink-500"><CheckCircle2 className="h-5 w-5 text-accent" /> No one is ready to release.</p>
+          )
         ) : ready.map((e) => {
           const k = keyOf(e)
           const on = selected.has(k)
@@ -329,9 +375,9 @@ function ReleaseTab({ ready, blocked, loading, unlockToken, onDone, onMoneyError
               </span>
               {showBlocked ? <ChevronUp className="h-5 w-5 text-ink-500" /> : <ChevronDown className="h-5 w-5 text-ink-500" />}
             </button>
-            <button onClick={() => remind.mutate(undefined)} disabled={remind.isPending}
+            <button onClick={() => remind.mutate(filtered ? [...new Set(blocked.map((e) => e.user_id))] : undefined)} disabled={remind.isPending}
               className="flex h-8 flex-none items-center gap-1.5 rounded-[9px] border border-ink-200 bg-surface px-3 text-xs font-semibold text-ink-700 hover:border-accent hover:text-accent-strong disabled:opacity-50">
-              <BellRing className="h-4 w-4" /> Remind all
+              <BellRing className="h-4 w-4" /> {filtered ? 'Remind these' : 'Remind all'}
             </button>
           </div>
           {showBlocked && blocked.map((e) => {
@@ -411,25 +457,30 @@ function ReleaseTab({ ready, blocked, loading, unlockToken, onDone, onMoneyError
 
 // ── History ────────────────────────────────────────────────────────────────
 
-function HistoryTab({ unlockToken, onDone, onMoneyError }: {
+function HistoryTab({ params, unlockToken, onDone, onMoneyError }: {
+  /** The shared filters (term, college, promissory, search) as query params. */
+  params: Record<string, string>
   unlockToken: string
   onDone: () => void
   onMoneyError: (e: ApiError, fallback: string) => void
 }) {
   const { notify } = useFeedback()
   const [chip, setChip] = useState<Chip>('all')
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
+  const [sort, setSort] = useState<Sort>('new')
   const [page, setPage] = useState(1)
   const [voiding, setVoiding] = useState<StipendRecord | null>(null)
   const [reason, setReason] = useState('')
   const [history, setHistory] = useState<{ id: number; label: string } | null>(null)
 
-  useEffect(() => { const t = setTimeout(() => { setQ(search.trim()); setPage(1) }, 300); return () => clearTimeout(t) }, [search])
+  // Back to page 1 whenever the filters change.
+  const paramsKey = JSON.stringify(params)
+  useEffect(() => { setPage(1) }, [paramsKey])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-stipend', page, chip, q],
-    queryFn: () => adminApi.getStipendRecords({ page: String(page), ...(chip !== 'all' && { status: chip }), ...(q && { search: q }) }),
+    queryKey: ['admin-stipend', page, chip, sort, params],
+    queryFn: () => adminApi.getStipendRecords({
+      page: String(page), ...params, ...(chip !== 'all' && { status: chip }), ...(sort !== 'new' && { sort }),
+    }),
     placeholderData: keepPreviousData,
   })
   const records = data?.data ?? []
@@ -481,12 +532,15 @@ function HistoryTab({ unlockToken, onDone, onMoneyError }: {
               </button>
             )
           })}
-          <div className="ml-auto flex h-[38px] w-[280px] max-w-full items-center gap-2 rounded-[10px] bg-surface-2 px-3">
-            <Search className="h-[18px] w-[18px] text-ink-400" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, ID or control no." aria-label="Search stipend records"
-              className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-ink-950 focus:outline-none" />
-            {search && <button onClick={() => setSearch('')} aria-label="Clear search" className="text-ink-400"><X className="h-4 w-4" /></button>}
-          </div>
+          <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-ink-500">
+            <ArrowUpDown className="h-4 w-4" /> Sort
+            <select value={sort} onChange={(e) => { setSort(e.target.value as Sort); setPage(1) }} aria-label="Sort stipend records" className={SELECT}>
+              <option value="new">Newest released</option>
+              <option value="old">Oldest released</option>
+              <option value="amount">Amount, high to low</option>
+              <option value="name">Name A–Z</option>
+            </select>
+          </label>
         </div>
 
         <div className="overflow-x-auto">
@@ -580,6 +634,49 @@ function HistoryTab({ unlockToken, onDone, onMoneyError }: {
 }
 
 // ── Small pieces ───────────────────────────────────────────────────────────
+
+const SELECT = 'h-[38px] max-w-full rounded-[10px] border border-ink-200 bg-surface px-2.5 text-[13px] font-medium text-ink-900 focus:border-accent focus:outline-none'
+
+/** Term, college, promissory only and search — shared by To release and History. */
+function FilterBar({ filters, onChange, terms }: { filters: Filters; onChange: (f: Filters) => void; terms: StipendTerm[] }) {
+  const set = (patch: Partial<Filters>) => onChange({ ...filters, ...patch })
+  // Keep a chosen term listed even before the options load.
+  const options = filters.term && !terms.some((t) => `${t.academic_year}|${t.semester}` === filters.term)
+    ? [{ academic_year: filters.term.split('|')[0], semester: filters.term.split('|')[1] }, ...terms]
+    : terms
+
+  return (
+    <div className="flex flex-wrap items-center gap-2.5">
+      <label className="flex min-w-0 items-center gap-2 text-xs font-semibold text-ink-500">
+        <CalendarRange className="h-4 w-4 flex-none" />
+        <select value={filters.term} onChange={(e) => set({ term: e.target.value })} aria-label="Term" className={SELECT}>
+          <option value="">All terms</option>
+          {options.map((t) => {
+            const v = `${t.academic_year}|${t.semester}`
+            return <option key={v} value={v}>{t.semester} {t.academic_year}</option>
+          })}
+        </select>
+      </label>
+      <select value={filters.college} onChange={(e) => set({ college: e.target.value })} aria-label="College" className={`${SELECT} w-[230px]`}>
+        <option value="">All colleges</option>
+        {COLLEGES.map((c) => <option key={c.value} value={c.value}>{collegeDisplay(c.value)}</option>)}
+      </select>
+      <button type="button" onClick={() => set({ promissory: !filters.promissory })} aria-pressed={filters.promissory}
+        className={`flex h-[34px] items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold ${filters.promissory ? 'border-gold-accent bg-gold-100 text-gold-700' : 'border-ink-200 bg-surface text-ink-700'}`}>
+        <NotebookPen className="h-4 w-4" /> Promissory only
+      </button>
+      <div className="flex h-[38px] w-[260px] max-w-full items-center gap-2 rounded-[10px] bg-surface-2 px-3 sm:ml-auto">
+        <Search className="h-[18px] w-[18px] flex-none text-ink-400" />
+        <input value={filters.search} onChange={(e) => set({ search: e.target.value })} placeholder="Name, ID or control no." aria-label="Search stipends"
+          className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-ink-950 focus:outline-none" />
+        {filters.search && <button onClick={() => set({ search: '' })} aria-label="Clear search" className="text-ink-400"><X className="h-4 w-4" /></button>}
+      </div>
+      {isFiltered(filters) && (
+        <button type="button" onClick={() => onChange(NO_FILTERS)} className="text-[12.5px] font-semibold text-accent-strong hover:underline">Clear filters</button>
+      )}
+    </div>
+  )
+}
 
 function CheckBox({ state, label, onClick, disabled }: { state: 'on' | 'some' | 'off'; label: string; onClick?: () => void; disabled?: boolean }) {
   const filled = state !== 'off'

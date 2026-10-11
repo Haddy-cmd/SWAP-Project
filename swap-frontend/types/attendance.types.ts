@@ -48,9 +48,15 @@ export interface TimeLogOffice {
 export interface TermReport {
   id: number
   assignment_id: number
-  content: string
+  /** The typed report; null when the student uploaded it as a file instead. */
+  content: string | null
   accomplishments: string | null
   challenges: string | null
+  /** The uploaded PDF/Word version, if any. */
+  has_file: boolean
+  file_name: string | null
+  mime_type: string | null
+  file_size: number | null
   submitted_at: string | null
   updated_at: string | null
   /** The supervisor's acceptance (null until accepted) and renewal mark. */

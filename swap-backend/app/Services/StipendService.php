@@ -46,6 +46,7 @@ class StipendService
                 'user_id' => $a->user_id,
                 'name' => $a->user->profile?->full_name ?? $a->user->name,
                 'student_id_number' => $a->user->profile?->student_id_number,
+                'college' => $a->user->profile?->college,
                 'academic_year' => $a->academic_year,
                 'semester' => $a->semester,
                 'required_hours' => (float) $a->required_hours,
@@ -92,6 +93,7 @@ class StipendService
                     'user_id' => $a->user_id,
                     'name' => $a->user->profile?->full_name ?? $a->user->name,
                     'student_id_number' => $a->user->profile?->student_id_number,
+                    'college' => $a->user->profile?->college,
                     'academic_year' => $a->academic_year,
                     'semester' => $a->semester,
                     'required_hours' => (float) $a->required_hours,
@@ -133,7 +135,15 @@ class StipendService
 
     public function paginateAll(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = $this->filtered($filters)->with(['recipient.profile', 'releasedBy'])->orderByDesc('created_at');
+        $query = $this->filtered($filters)->with(['recipient.profile', 'releasedBy']);
+
+        // Legacy stubs may lack released_at; they fall back to when they were made.
+        match ($filters['sort'] ?? 'new') {
+            'old' => $query->orderByRaw('COALESCE(released_at, created_at) ASC')->orderBy('id'),
+            'amount' => $query->orderByDesc('amount')->orderByDesc('id'),
+            'name' => $query->orderBy(User::select('name')->whereColumn('users.id', 'stipend_history.user_id'))->orderByDesc('id'),
+            default => $query->orderByRaw('COALESCE(released_at, created_at) DESC')->orderByDesc('id'),
+        };
 
         match ($filters['status'] ?? null) {
             // Every paid stub: released (legacy ready-to-claim certified/pending included) and legacy received.
@@ -177,13 +187,42 @@ class StipendService
         ];
     }
 
-    /** Stubs narrowed by term and by name, email, student ID or control number. */
+    /**
+     * The terms the Stipend page's Term filter offers: any with a stub or a payable placement,
+     * newest first (within a year: 2nd Semester, Summer, 1st Semester).
+     *
+     * @return list<array{academic_year: string, semester: string}>
+     */
+    public function terms(): array
+    {
+        $pairs = StipendHistory::query()->select('academic_year', 'semester')
+            ->union(Assignment::query()->select('academic_year', 'semester')->whereIn('status', self::PAYABLE_STATUSES));
+
+        return \Illuminate\Support\Facades\DB::query()->fromSub($pairs, 't')
+            ->whereNotNull('academic_year')->whereNotNull('semester')
+            ->orderByDesc('academic_year')
+            ->orderByRaw("CASE semester WHEN '2nd Semester' THEN 1 WHEN 'Summer' THEN 2 WHEN '1st Semester' THEN 3 ELSE 4 END")
+            ->get()
+            ->map(fn ($t) => ['academic_year' => $t->academic_year, 'semester' => $t->semester])
+            ->all();
+    }
+
+    /** Stubs narrowed by term, college, promissory, and by name, email, student ID or control number. */
     private function filtered(array $filters): \Illuminate\Database\Eloquent\Builder
     {
         $query = StipendHistory::query();
 
         if (!empty($filters['academic_year'])) {
             $query->where('academic_year', $filters['academic_year']);
+        }
+        if (!empty($filters['semester'])) {
+            $query->where('semester', $filters['semester']);
+        }
+        if (!empty($filters['college'])) {
+            $query->whereHas('recipient.profile', fn ($p) => $p->where('college', $filters['college']));
+        }
+        if (filter_var($filters['promissory'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            $query->where('via_promissory', true);
         }
 
         if (!empty($filters['search'])) {

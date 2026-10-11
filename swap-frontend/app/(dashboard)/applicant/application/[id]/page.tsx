@@ -50,7 +50,7 @@ export default function ApplicationDetailPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-xl font-bold text-ink-900">
-            Application #{application.id}
+            {application.type === 'renewal' ? 'My Renewal Application' : 'My SWAP Application'}
           </h1>
           <p className="text-sm text-ink-500">
             {application.academic_year} — {application.semester}

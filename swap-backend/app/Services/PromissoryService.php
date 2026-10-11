@@ -66,17 +66,22 @@ class PromissoryService
             throw new UnprocessableEntityHttpException(self::msgNoHours($assignment));
         }
 
-        $pendingExists = PromissoryNote::where('assignment_id', $assignment->id)
-            ->where('status', PromissoryNote::STATUS_PENDING)
-            ->exists();
-        if ($pendingExists) {
-            throw new UnprocessableEntityHttpException('There is already a pending promissory note for this assignment.');
+        // One note per semester, whatever became of it (pending, approved or rejected).
+        if (self::alreadyFiled($assignment)) {
+            throw new UnprocessableEntityHttpException(self::msgAlreadyFiled($assignment));
         }
 
         $path = $this->storeFile($assignment, $file);
         $lacking = round($required - $verified, 2);
 
         $note = DB::transaction(function () use ($recipient, $assignment, $data, $file, $path, $verified, $lacking) {
+            // Re-checked under a row lock so a double click or a second tab can't file two.
+            Assignment::whereKey($assignment->id)->lockForUpdate()->first();
+            if (self::alreadyFiled($assignment)) {
+                Storage::disk(config('filesystems.documents_disk', 'public'))->delete($path);
+                throw new UnprocessableEntityHttpException(self::msgAlreadyFiled($assignment));
+            }
+
             $note = PromissoryNote::create([
                 'assignment_id' => $assignment->id,
                 'user_id' => $recipient->id,
@@ -189,6 +194,10 @@ class PromissoryService
         if (!$assignment) {
             return ['can_submit' => false, 'reason' => 'No active assignment.', 'assignment_id' => null, 'lacking_hours' => null];
         }
+        // One note per semester, whatever became of it (pending, approved or rejected).
+        if (self::alreadyFiled($assignment)) {
+            return ['can_submit' => false, 'reason' => self::msgAlreadyFiled($assignment), 'assignment_id' => $assignment->id, 'lacking_hours' => null];
+        }
 
         $semesterEnd = $this->semesterEndFor($assignment);
         if ($semesterEnd === null) {
@@ -208,13 +217,6 @@ class PromissoryService
         }
         if ($verified <= 0) {
             return ['can_submit' => false, 'reason' => self::msgNoHours($assignment), 'assignment_id' => $assignment->id, 'lacking_hours' => null];
-        }
-
-        $pendingExists = PromissoryNote::where('assignment_id', $assignment->id)
-            ->where('status', PromissoryNote::STATUS_PENDING)
-            ->exists();
-        if ($pendingExists) {
-            return ['can_submit' => false, 'reason' => 'A promissory note is already pending review.', 'assignment_id' => $assignment->id, 'lacking_hours' => round($required - $verified, 2)];
         }
 
         return [
@@ -265,6 +267,16 @@ class PromissoryService
     public static function msgNoPeriod(Assignment $assignment): string
     {
         return "The semester period for {$assignment->semester} {$assignment->academic_year} isn't set up yet. Ask the DSA to add it under Semesters.";
+    }
+
+    public static function alreadyFiled(Assignment $assignment): bool
+    {
+        return PromissoryNote::where('assignment_id', $assignment->id)->exists();
+    }
+
+    public static function msgAlreadyFiled(Assignment $assignment): string
+    {
+        return "You already filed a promissory note for {$assignment->semester} {$assignment->academic_year}. Only one is allowed per semester.";
     }
 
     public static function msgNoHours(Assignment $assignment): string

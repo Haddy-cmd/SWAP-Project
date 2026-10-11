@@ -27,7 +27,11 @@ class StipendController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['status', 'academic_year', 'search']);
+        $request->validate([
+            'sort' => ['nullable', 'in:new,old,amount,name'],
+            'promissory' => ['nullable', 'boolean'],
+        ]);
+        $filters = $request->only(['status', 'academic_year', 'semester', 'college', 'promissory', 'search', 'sort']);
         $records = $this->stipendService->paginateAll($filters);
 
         return response()->json([
@@ -39,6 +43,8 @@ class StipendController extends Controller
                 'total' => $records->total(),
                 // History cards and chip counts (the status chip doesn't narrow them).
                 'summary' => $this->stipendService->summary($filters),
+                // The Term filter's options (both tabs).
+                'terms' => $this->stipendService->terms(),
             ],
         ]);
     }

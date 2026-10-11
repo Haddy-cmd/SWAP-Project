@@ -15,9 +15,15 @@ class DocumentController extends Controller
 
     public function store(Request $request, int $applicationId): JsonResponse
     {
+        // Only the letter of intent may also be a Word document; the rest stay PDF or image.
+        $isLetter = $request->input('document_type') === 'letter_of_intent';
         $request->validate([
             'document_type' => ['required', 'string', 'in:birth_certificate,cor,grades,income_certificate,letter_of_intent,id_photo,recommendation_letter,other'],
-            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            'file' => ['required', 'file', $isLetter ? 'mimes:pdf,doc,docx,jpg,jpeg,png' : 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ], [
+            'file.mimes' => $isLetter
+                ? 'Letter of intent must be a PDF, Word, JPG or PNG file.'
+                : 'This document must be a PDF, JPG or PNG file.',
         ]);
 
         $application = $this->applicationService->getApplicationById($applicationId);

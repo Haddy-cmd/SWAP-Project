@@ -455,7 +455,7 @@ class TestingToolsTest extends TestCase
         $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
         $this->assertTrue($disk->exists($note->file_path));
         $this->act($student, 'file-promissory')->assertStatus(422)
-            ->assertJsonPath('message', 'There is already a pending promissory note for this assignment.');
+            ->assertJsonPath('message', "You already filed a promissory note for {$assignment->semester} {$assignment->academic_year}. Only one is allowed per semester.");
         Sanctum::actingAs($this->admin);
         $this->assertSame('pending', collect($this->getJson('/api/admin/testing')->json('data.accounts.0.assignments'))->first()['promissory']);
 

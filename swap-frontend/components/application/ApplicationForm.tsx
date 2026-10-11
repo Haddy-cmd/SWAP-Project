@@ -183,6 +183,7 @@ export function ApplicationForm() {
             value={letterOfIntent}
             onChange={setLetterOfIntent}
             error={docErrors['letter_of_intent']}
+            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
           />
           <DocumentUpload
             label="2×2 Photo"

@@ -20,20 +20,20 @@ class SubmitPromissoryRequest extends FormRequest
     {
         return [
             'assignment_id' => ['required', 'integer', 'exists:assignments,id'],
-            // Same limits as application documents (DocumentController).
-            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+            // PDF, Word or a photo of the signed note, 5 MB.
+            'file' => ['required', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png', 'max:5120'],
             // Optional: the document carries the explanation (the form no longer asks).
             'reason' => ['nullable', 'string', 'max:2000'],
         ];
     }
 
-    /** Same wording as the Stipend page's own check (5 MB, PDF/JPG/PNG). */
+    /** Same wording as the Stipend page's own check (5 MB, PDF/Word/JPG/PNG). */
     public function messages(): array
     {
         return [
-            'file.required' => 'Attach your promissory note (PDF, JPG or PNG, up to 5 MB).',
-            'file.uploaded' => 'The file couldn\'t be uploaded. Use a PDF, JPG or PNG of up to 5 MB.',
-            'file.mimes' => 'Upload the promissory note as a PDF, JPG or PNG.',
+            'file.required' => 'Attach your promissory note (PDF, Word, JPG or PNG, up to 5 MB).',
+            'file.uploaded' => 'The file couldn\'t be uploaded. Use a PDF, Word, JPG or PNG of up to 5 MB.',
+            'file.mimes' => 'Upload the promissory note as a PDF, Word, JPG or PNG.',
             'file.max' => 'The file must be 5 MB or smaller.',
         ];
     }

@@ -19,6 +19,10 @@ class TermReport extends Model
         'accomplishments',
         'challenges',
         'submitted_at',
+        'file_path',
+        'file_name',
+        'mime_type',
+        'file_size',
     ];
 
     protected function casts(): array

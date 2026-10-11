@@ -10,7 +10,7 @@ type StepState = 'done' | 'now' | 'todo'
 
 /**
  * The end-of-term report as a strip: Submitted → Supervisor review → Accepted, with the form
- * or the submitted report one click away (the same TermReportCard rules: 100 characters,
+ * or the submitted report one click away (the same TermReportCard rules: 100 characters or a PDF/Word file,
  * editable until accepted or the stipend is released). `#report` opens it.
  */
 export function ReportStrip({ report, meta, due }: { report: TermReport | null; meta: TermReportMeta; due: boolean }) {

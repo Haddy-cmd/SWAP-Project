@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { NotebookPen, CheckCircle2, Lock } from 'lucide-react'
+import { NotebookPen, CheckCircle2, Lock, FileText, Upload, Download } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import type { ApiRequestError } from '@/lib/api/axios'
@@ -10,6 +10,9 @@ import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { TermReport } from '@/types/attendance.types'
 
 const MIN_CHARS = 100
+const FILE_ACCEPT = '.pdf,.doc,.docx'
+const FILE_EXT = /\.(pdf|docx?)$/i
+const fileSize = (b?: number | null) => (!b ? '' : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`)
 const TEXTAREA =
   'w-full rounded-xl border border-ink-300 bg-ink-50 px-4 py-2.5 text-sm text-ink-900 placeholder-ink-350 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-700/20'
 
@@ -26,25 +29,33 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
   const meta = data?.meta
 
   const [form, setForm] = useState({ content: '', accomplishments: '', challenges: '' })
+  // A new upload, or dropping the one already saved.
+  const [file, setFile] = useState<File | null>(null)
+  const [removeFile, setRemoveFile] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { notify } = useFeedback()
 
   useEffect(() => {
-    if (report) setForm({ content: report.content, accomplishments: report.accomplishments ?? '', challenges: report.challenges ?? '' })
+    if (report) setForm({ content: report.content ?? '', accomplishments: report.accomplishments ?? '', challenges: report.challenges ?? '' })
   }, [report])
+
+  const resetFile = () => { setFile(null); setRemoveFile(false); if (fileInput.current) fileInput.current.value = '' }
 
   const save = useMutation({
     mutationFn: () => attendanceApi.saveTermReport({
       content: form.content.trim(),
       accomplishments: form.accomplishments.trim() || null,
       challenges: form.challenges.trim() || null,
+      file,
+      remove_file: removeFile && !file,
     }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['term-report'] })
       qc.invalidateQueries({ queryKey: ['student-summary'] })
       qc.invalidateQueries({ queryKey: ['supervisor-students'] })
-      setEditing(false); setError(null)
+      setEditing(false); setError(null); resetFile()
       notify({ title: 'End-of-term report saved', detail: res.message ?? null })
     },
     onError: (e: ApiRequestError) => setError(Object.values(e.errors ?? {}).flat()[0] ?? e.message ?? 'Could not save your report.'),
@@ -54,6 +65,17 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
 
   const showForm = meta.editable && (!report || editing)
   const chars = form.content.trim().length
+  const savedFile = report?.has_file && !removeFile && !file ? report : null
+  const hasFile = !!file || !!savedFile
+  // Typed (100+ characters) or uploaded — the same rule as SaveTermReportRequest.
+  const textOk = chars === 0 ? hasFile : chars >= MIN_CHARS
+
+  const pickFile = (f: File | null) => {
+    if (!f) return
+    if (!FILE_EXT.test(f.name)) { setError('Upload the report as a PDF or Word file (.pdf, .doc, .docx).'); return }
+    if (f.size > 5 * 1024 * 1024) { setError('The file must be 5 MB or smaller.'); return }
+    setError(null); setFile(f)
+  }
 
   return (
     <div className={bare ? '' : 'rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm'}>
@@ -92,9 +114,35 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
             <label className="mb-1.5 block text-sm font-medium text-ink-900">Narrative of your service this term</label>
             <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} rows={6} maxLength={5000}
               placeholder="Describe your duties and how your service went over the term…" className={TEXTAREA} />
-            <p className={`mt-1 text-xs ${chars >= MIN_CHARS ? 'text-ink-350' : 'text-warning-700'}`}>
-              {chars < MIN_CHARS ? `At least ${MIN_CHARS} characters (${chars} so far).` : `${chars} characters.`}
+            <p className={`mt-1 text-xs ${textOk ? 'text-ink-350' : 'text-warning-700'}`}>
+              {chars === 0 && hasFile ? 'Optional — your uploaded file is your report.'
+                : chars < MIN_CHARS ? `At least ${MIN_CHARS} characters (${chars} so far), or upload your report below.`
+                  : `${chars} characters.`}
             </p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-900">Or upload your report <span className="font-normal text-ink-350">(PDF or Word, max 5 MB)</span></label>
+            {hasFile ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-ink-200 bg-surface px-3 py-2.5">
+                <FileText className="h-5 w-5 flex-none text-brand-700" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink-900">{file ? file.name : savedFile?.file_name}</p>
+                  <p className="text-xs text-ink-500">{fileSize(file ? file.size : savedFile?.file_size)}{file ? ' · not saved yet' : ''}</p>
+                </div>
+                <button type="button" onClick={() => {
+                  // Drops the new pick (back to the saved file, if any), else the saved file.
+                  if (file) setFile(null); else setRemoveFile(true)
+                  if (fileInput.current) fileInput.current.value = ''
+                }}
+                  className="tap rounded-lg px-2.5 py-1.5 text-xs font-semibold text-danger-700 hover:bg-danger-50">Remove</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => fileInput.current?.click()}
+                className="flex w-full items-center gap-2 rounded-xl border border-dashed border-ink-300 bg-surface px-3 py-2.5 text-sm text-ink-600 hover:border-brand-700">
+                <Upload className="h-4 w-4" /> Choose a PDF or Word file
+              </button>
+            )}
+            <input ref={fileInput} type="file" accept={FILE_ACCEPT} className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink-900">Accomplishments <span className="font-normal text-ink-350">(optional)</span></label>
@@ -106,18 +154,18 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
           </div>
           {error && <p className="text-sm text-danger-700">{error}</p>}
           <div className="flex gap-2">
-            <button onClick={() => { setError(null); save.mutate() }} disabled={save.isPending || chars < MIN_CHARS}
+            <button onClick={() => { setError(null); save.mutate() }} disabled={save.isPending || !textOk}
               className="rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50 transition-colors">
               {save.isPending ? 'Saving…' : report ? 'Save changes' : 'Submit report'}
             </button>
             {editing && (
-              <button onClick={() => { setEditing(false); setError(null) }}
+              <button onClick={() => { setEditing(false); setError(null); resetFile() }}
                 className="rounded-xl border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-500 hover:bg-ink-50">Cancel</button>
             )}
           </div>
         </div>
       ) : report ? (
-        <TermReportBody report={report} />
+        <TermReportBody report={report} onDownload={() => attendanceApi.downloadTermReport(report.file_name ?? 'report')} />
       ) : (
         <p className="mt-4 flex items-center gap-2 text-sm text-ink-500"><Lock className="h-4 w-4" /> Your stipend for this term has already been released.</p>
       )}
@@ -142,10 +190,33 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
 }
 
 /** Read-only view of a submitted report (the supervisor's student page, and the recipient after saving). */
-export function TermReportBody({ report }: { report: TermReport }) {
+export function TermReportBody({ report, onDownload }: { report: TermReport; onDownload?: () => Promise<unknown> }) {
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const download = () => {
+    if (!onDownload) return
+    setBusy(true); setFailed(false)
+    onDownload().catch(() => setFailed(true)).finally(() => setBusy(false))
+  }
+
   return (
     <div className="mt-4 space-y-3 text-sm">
-      <p className="whitespace-pre-line text-ink-900">{report.content}</p>
+      {report.has_file && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-ink-200 bg-surface px-3 py-2.5">
+          <FileText className="h-5 w-5 flex-none text-brand-700" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-ink-900">{report.file_name}</p>
+            <p className="text-xs text-ink-500">{failed ? <span className="text-danger-700">Could not download the file. Try again.</span> : `Uploaded report · ${fileSize(report.file_size)}`}</p>
+          </div>
+          {onDownload && (
+            <button type="button" onClick={download} disabled={busy}
+              className="tap inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-60">
+              <Download className="h-3.5 w-3.5" /> {busy ? 'Downloading…' : 'Download'}
+            </button>
+          )}
+        </div>
+      )}
+      {report.content && <p className="whitespace-pre-line text-ink-900">{report.content}</p>}
       {report.accomplishments && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-ink-500">Accomplishments</p>

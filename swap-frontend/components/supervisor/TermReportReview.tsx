@@ -57,7 +57,7 @@ export function TermReportReview({ assignmentId, report, hoursMet }: {
 
   return (
     <div>
-      <TermReportBody report={report} />
+      <TermReportBody report={report} onDownload={() => attendanceApi.downloadStudentTermReport(assignmentId, report.file_name ?? 'report')} />
 
       <div className="mt-4 rounded-xl border border-ink-200 bg-ink-50 p-4">
         {!hoursMet && (

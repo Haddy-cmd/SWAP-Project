@@ -1,4 +1,5 @@
 import apiClient from './axios'
+import { downloadBlob } from './promissory.api'
 import type { TimeLog, HoursSummary, NarrativeReport, StoreNarrativeData, VerifyLogData, TermReport, TermReportMeta } from '@/types/attendance.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 import type { Pace } from '@/lib/utils/pace'
@@ -78,8 +79,22 @@ export const attendanceApi = {
   getTermReport: () =>
     apiClient.get<{ data: TermReport | null; meta: TermReportMeta }>('/recipient/term-report').then((r) => r.data),
 
-  saveTermReport: (data: { content: string; accomplishments?: string | null; challenges?: string | null }) =>
-    apiClient.put<ApiResponse<TermReport>>('/recipient/term-report', data).then((r) => r.data),
+  // Typed and/or uploaded (PDF/Word). Multipart, so it posts with _method=PUT for PHP to read the file.
+  saveTermReport: (data: { content: string; accomplishments?: string | null; challenges?: string | null; file?: File | null; remove_file?: boolean }) => {
+    const fd = new FormData()
+    fd.append('_method', 'PUT')
+    if (data.content) fd.append('content', data.content)
+    if (data.accomplishments) fd.append('accomplishments', data.accomplishments)
+    if (data.challenges) fd.append('challenges', data.challenges)
+    if (data.file) fd.append('file', data.file)
+    if (data.remove_file) fd.append('remove_file', '1')
+    return apiClient.post<ApiResponse<TermReport>>('/recipient/term-report', fd).then((r) => r.data)
+  },
+
+  downloadTermReport: (fileName: string) => downloadBlob('/recipient/term-report/file', fileName),
+
+  downloadStudentTermReport: (assignmentId: number, fileName: string) =>
+    downloadBlob(`/supervisor/assignments/${assignmentId}/term-report/file`, fileName),
 
   getStudentLogs: (studentId: number, params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<TimeLog> & { student?: { id: number; name: string; required_hours?: number; pending_required_hours?: number | null } }>(`/supervisor/students/${studentId}/logs`, { params }).then((r) => r.data),

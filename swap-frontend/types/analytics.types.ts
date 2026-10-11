@@ -122,6 +122,7 @@ export interface EligibleStipend {
   user_id: number
   name: string
   student_id_number?: string | null
+  college?: string | null
   academic_year: string
   semester: string
   required_hours: number
@@ -223,4 +224,10 @@ export interface StipendReminderResult {
   reminded: number
   already_today: number
   not_blocked: number
+}
+
+/** A term offered by Admin → Stipend's Term filter (any with a stub or a payable placement). */
+export interface StipendTerm {
+  academic_year: string
+  semester: string
 }

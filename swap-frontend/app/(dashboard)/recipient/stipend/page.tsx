@@ -310,8 +310,8 @@ function PromissoryCard() {
           </p>
           <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-ink-300 bg-surface px-3 py-2.5 text-sm text-ink-600 hover:border-accent">
             <Upload className="h-4 w-4" />
-            <span className="min-w-0 truncate">{doc ? doc.name : 'Attach your signed note (PDF, JPG or PNG, max 5 MB)'}</span>
-            <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+            <span className="min-w-0 truncate">{doc ? doc.name : 'Attach your signed note (PDF, Word, JPG or PNG, max 5 MB)'}</span>
+            <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0] ?? null
                 // Same limit and wording as the API (SubmitPromissoryRequest).

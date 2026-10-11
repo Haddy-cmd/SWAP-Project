@@ -1,6 +1,6 @@
 import apiClient from './axios'
 import type { User } from '@/types/auth.types'
-import type { StipendRecord, EligibleStipend, StipendHistorySummary, StipendReminderResult } from '@/types/analytics.types'
+import type { StipendRecord, EligibleStipend, StipendHistorySummary, StipendTerm, StipendReminderResult } from '@/types/analytics.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
 export const adminApi = {
@@ -23,7 +23,7 @@ export const adminApi = {
 
   // meta.summary = the History cards and chip counts (not narrowed by the status filter).
   getStipendRecords: (params?: Record<string, string>) =>
-    apiClient.get<PaginatedResponse<StipendRecord> & { meta: { summary?: StipendHistorySummary } }>('/admin/stipend', { params }).then((r) => r.data),
+    apiClient.get<PaginatedResponse<StipendRecord> & { meta: { summary?: StipendHistorySummary; terms?: StipendTerm[] } }>('/admin/stipend', { params }).then((r) => r.data),
 
   // "Can't release yet" → Remind: some recipients, or every blocked one when omitted (once a day each).
   remindStipend: (userIds?: number[]) =>

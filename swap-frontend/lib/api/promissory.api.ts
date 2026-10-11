@@ -38,7 +38,8 @@ export const promissoryApi = {
     downloadBlob(`/admin/promissory/${id}/file`, fileName),
 }
 
-function downloadBlob(path: string, fileName: string) {
+/** Fetch a protected file with the session and save it under its original name. */
+export function downloadBlob(path: string, fileName: string) {
   return apiClient.get<Blob>(path, { responseType: 'blob' }).then((r) => {
     const url = URL.createObjectURL(r.data)
     const a = document.createElement('a')

@@ -141,6 +141,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/assignments/history', [AttendanceController::class, 'history']);
         Route::get('/term-report', [TermReportController::class, 'show']);
         Route::put('/term-report', [TermReportController::class, 'update']);
+        Route::get('/term-report/file', [TermReportController::class, 'file']);
         Route::get('/stipend/history', [ReportController::class, 'stipendHistory']);
         Route::get('/reports/{type}', [ReportExplorerController::class, 'show'])->where('type', '[a-z-]+');
         Route::get('/reports/{type}/export', [ReportExplorerController::class, 'export'])->where('type', '[a-z-]+')->middleware('throttle:20,1');
@@ -169,6 +170,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/students/{id}/remind-report', [StudentController::class, 'remindReport'])->whereNumber('id')->middleware('throttle:30,1');
         Route::post('/students/{id}/remind-pace', [StudentController::class, 'remindPace'])->whereNumber('id')->middleware('throttle:30,1');
         Route::put('/assignments/{id}/term-report/review', [SupervisorTermReportController::class, 'review'])->whereNumber('id');
+        Route::get('/assignments/{id}/term-report/file', [SupervisorTermReportController::class, 'file'])->whereNumber('id');
         // Analytics & Reports: insights first, so it isn't taken for a report type.
         Route::get('/reports/insights', [ReportController::class, 'supervisorInsights']);
         Route::get('/reports/periods', [ReportExplorerController::class, 'supervisorPeriods']);

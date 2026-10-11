@@ -138,7 +138,7 @@ export default function SupervisorPromissoryPage() {
                 {reviewing?.id === n.id && (
                   <div className="mt-4 space-y-3 rounded-xl border border-ink-200 bg-ink-50 p-4">
                     <p className="text-xs font-semibold text-ink-900">
-                      {action === 'approve' ? 'Approve — record the lacking hours (added to the next semester if they renew)' : 'Reject — remarks required'}
+                      {action === 'approve' ? 'Approve — record the lacking hours (added to the next semester if they renew)' : 'Reject — remarks required. The student can’t file another note this semester.'}
                     </p>
                     {action === 'approve' && (
                       <input value={lacking} onChange={(e) => setLacking(e.target.value)} type="number" min="0" step="0.25"

@@ -182,16 +182,35 @@ class PromissoryNoteTest extends TestCase
             ->assertStatus(422);
     }
 
-    public function test_second_pending_submit_is_rejected(): void
+    public function test_only_one_note_per_semester_even_after_it_is_decided(): void
     {
         Storage::fake('public');
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
         $assignment = $this->pastAssignment($recipient, $supervisor);
+        $msg = 'You already filed a promissory note for 1st Semester 2024-2025. Only one is allowed per semester.';
 
         Sanctum::actingAs($recipient);
-        $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))->assertStatus(201);
-        $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))->assertStatus(422);
+        $id = $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))->assertStatus(201)->json('data.id');
+        // Pending.
+        $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
+            ->assertStatus(422)->assertJsonPath('message', $msg);
+
+        // Rejected: still no second note, and the form stays closed with the reason.
+        Sanctum::actingAs($supervisor);
+        $this->postJson("/api/supervisor/promissory/{$id}/review", ['action' => 'reject', 'review_remarks' => 'Not signed.'])->assertOk();
+        Sanctum::actingAs($recipient);
+        $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
+            ->assertStatus(422)->assertJsonPath('message', $msg);
+        $this->getJson('/api/recipient/promissory')
+            ->assertJsonPath('data.submission.can_submit', false)
+            ->assertJsonPath('data.submission.reason', $msg);
+
+        // Approved: the same.
+        PromissoryNote::whereKey($id)->update(['status' => PromissoryNote::STATUS_APPROVED]);
+        $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
+            ->assertStatus(422)->assertJsonPath('message', $msg);
+        $this->assertSame(1, PromissoryNote::where('assignment_id', $assignment->id)->count());
     }
 
     public function test_approve_sets_lacking_hours_and_no_makeup_deadline(): void

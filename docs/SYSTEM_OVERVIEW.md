@@ -492,6 +492,23 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### Admin → Stipend filters (2026-10-11)
+- One filter bar for both tabs: Term (`meta.terms` from `StipendService::terms()`: terms with a stub or a payable placement,
+  newest first), College, Promissory only, and search. History adds Sort (`sort=new|old|amount|name`); its cards and chip
+  counts follow the filters. To release (not paginated) is filtered in the browser by the same rules; eligible rows carry `college`.
+
+### One promissory note per semester (2026-10-11)
+- A recipient files at most one promissory note per term (assignment), whatever its outcome: pending, approved or rejected
+  (`PromissoryService::alreadyFiled`, re-checked under a row lock). The Stipend page's form closes with "You already filed a
+  promissory note for {term}. Only one is allowed per semester." Existing duplicates from earlier terms are left as they are.
+
+### PDF/Word uploads (2026-10-11)
+- The letter of intent (only that application document) and the promissory note also accept Word (.doc/.docx), 5 MB.
+- The end-of-term report is typed (100+ characters) OR uploaded as PDF/Word: `term_reports` gained `file_path`, `file_name`,
+  `mime_type`, `file_size` and a nullable `content` (migration `2026_10_11_000004`). The form posts multipart with
+  `_method=PUT`; a new file replaces and deletes the old one, `remove_file` drops it, and text or a file must remain.
+  Downloads: `GET /recipient/term-report/file` and `GET /supervisor/assignments/{id}/term-report/file`.
+
 ### Admin → Users v2 (2026-10-11)
 - Role tabs, search, status (incl. Not verified), sort (`GET /admin/users?sort=new|old|az&unverified=1&per_page`), 30 per page,
   multi-select + `POST /admin/users/bulk-deactivate` (skips admins and yourself), a person panel (facts, history, deactivate /
