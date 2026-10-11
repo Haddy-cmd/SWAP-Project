@@ -44,7 +44,7 @@ class AuditLogService
             [PromissoryNote::class, TermReport::class]],
         'placements' => ['Placements', ['qr_regenerated'], [Assignment::class]],
         'accounts' => ['Accounts & profile', ['profile_updated', 'password_changed', 'photo_updated', 'photo_removed',
-            'signature_updated', 'signature_removed', 'session_revoked', 'sessions_revoked', 'otp_sent', 'otp_failed_max', 'trusted_device_added'], [User::class, StudentProfile::class, StaffInvitation::class]],
+            'signature_updated', 'signature_removed', 'session_revoked', 'sessions_revoked', 'otp_sent', 'otp_failed_max', 'trusted_device_added', 'login_code_switched'], [User::class, StudentProfile::class, StaffInvitation::class]],
         'settings' => ['Semesters & settings', ['semester_period_created', 'semester_period_updated', 'semester_period_deleted', 'reordered'],
             [SemesterPeriod::class, \App\Models\Office::class, \App\Models\LandingPhoto::class]],
         'exports' => ['Report exports', ['report_exported'], []],
@@ -54,7 +54,7 @@ class AuditLogService
     ];
 
     /** Entries an admin should be able to find fast: money undone, roles, removals, exports, settings. */
-    public const SENSITIVE_ACTIONS = ['voided', 'returned_to_applicant', 'promoted_to_recipient', 'password_changed', 'deleted',
+    public const SENSITIVE_ACTIONS = ['login_code_switched', 'voided', 'returned_to_applicant', 'promoted_to_recipient', 'password_changed', 'deleted',
         'report_exported', 'semester_period_deleted', 'testing_role_changed', 'required_hours_approved', 'qr_regenerated'];
 
     /** Short names for one record's history (`record=type:id`). */
@@ -322,6 +322,7 @@ class AuditLogService
             'report_exported' => 'Exported the ' . Str::headline((string) ($new['type'] ?? 'report')) . ' report (' . strtoupper((string) ($new['format'] ?? '')) . (isset($new['rows']) ? ", {$new['rows']} rows" : '') . ')',
             'password_changed' => "Changed {$who}'s password",
             'profile_updated' => "Updated {$who}'s profile",
+            'login_code_switched' => 'Turned sign-in codes ' . (!empty($new['enabled']) ? 'on' : 'off') . ' for everyone',
             'otp_sent' => 'Emailed a ' . (['login' => 'sign-in', 'password_reset' => 'password reset', 'verify_email' => 'verification'][$new['purpose'] ?? ''] ?? 'one-time') . " code to {$who}",
             'otp_failed_max' => "A code for {$who} was locked after too many wrong tries",
             'trusted_device_added' => "{$who} trusted " . ($new['device'] ?? 'a browser') . ' for 30 days',

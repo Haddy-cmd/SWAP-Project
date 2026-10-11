@@ -8,7 +8,7 @@ import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { ApiRequestError } from '@/lib/api/axios'
 import { TESTING_OFF_MESSAGE, type TestingCandidate, type TestingStatus } from '@/types/testing.types'
 import { AccountPanel } from '@/components/admin/testing/AccountPanel'
-import { EarlierTestsPanel, StoragePanel } from '@/components/admin/testing/SidePanels'
+import { EarlierTestsPanel, LoginCodePanel, StoragePanel } from '@/components/admin/testing/SidePanels'
 import { CARD, initials, stageOf } from '@/components/admin/testing/ui'
 
 type WithStatus = { data: TestingStatus; message: string }
@@ -101,6 +101,11 @@ export default function SystemTestingPage() {
         <p className="mt-1 max-w-[760px] text-[13.5px] text-ink-500">
           Try SWAP flows on real accounts without waiting: add hours, end a term, file a note. Every account is copied first, so you can put it back exactly as it was.
         </p>
+        {data?.login_code && !data.login_code.required && (
+          <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gold-50 px-3 py-1 text-[12px] font-semibold text-warning-700">
+            Sign-in codes are off for everyone{data.login_code.server_off ? ' (on the server)' : ''}
+          </p>
+        )}
       </div>
 
       {/* Mode banner */}
@@ -173,6 +178,7 @@ export default function SystemTestingPage() {
               )
             })}
           </div>
+          <LoginCodePanel state={data?.login_code} onChanged={appliedWithNote} />
           <StoragePanel />
           <EarlierTestsPanel onCleaned={appliedWithNote} />
         </div>

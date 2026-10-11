@@ -121,7 +121,7 @@ class AuthController extends Controller
         }
 
         // Second step: an emailed code, unless the switch is off or this browser is trusted.
-        if (config('auth.login_otp') && !$this->codes->isTrusted($user, $request->input('device_token'))) {
+        if (OneTimeCodeService::loginCodeRequired() && !$this->codes->isTrusted($user, $request->input('device_token'))) {
             Auth::logout();
             // Signing in again within the minute reuses the code that was just emailed.
             if ($this->codes->cooldown($user, OneTimeCode::LOGIN) === 0) {

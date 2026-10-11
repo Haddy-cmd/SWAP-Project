@@ -156,8 +156,9 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-AUTH-019 | P3 | [H] DSA seal splash after sign-in | One account per role | Sign in (login page; also a staff invitation acceptance and a QR deep-link sign-in); then refresh and move between pages; sign in with "reduce motion" on; click during the splash | — | Right after each sign-in a soft blurred veil shows the DSA seal fading in, holds ~1.7 s, then slides up to reveal the first page (dashboard, redirect target or /scan); it does not play on refresh, ordinary navigation or a tab that only followed another tab's sign-in; reduce motion → a short fade; a click skips it |  |  |
 | TC-AUTH-020 | P1 | [S] Sign-in code rules | Signed-in step one done | Enter a wrong code; 5 wrong codes; wait 10 minutes; reuse a made-up challenge; "Send a new code" twice | — | Wrong → "That code isn't right."; 5th → "Too many tries. Ask for a new code."; expired → "This code has expired. Ask for a new one."; unknown/expired sign-in → "This sign-in has expired. Enter your password again." (back to the password); resend once a minute (countdown); signing in again within the minute reuses the code already sent |  |  |
 | TC-AUTH-021 | P1 | [H] Trust this browser for 30 days | Sign-in with "Trust this browser for 30 days" ticked | Sign out and sign in again on the same browser; then on another browser; then change the password / use Sign out other devices / get deactivated, and sign in again | — | Same browser: only the password (no code) for 30 days; another browser asks for a code; after a password change or reset, "Sign out other devices", or deactivation, every browser asks for a code again; audit `trusted_device_added` |  |  |
-| TC-AUTH-022 | P2 | [H] Emergency switch LOGIN_OTP | `.env` LOGIN_OTP=false (config cleared) | Sign in | — | Password alone signs in (no code email); verification and reset codes still work |  |  |
+| TC-AUTH-022 | P2 | [H] Turning the sign-in code off | Admin; then the server set to LOGIN_OTP=false (config cleared) | System Testing → Sign-in code → Turn off for everyone (enter your password); sign in as anyone; Turn back on; then set LOGIN_OTP=false | — | Off: password alone signs in, for everyone (no code email); the System Testing header says "Sign-in codes are off for everyone"; on again: codes are back. With LOGIN_OTP=false the card shows "Off on the server" and can't be turned on ("It's turned off on the server (LOGIN_OTP). Change it on Render."). Verification and reset codes stay on throughout |  |  |
 | TC-AUTH-023 | P2 | [H] Codes arrive in System Testing | A picked test account with its email switch off | Sign in; forgot password | — | The code emails still arrive (codes are never muted) |  |  |
+| TC-AUTH-024 | P1 | [S] The sign-in code switch is protected | Admin; a supervisor | Flip it with a wrong password; flip it as a supervisor (PUT `/admin/testing/login-code`) | — | Wrong password → "That password is incorrect." and nothing changes; supervisor → 403; each flip is in the audit log ("Turned sign-in codes off/on for everyone", marked sensitive) |  |  |
 
 ---
 
@@ -912,7 +913,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 |---|---|---|---|---|
 | Registration | TC-REG-001..018 | 18 | Auth integrity, validation | AuthTest, CollegeListTest |
 | Email Verification | TC-EV-001..010 | 10 | Account activation | AuthTest, OneTimeCodeTest |
-| Login / Sessions | TC-AUTH-001..023 | 23 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
+| Login / Sessions | TC-AUTH-001..024 | 24 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
 | Password Reset | TC-PWD-001..007 | 7 | Auth | OneTimeCodeTest |
 | Staff Invitations | TC-INV-001..009 | 9 | Onboarding | EmployeeIdTest |
 | Applications | TC-APP-001..017 | 17 | Core workflow, applicant timeline | DocumentTest, ResourceAccessTest, NotificationTest, ApplicationTermTest, InterviewLifecycleTest |
@@ -942,7 +943,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | System Testing | TC-TEST-001..024 | 24 | Test tooling, bypasses, restore, file storage, email switch | TestingToolsTest, StorageCheckTest, TestingEmailSwitchTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..030 | 30 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
-| **TOTAL** | — | **585** | — | — |
+| **TOTAL** | — | **586** | — | — |
 
 ---
 

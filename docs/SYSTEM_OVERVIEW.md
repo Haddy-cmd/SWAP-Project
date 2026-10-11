@@ -501,6 +501,9 @@ All comparisons in **Asia/Manila**.
   `password_reset` (`POST /auth/forgot-password` always the same reply → `POST /auth/reset-password {email, code, …}`).
 - Trusted browsers (table `trusted_devices`, 30 days, hashed token kept in localStorage `swap-device`) skip the sign-in code;
   cleared by a password change/reset, "Sign out other devices", deactivation and return-to-applicant.
+- Admin switch: System Testing → "Sign-in code" (`PUT /admin/testing/login-code`, admin password required, audited
+  `login_code_switched`, Setting `login_otp_enabled`) turns the sign-in code off/on for everyone; `LOGIN_OTP=false` on the
+  server always wins.
 - Emergency switch: `LOGIN_OTP=false` turns off only the sign-in code. Each untrusted sign-in sends one email: mind the
   Brevo plan's daily limit.
 

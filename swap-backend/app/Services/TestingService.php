@@ -159,6 +159,8 @@ class TestingService
 
         return [
             'enabled' => TestTools::enabled(),
+            // The portal-wide sign-in code switch (shown on this page; works with testing on or off).
+            'login_code' => OneTimeCodeService::loginCodeState(),
             'accounts' => $users->map(fn (User $u) => [
                 'id' => $u->id,
                 'role' => $u->role,

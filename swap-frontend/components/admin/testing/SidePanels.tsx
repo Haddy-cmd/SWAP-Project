@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Eraser, HardDrive, History, Loader2, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Eraser, HardDrive, History, Loader2, RefreshCw, ShieldCheck, ShieldOff } from 'lucide-react'
 import { testingApi } from '@/lib/api/testing.api'
 import { errorText } from '@/lib/utils/apiError'
 import type { ApiRequestError } from '@/lib/api/axios'
@@ -138,6 +138,80 @@ export function EarlierTestsPanel({ onCleaned }: { onCleaned: (res: WithStatus) 
           </li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+/**
+ * The emailed sign-in code (OTP) for everyone. Off = password only. The admin's password
+ * confirms either way; LOGIN_OTP=false on the server locks it off. Works with testing off.
+ */
+export function LoginCodePanel({ state, onChanged }: {
+  state: TestingStatus['login_code']
+  onChanged: (res: WithStatus) => void
+}) {
+  const [asking, setAsking] = useState(false)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const on = !!state?.required
+  const serverOff = !!state?.server_off
+
+  const flip = useMutation({
+    mutationFn: () => testingApi.setLoginCode(!on, password),
+    onSuccess: (res) => { setAsking(false); setPassword(''); setError(null); onChanged(res) },
+    onError: (e: ApiRequestError) => setError(e.errors?.password?.[0] ?? errorText(e, 'Could not change the sign-in code.')),
+  })
+
+  return (
+    <div className={`${CARD} p-4`}>
+      <div className="flex items-start gap-3">
+        <span className={`flex h-9 w-9 flex-none items-center justify-center rounded-[10px] ${on ? 'bg-accent-soft text-accent-strong' : 'bg-gold-50 text-warning-700'}`}>
+          {on ? <ShieldCheck className="h-[18px] w-[18px]" /> : <ShieldOff className="h-[18px] w-[18px]" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[14px] font-bold text-ink-950">Sign-in code</p>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${on ? 'bg-accent-soft text-accent-strong' : 'bg-gold-50 text-warning-700'}`}>
+              {serverOff ? 'Off on the server' : on ? 'On' : 'Off'}
+            </span>
+          </div>
+          <p className="mt-0.5 text-[12.5px] text-ink-500">
+            {serverOff ? 'LOGIN_OTP=false on the server keeps it off. Change it in Render → Environment.'
+              : on ? 'Everyone enters an emailed code after their password (trusted browsers skip it).'
+                : 'Password only, for everyone. Turn it back on when you finish.'}
+          </p>
+          <p className="mt-1 text-[11.5px] text-ink-400">Codes for verifying an email and resetting a password always stay on.</p>
+        </div>
+      </div>
+
+      {!serverOff && !asking && (
+        <button type="button" onClick={() => { setAsking(true); setError(null) }}
+          className={`mt-3 h-9 w-full rounded-[10px] text-[13px] font-bold ${on ? 'border border-gold-200 bg-gold-50 text-warning-700 hover:bg-gold-100' : 'bg-accent text-white hover:bg-accent-hover'}`}>
+          {on ? 'Turn off for everyone' : 'Turn back on'}
+        </button>
+      )}
+
+      {asking && (
+        <form className="mt-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (password) flip.mutate() }}>
+          {on && (
+            <p className="flex gap-1.5 rounded-lg bg-gold-50 px-2.5 py-2 text-[12px] text-warning-700">
+              <AlertTriangle className="mt-px h-4 w-4 flex-none" /> Anyone with a password can then sign in without the email code.
+            </p>
+          )}
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus autoComplete="current-password"
+            placeholder="Your password to confirm" aria-label="Your password"
+            className="h-9 w-full rounded-[9px] border border-ink-200 bg-surface px-3 text-[13px] text-ink-900 placeholder-ink-400 focus:border-accent focus:outline-none" />
+          {error && <p className="text-[12px] text-danger-700">{error}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { setAsking(false); setPassword(''); setError(null) }}
+              className="h-9 flex-1 rounded-[9px] border border-ink-200 text-[12.5px] font-semibold text-ink-700 hover:bg-ink-50">Cancel</button>
+            <button type="submit" disabled={!password || flip.isPending}
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[9px] bg-accent text-[12.5px] font-bold text-white hover:bg-accent-hover disabled:opacity-50">
+              {flip.isPending && <Loader2 className="h-4 w-4 animate-spin" />}{on ? 'Turn off' : 'Turn on'}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   )
 }

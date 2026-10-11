@@ -10,6 +10,10 @@ export const testingApi = {
   setEnabled: (enabled: boolean) =>
     apiClient.put<WithStatus>('/admin/testing/switch', { enabled }).then((r) => r.data),
 
+  // Sign-in codes for everyone, on/off (the admin's password confirms it). Works with testing off.
+  setLoginCode: (enabled: boolean, password: string) =>
+    apiClient.put<WithStatus>('/admin/testing/login-code', { enabled, password }).then((r) => r.data),
+
   // Existing recipients/applicants to pick (name, email or student ID).
   candidates: (search: string) =>
     apiClient.get<{ data: TestingCandidate[] }>('/admin/testing/candidates', { params: { search } }).then((r) => r.data.data),

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AuditLog;
 use App\Models\OneTimeCode;
+use App\Models\Setting;
 use App\Models\TrustedDevice;
 use App\Models\User;
 use App\Notifications\OneTimeCodeNotification;
@@ -27,6 +28,26 @@ class OneTimeCodeService
     public const MSG_EXPIRED = 'This code has expired. Ask for a new one.';
     public const MSG_TOO_MANY = 'Too many tries. Ask for a new code.';
     public const MSG_SEND_FAILED = "We couldn't send the code right now. Try again in a moment.";
+
+    /** The admin's switch on System Testing (Setting); absent = on. */
+    public const SETTING = 'login_otp_enabled';
+
+    public const MSG_SERVER_OFF = "It's turned off on the server (LOGIN_OTP). Change it on Render.";
+
+    /** Sign-in asks for a code: the server allows it (LOGIN_OTP) and the page switch is on. */
+    public static function loginCodeRequired(): bool
+    {
+        return (bool) config('auth.login_otp') && Setting::bool(self::SETTING, true);
+    }
+
+    /** @return array{required: bool, server_off: bool, page_on: bool} */
+    public static function loginCodeState(): array
+    {
+        $pageOn = Setting::bool(self::SETTING, true);
+        $serverOff = !config('auth.login_otp');
+
+        return ['required' => !$serverOff && $pageOn, 'server_off' => $serverOff, 'page_on' => $pageOn];
+    }
 
     private static function hash(string $code): string
     {

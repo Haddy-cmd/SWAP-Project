@@ -239,6 +239,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         // System Testing — 404 unless SWAP_TEST_TOOLS is on; test accounts only.
         Route::get('/testing', [TestingController::class, 'status']);
         Route::put('/testing/switch', [TestingController::class, 'switch']);
+        Route::put('/testing/login-code', [TestingController::class, 'loginCode'])->middleware('throttle:10,1');
         Route::get('/testing/candidates', [TestingController::class, 'candidates']);
         Route::post('/testing/accounts/{id}', [TestingController::class, 'addAccount'])->whereNumber('id');
         Route::delete('/testing/accounts/{id}', [TestingController::class, 'removeAccount'])->whereNumber('id');

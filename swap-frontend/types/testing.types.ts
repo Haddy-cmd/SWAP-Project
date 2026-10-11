@@ -50,6 +50,8 @@ export interface TestingStatus {
   /** The page's On/Off switch: picking, bypasses and shortcuts work only while on. */
   enabled: boolean
   accounts: TestingAccount[]
+  /** The portal-wide sign-in code (OTP): required now, forced off on the server (LOGIN_OTP), the page switch. */
+  login_code?: { required: boolean; server_off: boolean; page_on: boolean }
 }
 
 /** An existing recipient/applicant the admin can pick (TestingService::candidates). */

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\Setting;
+use App\Services\OneTimeCodeService;
 use App\Services\TestingService;
 use App\Support\TestTools;
 use Illuminate\Http\JsonResponse;
@@ -47,6 +50,32 @@ class TestingController extends Controller
                 $restored === 0 => 'System Testing is off.',
                 default => $restored === 1 ? 'System Testing is off. 1 account was restored to how it was when picked.' : "System Testing is off. {$restored} accounts were restored to how they were when picked.",
             },
+        ]);
+    }
+
+    /**
+     * The portal-wide sign-in code (OTP) switch. Lowers security for every account, so the admin
+     * confirms with their password. LOGIN_OTP=false on the server always wins.
+     */
+    public function loginCode(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'password' => ['required', 'string', 'current_password'],
+        ], ['password.current_password' => 'That password is incorrect.']);
+
+        if (!config('auth.login_otp')) {
+            return response()->json(['message' => OneTimeCodeService::MSG_SERVER_OFF], 422);
+        }
+
+        $on = (bool) $data['enabled'];
+        $was = Setting::bool(OneTimeCodeService::SETTING, true);
+        Setting::put(OneTimeCodeService::SETTING, $on ? '1' : '0');
+        AuditLog::record('login_code_switched', $request->user(), ['enabled' => $was], ['enabled' => $on]);
+
+        return response()->json([
+            'data' => $this->testing->status(),
+            'message' => $on ? 'Sign-in codes are on for everyone.' : 'Sign-in codes are off for everyone.',
         ]);
     }
 

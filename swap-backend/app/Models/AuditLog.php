@@ -15,7 +15,7 @@ class AuditLog extends Model
     public const UPDATED_AT = null;
 
     /** Entries recorded on the acting account itself: nobody else is the subject. */
-    public const ACTOR_ONLY_ACTIONS = ['report_exported', 'testing_released_all', 'testing_switched_on', 'testing_switched_off'];
+    public const ACTOR_ONLY_ACTIONS = ['report_exported', 'testing_released_all', 'testing_switched_on', 'testing_switched_off', 'login_code_switched'];
 
     /**
      * How to find the student/account an entry is about, per audited model:

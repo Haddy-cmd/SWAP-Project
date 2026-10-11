@@ -146,6 +146,53 @@ class OneTimeCodeTest extends TestCase
         Notification::assertNothingSent();
     }
 
+    public function test_admin_can_switch_sign_in_codes_off_and_on_from_system_testing(): void
+    {
+        $admin = $this->makeUser('admin', ['email_verified_at' => now()]);
+        $user = $this->account();
+        \Laravel\Sanctum\Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/testing')->assertOk()
+            ->assertJsonPath('data.login_code', ['required' => true, 'server_off' => false, 'page_on' => true]);
+        $this->putJson('/api/admin/testing/login-code', ['enabled' => false, 'password' => 'wrong'])->assertStatus(422)
+            ->assertJsonPath('errors.password.0', 'That password is incorrect.');
+        $this->assertTrue(OneTimeCodeService::loginCodeRequired(), 'nothing changed');
+
+        $this->putJson('/api/admin/testing/login-code', ['enabled' => false, 'password' => 'Password@123'])->assertOk()
+            ->assertJsonPath('message', 'Sign-in codes are off for everyone.')
+            ->assertJsonPath('data.login_code.required', false);
+        $log = \App\Models\AuditLog::where('action', 'login_code_switched')->firstOrFail();
+        $this->assertSame($admin->id, $log->user_id);
+        $this->assertNull($log->subject_user_id);
+
+        // Off: password only. Verification/reset codes still go out.
+        $this->app['auth']->forgetGuards();
+        $this->app['auth']->shouldUse('web'); // a plain visitor signing in
+        $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'Password@123'])->assertOk()->assertJsonStructure(['token']);
+        $this->postJson('/api/auth/forgot-password', ['email' => $user->email])->assertOk();
+        $this->lastCode($user, OneTimeCode::PASSWORD_RESET);
+
+        \Laravel\Sanctum\Sanctum::actingAs($admin);
+        $this->putJson('/api/admin/testing/login-code', ['enabled' => true, 'password' => 'Password@123'])->assertOk();
+        $this->app['auth']->forgetGuards();
+        $this->app['auth']->shouldUse('web');
+        $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'Password@123'])->assertJsonPath('otp_required', true);
+    }
+
+    public function test_the_server_switch_wins_and_only_admins_may_flip_it(): void
+    {
+        config(['auth.login_otp' => false]);
+        $admin = $this->makeUser('admin', ['email_verified_at' => now()]);
+        \Laravel\Sanctum\Sanctum::actingAs($admin);
+
+        $this->getJson('/api/admin/testing')->assertJsonPath('data.login_code.server_off', true)->assertJsonPath('data.login_code.required', false);
+        $this->putJson('/api/admin/testing/login-code', ['enabled' => true, 'password' => 'Password@123'])->assertStatus(422)
+            ->assertJsonPath('message', OneTimeCodeService::MSG_SERVER_OFF);
+
+        \Laravel\Sanctum\Sanctum::actingAs($this->makeUser('supervisor'));
+        $this->putJson('/api/admin/testing/login-code', ['enabled' => false, 'password' => 'Password@123'])->assertForbidden();
+    }
+
     public function test_password_reset_by_code(): void
     {
         $user = $this->account();
