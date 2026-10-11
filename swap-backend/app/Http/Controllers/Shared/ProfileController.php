@@ -225,6 +225,8 @@ class ProfileController extends Controller
             ->when($current && isset($current->id), fn ($q) => $q->where('id', '!=', $current->id))
             ->delete();
         StipendUnlock::revoke($user);
+        // Every trusted browser asks for a sign-in code again.
+        \App\Services\OneTimeCodeService::forgetDevices($user);
 
         // Never the password itself — only that it changed.
         AuditLog::record('password_changed', $user);

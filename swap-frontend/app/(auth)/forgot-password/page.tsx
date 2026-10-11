@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react'
 import { authApi } from '@/lib/api/auth.api'
 import type { ApiError } from '@/types/api.types'
@@ -17,6 +18,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function ForgotPasswordPage() {
+  const router = useRouter()
   const [sent, setSent] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -28,7 +30,8 @@ export default function ForgotPasswordPage() {
 
   const request = useMutation({
     mutationFn: (data: FormData) => authApi.forgotPassword(data.email),
-    onSuccess: () => setSent(true),
+    // Same reply whether or not the email has an account; continue to the code + new password step.
+    onSuccess: (_r, d) => router.push(`/reset-password?email=${encodeURIComponent(d.email.trim().toLowerCase())}&sent=1`),
     onError: (err: ApiError) => {
       setServerError(err.message ?? 'Something went wrong. Please try again.')
     },
@@ -42,7 +45,7 @@ export default function ForgotPasswordPage() {
         </div>
         <h2 className="text-xl font-bold text-ink-900">Check your email</h2>
         <p className="mt-2 text-sm text-ink-500">
-          We sent a password reset link to your email address. It expires in 5 minutes, so use it right away.
+          If an account uses this email, we sent a code to it.
         </p>
         <Link
           href="/login"
@@ -68,7 +71,7 @@ export default function ForgotPasswordPage() {
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-ink-900">Reset your password</h2>
         <p className="mt-1 text-sm text-ink-500">
-          Enter your email and we&apos;ll send you a reset link.
+          Enter your email and we&apos;ll send you a 6-digit code.
         </p>
       </div>
 
@@ -98,7 +101,7 @@ export default function ForgotPasswordPage() {
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60 transition-colors"
         >
           <Mail className="h-4 w-4" />
-          {request.isPending ? 'Sending…' : 'Send Reset Link'}
+          {request.isPending ? 'Sending…' : 'Send me a code'}
         </button>
       </form>
     </div>

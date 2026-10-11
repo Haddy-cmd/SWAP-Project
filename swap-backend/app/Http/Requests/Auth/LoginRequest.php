@@ -16,6 +16,8 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
+            // "Trust this browser for 30 days" token from an earlier sign-in.
+            'device_token' => ['nullable', 'string', 'max:100'],
         ];
     }
 }

@@ -8,12 +8,15 @@ import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle, CheckCircle2, ShieldCheck, ArrowLeft } from 'lucide-react'
 import { authApi } from '@/lib/api/auth.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import type { ApiError } from '@/types/api.types'
 import { markLoginSplash } from '@/components/layout/LoginSplash'
+import { CodeInput, ResendButton } from '@/components/auth/CodeInput'
+import { getDeviceToken, setDeviceToken } from '@/lib/utils/trustedDevice'
+import { isLoginChallenge, type AuthResponse, type LoginChallenge } from '@/types/auth.types'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -40,6 +43,17 @@ export default function LoginPage() {
   const [verifiedBanner, setVerifiedBanner] = useState<'ok' | 'error' | null>(null)
   const [needsVerify, setNeedsVerify] = useState<string | null>(null)
   const [resendMsg, setResendMsg] = useState<string | null>(null)
+  // Step two: the emailed sign-in code.
+  const [challenge, setChallenge] = useState<LoginChallenge | null>(null)
+  const [code, setCode] = useState('')
+  const [trust, setTrust] = useState(true)
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [wait, setWait] = useState(0)
+  useEffect(() => {
+    if (wait <= 0) return
+    const t = setTimeout(() => setWait((w) => w - 1), 1000)
+    return () => clearTimeout(t)
+  }, [wait])
 
   // Show a banner after the email-verification link redirects back here.
   useEffect(() => {
@@ -56,7 +70,7 @@ export default function LoginPage() {
 
   const resend = useMutation({
     mutationFn: (email: string) => authApi.resendVerification(email),
-    onSuccess: () => setResendMsg('Verification email sent — check your inbox (and spam).'),
+    onSuccess: () => setResendMsg('A new code was sent — check your inbox (and spam).'),
   })
 
   // Signed in from another tab while this one shows the form: follow it there
@@ -69,17 +83,27 @@ export default function LoginPage() {
     }
   }), [router])
 
+  const finish = (res: AuthResponse) => {
+    setDeviceToken(res.device_token)
+    markLoginSplash()
+    setAuth(res.data, res.token)
+    // Honor a ?redirect= target (e.g. returning to /scan after a QR deep link).
+    const redirect = new URLSearchParams(window.location.search).get('redirect')
+    router.replace(redirect || getRoleDashboard(res.data.role))
+  }
+
   const login = useMutation({
     mutationFn: (data: FormData) => {
       signingInHere.current = true
-      return authApi.login(data)
+      return authApi.login({ ...data, device_token: getDeviceToken() })
     },
     onSuccess: (res) => {
-      markLoginSplash()
-      setAuth(res.data, res.token)
-      // Honor a ?redirect= target (e.g. returning to /scan after a QR deep link).
-      const redirect = new URLSearchParams(window.location.search).get('redirect')
-      router.replace(redirect || getRoleDashboard(res.data.role))
+      if (isLoginChallenge(res)) {
+        // A code was emailed: ask for it (this tab is still the one signing in).
+        setChallenge(res); setCode(''); setCodeError(null); setWait(60)
+        return
+      }
+      finish(res)
     },
     onError: (err: ApiError, variables) => {
       signingInHere.current = false
@@ -88,6 +112,22 @@ export default function LoginPage() {
       // If the block is "verify your email", offer to resend the link.
       setNeedsVerify(/verify your email/i.test(msg) ? variables.email : null)
     },
+  })
+
+  const verifyCode = useMutation({
+    mutationFn: () => authApi.verifyLoginCode({ challenge: challenge!.challenge, code, trust_device: trust }),
+    onSuccess: finish,
+    onError: (err: ApiError) => {
+      const msg = err.errors?.code?.[0] ?? err.message ?? 'That code isn\'t right.'
+      setCodeError(msg)
+      // The sign-in itself expired: back to the password.
+      if (/expired\. Enter your password/i.test(msg)) { setChallenge(null); setServerError(msg); signingInHere.current = false }
+    },
+  })
+  const resendCode = useMutation({
+    mutationFn: () => authApi.resendLoginCode(challenge!.challenge),
+    onSuccess: () => { setWait(60); setCodeError(null) },
+    onError: (err: ApiError) => setCodeError(err.errors?.code?.[0] ?? err.message ?? 'Could not send a new code.'),
   })
 
   return (
@@ -112,6 +152,33 @@ export default function LoginPage() {
             </h1>
             <p className="mt-2 text-sm text-ink-500">Use your MSU credentials to continue.</p>
 
+            {challenge ? (
+              <form className="mt-7" onSubmit={(e) => { e.preventDefault(); if (code.length === 6) { setCodeError(null); verifyCode.mutate() } }}>
+                <div className="flex items-start gap-3 rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0" />
+                  <span>We sent a 6-digit code to <strong className="break-all">{challenge.email_hint}</strong>. It expires in 10 minutes.</span>
+                </div>
+                <label className="mb-[7px] mt-5 block text-[12.5px] font-semibold text-ink-600">Sign-in code</label>
+                <CodeInput value={code} onChange={(v) => { setCode(v); setCodeError(null) }} invalid={!!codeError} disabled={verifyCode.isPending} />
+                {codeError && <p className="mt-1.5 text-xs text-danger-700">{codeError}</p>}
+                <label className="mt-4 flex cursor-pointer items-start gap-2 text-[13px] text-ink-600">
+                  <input type="checkbox" checked={trust} onChange={(e) => setTrust(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] flex-none rounded accent-brand-700" />
+                  <span>Trust this browser for 30 days <span className="block text-[11.5px] text-ink-400">Don&apos;t tick this on a shared or public computer.</span></span>
+                </label>
+                <button type="submit" disabled={code.length !== 6 || verifyCode.isPending}
+                  className="mt-6 flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 text-[15px] font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.28)] transition hover:brightness-110 disabled:opacity-60">
+                  {verifyCode.isPending ? 'Checking…' : 'Verify and sign in'}
+                </button>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+                  <button type="button" onClick={() => { setChallenge(null); setCode(''); signingInHere.current = false }}
+                    className="flex items-center gap-1 text-[13px] font-semibold text-ink-500 hover:text-ink-800">
+                    <ArrowLeft className="h-4 w-4" /> Use a different account
+                  </button>
+                  <ResendButton onResend={() => resendCode.mutate()} pending={resendCode.isPending} seconds={wait} />
+                </div>
+                <p className="mt-4 text-[12px] text-ink-400">Can&apos;t find it? Check your spam or promotions folder.</p>
+              </form>
+            ) : (<>
             {verifiedBanner === 'ok' && (
               <div className="mt-6 flex items-start gap-2 rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm text-success-800">
                 <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0" />
@@ -121,7 +188,7 @@ export default function LoginPage() {
             {verifiedBanner === 'error' && (
               <div className="mt-6 flex items-start gap-2 rounded-xl border border-gold-300 bg-warning-50 px-4 py-3 text-sm text-warning-800">
                 <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                That verification link is invalid or expired. Sign in to resend a new one.
+                That verification link is invalid or expired. Sign in to get a code instead.
               </div>
             )}
 
@@ -132,14 +199,20 @@ export default function LoginPage() {
                   {serverError}
                 </div>
                 {needsVerify && (
-                  <button
-                    type="button"
-                    onClick={() => resend.mutate(needsVerify)}
-                    disabled={resend.isPending || !!resendMsg}
-                    className="mt-2 text-xs font-semibold text-brand-700 underline underline-offset-2 disabled:opacity-60"
-                  >
-                    {resendMsg ? resendMsg : resend.isPending ? 'Sending…' : 'Resend verification email'}
-                  </button>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                    <Link href={`/verify-email?email=${encodeURIComponent(needsVerify)}`}
+                      className="text-xs font-semibold text-brand-700 underline underline-offset-2">
+                      Enter my code
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => resend.mutate(needsVerify)}
+                      disabled={resend.isPending || !!resendMsg}
+                      className="text-xs font-semibold text-brand-700 underline underline-offset-2 disabled:opacity-60"
+                    >
+                      {resendMsg ? resendMsg : resend.isPending ? 'Sending…' : 'Send a new code'}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -199,6 +272,7 @@ export default function LoginPage() {
                 Register here
               </Link>
             </p>
+            </>)}
           </div>
         </div>
 

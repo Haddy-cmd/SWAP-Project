@@ -492,6 +492,18 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### Email codes (OTP) through Brevo (2026-10-11)
+- One mailer for everything: the Brevo transport (`MAIL_MAILER=brevo`) also carries the 6-digit codes
+  (`OneTimeCodeNotification`, sent immediately, never muted by System Testing).
+- `OneTimeCodeService` (table `one_time_codes`, HMAC only): 10 minutes, 5 tries, one new code a minute while one is unused.
+  Purposes: `verify_email` (registration; `POST /auth/verify-email`; old signed links still work), `login`
+  (`POST /auth/login` → `{otp_required, challenge, email_hint}` → `POST /auth/login/verify` / `/auth/login/resend`),
+  `password_reset` (`POST /auth/forgot-password` always the same reply → `POST /auth/reset-password {email, code, …}`).
+- Trusted browsers (table `trusted_devices`, 30 days, hashed token kept in localStorage `swap-device`) skip the sign-in code;
+  cleared by a password change/reset, "Sign out other devices", deactivation and return-to-applicant.
+- Emergency switch: `LOGIN_OTP=false` turns off only the sign-in code. Each untrusted sign-in sends one email: mind the
+  Brevo plan's daily limit.
+
 ### Responsive & browser support (2026-10-11)
 - **Browsers:** Tailwind v4 sets the floor — Chrome/Edge 111+, Safari/iOS 16.4+, Firefox 128+, current Samsung Internet/Opera.
   `lib/browserSupport.ts` (inline in <head>, ES5) marks older browsers `html.unsupported`, and `globals.css` then shows only

@@ -51,6 +51,16 @@ export interface AuthState {
 export interface LoginCredentials {
   email: string
   password: string
+  /** "Trust this browser for 30 days" token from an earlier sign-in (skips the emailed code). */
+  device_token?: string | null
+}
+
+/** Sign-in step one when a code is needed: the code was emailed; finish with verifyLoginCode. */
+export interface LoginChallenge {
+  otp_required: true
+  challenge: string
+  email_hint: string
+  message: string
 }
 
 export interface RegisterData {
@@ -72,7 +82,11 @@ export interface AuthResponse {
   data: User
   token: string
   message: string
+  /** Only when the browser was trusted at the code step; store it (lib/utils/trustedDevice). */
+  device_token?: string
 }
+
+export const isLoginChallenge = (r: AuthResponse | LoginChallenge): r is LoginChallenge => 'otp_required' in r
 
 // Registration no longer auto-logs in — it asks the user to verify their email.
 export interface RegisterResponse {

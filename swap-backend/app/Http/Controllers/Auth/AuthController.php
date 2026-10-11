@@ -5,21 +5,28 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\OneTimeCode;
 use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Services\OneTimeCodeService;
 use App\Resources\UserResource;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function __construct(private readonly UserRepositoryInterface $userRepository) {}
+    public function __construct(
+        private readonly UserRepositoryInterface $userRepository,
+        private readonly OneTimeCodeService $codes,
+    ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -68,7 +75,7 @@ class AuthController extends Controller
         $verificationSent = true;
 
         try {
-            $user->sendEmailVerificationNotification();
+            $this->codes->issue($user, OneTimeCode::VERIFY_EMAIL);
         } catch (\Throwable $e) {
             $verificationSent = false;
             Log::error('Verification email failed to send', [
@@ -79,8 +86,8 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => $verificationSent
-                ? 'Registration successful. Please check your email for a verification link before signing in.'
-                : 'Account created, but the verification email could not be sent. Use "Resend verification email" below.',
+                ? 'Registration successful. We sent a 6-digit code to your email: enter it to verify your account.'
+                : 'Account created, but the verification code could not be sent. Use "Send a new code" below.',
             'verification_required' => true,
             'verification_email_sent' => $verificationSent,
         ], 201);
@@ -102,7 +109,7 @@ class AuthController extends Controller
         if (!$user->hasVerifiedEmail()) {
             Auth::logout();
             throw ValidationException::withMessages([
-                'email' => ['Please verify your email first. Check your inbox for the verification link, or resend it below.'],
+                'email' => ['Please verify your email first. Enter the code we emailed you, or ask for a new one.'],
             ]);
         }
 
@@ -113,13 +120,82 @@ class AuthController extends Controller
             ]);
         }
 
+        // Second step: an emailed code, unless the switch is off or this browser is trusted.
+        if (config('auth.login_otp') && !$this->codes->isTrusted($user, $request->input('device_token'))) {
+            Auth::logout();
+            // Signing in again within the minute reuses the code that was just emailed.
+            if ($this->codes->cooldown($user, OneTimeCode::LOGIN) === 0) {
+                $this->codes->issue($user, OneTimeCode::LOGIN);
+            }
+            $challenge = Str::random(40);
+            Cache::put(self::CHALLENGE . hash('sha256', $challenge), $user->id, now()->addMinutes(OneTimeCodeService::MINUTES));
+
+            return response()->json([
+                'otp_required' => true,
+                'challenge' => $challenge,
+                'email_hint' => self::maskEmail($user->email),
+                'message' => 'We sent a 6-digit code to your email.',
+            ]);
+        }
+
+        return $this->signedIn($user, $request);
+    }
+
+    private const CHALLENGE = 'login_otp:';
+
+    /** The sign-in waiting for its code, or a 422 when it expired. */
+    private function challengeUser(Request $request): User
+    {
+        $request->validate(['challenge' => ['required', 'string', 'max:100']]);
+        $id = Cache::get(self::CHALLENGE . hash('sha256', (string) $request->input('challenge')));
+        $user = $id ? User::find($id) : null;
+        if (!$user || !$user->is_active || !$user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages(['code' => ['This sign-in has expired. Enter your password again.']]);
+        }
+
+        return $user;
+    }
+
+    /** Step two: the emailed code (and optionally "trust this browser for 30 days"). */
+    public function verifyLogin(Request $request): JsonResponse
+    {
+        $request->validate(['code' => ['required', 'string', 'max:12'], 'trust_device' => ['sometimes', 'boolean']]);
+        $user = $this->challengeUser($request);
+        $this->codes->verify($user, OneTimeCode::LOGIN, (string) $request->input('code'));
+        Cache::forget(self::CHALLENGE . hash('sha256', (string) $request->input('challenge')));
+
+        $deviceToken = $request->boolean('trust_device') ? $this->codes->trust($user, $request) : null;
+
+        return $this->signedIn($user, $request, $deviceToken);
+    }
+
+    /** Step two: email a fresh code (once a minute). */
+    public function resendLogin(Request $request): JsonResponse
+    {
+        $user = $this->challengeUser($request);
+        $this->codes->issue($user, OneTimeCode::LOGIN);
+
+        return response()->json(['message' => 'We sent a new code.']);
+    }
+
+    private function signedIn(User $user, Request $request, ?string $deviceToken = null): JsonResponse
+    {
         $token = $user->createToken('auth_token', $request)->plainTextToken;
 
-        return response()->json([
+        return response()->json(array_filter([
             'data' => new UserResource($user->load('profile')),
             'token' => $token,
+            'device_token' => $deviceToken,
             'message' => 'Login successful.',
-        ]);
+        ], fn ($v) => $v !== null));
+    }
+
+    /** "n***@s.msumain.edu.ph" */
+    public static function maskEmail(string $email): string
+    {
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+
+        return mb_substr($local, 0, 1) . str_repeat('*', max(2, min(6, mb_strlen($local) - 1))) . '@' . $domain;
     }
 
     public function logout(Request $request): JsonResponse

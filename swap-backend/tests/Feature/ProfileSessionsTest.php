@@ -21,6 +21,7 @@ class ProfileSessionsTest extends TestCase
     {
         $user = $this->makeUser('recipient');
         $user->forceFill(['email_verified_at' => now()])->save();
+        config(['auth.login_otp' => false]);
 
         $this->withHeader('User-Agent', self::CHROME_WIN)
             ->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'Password@123'])->assertOk();

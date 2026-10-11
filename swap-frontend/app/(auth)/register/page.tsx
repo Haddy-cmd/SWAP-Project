@@ -17,6 +17,7 @@ import type { ApiError } from '@/types/api.types'
 import { strongPassword } from '@/lib/utils/password'
 import { COLLEGES } from '@/lib/constants/colleges'
 import { PasswordGuide } from '@/components/auth/PasswordGuide'
+import { VerifyEmailCode } from '@/components/auth/VerifyEmailCode'
 
 /** Only MSU Main Campus student addresses may register. Mirrors RegisterRequest::EMAIL_DOMAIN. */
 const EMAIL_DOMAIN = '@s.msumain.edu.ph'
@@ -252,28 +253,10 @@ export default function RegisterPage() {
   if (verifyEmail) {
     return (
       <div className="flex min-h-app w-full items-center justify-center bg-ink-100 p-4 sm:p-8">
-        <div className="w-full max-w-md rounded-[18px] bg-surface p-8 text-center shadow-[0_24px_60px_rgba(19,36,26,0.20)]">
+        <div className="w-full max-w-md rounded-[18px] bg-surface p-6 shadow-[0_24px_60px_rgba(19,36,26,0.20)] sm:p-8">
           <Image src="/dsa-logo.png" alt="DSA Logo" width={64} height={64} className="mx-auto" priority />
-          <div className="mx-auto mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-success-50">
-            <MailCheck className="h-6 w-6 text-success-600" />
-          </div>
-          <h1 className="mt-4 font-serif text-2xl font-medium text-ink-950">Check your email</h1>
-          <p className="mt-2 text-sm leading-relaxed text-ink-500">
-            We sent a verification link to <span className="font-semibold text-ink-950">{verifyEmail}</span>.
-            Click it within <span className="font-semibold text-ink-950">5 minutes</span> to activate your account, then sign in.
-            (Check your spam folder, and use Resend below if it expires.)
-          </p>
-          <div className="mt-6 flex flex-col gap-2">
-            <button
-              onClick={() => resend.mutate(verifyEmail)}
-              disabled={resend.isPending || resendSent}
-              className="rounded-xl border border-ink-200 bg-surface px-6 py-3 text-sm font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-60 transition-colors"
-            >
-              {resendSent ? 'Verification email resent ✓' : resend.isPending ? 'Resending…' : 'Resend verification email'}
-            </button>
-            <Link href="/login" className="rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-6 py-3 text-sm font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110">
-              Go to sign in
-            </Link>
+          <div className="mt-5">
+            <VerifyEmailCode email={verifyEmail} justSent />
           </div>
         </div>
       </div>

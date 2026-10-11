@@ -1,13 +1,25 @@
 import apiClient from './axios'
-import type { AuthResponse, LoginCredentials, MyActivityEntry, ProfileSession, RegisterData, RegisterResponse, User } from '@/types/auth.types'
+import type { AuthResponse, LoginChallenge, LoginCredentials, MyActivityEntry, ProfileSession, RegisterData, RegisterResponse, User } from '@/types/auth.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
 
 export const authApi = {
   register: (data: RegisterData) =>
     apiClient.post<RegisterResponse>('/auth/register', data).then((r) => r.data),
 
+  // Step one; a LoginChallenge means a 6-digit code was emailed (unless this browser is trusted).
   login: (credentials: LoginCredentials) =>
-    apiClient.post<AuthResponse>('/auth/login', credentials).then((r) => r.data),
+    apiClient.post<AuthResponse | LoginChallenge>('/auth/login', credentials).then((r) => r.data),
+
+  // Step two: the emailed code; trust_device remembers this browser for 30 days.
+  verifyLoginCode: (data: { challenge: string; code: string; trust_device: boolean }) =>
+    apiClient.post<AuthResponse>('/auth/login/verify', data).then((r) => r.data),
+
+  resendLoginCode: (challenge: string) =>
+    apiClient.post<{ message: string }>('/auth/login/resend', { challenge }).then((r) => r.data),
+
+  // Registration: the 6-digit code emailed to the applicant.
+  verifyEmailCode: (email: string, code: string) =>
+    apiClient.post<{ verified: boolean; message: string }>('/auth/verify-email', { email, code }).then((r) => r.data),
 
   resendVerification: (email: string) =>
     apiClient.post('/auth/resend-verification', { email }).then((r) => r.data),
@@ -18,7 +30,7 @@ export const authApi = {
   forgotPassword: (email: string) =>
     apiClient.post('/auth/forgot-password', { email }).then((r) => r.data),
 
-  resetPassword: (data: { token: string; email: string; password: string; password_confirmation: string }) =>
+  resetPassword: (data: { email: string; code: string; password: string; password_confirmation: string }) =>
     apiClient.post('/auth/reset-password', data).then((r) => r.data),
 
   // Staff invitation (public): describe the invite, then accept it to create the account.

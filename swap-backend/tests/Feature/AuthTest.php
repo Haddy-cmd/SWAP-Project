@@ -52,7 +52,8 @@ class AuthTest extends TestCase
         $this->assertFalse($user->hasVerifiedEmail());
         // Unverified accounts start inactive so they don't show as active applicants.
         $this->assertFalse((bool) $user->is_active);
-        Notification::assertSentTo($user, VerifyEmail::class);
+        // A 6-digit code by email (OneTimeCodeTest covers entering it).
+        Notification::assertSentTo($user, \App\Notifications\OneTimeCodeNotification::class);
     }
 
     public function test_names_are_capitalised_and_the_full_name_is_built_from_them(): void
@@ -141,6 +142,7 @@ class AuthTest extends TestCase
 
     public function test_login_with_valid_credentials_returns_token(): void
     {
+        config(['auth.login_otp' => false]); // the sign-in code is OneTimeCodeTest's subject
         User::create([
             'name' => 'Ali Hassan', 'email' => 'ali@student.msu-marawi.edu.ph',
             'password' => 'Student@12345', 'role' => 'applicant', 'is_active' => true,
@@ -190,7 +192,8 @@ class AuthTest extends TestCase
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
         $this->assertTrue((bool) $user->fresh()->is_active);
 
-        // Now login works.
+        // Now login works (sign-in code switched off here).
+        config(['auth.login_otp' => false]);
         $this->postJson('/api/auth/login', [
             'email' => 'verifyme@s.msumain.edu.ph', 'password' => 'Student@12345',
         ])->assertStatus(200)->assertJsonStructure(['token']);

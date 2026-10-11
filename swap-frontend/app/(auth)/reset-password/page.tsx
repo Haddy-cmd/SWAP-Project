@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,6 +12,7 @@ import { authApi } from '@/lib/api/auth.api'
 import type { ApiError } from '@/types/api.types'
 import { strongPassword } from '@/lib/utils/password'
 import { PasswordGuide } from '@/components/auth/PasswordGuide'
+import { CodeInput, ResendButton } from '@/components/auth/CodeInput'
 
 const schema = z
   .object({
@@ -28,8 +29,20 @@ type FormData = z.infer<typeof schema>
 function ResetPasswordForm() {
   const router = useRouter()
   const params = useSearchParams()
-  const token = params.get('token') ?? ''
-  const email = params.get('email') ?? ''
+  // Step two of "Forgot password": the emailed 6-digit code + the new password.
+  const [email, setEmail] = useState(params.get('email') ?? '')
+  const [code, setCode] = useState('')
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [wait, setWait] = useState(params.get('sent') ? 60 : 0)
+  useEffect(() => {
+    if (wait <= 0) return
+    const t = setTimeout(() => setWait((w) => w - 1), 1000)
+    return () => clearTimeout(t)
+  }, [wait])
+  const resend = useMutation({
+    mutationFn: () => authApi.forgotPassword(email.trim().toLowerCase()),
+    onSuccess: () => { setWait(60); setCodeError(null) },
+  })
 
   const [showPw, setShowPw] = useState(false)
   const [done, setDone] = useState(false)
@@ -44,12 +57,15 @@ function ResetPasswordForm() {
 
   const reset = useMutation({
     mutationFn: (data: FormData) =>
-      authApi.resetPassword({ token, email, password: data.password, password_confirmation: data.password_confirmation }),
+      authApi.resetPassword({ email: email.trim().toLowerCase(), code, password: data.password, password_confirmation: data.password_confirmation }),
     onSuccess: () => {
       setDone(true)
       setTimeout(() => router.replace('/login'), 2500)
     },
-    onError: (err: ApiError) => setServerError(err.message ?? 'Could not reset your password. The link may have expired.'),
+    onError: (err: ApiError) => {
+      if (err.errors?.code?.[0]) { setCodeError(err.errors.code[0]); setServerError(null) }
+      else setServerError(err.message ?? 'Could not reset your password. Please try again.')
+    },
   })
 
   if (done) {
@@ -64,8 +80,8 @@ function ResetPasswordForm() {
     )
   }
 
-  // Guard against a malformed link missing its token/email.
-  const invalidLink = !token || !email
+  const emailOk = /S+@S+.S+/.test(email)
+  const invalidLink = !emailOk || code.length !== 6
 
   return (
     <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm">
@@ -77,16 +93,12 @@ function ResetPasswordForm() {
       <div className="mb-6">
         <h2 className="font-serif text-2xl font-bold text-ink-950">Set a new password</h2>
         <p className="mt-1 text-sm text-ink-500">
-          {email ? <>For <span className="font-medium text-ink-600">{email}</span></> : 'Choose a new password for your account.'}
+          {params.get('email')
+            ? <>We sent a 6-digit code to <span className="break-all font-medium text-ink-600">{params.get('email')}</span> (if it has an account). Enter it with your new password.</>
+            : 'Enter your email, the 6-digit code we sent you, and a new password.'}
         </p>
       </div>
 
-      {invalidLink && (
-        <div className="mb-5 flex items-start gap-2 rounded-lg border border-warning-200 bg-warning-50 px-4 py-3 text-sm text-warning-700">
-          <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-          This reset link is invalid or incomplete. Please request a new one.
-        </div>
-      )}
 
       {serverError && (
         <div className="mb-5 flex items-start gap-2 rounded-lg border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700">
@@ -95,7 +107,22 @@ function ResetPasswordForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit((d) => reset.mutate(d))} className="space-y-4">
+      <form onSubmit={handleSubmit((d) => { if (!invalidLink) reset.mutate(d) })} className="space-y-4">
+        {!params.get('email') && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink-600">Email</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" placeholder="you@s.msumain.edu.ph"
+              className="w-full rounded-xl border border-ink-200 bg-ink-50 px-3.5 py-2.5 text-sm text-ink-900 placeholder-ink-350 focus:border-brand-700 focus:outline-none" />
+          </div>
+        )}
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-ink-600">Code from the email</label>
+          <CodeInput value={code} onChange={(v) => { setCode(v); setCodeError(null) }} invalid={!!codeError} />
+          {codeError && <p className="mt-1 text-xs text-danger-700">{codeError}</p>}
+          <div className="mt-1.5 text-right">
+            <ResendButton onResend={() => emailOk && resend.mutate()} pending={resend.isPending} seconds={wait} />
+          </div>
+        </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink-600">New Password</label>
           <PasswordGuide value={watch('password')}>

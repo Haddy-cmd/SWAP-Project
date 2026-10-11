@@ -390,6 +390,7 @@ class ApplicationService
         $user->update(['role' => 'applicant', 'is_active' => false]);
         // Open sessions end now (the next request would be refused anyway).
         $user->tokens()->delete();
+        OneTimeCodeService::forgetDevices($user);
 
         AuditLog::record('returned_to_applicant', $user, ['role' => 'recipient', 'is_active' => true], [
             'role' => 'applicant',

@@ -118,14 +118,16 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-EV-001 | P1 | [H] Verify via valid signed link | Unverified account exists | Open GET `/email/verify/{id}/{hash}` from the email | valid signed URL | Email marked verified, account **activated**, redirect to `/login?verified=1` |  |  |
+| TC-EV-001 | P1 | [H] Verify with the emailed code | Just registered (unverified, inactive) | Enter the 6-digit code on "Check your email" (or /verify-email?email=…); POST `/auth/verify-email` | the code from the email (spaces allowed, e.g. "123 456") | "Email verified. You can sign in now."; account verified and **activated**; redirect to /login?verified=1 with the green banner |  |  |
 | TC-EV-002 | P1 | [S] Tampered/invalid signature rejected | Unverified account | Alter the signature or expiry in the URL | modified `signature` | HTTP 403 (invalid signature) |  |  |
 | TC-EV-003 | P2 | [H] Already-verified link is idempotent | Account already verified | Re-open the same link | same URL | Redirect to login, no error, no second activation |  |  |
-| TC-EV-004 | P2 | [H] Resend verification email | Unverified account | POST `/auth/resend-verification` | account email | HTTP 200, "If your account still needs verification, a new link has been sent to your email." |  |  |
+| TC-EV-004 | P2 | [H] Send a new verification code | Unverified account | "Send a new code" (POST `/auth/resend-verification`) | account email | HTTP 200, "If your account still needs verification, a new code has been sent to your email."; the button counts down 60 s; the earlier code stops working |  |  |
 | TC-EV-005 | P2 | [S] Resend rate limited | — | Send >3 resend requests in 1 minute | 4 rapid requests | 4th returns HTTP 429 |  |  |
 | TC-EV-006 | P2 | [S] Resend does not reveal which emails exist | — | Resend for an unknown email, and for an existing one | `nobody@s.msumain.edu.ph` | Same HTTP 200 and same message in both cases |  |  |
 | TC-EV-007 | P2 | [N] Resend survives a mail outage | Mail server down / misconfigured | Resend for an unverified account | valid email | HTTP 200 (failure is logged, not shown as a server error) |  |  |
 | TC-EV-008 | P3 | [N] Valid signature, wrong hash | Account exists | Open a signed link whose hash doesn't match the email | mismatched hash | Redirect to `/login?verify_error=1`; account stays unverified |  |  |
+| TC-EV-009 | P1 | [N] Wrong, expired and over-tried codes | Unverified account with a code | Enter a wrong code; 5 wrong codes; a code after 10 minutes | — | "That code isn't right."; after the 5th wrong try "Too many tries. Ask for a new code." (even the right code then fails); after 10 minutes "This code has expired. Ask for a new one."; an unknown or already-verified email gets the same "isn't right" (no account leak); only an HMAC of the code is stored |  |  |
+| TC-EV-010 | P3 | [H] Old verification links still work | A link email sent before the switch to codes | Open it | — | Verified and activated as before (TC-EV-001's old path) |  |  |
 
 ---
 
@@ -133,7 +135,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-AUTH-001 | P1 | [H] Successful login (verified + active) | Verified, active account | POST `/auth/login` | correct email + password | HTTP 200, "Login successful.", returns user + bearer token |  |  |
+| TC-AUTH-001 | P1 | [H] Successful login (verified + active) | Verified, active account; a browser not trusted yet | POST `/auth/login` with email + password, then the emailed code (POST `/auth/login/verify`) | correct password; the 6-digit sign-in code | Step one returns `otp_required` with "We sent a 6-digit code to a**@…" (no token); the code returns user + bearer token, "Login successful." |  |  |
 | TC-AUTH-002 | P1 | [N] Wrong password rejected | Account exists | Login with wrong password | valid email, wrong password | HTTP 422, "The provided credentials are incorrect." |  |  |
 | TC-AUTH-003 | P1 | [S] Unknown email rejected | — | Login with non-existent email | random email | HTTP 422, same credentials message (no user enumeration) |  |  |
 | TC-AUTH-004 | P1 | [N] Unverified email blocks login | Account not yet verified | Login | valid but unverified account | HTTP 422, "Please verify your email first. Check your inbox for the verification link, or resend it below." |  |  |
@@ -152,6 +154,10 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-AUTH-017 | P2 | [H] A role change is picked up without signing in again | Applicant signed in, then placed in an office (now a recipient) | Reload any page | — | Moved to the recipient dashboard; the stored role and `swap_role` cookie now say recipient |  |  |
 | TC-AUTH-018 | P2 | [S] Another role's area sends you to your own dashboard | Signed in as a recipient | Open `/admin/stipend` | — | Redirected to `/recipient/dashboard` (not the login page); an unknown `swap_role` cookie value is treated as signed out |  |  |
 | TC-AUTH-019 | P3 | [H] DSA seal splash after sign-in | One account per role | Sign in (login page; also a staff invitation acceptance and a QR deep-link sign-in); then refresh and move between pages; sign in with "reduce motion" on; click during the splash | — | Right after each sign-in a soft blurred veil shows the DSA seal fading in, holds ~1.7 s, then slides up to reveal the first page (dashboard, redirect target or /scan); it does not play on refresh, ordinary navigation or a tab that only followed another tab's sign-in; reduce motion → a short fade; a click skips it |  |  |
+| TC-AUTH-020 | P1 | [S] Sign-in code rules | Signed-in step one done | Enter a wrong code; 5 wrong codes; wait 10 minutes; reuse a made-up challenge; "Send a new code" twice | — | Wrong → "That code isn't right."; 5th → "Too many tries. Ask for a new code."; expired → "This code has expired. Ask for a new one."; unknown/expired sign-in → "This sign-in has expired. Enter your password again." (back to the password); resend once a minute (countdown); signing in again within the minute reuses the code already sent |  |  |
+| TC-AUTH-021 | P1 | [H] Trust this browser for 30 days | Sign-in with "Trust this browser for 30 days" ticked | Sign out and sign in again on the same browser; then on another browser; then change the password / use Sign out other devices / get deactivated, and sign in again | — | Same browser: only the password (no code) for 30 days; another browser asks for a code; after a password change or reset, "Sign out other devices", or deactivation, every browser asks for a code again; audit `trusted_device_added` |  |  |
+| TC-AUTH-022 | P2 | [H] Emergency switch LOGIN_OTP | `.env` LOGIN_OTP=false (config cleared) | Sign in | — | Password alone signs in (no code email); verification and reset codes still work |  |  |
+| TC-AUTH-023 | P2 | [H] Codes arrive in System Testing | A picked test account with its email switch off | Sign in; forgot password | — | The code emails still arrive (codes are never muted) |  |  |
 
 ---
 
@@ -159,10 +165,10 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
-| TC-PWD-001 | P2 | [H] Request reset for existing email | Account exists | POST `/auth/forgot-password` | valid email | HTTP 200, reset link emailed ("We have emailed your password reset link.") |  |  |
-| TC-PWD-002 | P2 | [S] Request reset for unknown email **[KNOWN GAP]** | — | POST `/auth/forgot-password` | non-existent email | Generic success message, same as TC-PWD-001 (no user enumeration). *Current build returns HTTP 422 "We can't find a user with that email address." — a way to test which emails are registered.* |  |  |
-| TC-PWD-003 | P1 | [H] Reset with valid token | Reset token issued | POST `/auth/reset-password` | valid token + new compliant password | Password updated; can log in with new password |  |  |
-| TC-PWD-004 | P1 | [N] Reset with invalid/expired token | — | POST `/auth/reset-password` | bad/expired token | HTTP 422, "This password reset token is invalid." |  |  |
+| TC-PWD-001 | P2 | [H] Request reset for existing email | Account exists | Forgot password → email → Send me a code (POST `/auth/forgot-password`) | valid email | HTTP 200 "If an account uses this email, we sent a code to it."; a 6-digit code is emailed; the page moves on to the code + new password step |  |  |
+| TC-PWD-002 | P2 | [S] Request reset for unknown email | — | POST `/auth/forgot-password` | non-existent email | The same HTTP 200 and message as TC-PWD-001 (no user enumeration); no email sent |  |  |
+| TC-PWD-003 | P1 | [H] Reset with the emailed code | Code issued | Enter the code + a new compliant password (POST `/auth/reset-password` {email, code, password, password_confirmation}) | valid code | "Your password has been reset. You can sign in now."; every session and trusted browser ends; can log in with the new password |  |  |
+| TC-PWD-004 | P1 | [N] Reset with a wrong or expired code | — | POST `/auth/reset-password` | wrong / 10-minute-old code | HTTP 422 under the code field: "That code isn't right." / "This code has expired. Ask for a new one."; 5 wrong tries lock it |  |  |
 | TC-PWD-005 | P2 | [N] Reset enforces password complexity | Valid token | Reset with weak password | `weak` | The same typing guide and messages as registration (also on Accept invitation and Profile → Change password); HTTP 422 with the same text |  |  |
 | TC-PWD-006 | P1 | [S] Forgot-password rate limiting | — | >3 requests in 1 minute | 4 rapid requests | 4th returns HTTP 429 |  |  |
 | TC-PWD-007 | P2 | [S] Reset-password rate limiting | — | >6 reset attempts in 1 minute | 7 rapid requests | 7th returns HTTP 429 |  |  |
@@ -905,9 +911,9 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | Module | Test Case Range | Count | Priority focus | Automated by (PHPUnit / Vitest) |
 |---|---|---|---|---|
 | Registration | TC-REG-001..018 | 18 | Auth integrity, validation | AuthTest, CollegeListTest |
-| Email Verification | TC-EV-001..008 | 8 | Account activation | AuthTest |
-| Login / Sessions | TC-AUTH-001..019 | 19 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
-| Password Reset | TC-PWD-001..007 | 7 | Auth | — (manual) |
+| Email Verification | TC-EV-001..010 | 10 | Account activation | AuthTest, OneTimeCodeTest |
+| Login / Sessions | TC-AUTH-001..023 | 23 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
+| Password Reset | TC-PWD-001..007 | 7 | Auth | OneTimeCodeTest |
 | Staff Invitations | TC-INV-001..009 | 9 | Onboarding | EmployeeIdTest |
 | Applications | TC-APP-001..017 | 17 | Core workflow, applicant timeline | DocumentTest, ResourceAccessTest, NotificationTest, ApplicationTermTest, InterviewLifecycleTest |
 | Renewal | TC-REN-001..015 | 15 | Core workflow, return to the applicant portal | RenewalTest |
@@ -936,7 +942,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | System Testing | TC-TEST-001..024 | 24 | Test tooling, bypasses, restore, file storage, email switch | TestingToolsTest, StorageCheckTest, TestingEmailSwitchTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..030 | 30 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
-| **TOTAL** | — | **579** | — | — |
+| **TOTAL** | — | **585** | — | — |
 
 ---
 
@@ -947,7 +953,7 @@ One end-to-end pass through the money-and-integrity path. Every step must pass b
 | Step | Persona | Action | Case |
 |---|---|---|---|
 | 1 | Visitor | Register with a `@s.msumain.edu.ph` email | TC-REG-001 |
-| 2 | Visitor | Open the verification link | TC-EV-001 |
+| 2 | Visitor | Enter the emailed verification code | TC-EV-001 |
 | 3 | Applicant | Log in | TC-AUTH-001 |
 | 4 | Applicant | Submit an application and upload the COR | TC-APP-001, TC-APP-007 |
 | 5 | Admin | Move to review, schedule an in-window interview | TC-ADMR-002, TC-ADMR-003 |

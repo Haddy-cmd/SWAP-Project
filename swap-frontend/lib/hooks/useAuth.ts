@@ -6,6 +6,7 @@ import { authApi } from '@/lib/api/auth.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import { markLoginSplash } from '@/components/layout/LoginSplash'
+import { isLoginChallenge } from '@/types/auth.types'
 import type { LoginCredentials, RegisterData } from '@/types/auth.types'
 
 export function useAuth() {
@@ -16,6 +17,8 @@ export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: (credentials: LoginCredentials) => authApi.login(credentials),
     onSuccess: (data) => {
+      // A code was emailed: the login page finishes the sign-in (verifyLoginCode).
+      if (isLoginChallenge(data)) return
       markLoginSplash()
       setAuth(data.data, data.token)
       queryClient.clear()

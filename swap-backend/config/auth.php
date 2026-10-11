@@ -20,6 +20,10 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
+    // Sign-in asks for an emailed 6-digit code (unless the browser is trusted for 30 days).
+    // Emergency switch if mail is down: LOGIN_OTP=false. Verify-email and reset codes stay on.
+    'login_otp' => (bool) env('LOGIN_OTP', true),
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards

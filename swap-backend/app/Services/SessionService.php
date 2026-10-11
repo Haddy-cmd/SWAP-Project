@@ -58,6 +58,7 @@ class SessionService
     public function revokeOthers(User $user): int
     {
         $currentId = $this->currentId($user);
+        OneTimeCodeService::forgetDevices($user); // other browsers must enter a code again
         $count = $user->tokens()->when($currentId, fn ($q) => $q->whereKeyNot($currentId))->delete();
         if ($count > 0) {
             AuditLog::record('sessions_revoked', $user, null, ['count' => $count]);

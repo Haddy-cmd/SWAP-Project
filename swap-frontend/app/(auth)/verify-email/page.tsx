@@ -1,28 +1,24 @@
 'use client'
 
-import Link from 'next/link'
-import { MailCheck } from 'lucide-react'
+import { Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { VerifyEmailCode } from '@/components/auth/VerifyEmailCode'
 
-export default function VerifyEmailPage() {
+function VerifyEmailInner() {
+  const email = useSearchParams().get('email')
   return (
-    <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm text-center">
-      <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
-        <MailCheck className="h-8 w-8 text-brand-700" />
-      </div>
-      <h2 className="text-2xl font-bold text-ink-900">Verify your email</h2>
-      <p className="mt-3 text-sm leading-relaxed text-ink-500">
-        We sent a verification link to your registered email address.
-        Please click the link to activate your account before signing in.
-      </p>
-      <p className="mt-2 text-sm text-ink-500">
-        Didn&apos;t receive it? Check your spam folder or contact the SWAP office.
-      </p>
-      <Link
-        href="/login"
-        className="mt-8 inline-flex items-center justify-center rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
-      >
-        Back to Sign In
-      </Link>
+    <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm sm:p-8">
+      <VerifyEmailCode email={email} />
     </div>
+  )
+}
+
+/** Enter the 6-digit code from the registration email (`?email=` prefills the address). */
+export default function VerifyEmailPage() {
+  // useSearchParams needs a Suspense boundary in the App Router.
+  return (
+    <Suspense fallback={<div className="h-[420px] animate-pulse rounded-2xl bg-ink-100" />}>
+      <VerifyEmailInner />
+    </Suspense>
   )
 }

@@ -54,6 +54,10 @@ use Illuminate\Support\Facades\Route;
 // Throttle sensitive auth endpoints to deter brute-force and email-flooding.
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+// Sign-in step two: the emailed 6-digit code (OneTimeCodeService).
+Route::post('/auth/login/verify', [AuthController::class, 'verifyLogin'])->middleware('throttle:10,1');
+Route::post('/auth/login/resend', [AuthController::class, 'resendLogin'])->middleware('throttle:3,1');
+Route::post('/auth/verify-email', [EmailVerificationController::class, 'verifyCode'])->middleware('throttle:10,1');
 Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPassword'])->middleware('throttle:3,1');
 Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:6,1');
 // Email verification — the signed link in the verification email lands here.

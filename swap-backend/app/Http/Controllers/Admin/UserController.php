@@ -61,6 +61,7 @@ class UserController extends Controller
         $new = $updated->only(['role', 'is_active']);
         if ($old['is_active'] && !$updated->is_active) {
             $new['tokens_revoked'] = $updated->tokens()->delete();
+            \App\Services\OneTimeCodeService::forgetDevices($updated);
         }
 
         AuditLog::record('updated', $updated, $old, $new);
@@ -91,6 +92,7 @@ class UserController extends Controller
 
         AuditLog::record('deleted', $user);
         $user->tokens()->delete();
+        \App\Services\OneTimeCodeService::forgetDevices($user);
         $this->userRepository->softDelete($user);
 
         return response()->json(['message' => 'User deleted.']);

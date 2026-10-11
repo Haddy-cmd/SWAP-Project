@@ -24,7 +24,7 @@ class TestTools
     public const MSG_OFF = 'Switch System Testing on first.';
 
     /** Account emails a picked student may still need while testing. */
-    private const ALWAYS_EMAILED = [ResetPassword::class, VerifyEmail::class];
+    private const ALWAYS_EMAILED = [ResetPassword::class, VerifyEmail::class, \App\Notifications\OneTimeCodeNotification::class];
 
     /** Memo for the current request/job (list resources ask once per row). */
     private static ?bool $enabled = null;
