@@ -1,0 +1,607 @@
+%% SWAP database - Entity Relationship Diagram
+%% Source: swap-backend/database/migrations (PostgreSQL, database swap_db)
+%% Render: paste into https://mermaid.live, or open in VS Code with a Mermaid preview extension.
+%%
+%% Conventions:
+%%   - Lines show ownership relationships. Columns that only record *which staff member acted*
+%%     (reviewed_by, verified_by, released_by, certified_by, created_by, ...) are marked FK
+%%     with a "-> users" comment but are not drawn, to keep the diagram readable.
+%%   - Laravel infrastructure tables (jobs, job_batches, failed_jobs, cache, cache_locks) are omitted.
+
+erDiagram
+
+    %% ---------- Users & accounts ----------
+    users {
+        bigint id PK
+        string name
+        string email UK
+        timestamp email_verified_at
+        string password
+        enum role "applicant | recipient | supervisor | admin"
+        boolean is_active
+        boolean require_clock_in_selfie
+        boolean is_test_account
+        timestamp testing_added_at
+        boolean testing_email_muted
+        bigint office_id FK "nullable"
+        string avatar_path
+        string signature_image_path
+        string position_title
+        string employee_id UK
+        string remember_token
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at "soft delete"
+    }
+
+    student_profiles {
+        bigint id PK
+        bigint user_id FK "unique"
+        string student_id_number "unique among non-deleted"
+        string first_name
+        string middle_name
+        string last_name
+        date date_of_birth
+        string gender
+        string contact_number
+        text address
+        string college
+        string program
+        smallint year_level
+        decimal gpa
+        string photo_url
+        timestamp created_at
+        timestamp updated_at
+        timestamp deleted_at "soft delete"
+    }
+
+    offices {
+        bigint id PK
+        string name
+        string logo_path
+        text description
+        string head_name
+        string location
+        decimal latitude
+        decimal longitude
+        smallint radius_meters
+        boolean geofence_enabled
+        boolean auto_clock_out
+        text qr_code
+        string qr_secret
+        smallint max_recipients
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    staff_invitations {
+        bigint id PK
+        string email
+        string name
+        string role "supervisor | admin"
+        bigint office_id FK "nullable"
+        string token UK "sha256"
+        bigint invited_by FK "-> users"
+        timestamp expires_at
+        timestamp accepted_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    personal_access_tokens {
+        bigint id PK
+        string tokenable_type "polymorphic -> users"
+        bigint tokenable_id
+        string name
+        string token UK
+        text abilities
+        string ip_address
+        text user_agent
+        timestamp last_used_at
+        timestamp expires_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    one_time_codes {
+        bigint id PK
+        bigint user_id FK
+        string purpose
+        string code_hash
+        smallint attempts
+        timestamp expires_at
+        timestamp consumed_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    trusted_devices {
+        bigint id PK
+        bigint user_id FK
+        string token_hash UK
+        text user_agent
+        string ip_address
+        timestamp last_used_at
+        timestamp expires_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    password_reset_tokens {
+        string email PK
+        string token
+        timestamp created_at
+    }
+
+    %% ---------- Applications ----------
+    applications {
+        bigint id PK
+        bigint user_id FK
+        string academic_year
+        string semester
+        string type "new | renewal"
+        enum status "submitted | under_review | interview_scheduled | approved | rejected"
+        text remarks
+        bigint reviewed_by FK "-> users"
+        timestamp reviewed_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    application_documents {
+        bigint id PK
+        bigint application_id FK
+        string document_type
+        string file_path
+        string file_url
+        string file_name
+        bigint file_size
+        string mime_type
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    interviews {
+        bigint id PK
+        bigint application_id FK "unique"
+        timestamp scheduled_at
+        string location
+        string meeting_link
+        smallint duration_minutes
+        string mode "in_person | online"
+        text notes
+        string status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    semester_periods {
+        bigint id PK
+        string academic_year "unique with semester"
+        string semester
+        date start_date
+        date end_date
+        boolean renewal_open
+        timestamp renewal_closed_at
+        timestamp closed_at
+        bigint created_by FK "-> users"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ---------- Assignments & duty hours ----------
+    assignments {
+        bigint id PK
+        bigint user_id FK "recipient"
+        bigint office_id FK
+        bigint supervisor_id FK "-> users"
+        string academic_year
+        string semester
+        smallint required_hours "default 200"
+        int carried_over_hours
+        bigint carried_from_assignment_id FK "-> assignments"
+        smallint pending_required_hours
+        bigint pending_required_by FK "-> users"
+        date start_date
+        date end_date
+        string status
+        string term_status
+        decimal deficient_hours
+        timestamp term_status_at
+        bigint term_status_by FK "-> users"
+        text term_status_reason
+        timestamp report_due_hours_at
+        timestamp report_due_ended_at
+        text qr_code UK
+        string qr_secret
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    time_logs {
+        bigint id PK
+        bigint assignment_id FK
+        bigint user_id FK
+        date date
+        timestamp time_in
+        decimal time_in_lat
+        decimal time_in_lng
+        decimal time_in_accuracy
+        string time_in_photo_path
+        timestamp time_out
+        decimal time_out_lat
+        decimal time_out_lng
+        decimal time_out_accuracy
+        decimal duration_hours "generated"
+        enum status "open | pending_verification | verified | rejected"
+        bigint verified_by FK "-> users"
+        timestamp verified_at
+        text rejection_reason
+        string clocked_out_reason
+        boolean location_flagged
+        string location_flag_reason
+        boolean is_manual
+        string manual_reason
+        bigint recorded_by FK "-> users"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    verifications {
+        bigint id PK
+        bigint time_log_id FK
+        bigint verified_by FK "-> users"
+        string action "verified | rejected"
+        text feedback
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    narrative_reports {
+        bigint id PK
+        bigint time_log_id FK "unique"
+        text content
+        text activities_done
+        text challenges
+        timestamp submitted_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ---------- Reports & evaluations ----------
+    weekly_reports {
+        bigint id PK
+        bigint user_id FK
+        bigint assignment_id FK
+        string academic_year
+        string semester
+        smallint week_number
+        date week_start
+        date week_end
+        decimal total_hours
+        decimal verified_hours
+        smallint days_present
+        json log_ids
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    monthly_reports {
+        bigint id PK
+        bigint user_id FK
+        bigint assignment_id FK
+        string academic_year
+        string semester
+        smallint month
+        smallint year
+        decimal total_hours
+        decimal verified_hours
+        smallint days_present
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    semester_reports {
+        bigint id PK
+        bigint user_id FK
+        bigint assignment_id FK
+        string academic_year
+        string semester
+        decimal required_hours
+        decimal verified_hours
+        decimal rendered_hours
+        decimal rejected_hours
+        decimal completion_rate "generated"
+        smallint total_days_present
+        string final_status
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    term_reports {
+        bigint id PK
+        bigint assignment_id FK "unique"
+        bigint user_id FK
+        text content
+        text accomplishments
+        text challenges
+        timestamp submitted_at
+        timestamp reviewed_at
+        bigint reviewed_by FK "-> users"
+        boolean renewal_eligible
+        text review_remarks
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    term_evaluations {
+        bigint id PK
+        bigint assignment_id FK "unique"
+        bigint evaluator_id FK "-> users"
+        smallint rating
+        text remarks
+        boolean passed
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    promissory_notes {
+        bigint id PK
+        bigint assignment_id FK
+        bigint user_id FK
+        string academic_year
+        string semester
+        decimal verified_hours_snapshot
+        decimal lacking_hours
+        decimal deficient_hours
+        string file_path
+        string file_name
+        string mime_type
+        bigint file_size
+        text reason
+        string status
+        bigint reviewed_by FK "-> users"
+        timestamp reviewed_at
+        text review_remarks
+        date makeup_deadline
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ---------- Stipends ----------
+    stipend_history {
+        bigint id PK
+        bigint user_id FK
+        decimal amount
+        string academic_year
+        string semester
+        string period_label
+        string status
+        string control_number UK
+        string claim_token UK
+        bigint certified_by FK "-> users"
+        timestamp certified_at
+        bigint released_by FK "-> users"
+        timestamp released_at
+        timestamp received_at
+        timestamp claimed_at
+        timestamp receipt_signed_at
+        string releasing_officer_name
+        string slip_path
+        timestamp voided_at
+        string void_reason
+        text remarks
+        boolean via_promissory
+        bigint promissory_note_id FK "nullable"
+        decimal required_hours
+        decimal deficient_hours
+        decimal lacking_hours
+        date makeup_deadline
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    stipend_signatures {
+        bigint id PK
+        bigint stipend_history_id FK
+        string signatory_role
+        bigint user_id FK "nullable"
+        string printed_name
+        string method
+        string signature_image_path
+        timestamp signed_at
+        text remarks
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ---------- Communication ----------
+    concerns {
+        bigint id PK
+        bigint user_id FK
+        string subject
+        text message
+        string status "open | in_progress | resolved"
+        text response
+        bigint responded_by FK "-> users"
+        timestamp responded_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    concern_messages {
+        bigint id PK
+        bigint concern_id FK
+        bigint user_id FK "nullable"
+        boolean from_staff
+        text body
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    announcements {
+        bigint id PK
+        string title
+        text message
+        bigint sent_by FK "nullable"
+        int recipient_count
+        int emailed_count
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    announcement_attachments {
+        bigint id PK
+        bigint announcement_id FK
+        string file_name
+        string file_path
+        string mime_type
+        bigint file_size
+        boolean is_image
+        smallint position
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    notifications {
+        uuid id PK
+        string type
+        string notifiable_type "polymorphic -> users"
+        bigint notifiable_id
+        json data
+        timestamp read_at
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ---------- Auditing & system testing ----------
+    audit_logs {
+        bigint id PK
+        bigint user_id FK "actor, nullable"
+        bigint subject_user_id FK "-> users, nullable"
+        string action
+        string auditable_type "polymorphic"
+        bigint auditable_id
+        json old_values
+        json new_values
+        string ip_address
+        string user_agent
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    testing_changes {
+        bigint id PK
+        bigint user_id FK
+        string subject_type
+        bigint subject_id
+        string action "created | updated"
+        json old_values
+        bigint created_by FK "-> users"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    testing_snapshots {
+        bigint id PK
+        bigint user_id FK "unique"
+        timestamp taken_at
+        json data
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ---------- Standalone content / config ----------
+    settings {
+        bigint id PK
+        string key UK
+        text value
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    faq_knowledge_base {
+        bigint id PK
+        string category
+        text question
+        text answer
+        json keywords
+        boolean is_active
+        smallint sort_order
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    landing_photos {
+        bigint id PK
+        string caption
+        int sort_order
+        boolean is_active
+        string bundled_path
+        text image_base64
+        string mime_type
+        int width
+        int height
+        int byte_size
+        bigint uploaded_by FK "-> users"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    %% ========== Relationships ==========
+
+    %% Users & accounts
+    users ||--o| student_profiles : "has profile"
+    offices |o--o{ users : "staff belong to"
+    offices |o--o{ staff_invitations : "invited to"
+    users ||--o{ personal_access_tokens : "API tokens"
+    users ||--o{ one_time_codes : "OTP codes"
+    users ||--o{ trusted_devices : "trusts"
+    users ||--o{ notifications : "receives"
+
+    %% Applications
+    users ||--o{ applications : "submits"
+    applications ||--o{ application_documents : "attaches"
+    applications ||--o| interviews : "scheduled for"
+
+    %% Assignments & duty hours
+    users ||--o{ assignments : "assigned (recipient)"
+    users ||--o{ assignments : "supervises"
+    offices ||--o{ assignments : "hosts"
+    assignments |o--o{ assignments : "carries hours to"
+    assignments ||--o{ time_logs : "logs"
+    users ||--o{ time_logs : "clocks"
+    time_logs ||--o{ verifications : "reviewed in"
+    time_logs ||--o| narrative_reports : "described by"
+
+    %% Reports & evaluations
+    assignments ||--o{ weekly_reports : "summarised weekly"
+    assignments ||--o{ monthly_reports : "summarised monthly"
+    assignments ||--o{ semester_reports : "summarised per semester"
+    users ||--o{ weekly_reports : "owns"
+    users ||--o{ monthly_reports : "owns"
+    users ||--o{ semester_reports : "owns"
+    assignments ||--o| term_reports : "closes with"
+    users ||--o{ term_reports : "writes"
+    assignments ||--o| term_evaluations : "evaluated by"
+    assignments ||--o{ promissory_notes : "deficiency covered by"
+    users ||--o{ promissory_notes : "files"
+
+    %% Stipends
+    users ||--o{ stipend_history : "is paid"
+    promissory_notes |o--o{ stipend_history : "released via"
+    stipend_history ||--o{ stipend_signatures : "signed by"
+    users |o--o{ stipend_signatures : "signs"
+
+    %% Communication
+    users ||--o{ concerns : "raises"
+    concerns ||--o{ concern_messages : "thread"
+    users |o--o{ concern_messages : "posts"
+    users |o--o{ announcements : "sends"
+    announcements ||--o{ announcement_attachments : "includes"
+
+    %% Auditing & system testing
+    users |o--o{ audit_logs : "performs"
+    users ||--o{ testing_changes : "tracked in"
+    users ||--o| testing_snapshots : "snapshotted in"

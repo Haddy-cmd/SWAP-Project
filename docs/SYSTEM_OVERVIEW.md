@@ -492,6 +492,13 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### Notifications v2 (2026-10-11)
+- One page for every role (`components/notifications/NotificationList.tsx`): kind chips shown only when present
+  (`lib/utils/notificationKind.ts` maps `data.type` → Applications / Renewals / Hours / Reports & notes / Stipend / Concerns /
+  Announcements), Unread only, This week / Earlier, 30 per page with Load more (`GET /notifications?per_page`, max 50).
+- Admins' new-application notifications carry `applicant_name`, `kind` (new | renewal), `term` and `note`
+  ("Resubmitted" after an earlier rejection; "Submitted twice" when another one exists for the same term).
+
 ### Email codes (OTP) through Brevo (2026-10-11)
 - One mailer for everything: the Brevo transport (`MAIL_MAILER=brevo`) also carries the 6-digit codes
   (`OneTimeCodeNotification`, sent immediately, never muted by System Testing).

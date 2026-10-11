@@ -26,3 +26,10 @@ export const COLLEGES: College[] = [
 /** 'College of Agriculture' for 'COA'; anything not on the list is returned as saved. */
 export const collegeLabel = (code: string | null | undefined): string | null =>
   code ? COLLEGES.find((c) => c.value === code)?.label ?? null : null
+
+/** How a college reads in lists: "COA — College of Agriculture" (the code as stored otherwise, e.g. an old value). */
+export const collegeDisplay = (code: string | null | undefined): string => {
+  if (!code) return '—'
+  const label = collegeLabel(code)
+  return label ? `${code.toUpperCase()} — ${label}` : code
+}

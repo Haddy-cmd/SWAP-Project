@@ -338,7 +338,7 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 | TC-PROF-019 | P1 | [S] Sign out one device / other devices | Signed in on three browsers | Security → Sign out on one row; then Sign out other devices (confirm) | — | The row's browser is signed out on its next request (HTTP 401); "Sign out other devices" ends every login except this one with "Signed out of n other devices."; DELETE of the current session → HTTP 422 "Use Sign out to end this session."; another user's session id → 404; audit `session_revoked` {device} / `sessions_revoked` {count} |  |  |
 | TC-PROF-020 | P2 | [H] Password "Last changed" | Logged in, never changed the password here; then change it | Profile → Security | — | "Not changed here yet", then "Last changed {date}" after a change; the device list then shows only this browser |  |  |
 | TC-PROF-021 | P2 | [H] My activity | A user who changed their photo, saved their signature and clocked in; another user's actions; System Testing actions | Profile → Activity; Load more | — | Only this person's own actions, newest first, as sentences in their words ("Changed your photo", "Updated your profile"), with an icon by area and "x min ago"; no before/after values or IP addresses; System Testing entries hidden; 25 per page with Load more |  |  |
-| TC-PROF-022 | P3 | [H] Full college name on Profile | Students in COA, CFAS and CICS | Open Profile | — | The College row reads "College of Agriculture (COA)", "College of Fisheries and Aquatic Sciences (CFAS)", "College of Information and Computing Sciences (CICS)", wrapping instead of being cut off |  |  |
+| TC-PROF-022 | P3 | [H] Full college name on Profile | Students in COA, CFAS and CICS | Open Profile | — | The College row reads "COA — College of Agriculture", "CFAS — College of Fisheries and Aquatic Sciences", "CICS — College of Information and Computing Sciences", wrapping instead of being cut off; the Register college dropdown and its review step use the same "CODE — Full name" form |  |  |
 
 ---
 
@@ -699,6 +699,10 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-NOTIF-004 | P2 | [H] Event-driven notifications fire | Trigger events | Submit app, review, schedule interview, approve/reject, place, verify hours, release stipend, promissory review, concern reply, announcement | — | The right person receives the matching notification (and email where configured) |  |  |
 | TC-NOTIF-005 | P2 | [H] Time-out notifies all eligible verifiers | Office with two supervisors | Clock out | — | Assigned supervisor **and** co-supervisors of the office are notified |  |  |
 | TC-NOTIF-006 | P3 | [H] Bell refreshes without a reload | Page open | Trigger an event from another account; wait ≤ 60 s | — | The bell count updates within about a minute while the tab is visible (the websocket stack was removed; no Echo/Pusher errors in the console) |  |  |
+| TC-NOTIF-007 | P2 | [H] Notifications page (v2) | Each role, with several kinds of notifications, some older than a week | Open Notifications | — | "Notifications" with "{n} unread · newest first" (or "All read") and Mark all as read; chips All + only the kinds present (Applications, Renewals, Hours, Reports & notes, Stipend, Concerns, Announcements) with counts; "Unread only"; groups This week / Earlier; each row has a coloured kind icon, "**Name** what" (or the title over the message), "Kind · time", the unread dot and Review/Open/Read; empty: "You're all caught up" |  |  |
+| TC-NOTIF-008 | P2 | [H] Filtering and Load more | 40+ notifications, mixed kinds | Pick a chip; tick Unread only; Load more | — | Only that kind / only unread show and the counts follow; 30 load at a time and Load more adds the next 30 (GET `/notifications?per_page=30`, max 50) |  |  |
+| TC-NOTIF-009 | P2 | [H] Opening a notification | Unread notification of each kind | Click it | — | Marked read (dot and tint go away, unread count drops) and opens the related page; an announcement opens in its popup |  |  |
+| TC-NOTIF-010 | P2 | [H] New application tags for admins | A student whose earlier application was rejected applies again; a recipient requests renewal | Admin opens Notifications | — | The new application shows "**Name** submitted a SWAP application." with a gold "Resubmitted" tag; the renewal reads "**Name** requested renewal for {term}." under Renewals; ("Submitted twice" only if a second application for the same term ever exists) |  |  |
 
 ### 22.6 Analytics & Audit logs
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
@@ -934,7 +938,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | Chatbot / FAQ | TC-BOT-001..006 | 6 | Support, cost | ChatbotTest |
 | Concerns | TC-CON-001..017 | 17 | Support | ConcernTest |
 | Settings | TC-SET-001..005 | 5 | Config | — (manual) |
-| Notifications | TC-NOTIF-001..006 | 6 | Comms | NotificationTest |
+| Notifications | TC-NOTIF-001..010 | 10 | Comms | NotificationTest |
 | Analytics & Audit | TC-ANL-001..019 | 19 | Admin, traceability, program insights, supervisor reminders | StipendTotalsTest, AuditTrailTest, AuditLogTest, AnalyticsOverviewTasksTest, ListQueryCountTest, ProgramInsightsTest, SupervisorReminderTest |
 | Announcements | TC-ANN-001..014 | 14 | Comms, attachments | AnnouncementTest, AnnouncementAttachmentTest |
 | Semester periods | TC-SEM-001..014 | 14 | Term calendar, renewal window | SemesterPeriodTest |
@@ -943,7 +947,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | System Testing | TC-TEST-001..024 | 24 | Test tooling, bypasses, restore, file storage, email switch | TestingToolsTest, StorageCheckTest, TestingEmailSwitchTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..030 | 30 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
-| **TOTAL** | — | **586** | — | — |
+| **TOTAL** | — | **590** | — | — |
 
 ---
 

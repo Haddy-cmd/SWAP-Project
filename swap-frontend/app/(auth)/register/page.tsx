@@ -15,7 +15,7 @@ import { authApi } from '@/lib/api/auth.api'
 import { settingsApi } from '@/lib/api/settings.api'
 import type { ApiError } from '@/types/api.types'
 import { strongPassword } from '@/lib/utils/password'
-import { COLLEGES } from '@/lib/constants/colleges'
+import { COLLEGES, collegeDisplay } from '@/lib/constants/colleges'
 import { PasswordGuide } from '@/components/auth/PasswordGuide'
 import { VerifyEmailCode } from '@/components/auth/VerifyEmailCode'
 
@@ -194,7 +194,7 @@ export default function RegisterPage() {
 
   const selectedCollege = watch('college')
   const programs = COLLEGES.find((c) => c.value === selectedCollege)?.programs ?? []
-  const collegeLabel = COLLEGES.find((c) => c.value === selectedCollege)?.label ?? '—'
+  const collegeLabel = selectedCollege ? collegeDisplay(selectedCollege) : '—'
   const v = watch()
 
   // Registration follows the application period: no point signing up to apply
@@ -384,7 +384,7 @@ export default function RegisterPage() {
                       <Building2 className={ICON} />
                       <select {...register('college', { onChange: () => setValue('program', '') })} defaultValue="" className={`${INPUT} appearance-none`}>
                         <option value="" disabled>Select college</option>
-                        {COLLEGES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                        {COLLEGES.map((c) => <option key={c.value} value={c.value}>{collegeDisplay(c.value)}</option>)}
                       </select>
                       <ChevronDown className="h-4 w-4 flex-none text-ink-400" />
                     </div>

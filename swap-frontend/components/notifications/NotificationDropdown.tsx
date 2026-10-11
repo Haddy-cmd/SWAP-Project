@@ -8,6 +8,7 @@ import { CheckCheck, ArrowRight } from 'lucide-react'
 import { notificationsApi as notificationApi } from '@/lib/api/notifications.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { notificationLink } from '@/lib/utils/notificationLink'
+import { iconFor, kindOf } from '@/lib/utils/notificationKind'
 import type { Notification } from '@/types/notification.types'
 
 interface NotificationDropdownProps {
@@ -68,28 +69,27 @@ export function NotificationDropdown({ notifications, onClose, onAnnouncement }:
         <p className="px-4 py-6 text-center text-xs text-ink-350">No notifications</p>
       ) : (
         <ul className="max-h-[65vh] overflow-y-auto">
-          {recent.map((n) => (
+          {recent.map((n) => { const k = kindOf(n); const Icon = iconFor(n, k); return (
             <li
               key={n.id}
               onClick={() => open(n)}
               className={`cursor-pointer border-b border-ink-100 px-4 py-3 last:border-0 transition-colors ${
-                !n.is_read ? 'bg-brand-50 hover:bg-brand-100' : 'hover:bg-ink-50'
+                !n.is_read ? 'bg-accent-tint/50 hover:bg-ink-50' : 'hover:bg-ink-50'
               }`}
             >
-              <div className="flex items-start gap-2">
-                {!n.is_read && (
-                  <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-danger-600" />
-                )}
+              <div className="flex items-start gap-2.5">
+                <span className={`flex h-8 w-8 flex-none items-center justify-center rounded-[10px] ${k.tone}`}><Icon className="h-4 w-4" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold text-ink-900">{n.data.title}</p>
                   <p className="mt-0.5 truncate text-xs text-ink-500">{n.data.message}</p>
                   <p className="mt-1 text-[10px] text-ink-350">
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                    {k.one} · {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                   </p>
                 </div>
+                {!n.is_read && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-accent" aria-label="Unread" />}
               </div>
             </li>
-          ))}
+          ) })}
         </ul>
       )}
 

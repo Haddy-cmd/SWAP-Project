@@ -11,7 +11,7 @@ import { AvatarCropper } from '@/components/shared/AvatarCropper'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { User, UserRole } from '@/types/auth.types'
 import type { ApiError } from '@/types/api.types'
-import { collegeLabel } from '@/lib/constants/colleges'
+import { collegeDisplay } from '@/lib/constants/colleges'
 import { CARD } from './ui'
 
 export const ROLE_LABEL: Record<UserRole, string> = {
@@ -61,7 +61,7 @@ export function ProfileAside({ user }: { user: User }) {
   const facts: [string, string][] = isStudent
     ? [
         ['Student ID', user.profile?.student_id_number || '—'],
-        ['College', collegeLabel(user.profile?.college) ? `${collegeLabel(user.profile?.college)} (${user.profile?.college})` : (user.profile?.college || '—')],
+        ['College', collegeDisplay(user.profile?.college)],
         ['Program', user.profile?.program || '—'],
         ['Year level', YEAR[user.profile?.year_level ?? 0] || '—'],
         ['Member since', memberSince],

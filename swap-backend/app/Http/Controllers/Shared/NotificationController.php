@@ -14,7 +14,9 @@ class NotificationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $notifications = $this->notificationService->getForUser($request->user());
+        // The Notifications page loads 30 at a time; the bell keeps the default 15.
+        $perPage = min(50, max(1, (int) $request->query('per_page', 15)));
+        $notifications = $this->notificationService->getForUser($request->user(), $perPage);
         $unreadCount = $this->notificationService->getUnreadCount($request->user());
 
         return response()->json([

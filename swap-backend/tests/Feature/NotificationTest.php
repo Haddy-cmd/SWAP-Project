@@ -26,6 +26,40 @@ class NotificationTest extends TestCase
         ], $attrs));
     }
 
+    public function test_the_page_size_can_be_raised_to_fifty(): void
+    {
+        $user = $this->makeUser('recipient');
+        for ($i = 0; $i < 20; $i++) {
+            $this->makeNotification($user);
+        }
+        Sanctum::actingAs($user);
+
+        $this->getJson('/api/notifications')->assertJsonCount(15, 'data');
+        $this->getJson('/api/notifications?per_page=30')->assertJsonCount(20, 'data')->assertJsonPath('meta.per_page', 30);
+        $this->getJson('/api/notifications?per_page=999')->assertJsonPath('meta.per_page', 50);
+    }
+
+    public function test_admins_see_repeats_and_renewals_in_new_application_notifications(): void
+    {
+        $admin = $this->makeUser('admin');
+        $student = $this->makeUser('applicant', ['name' => 'Nazremah Asimpin']);
+        \App\Models\Application::create(['user_id' => $student->id, 'academic_year' => '2025-2026', 'semester' => '1st Semester', 'status' => 'rejected']);
+        $again = \App\Models\Application::create(['user_id' => $student->id, 'academic_year' => '2026-2027', 'semester' => '1st Semester', 'status' => 'submitted']);
+        $renewal = \App\Models\Application::create(['user_id' => $this->makeUser('recipient', ['name' => 'Norhaya Dimaporo'])->id,
+            'academic_year' => '2026-2027', 'semester' => '2nd Semester', 'status' => 'submitted', 'type' => 'renewal']);
+
+        (new \App\Listeners\SendApplicationSubmittedNotification())->handle(new \App\Events\ApplicationSubmitted($again));
+        (new \App\Listeners\SendApplicationSubmittedNotification())->handle(new \App\Events\ApplicationSubmitted($renewal));
+
+        $rows = Notification::where('notifiable_id', $admin->id)->get()->keyBy(fn ($n) => $n->data['application_id']);
+        $this->assertSame('Resubmitted', $rows[$again->id]->data['note']);
+        $this->assertSame('Nazremah Asimpin submitted a SWAP application.', $rows[$again->id]->data['message']);
+        $this->assertSame('Renewal Submitted', $rows[$renewal->id]->data['title']);
+        $this->assertSame('renewal', $rows[$renewal->id]->data['kind']);
+        $this->assertSame('Norhaya Dimaporo requested renewal for 2nd Semester 2026-2027.', $rows[$renewal->id]->data['message']);
+        $this->assertNull($rows[$renewal->id]->data['note']);
+    }
+
     public function test_user_fetches_their_notifications(): void
     {
         $user = $this->makeUser('recipient');
