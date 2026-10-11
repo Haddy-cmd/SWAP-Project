@@ -37,23 +37,45 @@ class AuthTest extends TestCase
         ], $overrides);
     }
 
-    public function test_register_requires_email_verification(): void
+    /** The code emailed to a sign-up (no account yet, so it goes to the plain address). */
+    private function signUpCode(string $email): string
+    {
+        $code = null;
+        Notification::assertSentOnDemand(\App\Notifications\OneTimeCodeNotification::class,
+            function ($n, $channels, $notifiable) use ($email, &$code) {
+                if (($notifiable->routes['mail'] ?? null) === $email) {
+                    $code = $n->code;
+                }
+
+                return ($notifiable->routes['mail'] ?? null) === $email;
+            });
+
+        return $code;
+    }
+
+    private function confirmSignUp(string $email): \Illuminate\Testing\TestResponse
+    {
+        return $this->postJson('/api/auth/register/verify', ['email' => $email, 'code' => $this->signUpCode($email)]);
+    }
+
+    public function test_register_holds_the_form_until_the_code_is_confirmed(): void
     {
         Notification::fake();
 
-        $res = $this->postJson('/api/auth/register', $this->validRegisterPayload());
+        // No account (and no token) until the emailed code is entered.
+        $this->postJson('/api/auth/register', $this->validRegisterPayload())->assertStatus(202)
+            ->assertJsonPath('pending', true)->assertJsonMissingPath('token');
+        $this->assertNull(User::where('email', 'juan@s.msumain.edu.ph')->first());
+        $this->assertDatabaseMissing('student_profiles', ['student_id_number' => '202400999']);
 
-        // No token/auto-login — the applicant must verify their email first.
-        $res->assertStatus(201)->assertJsonPath('verification_required', true);
-        $res->assertJsonMissing(['token' => true]);
-
-        $user = User::where('email', 'juan@s.msumain.edu.ph')->first();
-        $this->assertNotNull($user);
-        $this->assertFalse($user->hasVerifiedEmail());
-        // Unverified accounts start inactive so they don't show as active applicants.
-        $this->assertFalse((bool) $user->is_active);
-        // A 6-digit code by email (OneTimeCodeTest covers entering it).
-        Notification::assertSentTo($user, \App\Notifications\OneTimeCodeNotification::class);
+        // The code creates the account, verified and active, and signs it in.
+        $res = $this->confirmSignUp('juan@s.msumain.edu.ph')->assertCreated()->assertJsonStructure(['data' => ['id', 'role'], 'token']);
+        $user = User::where('email', 'juan@s.msumain.edu.ph')->firstOrFail();
+        $this->assertTrue($user->hasVerifiedEmail());
+        $this->assertTrue((bool) $user->is_active);
+        $this->assertSame('applicant', $res->json('data.role'));
+        $this->withToken($res->json('token'))->getJson('/api/profile')->assertOk();
+        $this->assertDatabaseCount('pending_registrations', 0);
     }
 
     public function test_names_are_capitalised_and_the_full_name_is_built_from_them(): void
@@ -64,7 +86,8 @@ class AuthTest extends TestCase
         $this->postJson('/api/auth/register', $this->validRegisterPayload([
             'first_name' => 'NORHADI', 'middle_name' => 'andres', 'last_name' => 'NORODIN',
             'name' => 'Someone Else Entirely',
-        ]))->assertStatus(201);
+        ]))->assertStatus(202);
+        $this->confirmSignUp('juan@s.msumain.edu.ph')->assertCreated();
 
         $user = User::where('email', 'juan@s.msumain.edu.ph')->firstOrFail();
         $this->assertSame('Norhadi A. Norodin', $user->name);
@@ -87,18 +110,18 @@ class AuthTest extends TestCase
         $this->postJson('/api/auth/register', $this->validRegisterPayload([
             'email' => 'eng@s.msumain.edu.ph', 'student_id_number' => '202400005',
             'college' => 'CoE', 'program' => 'BS Civil Engineering', 'year_level' => 5,
-        ]))->assertStatus(201);
+        ]))->assertStatus(202);
 
         $this->postJson('/api/auth/register', $this->validRegisterPayload([
             'email' => 'acc@s.msumain.edu.ph', 'student_id_number' => '202400006',
             'college' => 'CBAA', 'program' => 'BS Accountancy', 'year_level' => 5,
-        ]))->assertStatus(201);
+        ]))->assertStatus(202);
 
         // Every College of Engineering program, e.g. the ones whose names don't start with the discipline.
         $this->postJson('/api/auth/register', $this->validRegisterPayload([
             'email' => 'abe@s.msumain.edu.ph', 'student_id_number' => '202400008',
             'college' => 'CoE', 'program' => 'BS Agricultural and Biosystems Engineering', 'year_level' => 5,
-        ]))->assertStatus(201);
+        ]))->assertStatus(202);
     }
 
     public function test_fifth_year_is_rejected_for_four_year_programs(): void

@@ -167,6 +167,10 @@ class RegisterRequest extends FormRequest
             'middle_name.regex' => $nameMessage,
             'last_name.regex' => $nameMessage,
             'name.regex' => $nameMessage,
+            'year_level.required' => 'Select your year level.',
+            'year_level.integer' => 'Select your year level.',
+            'year_level.min' => 'Select your year level.',
+            'year_level.max' => 'Select your year level.',
             'college.in' => Colleges::MSG_COLLEGE,
             'program.in' => Colleges::MSG_PROGRAM,
         ] + PasswordPolicy::messages();

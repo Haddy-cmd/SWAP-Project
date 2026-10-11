@@ -51,14 +51,11 @@ class OneTimeCodeTest extends TestCase
         return str_pad((string) (((int) $code + 1) % 1000000), 6, '0', STR_PAD_LEFT);
     }
 
-    public function test_registration_is_verified_with_the_emailed_code(): void
+    /** Accounts made before sign-up waited for the code: still verified on /verify-email. */
+    public function test_an_old_unverified_account_is_verified_with_the_emailed_code(): void
     {
-        Setting::put('applications_open', '1');
-        $this->postJson('/api/auth/register', [
-            'email' => 'amina@s.msumain.edu.ph', 'password' => 'Password@123', 'password_confirmation' => 'Password@123',
-            'student_id_number' => '202400111', 'first_name' => 'Amina', 'last_name' => 'Alonto',
-            'college' => 'CICS', 'program' => 'BS Computer Science', 'year_level' => 2,
-        ])->assertCreated();
+        $user = $this->makeUser('applicant', ['email' => 'amina@s.msumain.edu.ph', 'email_verified_at' => null, 'is_active' => false]);
+        $this->postJson('/api/auth/resend-verification', ['email' => $user->email])->assertOk();
         $user = User::where('email', 'amina@s.msumain.edu.ph')->firstOrFail();
         $code = $this->lastCode($user, OneTimeCode::VERIFY_EMAIL);
         $this->assertMatchesRegularExpression('/^\d{6}$/', $code);

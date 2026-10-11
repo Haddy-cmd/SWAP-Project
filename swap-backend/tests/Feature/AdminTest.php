@@ -214,7 +214,7 @@ class AdminTest extends TestCase
         $this->assertNull(app(QrCodeService::class)->validate($oldToken));
     }
 
-    public function test_admin_deletes_user_cascades_relations_and_releases_email(): void
+    public function test_admin_deletes_user_keeps_records_closes_open_ones_and_releases_email(): void
     {
         $applicant = $this->makeUser('applicant');
         $application = $this->application($applicant);
@@ -226,6 +226,7 @@ class AdminTest extends TestCase
 
         $this->assertSoftDeleted('users', ['id' => $applicant->id]);
         $this->assertDatabaseMissing('users', ['email' => $email]);
-        $this->assertDatabaseMissing('applications', ['id' => $application->id]);
+        // Kept for past terms' reports; an open application is closed instead of left in the queue.
+        $this->assertDatabaseHas('applications', ['id' => $application->id, 'status' => 'rejected', 'remarks' => 'Account deleted by the DSA.']);
     }
 }

@@ -9,7 +9,8 @@ use Illuminate\Notifications\Notification;
 /** A 6-digit code by email (through the configured mailer, e.g. Brevo). Sent right away, never queued. */
 class OneTimeCodeNotification extends Notification
 {
-    public function __construct(public readonly string $code, public readonly string $purpose, private readonly int $minutes) {}
+    /** $name: for a sign-up that has no account yet (sent to a plain email address). */
+    public function __construct(public readonly string $code, public readonly string $purpose, private readonly int $minutes, private readonly ?string $name = null) {}
 
     public function via(object $notifiable): array
     {
@@ -30,7 +31,7 @@ class OneTimeCodeNotification extends Notification
 
         return (new MailMessage())
             ->subject($subject)
-            ->greeting("Hello {$notifiable->name},")
+            ->greeting("Hello " . ($this->name ?? $notifiable->name ?? "there") . ",")
             ->line($intro)
             ->line(new \Illuminate\Support\HtmlString(
                 '<p style="font-size:30px;font-weight:700;letter-spacing:6px;text-align:center;margin:18px 0;color:#0B5234;">' . e($spaced) . '</p>'))

@@ -17,7 +17,14 @@ export const authApi = {
   resendLoginCode: (challenge: string) =>
     apiClient.post<{ message: string }>('/auth/login/resend', { challenge }).then((r) => r.data),
 
-  // Registration: the 6-digit code emailed to the applicant.
+  // Sign-up step two: the right code creates the account and signs it in.
+  confirmRegistration: (email: string, code: string) =>
+    apiClient.post<AuthResponse>('/auth/register/verify', { email, code }).then((r) => r.data),
+
+  resendRegistrationCode: (email: string) =>
+    apiClient.post<{ message: string }>('/auth/register/resend', { email }).then((r) => r.data),
+
+  // Accounts made before sign-up waited for the code: verify by code (then sign in).
   verifyEmailCode: (email: string, code: string) =>
     apiClient.post<{ verified: boolean; message: string }>('/auth/verify-email', { email, code }).then((r) => r.data),
 

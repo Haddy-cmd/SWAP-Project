@@ -7,6 +7,7 @@
 %%     (reviewed_by, verified_by, released_by, certified_by, created_by, ...) are marked FK
 %%     with a "-> users" comment but are not drawn, to keep the diagram readable.
 %%   - Laravel infrastructure tables (jobs, job_batches, failed_jobs, cache, cache_locks) are omitted.
+%%   - System-testing tables (testing_changes, testing_snapshots) and the users.testing_* columns are omitted.
 
 erDiagram
 
@@ -20,9 +21,6 @@ erDiagram
         enum role "applicant | recipient | supervisor | admin"
         boolean is_active
         boolean require_clock_in_selfie
-        boolean is_test_account
-        timestamp testing_added_at
-        boolean testing_email_muted
         bigint office_id FK "nullable"
         string avatar_path
         string signature_image_path
@@ -475,7 +473,7 @@ erDiagram
         timestamp updated_at
     }
 
-    %% ---------- Auditing & system testing ----------
+    %% ---------- Auditing ----------
     audit_logs {
         bigint id PK
         bigint user_id FK "actor, nullable"
@@ -487,27 +485,6 @@ erDiagram
         json new_values
         string ip_address
         string user_agent
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    testing_changes {
-        bigint id PK
-        bigint user_id FK
-        string subject_type
-        bigint subject_id
-        string action "created | updated"
-        json old_values
-        bigint created_by FK "-> users"
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    testing_snapshots {
-        bigint id PK
-        bigint user_id FK "unique"
-        timestamp taken_at
-        json data
         timestamp created_at
         timestamp updated_at
     }
@@ -601,7 +578,5 @@ erDiagram
     users |o--o{ announcements : "sends"
     announcements ||--o{ announcement_attachments : "includes"
 
-    %% Auditing & system testing
+    %% Auditing
     users |o--o{ audit_logs : "performs"
-    users ||--o{ testing_changes : "tracked in"
-    users ||--o| testing_snapshots : "snapshotted in"

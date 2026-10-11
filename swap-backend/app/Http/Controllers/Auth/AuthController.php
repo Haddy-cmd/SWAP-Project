@@ -10,6 +10,7 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Services\OneTimeCodeService;
+use App\Services\RegistrationService;
 use App\Resources\UserResource;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +27,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly OneTimeCodeService $codes,
+        private readonly RegistrationService $registrations,
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
@@ -38,59 +40,42 @@ class AuthController extends Controller
             ], 403);
         }
 
-        // Created inactive/unverified — the account is only activated once the
-        // applicant clicks the email verification link (so an unconfirmed signup
-        // never shows as an active applicant to the admins).
-        //
-        // User and profile go in one transaction: a half-written signup used to
-        // leave a committed user row behind, and the applicant's retry then hit
-        // "email has already been taken" against their own failed attempt.
-        $user = DB::transaction(function () use ($request) {
-            $user = $this->userRepository->create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => $request->password,
-                'role' => 'applicant',
-                'is_active' => false,
-            ]);
-
-            $user->profile()->create([
-                'student_id_number' => $request->student_id_number,
-                'first_name' => $request->first_name,
-                'middle_name' => $request->middle_name,
-                'last_name' => $request->last_name,
-                'contact_number' => $request->contact_number,
-                'college' => $request->college,
-                'program' => $request->program,
-                'year_level' => $request->year_level,
-            ]);
-
-            return $user;
-        });
-
-        // Prove the applicant owns the email before they can sign in: send a
-        // verification link and withhold sign-in (no token) until they confirm.
-        // A mail outage must not fail the request — the account is already valid
-        // and the applicant can use "Resend verification email".
-        $verificationSent = true;
-
-        try {
-            $this->codes->issue($user, OneTimeCode::VERIFY_EMAIL);
-        } catch (\Throwable $e) {
-            $verificationSent = false;
-            Log::error('Verification email failed to send', [
-                'user_id' => $user->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // Nothing is created yet: the form is held and a code is emailed. The account only
+        // exists once the code is confirmed (registerVerify), and then it's signed in.
+        $pending = $this->registrations->start($request->validated());
 
         return response()->json([
-            'message' => $verificationSent
-                ? 'Registration successful. We sent a 6-digit code to your email: enter it to verify your account.'
-                : 'Account created, but the verification code could not be sent. Use "Send a new code" below.',
-            'verification_required' => true,
-            'verification_email_sent' => $verificationSent,
+            'pending' => true,
+            'email' => $pending->email,
+            'message' => RegistrationService::MSG_SENT,
+        ], 202);
+    }
+
+    /** Step two of sign-up: the right code creates the account and signs it in (no sign-in code). */
+    public function registerVerify(Request $request): JsonResponse
+    {
+        $request->validate(['email' => ['required', 'email'], 'code' => ['required', 'string', 'max:12']]);
+        $user = $this->registrations->confirm((string) $request->email, (string) $request->code);
+        $token = $user->createToken('auth_token', $request)->plainTextToken;
+
+        return response()->json([
+            'data' => new UserResource($user->load('profile')),
+            'token' => $token,
+            'message' => 'Welcome to SWAP! Your account is ready.',
         ], 201);
+    }
+
+    /** A new sign-up code (once a minute) while the form is still held. */
+    public function registerResend(Request $request): JsonResponse
+    {
+        $request->validate(['email' => ['required', 'email']]);
+        $pending = $this->registrations->find((string) $request->email);
+        if (!$pending) {
+            throw ValidationException::withMessages(['code' => [RegistrationService::MSG_GONE]]);
+        }
+        $this->registrations->sendCode($pending);
+
+        return response()->json(['message' => 'We sent a new code.']);
     }
 
     public function login(LoginRequest $request): JsonResponse

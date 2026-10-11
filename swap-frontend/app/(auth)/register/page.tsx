@@ -77,7 +77,8 @@ const schema = z
     contact_number: z.string().optional(),
     college: z.string().min(1, 'College is required'),
     program: z.string().min(1, 'Program is required'),
-    year_level: z.coerce.number().min(1).max(5),
+    // An unpicked select is '' (coerced to 0): say what to do, not the number rule.
+    year_level: z.coerce.number({ invalid_type_error: 'Select your year level.' }).min(1, 'Select your year level.').max(5, 'Select your year level.'),
   })
   .refine((d) => d.password === d.password_confirmation, {
     message: 'Passwords do not match',
@@ -220,8 +221,8 @@ export default function RegisterPage() {
         email: data.email.trim().toLowerCase(),
       }),
     onSuccess: () => {
-      // No auto-login — the applicant must verify their email first.
-      setVerifyEmail(watch('email'))
+      // Nothing is created yet: the emailed code creates the account and signs them in.
+      setVerifyEmail(watch('email').trim().toLowerCase())
     },
     onError: (err: ApiError) => {
       if (err.errors) {
@@ -256,7 +257,7 @@ export default function RegisterPage() {
         <div className="w-full max-w-md rounded-[18px] bg-surface p-6 shadow-[0_24px_60px_rgba(19,36,26,0.20)] sm:p-8">
           <Image src="/dsa-logo.png" alt="DSA Logo" width={64} height={64} className="mx-auto" priority />
           <div className="mt-5">
-            <VerifyEmailCode email={verifyEmail} justSent />
+            <VerifyEmailCode email={verifyEmail} justSent mode="register" onRestart={() => { setVerifyEmail(null); setStep(1) }} />
           </div>
         </div>
       </div>

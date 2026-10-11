@@ -51,19 +51,24 @@ use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
 
 // ─── PUBLIC ───────────────────────────────────────────────────────────────────
-// Throttle sensitive auth endpoints to deter brute-force and email-flooding.
-Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
-Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1');
+// Throttle sensitive auth endpoints to deter brute-force and email-flooding. Each has its own
+// counter (the third throttle argument): plain throttle:x,y shares one per-IP count across routes,
+// so e.g. two wrong codes then "Send a new code" would trip the resend limit.
+Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:5,1,register');
+// Sign-up step two: the emailed code creates the account and signs it in (RegistrationService).
+Route::post('/auth/register/verify', [AuthController::class, 'registerVerify'])->middleware('throttle:10,1,register-verify');
+Route::post('/auth/register/resend', [AuthController::class, 'registerResend'])->middleware('throttle:3,1,register-resend');
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:6,1,login');
 // Sign-in step two: the emailed 6-digit code (OneTimeCodeService).
-Route::post('/auth/login/verify', [AuthController::class, 'verifyLogin'])->middleware('throttle:10,1');
-Route::post('/auth/login/resend', [AuthController::class, 'resendLogin'])->middleware('throttle:3,1');
-Route::post('/auth/verify-email', [EmailVerificationController::class, 'verifyCode'])->middleware('throttle:10,1');
-Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPassword'])->middleware('throttle:3,1');
-Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:6,1');
+Route::post('/auth/login/verify', [AuthController::class, 'verifyLogin'])->middleware('throttle:10,1,login-verify');
+Route::post('/auth/login/resend', [AuthController::class, 'resendLogin'])->middleware('throttle:3,1,login-resend');
+Route::post('/auth/verify-email', [EmailVerificationController::class, 'verifyCode'])->middleware('throttle:10,1,verify-email');
+Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgotPassword'])->middleware('throttle:3,1,forgot-password');
+Route::post('/auth/reset-password', [PasswordResetController::class, 'resetPassword'])->middleware('throttle:6,1,reset-password');
 // Email verification — the signed link in the verification email lands here.
 Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
     ->middleware('signed')->name('verification.verify');
-Route::post('/auth/resend-verification', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1');
+Route::post('/auth/resend-verification', [EmailVerificationController::class, 'resend'])->middleware('throttle:3,1,resend-verification');
 // Public and backed by a paid LLM when GEMINI_API_KEY is set — rate-limit it.
 Route::get('/chatbot/query', [ChatbotController::class, 'query'])->middleware('throttle:20,1');
 Route::get('/settings/application-status', [SettingController::class, 'applicationStatus']);
@@ -208,6 +213,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/invitations', [InvitationController::class, 'store']);
+        Route::post('/users/bulk-deactivate', [UserController::class, 'bulkDeactivate']);
         Route::put('/users/{id}', [UserController::class, 'update']);
         Route::delete('/users/{id}', [UserController::class, 'destroy']);
 

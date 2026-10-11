@@ -47,8 +47,9 @@ class CollegeListTest extends TestCase
 
     public function test_registration_takes_only_listed_colleges_and_their_programs(): void
     {
-        $this->register(['college' => 'COA', 'program' => 'BSA Horticulture'])->assertCreated();
-        $this->assertDatabaseHas('student_profiles', ['college' => 'COA', 'program' => 'BSA Horticulture']);
+        // Accepted: held until the emailed code confirms it (AuthTest covers that step).
+        $this->register(['college' => 'COA', 'program' => 'BSA Horticulture'])->assertStatus(202);
+        $this->assertDatabaseCount('pending_registrations', 1);
 
         $this->register(['college' => 'CSST', 'program' => 'BSCS'])->assertStatus(422)
             ->assertJsonPath('errors.college.0', Colleges::MSG_COLLEGE);

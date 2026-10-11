@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\User;
+use App\Services\OneTimeCodeService;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +21,8 @@ class UserController extends Controller
     public function index(Request $request): JsonResponse
     {
         $users = $this->userRepository->paginate(
-            $request->only(['role', 'is_active', 'search'])
+            $request->only(['role', 'is_active', 'search', 'sort', 'unverified']),
+            min(50, max(1, (int) $request->query('per_page', 15)))
         );
 
         return response()->json([
@@ -60,8 +63,7 @@ class UserController extends Controller
         // Deactivation ends every open session now, not whenever the token expires.
         $new = $updated->only(['role', 'is_active']);
         if ($old['is_active'] && !$updated->is_active) {
-            $new['tokens_revoked'] = $updated->tokens()->delete();
-            \App\Services\OneTimeCodeService::forgetDevices($updated);
+            $new['tokens_revoked'] = $this->signOutEverywhere($updated);
         }
 
         AuditLog::record('updated', $updated, $old, $new);
@@ -69,6 +71,41 @@ class UserController extends Controller
         return response()->json([
             'data' => new UserResource($updated),
             'message' => 'User updated.',
+        ]);
+    }
+
+    /** Sessions and trusted browsers end now; returns how many sessions were ended. */
+    private function signOutEverywhere(User $user): int
+    {
+        $revoked = $user->tokens()->delete();
+        OneTimeCodeService::forgetDevices($user);
+
+        return $revoked;
+    }
+
+    /**
+     * Users → select several → Deactivate. Admins and the caller are skipped (as on the single
+     * path, admin accounts can't be deactivated); each one is audited like a single deactivation.
+     */
+    public function bulkDeactivate(Request $request): JsonResponse
+    {
+        $data = $request->validate(['ids' => ['required', 'array', 'min:1', 'max:100'], 'ids.*' => ['integer']]);
+        $ids = array_values(array_unique($data['ids']));
+
+        $done = 0;
+        foreach (User::whereIn('id', $ids)->get() as $user) {
+            if ($user->role === 'admin' || $user->id === $request->user()->id || !$user->is_active) {
+                continue;
+            }
+            $user->forceFill(['is_active' => false])->save();
+            $revoked = $this->signOutEverywhere($user);
+            AuditLog::record('updated', $user, ['is_active' => true], ['is_active' => false, 'tokens_revoked' => $revoked]);
+            $done++;
+        }
+
+        return response()->json([
+            'data' => ['deactivated' => $done, 'skipped' => count($ids) - $done],
+            'message' => $done === 1 ? '1 account deactivated.' : "{$done} accounts deactivated.",
         ]);
     }
 

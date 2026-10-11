@@ -17,6 +17,10 @@ export const adminApi = {
   deleteUser: (id: number) =>
     apiClient.delete(`/admin/users/${id}`).then((r) => r.data),
 
+  // Users → select several → Deactivate (admins and yourself are skipped by the API).
+  bulkDeactivate: (ids: number[]) =>
+    apiClient.post<{ data: { deactivated: number; skipped: number }; message: string }>('/admin/users/bulk-deactivate', { ids }).then((r) => r.data),
+
   // meta.summary = the History cards and chip counts (not narrowed by the status filter).
   getStipendRecords: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<StipendRecord> & { meta: { summary?: StipendHistorySummary } }>('/admin/stipend', { params }).then((r) => r.data),

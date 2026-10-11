@@ -492,6 +492,13 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### Admin → Users v2 (2026-10-11)
+- Role tabs, search, status (incl. Not verified), sort (`GET /admin/users?sort=new|old|az&unverified=1&per_page`), 30 per page,
+  multi-select + `POST /admin/users/bulk-deactivate` (skips admins and yourself), a person panel (facts, history, deactivate /
+  reactivate, delete), and the invite modal (`components/admin/users/*`).
+- Delete now keeps records: the account is soft-deleted (email and student ID freed) and only open items are closed (active
+  placement → completed, open application → rejected "Account deleted by the DSA."); nothing is erased.
+
 ### Notifications v2 (2026-10-11)
 - One page for every role (`components/notifications/NotificationList.tsx`): kind chips shown only when present
   (`lib/utils/notificationKind.ts` maps `data.type` → Applications / Renewals / Hours / Reports & notes / Stipend / Concerns /
@@ -503,7 +510,10 @@ All comparisons in **Asia/Manila**.
 - One mailer for everything: the Brevo transport (`MAIL_MAILER=brevo`) also carries the 6-digit codes
   (`OneTimeCodeNotification`, sent immediately, never muted by System Testing).
 - `OneTimeCodeService` (table `one_time_codes`, HMAC only): 10 minutes, 5 tries, one new code a minute while one is unused.
-  Purposes: `verify_email` (registration; `POST /auth/verify-email`; old signed links still work), `login`
+  Sign-up (`RegistrationService`, table `pending_registrations`, encrypted, held 30 min): `POST /auth/register` only holds the
+  form and emails a code; `POST /auth/register/verify` creates the verified, active account and returns a token (signed in);
+  `/auth/register/resend`. Auth routes each have their own throttle counter (`throttle:x,y,name`).
+  Purposes: `verify_email` (older unverified accounts; `POST /auth/verify-email`; old signed links still work), `login`
   (`POST /auth/login` → `{otp_required, challenge, email_hint}` → `POST /auth/login/verify` / `/auth/login/resend`),
   `password_reset` (`POST /auth/forgot-password` says when there's no active account — user's choice over hiding it; throttled
   3/min → `POST /auth/reset-password {email, code, …}`).

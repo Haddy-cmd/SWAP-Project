@@ -91,7 +91,9 @@ export const isLoginChallenge = (r: AuthResponse | LoginChallenge): r is LoginCh
 // Registration no longer auto-logs in — it asks the user to verify their email.
 export interface RegisterResponse {
   message: string
-  verification_required?: boolean
+  /** The form is held (30 minutes) until the emailed code is confirmed; no account exists yet. */
+  pending?: boolean
+  email?: string
 }
 
 /** Profile → Security: one live login of this account. */
