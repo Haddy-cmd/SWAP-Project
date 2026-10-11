@@ -372,7 +372,7 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
   const leaveRef = useRef(leave)
   leaveRef.current = leave
   useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') leaveRef.current(onClose) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) leaveRef.current(onClose) }
     window.addEventListener('keydown', esc)
     return () => window.removeEventListener('keydown', esc)
   }, [onClose])
@@ -499,6 +499,7 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
               radius={form.radius_meters ?? 50}
               onChange={(la, ln) => set({ latitude: la, longitude: ln })}
               onRadiusChange={(r) => set({ radius_meters: r, geofence_enabled: true })}
+              height={420}
             />
           </div>
 

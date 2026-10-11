@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from 'react-leaflet'
+import { useEffect, useRef, useState } from 'react'
+import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet'
+import { MapPin, Search, X } from 'lucide-react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -22,7 +23,21 @@ interface OfficeMapPickerProps {
   radius: number
   onChange: (lat: number, lng: number, radius: number) => void
   onRadiusChange: (radius: number) => void
+  /** Map height in px (default 320). */
+  height?: number
 }
+
+/** Flies the map to a searched place. */
+function FlyTo({ to }: { to: [number, number] | null }) {
+  const map = useMap()
+  useEffect(() => { if (to) map.flyTo(to, 18, { duration: 0.8 }) }, [to, map])
+  return null
+}
+
+type Place = { lat: string; lon: string; name?: string; display_name: string }
+
+// Around MSU Marawi, so campus results rank first (lon/lat: west, north, east, south).
+const VIEWBOX = '124.24,8.03,124.33,7.96'
 
 function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({
@@ -37,22 +52,97 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }
  * Office location + geofence radius. A click on the map doesn't move the office straight
  * away: it shows a faded pin and asks first (Move / Keep current, Escape cancels).
  */
-export default function OfficeMapPicker({ latitude, longitude, radius, onChange, onRadiusChange }: OfficeMapPickerProps) {
+export default function OfficeMapPicker({ latitude, longitude, radius, onChange, onRadiusChange, height = 320 }: OfficeMapPickerProps) {
   const hasPos = latitude != null && longitude != null
   const center: [number, number] = hasPos ? [latitude as number, longitude as number] : DEFAULT_CENTER
   const [pending, setPending] = useState<[number, number] | null>(null)
+  const [fly, setFly] = useState<[number, number] | null>(null)
+
+  // Place search (OpenStreetMap Nominatim): only on Enter / the button, never per keystroke.
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<Place[] | null>(null)
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const abort = useRef<AbortController | null>(null)
+
+  const search = async () => {
+    const term = q.trim()
+    if (!term) return
+    abort.current?.abort()
+    const ctrl = new AbortController()
+    abort.current = ctrl
+    setSearching(true); setSearchError(null)
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=ph&viewbox=${VIEWBOX}&bounded=0&q=${encodeURIComponent(term)}`
+      const res = await fetch(url, { signal: ctrl.signal, headers: { 'Accept-Language': 'en' } })
+      if (!res.ok) throw new Error(String(res.status))
+      const found = (await res.json()) as Place[]
+      setResults(found)
+      if (!found.length) setSearchError('No places found. Try a nearby landmark or click the map.')
+    } catch (e) {
+      if ((e as Error).name !== 'AbortError') { setResults(null); setSearchError("Search isn't available right now. Click the map instead.") }
+    } finally {
+      if (abort.current === ctrl) setSearching(false)
+    }
+  }
+
+  const choose = (p: Place) => {
+    const at: [number, number] = [Number(p.lat), Number(p.lon)]
+    setFly(at); setPending(at); setResults(null); setSearchError(null)
+  }
 
   useEffect(() => {
-    if (!pending) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPending(null) }
+    if (!pending && !results) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); setPending(null); setResults(null) } }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [pending])
+  }, [pending, results])
 
   return (
     <div className="space-y-3">
+      <div className="relative">
+        <div className="flex gap-2">
+          <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-ink-300 bg-surface px-3 focus-within:border-brand-700">
+            <Search className="h-4 w-4 flex-none text-ink-400" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search a place, e.g. CICS Building, MSU Marawi"
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); search() } }} aria-label="Search a place"
+              className="min-w-0 flex-1 border-none bg-transparent text-sm text-ink-900 placeholder:text-ink-350 focus:outline-none" />
+            {(q || results) && (
+              <button type="button" aria-label="Clear search" onClick={() => { setQ(''); setResults(null); setSearchError(null) }} className="text-ink-400 hover:text-ink-700">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <button type="button" onClick={search} disabled={searching || !q.trim()}
+            className="h-10 flex-none rounded-xl bg-brand-700 px-3.5 text-xs font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
+            {searching ? 'Searching…' : 'Search'}
+          </button>
+        </div>
+        {results && results.length > 0 && (
+          <ul role="listbox" aria-label="Places found"
+            className="absolute inset-x-0 top-12 z-[1100] max-h-60 overflow-y-auto rounded-xl border border-ink-200 bg-surface p-1 shadow-lg">
+            {results.map((p, i) => {
+              const [first, ...rest] = p.display_name.split(', ')
+              return (
+                <li key={`${p.lat},${p.lon},${i}`}>
+                  <button type="button" onClick={() => choose(p)} className="flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-ink-50">
+                    <MapPin className="mt-0.5 h-4 w-4 flex-none text-brand-700" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-ink-900">{p.name || first}</span>
+                      <span className="block truncate text-xs text-ink-500">{rest.slice(0, 3).join(', ')}</span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+        {searchError && <p className="mt-1.5 text-xs text-warning-700">{searchError}</p>}
+      </div>
+
       <div className="relative overflow-hidden rounded-xl border border-ink-300">
-        <MapContainer center={center} zoom={hasPos ? 17 : 15} style={{ height: 320, width: '100%' }} scrollWheelZoom>
+        <MapContainer center={center} zoom={hasPos ? 17 : 15} style={{ height, width: '100%' }} scrollWheelZoom>
+          <FlyTo to={fly} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
