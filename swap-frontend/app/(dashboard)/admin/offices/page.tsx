@@ -368,6 +368,15 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
     go()
   }
 
+  // Escape closes, with the same "Discard changes?" check as the backdrop and the X.
+  const leaveRef = useRef(leave)
+  leaveRef.current = leave
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') leaveRef.current(onClose) }
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onClose])
+
   const save = async () => {
     if (!(form.name ?? '').trim()) { notify({ tone: 'error', title: 'Give the office a name', detail: null }); setMore(true); return }
     setSaving(true)
@@ -411,9 +420,9 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
 
   return (
     <>
-      <div onClick={() => leave(onClose)} className="fixed inset-0 z-50 bg-ink-950/30" aria-hidden />
-      <aside role="dialog" aria-modal="true" aria-label={shown.name}
-        className="fixed inset-x-0 bottom-0 z-[51] flex max-h-[94dvh] flex-col rounded-t-[20px] bg-surface pb-safe shadow-[0_-20px_50px_rgba(10,30,20,.18)] sm:inset-y-0 sm:left-auto sm:right-0 sm:max-h-none sm:w-[460px] sm:rounded-none sm:shadow-[-20px_0_50px_rgba(10,30,20,.18)]">
+      <div onClick={() => leave(onClose)} className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 sm:p-6">
+      <div role="dialog" aria-modal="true" aria-label={shown.name} onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[92dvh] w-full max-w-[880px] flex-col overflow-hidden rounded-[20px] bg-surface pb-safe shadow-[0_30px_70px_rgba(11,39,22,.35)]">
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-ink-900/[.06] py-4 pl-6 pr-5">
           <OfficeLogo office={shown} bg={draftStatus === 'off' ? 'var(--color-ink-100)' : bg} fg={draftStatus === 'off' ? 'var(--text-ink-400)' : fg} />
@@ -427,7 +436,9 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
           </button>
         </div>
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+        {/* Wide screens: setup on the left, the map in its own column. Phones: one column, map under Location. */}
+        <div className="grid flex-1 grid-cols-1 gap-5 overflow-y-auto px-6 py-5 lg:grid-cols-2 lg:gap-x-7">
+          <div className="space-y-5 lg:col-start-1">
           {isNew && (
             <label className="block">
               <span className="mb-1.5 block text-[13px] font-semibold text-ink-900">Office name</span>
@@ -476,15 +487,23 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
               <span className="flex items-center gap-2 text-[13px] font-semibold text-ink-900">{tick(steps.location)}Location</span>
               <input value={form.location ?? ''} onChange={(e) => set({ location: e.target.value })}
                 placeholder="Building and floor, e.g. Admin Bldg, 2nd floor" className={inputCls} />
-              <OfficeMapPicker
-                latitude={lat}
-                longitude={lng}
-                radius={form.radius_meters ?? 50}
-                onChange={(la, ln) => set({ latitude: la, longitude: ln })}
-                onRadiusChange={(r) => set({ radius_meters: r, geofence_enabled: true })}
-              />
-              <p className="text-[12px] text-ink-400">{steps.location ? 'Pin set. Drag or click the map to move it.' : 'Click the map to drop the office pin. Clock-in checks it.'}</p>
+              <p className="text-[12px] text-ink-400">{steps.location ? 'Pin set. Click the map to move it.' : 'Drop the office pin on the map. Clock-in checks it.'}</p>
             </div>
+          </section>
+          </div>
+
+          <div className="space-y-2 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+            <OfficeMapPicker
+              latitude={lat}
+              longitude={lng}
+              radius={form.radius_meters ?? 50}
+              onChange={(la, ln) => set({ latitude: la, longitude: ln })}
+              onRadiusChange={(r) => set({ radius_meters: r, geofence_enabled: true })}
+            />
+          </div>
+
+          <div className="space-y-5 lg:col-start-1">
+          <section className="space-y-4">
 
             {/* 3. Clock-in area */}
             <div className="space-y-2">
@@ -610,6 +629,7 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
               </div>
             )}
           </section>
+          </div>
         </div>
 
         {/* Footer */}
@@ -625,7 +645,8 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
             <Check className="h-[18px] w-[18px]" strokeWidth={2.5} /> {saving ? 'Saving…' : isNew ? 'Add office' : 'Save'}
           </button>
         </div>
-      </aside>
+      </div>
+      </div>
     </>
   )
 }
