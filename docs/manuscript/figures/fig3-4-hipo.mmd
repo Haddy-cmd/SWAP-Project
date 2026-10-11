@@ -1,0 +1,51 @@
+%%{init: {"theme": "neutral"}}%%
+%% Figure 3.4 Hierarchical Input-Process-Output (HIPO).
+%% Paste into https://mermaid.live and export PNG/SVG.
+flowchart LR
+  M["1.0 SWAP Digital Monitoring and Application System"]
+
+  M --> ACC["2.0 Accounts and Security"]
+  M --> APL["3.0 Application and Renewal"]
+  M --> DUT["4.0 Duty Monitoring (Core Operation)"]
+  M --> ETS["5.0 End of Term and Stipend"]
+  M --> ADM["6.0 Administration"]
+  M --> COM["7.0 Communication"]
+  M --> REP["8.0 Analytics and Reports"]
+
+  ACC --> ACC1["2.1 Registration with Email Code"]
+  ACC --> ACC2["2.2 Sign-in (Email Code / Trusted Browser)"]
+  ACC --> ACC3["2.3 Password Recovery"]
+  ACC --> ACC4["2.4 Staff Invitation"]
+  ACC --> ACC5["2.5 Profile and E-Signature"]
+
+  APL --> APL1["3.1 Submit Application and Upload Requirements"]
+  APL --> APL2["3.2 Review and Interview Scheduling (DSA)"]
+  APL --> APL3["3.3 Approve or Reject (DSA)"]
+  APL --> APL4["3.4 Renewal Application"]
+
+  DUT --> DUT1["4.1 Office Assignment"]
+  DUT --> DUT2["4.2 QR Clock-in + Geofence + Selfie"]
+  DUT --> DUT3["4.3 QR Clock-out + Task Description"]
+  DUT --> DUT4["4.4 Automatic Clock-out"]
+  DUT --> DUT5["4.5 Supervisor Verification (Verify/Reject Log)"]
+  DUT --> DUT6["4.6 Duty Slips"]
+
+  ETS --> ETS1["5.1 End-of-Term Report and Acceptance"]
+  ETS --> ETS2["5.2 Term Results (Qualified/Deficient)"]
+  ETS --> ETS3["5.3 Promissory Note"]
+  ETS --> ETS4["5.4 Stipend Release and Signed Stub"]
+
+  ADM --> ADM1["6.1 Manage Users"]
+  ADM --> ADM2["6.2 Manage Offices, QR and Geofence"]
+  ADM --> ADM3["6.3 Semester Periods"]
+  ADM --> ADM4["6.4 Settings"]
+  ADM --> ADM5["6.5 Audit Logs"]
+
+  COM --> COM1["7.1 Email and In-app Notifications"]
+  COM --> COM2["7.2 Announcements"]
+  COM --> COM3["7.3 Ask the DSA (Concerns)"]
+  COM --> COM4["7.4 Chatbot Inquiry"]
+
+  REP --> REP1["8.1 Dashboards"]
+  REP --> REP2["8.2 Reports (PDF/CSV)"]
+  REP --> REP3["8.3 Stipend History"]

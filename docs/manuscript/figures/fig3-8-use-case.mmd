@@ -1,0 +1,63 @@
+%%{init: {"theme": "neutral"}}%%
+%% Figure 3.8 Use Case Diagram (drawn as a flowchart: actors on the left, use cases as ovals).
+%% Title for the figure: DIGITAL MONITORING AND APPLICATION SYSTEM FOR STUDENT WELFARE ASSISTANTSHIP PROGRAM IN MSU MARAWI
+%% "All Users" stands for every signed-in role, so shared use cases are drawn once.
+%% The system boundary box is left out because it scrambles the automatic layout; draw it around the ovals if required.
+%% Paste into https://mermaid.live and export PNG/SVG.
+flowchart LR
+  APP["Student Applicant"]:::actor
+  REC["SWAP Recipient"]:::actor
+  SUP["Office Supervisor"]:::actor
+  DSA["DSA Administrator"]:::actor
+  ALL["All Users"]:::actor
+
+    UC1(["Register and Verify Email"])
+    UC4(["Inquire via Chatbot"])
+    UC5(["Submit Application"])
+    UC6(["Upload Requirements"])
+    UC7(["Track Application Status"])
+
+    UC8(["Log Service Hours"])
+    UC9(["Scan Office QR Code"])
+    UC10(["Write Task Description"])
+    UC11(["View Rendered Hours and Duty Slips"])
+    UC12(["Submit End-of-Term Report"])
+    UC13(["File Promissory Note"])
+    UC14(["Apply for Renewal"])
+    UC15(["Save E-Signature and View Stipend History"])
+    UC16(["Ask the DSA"])
+
+    UC17(["Verify / Reject Time Logs"])
+    UC18(["Accept End-of-Term Report"])
+    UC19(["Review Promissory Note"])
+    UC20(["Mark Term Deficient"])
+
+    UC21(["Manage Applications"])
+    UC22(["Schedule Interview"])
+    UC23(["Manage Offices and QR Codes"])
+    UC24(["Assign Recipient to Office"])
+    UC25(["Manage Semester Periods"])
+    UC26(["Release Stipend"])
+    UC27(["Post Announcements"])
+    UC28(["Manage Users"])
+    UC30(["View Audit Log"])
+
+    UC2(["Sign In / Sign Out"])
+    UC3(["View Dashboard and Notifications"])
+    UC29(["View Reports and Analytics"])
+
+  APP --- UC1 & UC4 & UC5 & UC7
+  UC5 -. "include" .-> UC6
+
+  REC --- UC8 & UC11 & UC12 & UC13 & UC14 & UC15 & UC16
+  UC8 -. "include" .-> UC9
+  UC8 -. "include" .-> UC10
+
+  SUP --- UC17 & UC18 & UC19 & UC20
+
+  DSA --- UC21 & UC23 & UC24 & UC25 & UC26 & UC27 & UC28 & UC30
+  UC21 -. "include" .-> UC22
+
+  ALL --- UC2 & UC3 & UC29
+
+  classDef actor fill:#ffffff,stroke:#333,stroke-width:2px,font-weight:bold

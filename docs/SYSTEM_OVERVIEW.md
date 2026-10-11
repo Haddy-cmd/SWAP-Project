@@ -492,6 +492,12 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### College and campus offices (2026-10-11)
+- Migration `2026_10_11_000005_add_college_and_campus_offices` adds 18 host offices by name only (the 15 colleges of
+  `config/colleges.php`, Office of the Vice Chancellor for Academic Affairs, Office of Admission, Scholarship Center):
+  capacity 50, active, no map pin. Existing names (case-insensitive) are skipped, so live edits are never overwritten.
+  Head, location, pin and capacity are set on Admin → Offices; clock-in is refused until the pin is set.
+
 ### Admin → Stipend filters (2026-10-11)
 - One filter bar for both tabs: Term (`meta.terms` from `StipendService::terms()`: terms with a stub or a payable placement,
   newest first), College, Promissory only, and search. History adds Sort (`sort=new|old|amount|name`); its cards and chip

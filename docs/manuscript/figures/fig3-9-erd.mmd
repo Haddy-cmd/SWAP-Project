@@ -1,0 +1,168 @@
+%%{init: {"theme": "neutral"}}%%
+%% Figure 3.9 Entity-Relationship Diagram (core entities; from the system's migrations).
+%% The full schema with every table and column is docs/database-erd.mmd (use it for the appendix).
+%% Paste into https://mermaid.live and export PNG/SVG.
+erDiagram
+    users {
+        bigint id PK
+        string name
+        string email UK
+        string password
+        enum role "applicant, recipient, supervisor, admin"
+        boolean is_active
+        boolean require_clock_in_selfie
+        string signature_image_path
+        string position_title
+    }
+    student_profiles {
+        bigint id PK
+        bigint user_id FK
+        string student_id_number UK
+        string first_name
+        string last_name
+        string college
+        string program
+        smallint year_level
+    }
+    applications {
+        bigint id PK
+        bigint user_id FK
+        string type "new, renewal"
+        string academic_year
+        string semester
+        enum status "submitted ... approved, rejected"
+        bigint reviewed_by FK
+    }
+    application_documents {
+        bigint id PK
+        bigint application_id FK
+        string document_type
+        string file_path
+    }
+    interviews {
+        bigint id PK
+        bigint application_id FK
+        timestamp scheduled_at
+        string mode "in_person, online"
+        string status
+    }
+    offices {
+        bigint id PK
+        string name
+        decimal latitude
+        decimal longitude
+        smallint radius_meters
+        string qr_secret
+        smallint max_recipients
+        boolean auto_clock_out
+    }
+    semester_periods {
+        bigint id PK
+        string academic_year
+        string semester
+        date start_date
+        date end_date
+        boolean renewal_open
+    }
+    assignments {
+        bigint id PK
+        bigint user_id FK "recipient"
+        bigint office_id FK
+        bigint supervisor_id FK
+        string academic_year
+        string semester
+        smallint required_hours
+        string status
+        string term_status "qualified, deficient"
+        decimal deficient_hours
+    }
+    time_logs {
+        bigint id PK
+        bigint assignment_id FK
+        bigint user_id FK
+        timestamp time_in
+        timestamp time_out
+        decimal time_in_lat
+        decimal time_in_lng
+        decimal time_in_accuracy
+        string time_in_photo_path
+        decimal duration_hours
+        enum status "open, pending_verification, verified, rejected"
+        boolean location_flagged
+    }
+    narrative_reports {
+        bigint id PK
+        bigint time_log_id FK
+        text content "Task Description"
+        text activities_done
+        text challenges
+    }
+    verifications {
+        bigint id PK
+        bigint time_log_id FK
+        bigint verified_by FK
+        string action "verified, rejected"
+        text feedback
+    }
+    term_reports {
+        bigint id PK
+        bigint assignment_id FK
+        text content
+        string file_path "PDF or Word"
+        timestamp submitted_at
+        boolean renewal_eligible
+        bigint reviewed_by FK
+    }
+    promissory_notes {
+        bigint id PK
+        bigint assignment_id FK
+        decimal lacking_hours
+        string file_path
+        string status "pending, approved, rejected"
+        bigint reviewed_by FK
+    }
+    stipend_history {
+        bigint id PK
+        bigint user_id FK
+        decimal amount
+        string academic_year
+        string semester
+        string control_number UK
+        string status "released, void"
+        timestamp released_at
+        boolean via_promissory
+    }
+    stipend_signatures {
+        bigint id PK
+        bigint stipend_history_id FK
+        string signatory_role
+        bigint user_id FK
+        string signature_image_path
+    }
+    audit_logs {
+        bigint id PK
+        bigint user_id FK "actor"
+        string action
+        string auditable_type
+        bigint auditable_id
+        json old_values
+        json new_values
+    }
+
+    users ||--o| student_profiles : "has"
+    users ||--o{ applications : "submits"
+    applications ||--o{ application_documents : "attaches"
+    applications ||--o| interviews : "scheduled for"
+    users ||--o{ assignments : "is assigned (recipient)"
+    users ||--o{ assignments : "supervises"
+    offices ||--o{ assignments : "hosts"
+    semester_periods ||..o{ assignments : "term of"
+    assignments ||--o{ time_logs : "logs"
+    time_logs ||--o| narrative_reports : "described by"
+    time_logs ||--o{ verifications : "reviewed in"
+    assignments ||--o| term_reports : "closes with"
+    assignments ||--o{ promissory_notes : "covered by"
+    users ||--o{ stipend_history : "is paid"
+    promissory_notes |o--o{ stipend_history : "released via"
+    stipend_history ||--o{ stipend_signatures : "signed by"
+    users |o--o{ audit_logs : "performs"

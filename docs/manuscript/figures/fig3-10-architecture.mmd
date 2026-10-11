@@ -1,0 +1,39 @@
+%%{init: {"theme": "neutral"}}%%
+%% Figure 3.10 Architectural Design.
+%% Paste into https://mermaid.live and export PNG/SVG.
+flowchart LR
+  subgraph USERS["Users"]
+    direction TB
+    U1["Students: applicants and recipients"]
+    U2["Staff: office supervisors and DSA administrators"]
+  end
+
+  DEV["User's device: smartphone or computer, web browser (camera and GPS for clock-in)"]
+
+  subgraph VERCEL["Vercel"]
+    FE["Front end: Next.js 15 / React 19 web application"]
+  end
+
+  subgraph RENDER["Render"]
+    direction TB
+    API["Back end: Laravel 12 REST API (business rules, Sanctum tokens)"]
+    DB[("PostgreSQL database")]
+    SCH["Scheduler: closes open sessions, records term results, sends reminders"]
+  end
+
+  subgraph EXT["External services"]
+    direction TB
+    R2[("Cloudflare R2: uploaded files, selfies, signatures, stubs")]
+    BREVO["Brevo: email (codes, notifications)"]
+    GEM["Google Gemini: chatbot answers"]
+  end
+
+  U1 --> DEV
+  U2 --> DEV
+  DEV -- "HTTPS" --> FE
+  FE -- "HTTPS / JSON + access token" --> API
+  API <--> DB
+  SCH --> API
+  API <--> R2
+  API --> BREVO
+  API <--> GEM

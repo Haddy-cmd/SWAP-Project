@@ -1,0 +1,64 @@
+%%{init: {"theme": "neutral"}}%%
+%% Figure 2.13 Proposed Workflow (four swimlanes).
+%% Paste into https://mermaid.live and export PNG/SVG.
+flowchart TB
+  subgraph APP["Student Applicant"]
+    direction TB
+    A1(["Start"]) --> A2["Create account with institutional email and student ID"]
+    A2 --> A3["Confirm the 6-digit code sent to the email"]
+    A3 --> A4["Fill in the application form"]
+    A4 --> A5["Upload COR, grade card, letter of intent and 2x2 photo"]
+    A5 --> A6["Submit application"]
+  end
+
+  subgraph DSA["DSA Administrator"]
+    direction TB
+    D1["Review application and requirements"] --> D2["Schedule interview: face-to-face or online"]
+    D2 --> D3{"Application decision"}
+    D3 -- "Rejected" --> D4["Notify applicant by email and in-app"] --> D5(["End: rejected"])
+    D3 -- "Approved" --> D6["Applicant becomes a SWAP Recipient"]
+    D6 --> D7["Assign office, office supervisor and required hours"]
+    D8{"Hours met or approved promissory note, e-signature saved, end-of-term report submitted?"}
+    D8 -- "Yes" --> D9["Release stipend: signed stub with control number"]
+    D8 -- "No" --> D10["Remind recipient what is missing"]
+    D11["Review renewal application"] --> D12{"Previous term paid or covered and report requirements met?"}
+    D12 -- "Yes" --> D13["Approve renewal: new term assignment"]
+    D12 -- "No" --> D14["Reject renewal"]
+  end
+
+  subgraph REC["SWAP Recipient"]
+    direction TB
+    R1["View dashboard and assigned office"] --> R2["Scan office QR code to clock in"]
+    R2 --> R3{"Allowed day and time, inside geofence, selfie if required?"}
+    R3 -- "No" --> R2
+    R3 -- "Yes" --> R4["Perform assigned duties"]
+    R4 --> R5["Scan QR code and write the Task Description to clock out"]
+    R4 -. "Leaves geofence or over 12 hours" .-> R6["Automatic clock-out"]
+    R5 --> R7["Log saved: Pending Verification"]
+    R6 --> R7
+    R7 --> R8{"Semester ended?"}
+    R8 -- "No" --> R2
+    R8 -- "Yes" --> R9["Submit end-of-term report (typed or PDF/Word)"]
+    R9 --> R10{"Short on hours?"}
+    R10 -- "Yes" --> R11["File one promissory note"]
+    R12["Apply for renewal"]
+  end
+
+  subgraph SUP["Office Supervisor"]
+    direction TB
+    S1["Review pending time logs"] --> S2{"Log valid?"}
+    S2 -- "Yes" --> S3["Verify log: hours count"]
+    S2 -- "No" --> S4["Reject log with reason"]
+    S5["Accept end-of-term report; mark eligible or not eligible for renewal"]
+    S6["Approve or reject promissory note"]
+  end
+
+  A6 --> D1
+  D7 --> R1
+  R7 --> S1
+  R9 --> S5
+  R11 --> S6
+  S5 --> D8
+  S6 --> D8
+  D9 --> R12
+  R12 --> D11
