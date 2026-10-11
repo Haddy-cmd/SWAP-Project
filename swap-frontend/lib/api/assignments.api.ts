@@ -27,6 +27,10 @@ export const assignmentsApi = {
   updateOffice: (id: number, data: Partial<Office>) =>
     apiClient.put<ApiResponse<Office>>(`/admin/offices/${id}`, data).then((r) => r.data.data),
 
+  // Only an office no student was ever placed in can be deleted (422 otherwise).
+  deleteOffice: (id: number) =>
+    apiClient.delete<{ message: string }>(`/admin/offices/${id}`).then((r) => r.data),
+
   generateOfficeQr: (id: number) =>
     apiClient.post<ApiResponse<{ qr_code: string }>>(`/admin/offices/${id}/qr`).then((r) => r.data),
 

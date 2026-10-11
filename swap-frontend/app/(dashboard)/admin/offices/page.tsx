@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Building2, Plus, Pencil, QrCode, MapPin, X, Users, UserCog, Copy, Check,
-  Search, ChevronDown,
+  Search, ChevronDown, Trash2,
 } from 'lucide-react'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { adminApi } from '@/lib/api/admin.api'
@@ -209,14 +209,18 @@ function LogoPicker({ name, currentUrl, file, remove, onPick, onRemove, onUndoRe
   )
 }
 
-function OfficeFormModal({ initial, onSave, onCancel, loading }: {
+function OfficeFormModal({ initial, onSave, onCancel, loading, onDelete, deleting }: {
   initial?: Partial<Office>
   onSave: (data: Partial<Office>, logo: { file: File | null; remove: boolean }) => void
   onCancel: () => void
   loading?: boolean
+  /** Edit only, and only for an office with no current recipients. */
+  onDelete?: () => void
+  deleting?: boolean
 }) {
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [removeLogo, setRemoveLogo] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [form, setForm] = useState<Partial<Office>>({
     name: '', description: '', head_name: '', location: '', max_recipients: 10, is_active: true,
     geofence_enabled: false, radius_meters: 100, auto_clock_out: true,
@@ -355,7 +359,22 @@ function OfficeFormModal({ initial, onSave, onCancel, loading }: {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 border-t border-ink-200 bg-ink-50 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-ink-200 bg-ink-50 px-6 py-4">
+          {onDelete && (confirmDelete ? (
+            <div className="mr-auto flex flex-wrap items-center gap-2 text-[12.5px] text-danger-800">
+              <span>Delete {initial?.name}? This can&apos;t be undone.</span>
+              <button onClick={() => setConfirmDelete(false)} className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 font-semibold text-ink-700">Keep</button>
+              <button onClick={onDelete} disabled={deleting}
+                className="rounded-lg bg-danger-700 px-3 py-1.5 font-bold text-white hover:bg-danger-800 disabled:opacity-60">
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmDelete(true)}
+              className="mr-auto flex items-center gap-1.5 text-sm font-semibold text-danger-700 hover:text-danger-800">
+              <Trash2 className="h-4 w-4" /> Delete office
+            </button>
+          ))}
           <button onClick={onCancel}
             className="h-11 rounded-xl border border-ink-200 bg-surface px-5 text-sm font-semibold text-ink-500 hover:bg-ink-50 transition-colors">
             Cancel
@@ -597,6 +616,18 @@ export default function AdminOfficesPage() {
       notify(moved ? { title: 'Office updated', detail: 'The office location was moved.' } : { title: 'Office updated' })
     },
     onError: (e) => notifyError(e, 'Could not save the office'),
+  })
+
+  // Refused (422, "…Deactivate it instead.") for an office with placement history.
+  const remove = useMutation({
+    mutationFn: (id: number) => assignmentsApi.deleteOffice(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-offices'] })
+      queryClient.invalidateQueries({ queryKey: ['admin-offices-list'] })
+      setEditing(null)
+      notify({ title: 'Office deleted' })
+    },
+    onError: (e) => notifyError(e, 'Could not delete the office'),
   })
 
   const officeQr = useMutation({
@@ -846,7 +877,8 @@ export default function AdminOfficesPage() {
         <OfficeFormModal onSave={(d, logo) => create.mutate({ data: d, logo })} onCancel={() => setShowNew(false)} loading={create.isPending} />
       )}
       {editing && (
-        <OfficeFormModal initial={editing} onSave={(d, logo) => update.mutate({ data: { ...editing, ...d }, logo })} onCancel={() => setEditing(null)} loading={update.isPending} />
+        <OfficeFormModal initial={editing} onSave={(d, logo) => update.mutate({ data: { ...editing, ...d }, logo })} onCancel={() => setEditing(null)} loading={update.isPending}
+          onDelete={(editing.active_recipients ?? 0) === 0 ? () => remove.mutate(editing.id) : undefined} deleting={remove.isPending} />
       )}
 
       {/* Office QR modal */}

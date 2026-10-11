@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Office;
 use App\Models\User;
 use App\Resources\UserResource;
@@ -82,12 +83,30 @@ class OfficeController extends Controller
         return response()->json(['data' => $office, 'message' => 'Office updated.']);
     }
 
-    public function destroy(int $id): JsonResponse
+    public const MSG_HAS_HISTORY = "This office has placement history, so it can't be deleted. Deactivate it instead.";
+
+    /**
+     * Delete an office no student was ever placed in (a mistake or a duplicate). One with any
+     * placement history is only deactivated (Edit → Active), so old slips, stubs and reports
+     * keep their office. Its supervisors and pending invitations are left without an office.
+     */
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $office = Office::findOrFail($id);
-        $office->update(['is_active' => false]);
 
-        return response()->json(['message' => 'Office deactivated.']);
+        if ($office->assignments()->exists()) {
+            return response()->json(['message' => self::MSG_HAS_HISTORY], 422);
+        }
+
+        $logo = $office->logo_path;
+        $snapshot = $office->only(['name', 'head_name', 'location', 'max_recipients']);
+        $office->delete();
+        if ($logo) {
+            Storage::disk(config('filesystems.documents_disk', 'public'))->delete($logo);
+        }
+        AuditLog::record('office_deleted', $office, $snapshot, null, $request->user()->id);
+
+        return response()->json(['message' => 'Office deleted.']);
     }
 
     /**

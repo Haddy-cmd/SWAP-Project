@@ -492,6 +492,11 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### Deleting an office (2026-10-11)
+- `DELETE /admin/offices/{id}` deletes only an office no student was ever placed in (422 otherwise: deactivate instead).
+  Supervisors and invitations lose the office (nullOnDelete), the logo file is removed, audit `office_deleted`.
+  UI: Edit Office → Delete office (hidden while the office has current recipients).
+
 ### College and campus offices (2026-10-11)
 - Migration `2026_10_11_000005_add_college_and_campus_offices` adds 18 host offices by name only (the 15 colleges of
   `config/colleges.php`, Office of the Vice Chancellor for Academic Affairs, Office of Admission, Scholarship Center):
