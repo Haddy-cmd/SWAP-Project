@@ -73,6 +73,30 @@ class Office extends Model
         return $this->hasMany(Assignment::class)->where('status', 'active');
     }
 
+    /**
+     * What still blocks new placements here (Admin → Offices "Still needs"): a supervisor, a map
+     * pin (clock-in checks it) and a clock-in area (geofence on with a radius). Uses a loaded
+     * supervisors_count when present.
+     *
+     * @return list<string>
+     */
+    public function missingSetup(): array
+    {
+        $supervisors = $this->supervisors_count ?? $this->supervisors()->count();
+
+        return array_values(array_filter([
+            $supervisors > 0 ? null : 'supervisor',
+            $this->latitude !== null && $this->longitude !== null ? null : 'location',
+            $this->geofence_enabled && $this->radius_meters ? null : 'clock_in_area',
+        ]));
+    }
+
+    /** Open for new placements: active and fully set up. */
+    public function isReady(): bool
+    {
+        return $this->is_active && $this->missingSetup() === [];
+    }
+
     /** Supervisors assigned to this office (an office needs at least one). */
     public function supervisors(): HasMany
     {

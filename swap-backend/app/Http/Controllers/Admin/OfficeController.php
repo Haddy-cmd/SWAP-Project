@@ -30,6 +30,10 @@ class OfficeController extends Controller
             ->orderBy('name')
             ->paginate($perPage);
 
+        // Admin → Offices status: ready / needs setup (what's missing) / closed.
+        $offices->getCollection()->each(fn (Office $o) => $o->setAttribute('missing', $o->missingSetup())
+            ->setAttribute('ready', $o->isReady()));
+
         return response()->json([
             'data' => $offices->items(),
             'meta' => [
@@ -48,6 +52,7 @@ class OfficeController extends Controller
             'head_name' => ['nullable', 'string', 'max:150'],
             'location' => ['nullable', 'string', 'max:255'],
             'max_recipients' => ['required', 'integer', 'min:1'],
+            'is_active' => ['sometimes', 'boolean'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'radius_meters' => ['nullable', 'integer', 'min:10', 'max:1000'],

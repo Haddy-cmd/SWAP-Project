@@ -492,6 +492,15 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### Admin → Offices v3 (2026-10-11)
+- Status per office: **Ready** (active + ≥1 supervisor + map pin + geofence with radius), **Needs setup** (`missing`:
+  supervisor / location / clock_in_area) or **Closed** (inactive) — `Office::isReady()` / `missingSetup()`, returned by
+  `GET /admin/offices` as `ready` + `missing`. Setup banner + Start setup, tabs with counts, search by office or supervisor.
+- Drawer: supervisors list (add/remove staged), location text + map pin, clock-in area 30/50/100/150 m or Other, slots stepper,
+  Open for placements, More details (name, head, description, logo, auto clock-out, delete); one Save; Next office.
+- **New placements and moves need a ready, open office** (`AssignmentService::assertReady`, 422); renewal rollovers and students
+  already placed are exempt. Assignments shows such offices disabled.
+
 ### Deleting an office (2026-10-11)
 - `DELETE /admin/offices/{id}` deletes only an office no student was ever placed in (422 otherwise: deactivate instead).
   Supervisors and invitations lose the office (nullOnDelete), the logo file is removed, audit `office_deleted`.

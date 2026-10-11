@@ -35,6 +35,7 @@ class AssignmentService
         try {
             $assignment = DB::transaction(function () use ($data, $admin, $enforceCapacity) {
                 if ($enforceCapacity) {
+                    $this->assertReady((int) $data['office_id']);
                     $this->assertRoom((int) $data['office_id']);
                 }
 
@@ -84,6 +85,7 @@ class AssignmentService
         $updated = DB::transaction(function () use ($assignment, $data, $admin, $old, $officeChanged) {
             // Moving into another office needs a free seat there; a supervisor-only change never does.
             if ($officeChanged) {
+                $this->assertReady((int) $data['office_id']);
                 $this->assertRoom((int) $data['office_id'], $assignment->id);
             }
 
@@ -111,6 +113,26 @@ class AssignmentService
      * Refuses (422 on office_id) when the office's active placements already reach its limit.
      * The office row is locked so two admins can't both take its last seat.
      */
+    public const MSG_OFFICE_CLOSED = '%s is closed to new placements. Open it on the Offices page or pick another office.';
+    public const MSG_OFFICE_NOT_READY = "%s isn't set up yet (needs: %s). Finish it on the Offices page or pick another office.";
+
+    /** New placements and moves need an open, fully set-up office (renewals keep their seat). */
+    private function assertReady(int $officeId): void
+    {
+        $office = Office::find($officeId);
+        if (!$office) {
+            return;
+        }
+        if (!$office->is_active) {
+            throw ValidationException::withMessages(['office_id' => sprintf(self::MSG_OFFICE_CLOSED, $office->name)]);
+        }
+        $labels = ['supervisor' => 'supervisor', 'location' => 'map location', 'clock_in_area' => 'clock-in area'];
+        if ($missing = $office->missingSetup()) {
+            throw ValidationException::withMessages(['office_id' => sprintf(self::MSG_OFFICE_NOT_READY, $office->name,
+                implode(', ', array_map(fn ($m) => $labels[$m], $missing)))]);
+        }
+    }
+
     private function assertRoom(int $officeId, ?int $ignoreAssignmentId = null): void
     {
         $office = Office::lockForUpdate()->find($officeId);

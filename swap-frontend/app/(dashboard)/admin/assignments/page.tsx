@@ -491,8 +491,8 @@ export default function AdminAssignmentsPage() {
                 <select value={editOfficeId} onChange={(e) => pickOffice(e.target.value, setEditOfficeId, setEditSupervisorId)} className={fieldCls}>
                   <option value="">Select office…</option>
                   {offices.map((o) => (
-                    <option key={o.id} value={o.id} disabled={!o.supervisors?.length || (o.id !== editFor.office_id && isFull(o))}>
-                      {o.name}{!o.supervisors?.length ? ' (no supervisor yet)' : o.id !== editFor.office_id && isFull(o) ? ' (full)' : ''}
+                    <option key={o.id} value={o.id} disabled={o.id !== editFor.office_id && (o.ready === false || isFull(o))}>
+                      {o.name}{o.id !== editFor.office_id && o.ready === false ? ' (needs setup)' : o.id !== editFor.office_id && isFull(o) ? ' (full)' : ''}
                     </option>
                   ))}
                 </select>
@@ -553,11 +553,12 @@ function OfficeCard({ office: o, on, onPick }: { office: Office; on: boolean; on
   const cap = o.max_recipients || 0
   const left = cap - active
   const pct = cap > 0 ? Math.min(100, (active / cap) * 100) : 100
-  const noSup = !(o.supervisors?.length)
+  // Not set up (no supervisor, map pin or clock-in area): the API refuses new placements.
+  const noSup = !(o.supervisors?.length) || o.ready === false
   const full = isFull(o)
   return (
     <button type="button" onClick={onPick} disabled={noSup || full} aria-pressed={on}
-      title={full ? 'This office is full. Raise its limit on the Offices page to add more.' : noSup ? 'Add a supervisor to this office on the Offices page first' : undefined}
+      title={full ? 'This office is full. Raise its limit on the Offices page to add more.' : noSup ? 'Finish setting up this office on the Offices page first' : undefined}
       className={`flex items-start gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
         on ? 'border-accent bg-accent-tint ring-1 ring-accent' : 'border-ink-900/[.08] bg-surface enabled:hover:border-accent/40'
       }`}>
@@ -579,7 +580,7 @@ function OfficeCard({ office: o, on, onPick }: { office: Office; on: boolean; on
         </span>
         {noSup && (
           <span className="mt-1.5 flex items-center gap-1 text-[11.5px] font-semibold text-warning-700">
-            <AlertTriangle className="h-3.5 w-3.5" /> No supervisor yet
+            <AlertTriangle className="h-3.5 w-3.5" /> Needs setup on the Offices page
           </span>
         )}
       </span>

@@ -32,7 +32,7 @@ class OfficeCapacityTest extends TestCase
 
     public function test_the_last_seat_can_be_taken_then_the_office_is_full(): void
     {
-        $office = $this->makeOffice(['name' => 'University Library', 'max_recipients' => 2]);
+        $office = $this->makeReadyOffice(['name' => 'University Library', 'max_recipients' => 2]);
         $supervisor = $this->makeUser('supervisor', ['office_id' => $office->id]);
         $this->makeAssignment($this->makeUser('recipient'), $supervisor, $office);
         // A finished term doesn't hold a seat.
@@ -53,11 +53,11 @@ class OfficeCapacityTest extends TestCase
 
     public function test_moving_into_a_full_office_is_refused_but_staying_is_fine(): void
     {
-        $full = $this->makeOffice(['name' => 'Registrar', 'max_recipients' => 1]);
+        $full = $this->makeReadyOffice(['name' => 'Registrar', 'max_recipients' => 1]);
         $fullSup = $this->makeUser('supervisor', ['office_id' => $full->id]);
         $this->makeAssignment($this->makeUser('recipient'), $fullSup, $full);
 
-        $home = $this->makeOffice(['max_recipients' => 1]);
+        $home = $this->makeReadyOffice(['max_recipients' => 1]);
         $homeSup = $this->makeUser('supervisor', ['office_id' => $home->id]);
         $otherSup = $this->makeUser('supervisor', ['office_id' => $home->id]);
         $mine = $this->makeAssignment($this->makeUser('recipient'), $homeSup, $home);

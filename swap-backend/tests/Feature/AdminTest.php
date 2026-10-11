@@ -147,7 +147,7 @@ class AdminTest extends TestCase
     {
         $recipient = $this->makeUser('recipient');
         $supervisor = $this->makeUser('supervisor');
-        $office = $this->makeOffice();
+        $office = $this->makeReadyOffice();
 
         Sanctum::actingAs($this->makeUser('admin'));
         $res = $this->postJson('/api/admin/assignments', [
@@ -169,7 +169,7 @@ class AdminTest extends TestCase
     {
         $recipient = $this->makeUser('recipient');
         $supervisor = $this->makeUser('supervisor');
-        $office = $this->makeOffice();
+        $office = $this->makeReadyOffice();
         $payload = [
             'user_id' => $recipient->id,
             'office_id' => $office->id,

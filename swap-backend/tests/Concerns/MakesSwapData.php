@@ -111,6 +111,15 @@ trait MakesSwapData
         ], $attrs));
     }
 
+    /** Open for new placements: a map pin, a clock-in area and a supervisor (Office::isReady). */
+    protected function makeReadyOffice(array $attrs = []): Office
+    {
+        $office = $this->makeGeofencedOffice($attrs);
+        $this->makeUser('supervisor', ['office_id' => $office->id]);
+
+        return $office;
+    }
+
     protected function qrFor(Assignment $assignment): string
     {
         return app(QrCodeService::class)->generateForAssignment($assignment->fresh());

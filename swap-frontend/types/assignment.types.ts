@@ -97,6 +97,10 @@ export interface Office {
   supervisors_count?: number
   /** The office's supervisors, by name (office list only). */
   supervisors?: { id: number; name: string }[]
+  /** Office list only: open for new placements (active + supervisor + map pin + clock-in area). */
+  ready?: boolean
+  /** Office list only: what setup still needs. */
+  missing?: ('supervisor' | 'location' | 'clock_in_area')[]
 }
 
 export interface CreateAssignmentData {

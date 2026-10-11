@@ -122,7 +122,7 @@ class ApprovalMakesRecipientTest extends TestCase
 
         $this->postJson('/api/admin/assignments', [
             'user_id' => $student->id,
-            'office_id' => $this->makeOffice()->id,
+            'office_id' => $this->makeReadyOffice()->id,
             'supervisor_id' => $this->makeUser('supervisor')->id,
             'academic_year' => '2024-2025',
             'semester' => '1st Semester',
