@@ -42,6 +42,7 @@ function ResetPasswordForm() {
   const resend = useMutation({
     mutationFn: () => authApi.forgotPassword(email.trim().toLowerCase()),
     onSuccess: () => { setWait(60); setCodeError(null) },
+    onError: (err: ApiError) => setCodeError(err.errors?.email?.[0] ?? err.message ?? 'Could not send a new code.'),
   })
 
   const [showPw, setShowPw] = useState(false)
@@ -64,6 +65,7 @@ function ResetPasswordForm() {
     },
     onError: (err: ApiError) => {
       if (err.errors?.code?.[0]) { setCodeError(err.errors.code[0]); setServerError(null) }
+      else if (err.errors?.email?.[0]) setServerError(err.errors.email[0])
       else setServerError(err.message ?? 'Could not reset your password. Please try again.')
     },
   })
@@ -94,7 +96,7 @@ function ResetPasswordForm() {
         <h2 className="font-serif text-2xl font-bold text-ink-950">Set a new password</h2>
         <p className="mt-1 text-sm text-ink-500">
           {params.get('email')
-            ? <>We sent a 6-digit code to <span className="break-all font-medium text-ink-600">{params.get('email')}</span> (if it has an account). Enter it with your new password.</>
+            ? <>We sent a 6-digit code to <span className="break-all font-medium text-ink-600">{params.get('email')}</span>. Enter it with your new password. <Link href="/forgot-password" className="font-semibold text-brand-700 hover:text-brand-600">Use a different email</Link></>
             : 'Enter your email, the 6-digit code we sent you, and a new password.'}
         </p>
       </div>

@@ -19,22 +19,36 @@ use Illuminate\Validation\ValidationException;
 /** Forgot password → a 6-digit code by email → a new password. */
 class PasswordResetController extends Controller
 {
-    public const MSG_SENT = 'If an account uses this email, we sent a code to it.';
+    public const MSG_SENT = 'We sent a 6-digit code to your email.';
+
+    public const MSG_NO_ACCOUNT = "We couldn't find an active account with this email. Please check that it's typed correctly.";
 
     public function __construct(private readonly OneTimeCodeService $codes) {}
 
-    /** Always the same reply, so the form doesn't reveal which emails have accounts. */
+    /** The active account for this email, or a 422 that says there isn't one (user-chosen over hiding it). */
+    private function activeUser(Request $request): User
+    {
+        $user = User::where('email', strtolower(trim((string) $request->email)))->first();
+        if (!$user || !$user->is_active) {
+            throw ValidationException::withMessages(['email' => [self::MSG_NO_ACCOUNT]]);
+        }
+
+        return $user;
+    }
+
+    /**
+     * Email a reset code. An unknown or inactive email is told so (the route's 3-a-minute
+     * throttle limits probing); a cooldown or a mail outage is reported as it is.
+     */
     public function forgotPassword(Request $request): JsonResponse
     {
         $request->validate(['email' => ['required', 'email']]);
+        $user = $this->activeUser($request);
 
-        $user = User::where('email', strtolower(trim((string) $request->email)))->first();
-        if ($user) {
-            try {
-                $this->codes->issue($user, OneTimeCode::PASSWORD_RESET);
-            } catch (\Throwable $e) {
-                Log::info('Password reset code not sent', ['user_id' => $user->id, 'reason' => $e->getMessage()]);
-            }
+        try {
+            $this->codes->issue($user, OneTimeCode::PASSWORD_RESET);
+        } catch (ValidationException $e) {
+            throw ValidationException::withMessages(['email' => $e->errors()['code'] ?? [OneTimeCodeService::MSG_SEND_FAILED]]);
         }
 
         return response()->json(['message' => self::MSG_SENT]);
@@ -48,10 +62,7 @@ class PasswordResetController extends Controller
             'password' => ['required', 'confirmed', PasswordPolicy::rule()],
         ], PasswordPolicy::messages());
 
-        $user = User::where('email', strtolower(trim((string) $request->email)))->first();
-        if (!$user) {
-            throw ValidationException::withMessages(['code' => [OneTimeCodeService::MSG_WRONG]]);
-        }
+        $user = $this->activeUser($request);
         $this->codes->verify($user, OneTimeCode::PASSWORD_RESET, (string) $request->code);
 
         $user->forceFill(['password' => $request->password, 'remember_token' => Str::random(60)])->save();

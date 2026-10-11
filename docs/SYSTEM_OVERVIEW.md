@@ -498,7 +498,8 @@ All comparisons in **Asia/Manila**.
 - `OneTimeCodeService` (table `one_time_codes`, HMAC only): 10 minutes, 5 tries, one new code a minute while one is unused.
   Purposes: `verify_email` (registration; `POST /auth/verify-email`; old signed links still work), `login`
   (`POST /auth/login` → `{otp_required, challenge, email_hint}` → `POST /auth/login/verify` / `/auth/login/resend`),
-  `password_reset` (`POST /auth/forgot-password` always the same reply → `POST /auth/reset-password {email, code, …}`).
+  `password_reset` (`POST /auth/forgot-password` says when there's no active account — user's choice over hiding it; throttled
+  3/min → `POST /auth/reset-password {email, code, …}`).
 - Trusted browsers (table `trusted_devices`, 30 days, hashed token kept in localStorage `swap-device`) skip the sign-in code;
   cleared by a password change/reset, "Sign out other devices", deactivation and return-to-applicant.
 - Admin switch: System Testing → "Sign-in code" (`PUT /admin/testing/login-code`, admin password required, audited

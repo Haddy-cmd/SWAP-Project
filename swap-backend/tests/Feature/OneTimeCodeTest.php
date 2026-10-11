@@ -198,11 +198,24 @@ class OneTimeCodeTest extends TestCase
         $user = $this->account();
         $user->createToken('auth_token');
 
-        $this->postJson('/api/auth/forgot-password', ['email' => 'nobody@s.msumain.edu.ph'])->assertOk()
-            ->assertJsonPath('message', 'If an account uses this email, we sent a code to it.');
+        // No account, or a deactivated one: said plainly, nothing sent.
+        $inactive = $this->account(['is_active' => false]);
+        foreach (['nobody@s.msumain.edu.ph', $inactive->email] as $email) {
+            $this->postJson('/api/auth/forgot-password', ['email' => $email])->assertStatus(422)
+                ->assertJsonPath('errors.email.0', \App\Http\Controllers\Auth\PasswordResetController::MSG_NO_ACCOUNT);
+        }
+        Notification::assertNotSentTo($inactive, OneTimeCodeNotification::class);
+        $this->postJson('/api/auth/reset-password', ['email' => 'nobody@s.msumain.edu.ph', 'code' => '123456',
+            'password' => 'NewPassword@456', 'password_confirmation' => 'NewPassword@456'])->assertStatus(422)
+            ->assertJsonPath('errors.email.0', \App\Http\Controllers\Auth\PasswordResetController::MSG_NO_ACCOUNT);
+
+        $this->travel(61)->seconds(); // past the 3-a-minute limit those tries used up
         $this->postJson('/api/auth/forgot-password', ['email' => $user->email])->assertOk()
-            ->assertJsonPath('message', 'If an account uses this email, we sent a code to it.');
+            ->assertJsonPath('message', 'We sent a 6-digit code to your email.');
         $code = $this->lastCode($user, OneTimeCode::PASSWORD_RESET);
+        // Asking again within the minute says so.
+        $this->postJson('/api/auth/forgot-password', ['email' => $user->email])->assertStatus(422)
+            ->assertJsonPath('errors.email.0', OneTimeCodeService::MSG_WAIT);
 
         $payload = ['email' => $user->email, 'password' => 'NewPassword@456', 'password_confirmation' => 'NewPassword@456'];
         $this->postJson('/api/auth/reset-password', $payload + ['code' => $this->wrong($code)])->assertStatus(422);

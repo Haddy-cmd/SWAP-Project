@@ -30,10 +30,10 @@ export default function ForgotPasswordPage() {
 
   const request = useMutation({
     mutationFn: (data: FormData) => authApi.forgotPassword(data.email),
-    // Same reply whether or not the email has an account; continue to the code + new password step.
+    // A code went out: continue to the code + new password step. No active account → the message below.
     onSuccess: (_r, d) => router.push(`/reset-password?email=${encodeURIComponent(d.email.trim().toLowerCase())}&sent=1`),
     onError: (err: ApiError) => {
-      setServerError(err.message ?? 'Something went wrong. Please try again.')
+      setServerError(err.errors?.email?.[0] ?? err.message ?? 'Something went wrong. Please try again.')
     },
   })
 
@@ -76,7 +76,7 @@ export default function ForgotPasswordPage() {
       </div>
 
       {serverError && (
-        <div className="mb-5 rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-600">
+        <div role="alert" className="mb-5 rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">
           {serverError}
         </div>
       )}
