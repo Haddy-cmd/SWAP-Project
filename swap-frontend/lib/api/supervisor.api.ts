@@ -22,22 +22,6 @@ export interface StudentDocument {
   type: 'new' | 'renewal'
 }
 
-/** Supervisor → Analytics & Reports → Overview (ReportService::supervisorInsights). */
-export interface SupervisorInsights {
-  students: number
-  pending: number
-  pending_hours: number
-  oldest_pending_days: number | null
-  /** Logs this supervisor verified in the last 30 days, and the average hours from clock-out to verification. */
-  my_verified_30d: number
-  my_avg_verify_hours: number | null
-  avg_session_hours: number | null
-  inactive_after_days: number
-  /** No clock-in for `inactive_after_days` days, or never (`days` null). */
-  inactive: { student_id: number; name: string; last_clock_in: string | null; days: number | null }[]
-  auto_clock_outs: { student_id: number; name: string; count: number }[]
-}
-
 export const supervisorApi = {
   // The signed attendance QR for the supervisor's assigned office.
   getOfficeQr: () =>
@@ -47,10 +31,7 @@ export const supervisorApi = {
   getStudentDocuments: (studentId: number) =>
     apiClient.get<ApiResponse<StudentDocument[]>>(`/supervisor/students/${studentId}/documents`).then((r) => r.data.data),
 
-  getInsights: () =>
-    apiClient.get<ApiResponse<SupervisorInsights>>('/supervisor/reports/insights').then((r) => r.data.data),
-
-  /** The terms this supervisor's students were placed in, newest first (for the Term Results tab). */
+  /** The terms this supervisor's students were placed in, newest first (Students → Term results). */
   getReportPeriods: () =>
     apiClient.get<ApiResponse<{ academic_year: string; semester: string }[]>>('/supervisor/reports/periods').then((r) => r.data.data),
 

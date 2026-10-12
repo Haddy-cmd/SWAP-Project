@@ -754,12 +754,16 @@ are one feature per role: an **Overview** (charts/insights) plus **report tabs**
   `tab` values used before v2, so old links and drill-downs (`f_*` filters) still open them. Report tabs: `applications`,
   `recipients`, `term-results` (adds college/program/year level/supervisor), `stipend` (adds college,
   office, control no.), `offices` (capacity, active, fill %, availability Full/Has Slots/Empty).
-- **Supervisor → Analytics & Reports** (`/supervisor/reports`): Overview = `ReportService::supervisorInsights`
-  (`GET /supervisor/reports/insights`: queue, own 30-day verify time, average session, no clock-in for
-  7+ days, automatic clock-outs); `roster` (My Students: active placements via `visibleToSupervisor`,
-  pace, term status, end-of-term report, promissory, last clock-in, days on duty, flagged logs; PDF
-  header names their office — `meta`) and `term-results` (same dataset as the admin's, scoped with
-  `visibleToSupervisor`); term picker from `GET /supervisor/reports/periods`.
+- **Supervisor → Students** (`/supervisor/students`) holds the supervisor's reports; there is no
+  separate Analytics & Reports page (`/supervisor/reports` redirects here, `?tab=term-results` keeps its
+  term and filters). **This term** → "Hours sheet PDF" / "CSV" downloads the `roster` dataset (active
+  placements via `visibleToSupervisor`: pace, term status, end-of-term report, promissory, last
+  clock-in, days on duty, flagged logs; PDF header names their office — `meta`; no graph) to hand to the
+  DSA. **Term results** (`?tab=term-results`) is `ReportExplorer` over `term-results` (same dataset as
+  the admin's, scoped with `visibleToSupervisor`) without the chart builder (`chart={false}`); term
+  picker from `GET /supervisor/reports/periods`. `GET /supervisor/reports/insights`
+  (`ReportService::supervisorInsights`) remains on the API but no page uses it — the Dashboard covers
+  the verify queue and who is behind.
 - **Recipient → My Reports** (`/recipient/reports`): My Progress (`RecipientProgressService`,
   `GET /recipient/progress`: pace, forecast, hours breakdown with rejected-log reasons, stipend/renewal
   checklist) and the datasets `time-logs` (every own session, all terms: status, term, month, office,

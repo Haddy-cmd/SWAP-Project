@@ -37,7 +37,6 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Students', href: '/supervisor/students', icon: Users },
     { label: 'Verify', href: '/supervisor/verifications', icon: CheckSquare },
     { label: 'Promissory', href: '/supervisor/promissory', icon: FileText },
-    { label: 'Analytics & Reports', href: '/supervisor/reports', icon: BarChart2 },
     { label: 'Office QR', href: '/supervisor/qr-code', icon: QrCode },
   ],
   admin: [

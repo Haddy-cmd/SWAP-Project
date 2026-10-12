@@ -198,7 +198,7 @@ class ApplicationService
     }
 
     /** Default venue for in-person interviews. */
-    public const DSA_OFFICE_LOCATION = 'Office of the Dean of Student Affairs (DSA)';
+    public const DSA_OFFICE_LOCATION = 'Division of Student Affairs (DSA)';
 
     public function scheduleInterview(Application $application, array $interviewData, User $admin): Application
     {

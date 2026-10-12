@@ -18,6 +18,8 @@ interface Props {
   term?: { academic_year: string; semester: string } | null
   state: ReportQueryState
   onChange: (patch: Partial<ReportQueryState>) => void
+  /** Show the chart builder (and offer the graph in the PDF). Off for a supervisor's Term results. */
+  chart?: boolean
 }
 
 /**
@@ -25,7 +27,7 @@ interface Props {
  * PDF/CSV downloads of exactly what is shown. Filtering, sorting and grouping run
  * on the server (GET /{role}/reports/{type}), so the files always match the screen.
  */
-export function ReportExplorer({ role, type, term, state, onChange }: Props) {
+export function ReportExplorer({ role, type, term, state, onChange, chart = true }: Props) {
   const params: ReportParams = { ...state, ...(term ?? {}) }
 
   const { data, isLoading, isFetching, error } = useQuery({
@@ -61,11 +63,11 @@ export function ReportExplorer({ role, type, term, state, onChange }: Props) {
           </p>
         </div>
         <ExportButtons
-          download={(format, options) => reportsApi.export(role, type, params, format, options)}
+          download={(format, options) => reportsApi.export(role, type, params, format, chart ? options : { includeChart: false })}
           fallbackName={fallbackName}
           disabled={data.rows.length === 0}
           // The PDF prints the graph shown here; let it be left out.
-          chartOption={data.groups.length > 0}
+          chartOption={chart && data.groups.length > 0}
           summary={summary}
         />
       </div>
@@ -85,11 +87,13 @@ export function ReportExplorer({ role, type, term, state, onChange }: Props) {
         onFilters={(filters) => onChange({ filters })}
         onSearch={(search) => onChange({ search })} />
 
-      <GroupChart columns={data.columns} groups={data.groups} groupBy={groupBy ?? null} metric={data.metric}
-        selected={groupBy ? state.filters[groupBy] ?? [] : []}
-        onGroupBy={(key) => onChange({ group_by: key })}
-        onMetric={(metric) => onChange({ metric })}
-        onBarClick={(value) => groupBy && onChange({ filters: toggleFilter(state.filters, groupBy, value) })} />
+      {chart && (
+        <GroupChart columns={data.columns} groups={data.groups} groupBy={groupBy ?? null} metric={data.metric}
+          selected={groupBy ? state.filters[groupBy] ?? [] : []}
+          onGroupBy={(key) => onChange({ group_by: key })}
+          onMetric={(metric) => onChange({ metric })}
+          onBarClick={(value) => groupBy && onChange({ filters: toggleFilter(state.filters, groupBy, value) })} />
+      )}
 
       <ReportTable columns={data.columns} rows={data.rows} sort={state.sort} dir={state.dir}
         onSort={(key) => onChange(nextSort(state, key))} />

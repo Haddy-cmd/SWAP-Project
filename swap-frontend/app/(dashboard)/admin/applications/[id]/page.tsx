@@ -23,7 +23,7 @@ export default function AdminApplicationDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const queryClient = useQueryClient()
-  const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
+  const DSA_OFFICE = 'Division of Student Affairs (DSA)'
   // Online interviews are usually hosted from the DSA, so it is offered as a venue there too.
   const DSA_DIVISION = 'Division of Student Affairs (DSA)'
   const ONLINE_VENUES = [DSA_DIVISION, DSA_OFFICE, 'Remote / Applicant’s location']

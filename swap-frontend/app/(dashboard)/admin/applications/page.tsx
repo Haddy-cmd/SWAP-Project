@@ -25,7 +25,7 @@ import type { ApplicationStatus, Interview } from '@/types/application.types'
  * and the decision footer. Approved applicants leave this queue for Assignments.
  */
 
-const DSA_OFFICE = 'Office of the Dean of Student Affairs (DSA)'
+const DSA_OFFICE = 'Division of Student Affairs (DSA)'
 const GREEN = 'var(--color-accent)'
 const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 

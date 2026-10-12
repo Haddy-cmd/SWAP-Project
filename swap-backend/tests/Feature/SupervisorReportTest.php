@@ -224,7 +224,9 @@ class SupervisorReportTest extends TestCase
         $this->assertSame('In Progress', $row['term_status']);
         $this->assertSame('Submitted', $row['report']);
         $this->assertNull($row['promissory']);
-        $this->assertSame(now()->subDays(3)->timezone('Asia/Manila')->format('Y-m-d'), $row['last_clock_in']);
+        // makeClosedLog clocks in at 08:00 UTC; compare that instant's Manila date (not "now", which
+        // crosses Manila midnight eight hours earlier).
+        $this->assertSame(now()->subDays(3)->setTime(8, 0)->timezone('Asia/Manila')->format('Y-m-d'), $row['last_clock_in']);
         $this->assertSame(2, $row['days_on_duty']);
         $this->assertSame(1, $row['flagged_logs']);
         $this->assertSame('1', collect($res->json('data.stats'))->firstWhere('label', 'Reports to Accept')['value']);

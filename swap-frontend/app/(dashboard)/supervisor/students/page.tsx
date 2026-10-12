@@ -1,12 +1,18 @@
 'use client'
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertCircle, BadgeCheck, ChevronLeft, ChevronRight, LayoutGrid, List, Search, SlidersHorizontal, TrendingDown, TrendingUp, Users, X,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { reportsApi } from '@/lib/api/reports.api'
+import { supervisorApi } from '@/lib/api/supervisor.api'
+import { useReportUrlState } from '@/lib/hooks/useReportUrlState'
+import { ExportButtons } from '@/components/reports/ExportButtons'
+import { ReportExplorer } from '@/components/reports/ReportExplorer'
+import { TermSelect, resolveTerm } from '@/components/reports/TermSelect'
 import { RequiredHoursModal } from '@/components/attendance/HoursModals'
 import { UserAvatar } from '@/components/shared/UserAvatar'
 import { TermBadge } from '@/components/shared/TermBadge'
@@ -55,10 +61,29 @@ function Hours({ r }: { r: Row }) {
   )
 }
 
+const VIEW_BTN = 'h-8 rounded-[8px] px-3.5 text-[12.5px] font-semibold transition-colors'
+
+/**
+ * Supervisor → Students. "This term" is the working list (hours, pace, logs to verify) and
+ * downloads the service-hours sheet for the DSA; "Term results" (?tab=term-results, the
+ * report URL state) shows how a chosen term ended. This replaced the supervisor's
+ * Analytics & Reports page.
+ */
 function StudentsPage() {
   const params = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const qc = useQueryClient()
   const { notify } = useFeedback()
+  const report = useReportUrlState()
+  const termView = report.state.tab === 'term-results'
+
+  const { data: periods = [] } = useQuery({
+    queryKey: ['supervisor-report-periods'],
+    queryFn: () => supervisorApi.getReportPeriods(),
+    enabled: termView,
+  })
+  const term = resolveTerm(report.state.ay, report.state.sem, periods)
 
   const [q, setQ] = useState(params.get('q') ?? '')
   const initialGroup = params.get('group') as GroupKey | null
@@ -120,16 +145,44 @@ function StudentsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3.5">
         <div>
           <h1 className="text-[26px] font-extrabold tracking-[-0.01em] text-ink-950">My Students</h1>
-          <p className="mt-0.5 text-[13px] text-ink-500">{offices.length ? offices.join(' · ') : 'Recipients assigned to you'}</p>
+          <p className="mt-0.5 text-[13px] text-ink-500">
+            {termView
+              ? 'How each of your students ended the term: hours, verdict, end-of-term report, stipend and renewal.'
+              : offices.length ? offices.join(' · ') : 'Recipients assigned to you'}
+          </p>
         </div>
-        <label className="flex h-[42px] w-[300px] max-w-full items-center gap-2 rounded-xl border border-ink-900/[.12] bg-surface px-3 focus-within:border-accent">
-          <Search className="h-[18px] w-[18px] text-ink-400" />
-          <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="Name, email or ID" aria-label="Search students"
-            className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-ink-900 placeholder-ink-400 focus:outline-none" />
-          {q && <button type="button" onClick={() => setQ('')} aria-label="Clear search" className="text-ink-400 hover:text-ink-700"><X className="h-4 w-4" /></button>}
-        </label>
+        {termView ? (
+          <TermSelect term={term} periods={periods} onChange={(t) => report.setTerm(t.academic_year, t.semester)} />
+        ) : (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <label className="flex h-[42px] w-[300px] max-w-full items-center gap-2 rounded-xl border border-ink-900/[.12] bg-surface px-3 focus-within:border-accent">
+              <Search className="h-[18px] w-[18px] text-ink-400" />
+              <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="Name, email or ID" aria-label="Search students"
+                className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-ink-900 placeholder-ink-400 focus:outline-none" />
+              {q && <button type="button" onClick={() => setQ('')} aria-label="Clear search" className="text-ink-400 hover:text-ink-700"><X className="h-4 w-4" /></button>}
+            </label>
+            {/* The service-hours sheet for the DSA: every current student, verified/pending/remaining hours. */}
+            <ExportButtons label="Hours sheet PDF" fallbackName="service-hours" disabled={!rows.length}
+              summary={`${rows.length} ${rows.length === 1 ? 'student' : 'students'}`}
+              download={(format) => reportsApi.export('supervisor', 'roster', { filters: {} }, format, { includeChart: false })} />
+          </div>
+        )}
       </div>
 
+      <div className="flex w-fit items-center gap-1 rounded-[11px] bg-ink-100 p-1" role="tablist" aria-label="Students view">
+        <button type="button" role="tab" aria-selected={!termView} onClick={() => router.push(pathname, { scroll: false })}
+          className={`${VIEW_BTN} ${!termView ? 'bg-surface text-accent-strong shadow-sm' : 'text-ink-500 hover:text-ink-800'}`}>
+          This term
+        </button>
+        <button type="button" role="tab" aria-selected={termView} onClick={() => report.openTab('term-results')}
+          className={`${VIEW_BTN} ${termView ? 'bg-surface text-accent-strong shadow-sm' : 'text-ink-500 hover:text-ink-800'}`}>
+          Term results
+        </button>
+      </div>
+
+      {termView ? (
+        <ReportExplorer role="supervisor" type="term-results" term={term} state={report.state} onChange={report.update} chart={false} />
+      ) : (<>
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
         {GROUPS.map((g) => {
           const on = group === g.key
@@ -259,6 +312,7 @@ function StudentsPage() {
           ) : !isLoading && rows.length > 0 ? <EmptyPanel /> : null}
         </div>
       </div>
+      </>)}
 
       {reportFor && <TermReportReviewModal studentId={reportFor.userId} studentName={reportFor.name} onClose={() => setReportFor(null)} />}
       {docsFor && <StudentDocumentsModal student={{ userId: docsFor.userId, name: docsFor.name }} onClose={() => setDocsFor(null)} />}
