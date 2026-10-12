@@ -492,6 +492,14 @@ All comparisons in **Asia/Manila**.
   hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
   terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
 
+### One active placement per student (2026-10-12)
+- A student has at most one `active` assignment across all terms: new placements (`StoreAssignmentRequest` +
+  `AssignmentService::activeElsewhereMessage`) and reactivations are refused (422); renewal rollovers complete the old term first.
+- "The current placement" is `Assignment::current()` (active, newest id) everywhere a single one is picked (recipient progress,
+  attendance, term report, promissory, stipend, supervisor student pages, repositories), matching System Testing.
+- Migration `2026_10_12_000001_close_duplicate_active_placements` kept the newest and completed the others (audit
+  `placement_closed_duplicate`).
+
 ### Admin → Offices v3 (2026-10-11)
 - Status per office: **Ready** (active + ≥1 supervisor + map pin + geofence with radius), **Needs setup** (`missing`:
   supervisor / location / clock_in_area) or **Closed** (inactive) — `Office::isReady()` / `missingSetup()`, returned by

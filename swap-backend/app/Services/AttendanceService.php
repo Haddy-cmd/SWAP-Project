@@ -57,7 +57,7 @@ class AttendanceService
         }
 
         $assignment = Assignment::where('user_id', $user->id)
-            ->where('status', 'active')
+            ->current()
             ->first();
 
         if (!$assignment) {
@@ -224,7 +224,7 @@ class AttendanceService
     {
         return Assignment::with(['office', 'supervisor'])
             ->where('user_id', $user->id)
-            ->where('status', 'active')
+            ->current()
             ->first();
     }
 

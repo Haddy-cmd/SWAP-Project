@@ -105,6 +105,16 @@ class Assignment extends Model
      * plus — when they belong to an office — every assignment hosted at that
      * office, so co-supervisors of one office share the same students.
      */
+    /**
+     * A student's current placement: active, newest first. A student has at most one active
+     * placement (AssignmentService), and the ordering keeps every screen on the same one
+     * even if old data still holds two.
+     */
+    public function scopeCurrent(Builder $query): Builder
+    {
+        return $query->where('assignments.status', 'active')->latest('assignments.id');
+    }
+
     public function scopeVisibleToSupervisor(Builder $query, User $supervisor): Builder
     {
         return $query->where(function (Builder $q) use ($supervisor) {

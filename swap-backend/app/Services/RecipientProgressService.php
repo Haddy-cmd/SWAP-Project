@@ -24,7 +24,7 @@ class RecipientProgressService
         $assignment = Assignment::with('termReport')
             ->withPromissoryFlags()
             ->where('user_id', $user->id)
-            ->where('status', 'active')
+            ->current()
             ->first();
         if (!$assignment) {
             return null;

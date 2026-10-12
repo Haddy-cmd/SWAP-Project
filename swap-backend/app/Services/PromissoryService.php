@@ -38,7 +38,7 @@ class PromissoryService
     {
         $assignment = Assignment::where('id', $data['assignment_id'])
             ->where('user_id', $recipient->id)
-            ->where('status', 'active')
+            ->current()
             ->first();
 
         if (!$assignment) {
@@ -187,8 +187,7 @@ class PromissoryService
     public function submissionState(User $recipient): array
     {
         $assignment = Assignment::where('user_id', $recipient->id)
-            ->where('status', 'active')
-            ->latest('id')
+            ->current()
             ->first();
 
         if (!$assignment) {

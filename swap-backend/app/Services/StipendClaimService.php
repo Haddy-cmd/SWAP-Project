@@ -324,7 +324,7 @@ class StipendClaimService
     private function recipientSupervisor(int $userId): ?User
     {
         return Assignment::where('user_id', $userId)
-            ->where('status', 'active')
+            ->current()
             ->with('supervisor')
             ->first()?->supervisor;
     }

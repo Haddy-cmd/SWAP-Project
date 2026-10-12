@@ -135,7 +135,7 @@ class TimeLogRepository implements TimeLogRepositoryInterface
     public function getHoursSummary(int $userId): array
     {
         $assignment = Assignment::where('user_id', $userId)
-            ->where('status', 'active')
+            ->current()
             ->first();
 
         if (!$assignment) {

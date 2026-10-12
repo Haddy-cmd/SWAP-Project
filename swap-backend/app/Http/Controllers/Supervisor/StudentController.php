@@ -35,7 +35,7 @@ class StudentController extends Controller
     {
         return Assignment::where('user_id', $studentId)
             ->visibleToSupervisor($supervisor)
-            ->where('status', 'active')
+            ->current()
             ->first();
     }
 
@@ -90,7 +90,7 @@ class StudentController extends Controller
         $assignment = Assignment::with(['user.profile', 'office', 'supervisor', 'termReport.reviewer'])
             ->where('user_id', $studentId)
             ->visibleToSupervisor($request->user())
-            ->where('status', 'active')
+            ->current()
             ->first();
 
         if (!$assignment) {
@@ -203,7 +203,7 @@ class StudentController extends Controller
         $assignment = Assignment::with('user.profile')
             ->where('user_id', $studentId)
             ->visibleToSupervisor($request->user())
-            ->where('status', 'active')
+            ->current()
             ->first();
 
         if (!$assignment) {

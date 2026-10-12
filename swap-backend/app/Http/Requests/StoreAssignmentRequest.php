@@ -28,7 +28,7 @@ class StoreAssignmentRequest extends FormRequest
         ];
     }
 
-    /** One active placement per recipient per term (a partial unique index backs this up). */
+    /** One active placement per recipient: per term (a partial unique index backs this up) and across terms. */
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
@@ -44,6 +44,9 @@ class StoreAssignmentRequest extends FormRequest
 
             if ($taken) {
                 $validator->errors()->add('user_id', AssignmentService::MSG_ALREADY_ASSIGNED);
+            } elseif ($elsewhere = AssignmentService::activeElsewhereMessage((int) $this->input('user_id'))) {
+                // One active placement per student across all terms.
+                $validator->errors()->add('user_id', $elsewhere);
             }
         });
     }

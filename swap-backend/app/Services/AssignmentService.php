@@ -35,6 +35,10 @@ class AssignmentService
         try {
             $assignment = DB::transaction(function () use ($data, $admin, $enforceCapacity) {
                 if ($enforceCapacity) {
+                    // Renewals complete the previous term first, so only new placements check this.
+                    if ($elsewhere = self::activeElsewhereMessage((int) $data['user_id'])) {
+                        throw ValidationException::withMessages(['user_id' => $elsewhere]);
+                    }
                     $this->assertReady((int) $data['office_id']);
                     $this->assertRoom((int) $data['office_id']);
                 }
@@ -82,6 +86,12 @@ class AssignmentService
         $supervisorChanged = array_key_exists('supervisor_id', $data)
             && (int) $data['supervisor_id'] !== (int) $assignment->supervisor_id;
 
+        // Reactivating an old placement while another one is active would give the student two.
+        if (($data['status'] ?? null) === 'active' && $assignment->status !== 'active'
+            && ($elsewhere = self::activeElsewhereMessage($assignment->user_id, $assignment->id))) {
+            throw ValidationException::withMessages(['status' => $elsewhere]);
+        }
+
         $updated = DB::transaction(function () use ($assignment, $data, $admin, $old, $officeChanged) {
             // Moving into another office needs a free seat there; a supervisor-only change never does.
             if ($officeChanged) {
@@ -113,6 +123,18 @@ class AssignmentService
      * Refuses (422 on office_id) when the office's active placements already reach its limit.
      * The office row is locked so two admins can't both take its last seat.
      */
+    public const MSG_ACTIVE_ELSEWHERE = '%s is already placed at %s for %s %s. Move them with Edit on that placement, or complete that term first.';
+
+    /** A student has at most one active placement across all terms; null when they have none (besides $ignoreId). */
+    public static function activeElsewhereMessage(int $userId, ?int $ignoreId = null): ?string
+    {
+        $other = Assignment::with(['user', 'office'])->where('user_id', $userId)->current()
+            ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->first();
+
+        return $other ? sprintf(self::MSG_ACTIVE_ELSEWHERE, $other->user?->name ?? 'This student',
+            $other->office?->name ?? 'an office', $other->semester, $other->academic_year) : null;
+    }
+
     public const MSG_OFFICE_CLOSED = '%s is closed to new placements. Open it on the Offices page or pick another office.';
     public const MSG_OFFICE_NOT_READY = "%s isn't set up yet (needs: %s). Finish it on the Offices page or pick another office.";
 

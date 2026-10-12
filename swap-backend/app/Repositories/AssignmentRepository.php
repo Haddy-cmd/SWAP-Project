@@ -26,7 +26,7 @@ class AssignmentRepository implements AssignmentRepositoryInterface
     {
         return Assignment::with(['office', 'supervisor'])
             ->where('user_id', $userId)
-            ->where('status', 'active')
+            ->current()
             ->first();
     }
 

@@ -31,7 +31,7 @@ class TermReportService
     {
         $assignment = Assignment::with('termReport')
             ->where('user_id', $user->id)
-            ->where('status', 'active')
+            ->current()
             ->first();
 
         return [
