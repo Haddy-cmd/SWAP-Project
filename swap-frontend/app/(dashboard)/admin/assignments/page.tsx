@@ -82,6 +82,8 @@ export default function AdminAssignmentsPage() {
   // Move (change office / supervisor) fields
   const [editOfficeId, setEditOfficeId] = useState('')
   const [editSupervisorId, setEditSupervisorId] = useState('')
+  // "Change supervisor only": same office, another of its supervisors.
+  const [supOnly, setSupOnly] = useState(false)
 
   const q = search.trim()
   const searchParam: Record<string, string> = q ? { search: q } : {}
@@ -204,10 +206,12 @@ export default function AdminAssignmentsPage() {
     },
   })
 
+  // Opens with nothing picked: the current office can't be chosen again (the API refuses it too).
   function openMove(a: Assignment) {
     setEditFor(a)
-    setEditOfficeId(String(a.office_id))
-    setEditSupervisorId(String(a.supervisor_id))
+    setSupOnly(false)
+    setEditOfficeId('')
+    setEditSupervisorId('')
   }
 
   const chosenOffice = officeById(officeId)
@@ -488,24 +492,44 @@ export default function AdminAssignmentsPage() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1 block text-[12px] font-semibold text-ink-600">Office</span>
-                <select value={editOfficeId} onChange={(e) => pickOffice(e.target.value, setEditOfficeId, setEditSupervisorId)} className={fieldCls}>
-                  <option value="">Select office…</option>
-                  {offices.map((o) => (
-                    <option key={o.id} value={o.id} disabled={o.id !== editFor.office_id && (o.ready === false || isFull(o))}>
-                      {o.name}{o.id !== editFor.office_id && o.ready === false ? ' (needs setup)' : o.id !== editFor.office_id && isFull(o) ? ' (full)' : ''}
-                    </option>
-                  ))}
-                </select>
+                {supOnly ? (
+                  <p className={`${fieldCls} flex items-center bg-ink-100 text-ink-600`}>{editFor.office?.name ?? '—'} (current)</p>
+                ) : (
+                  <select value={editOfficeId} onChange={(e) => pickOffice(e.target.value, setEditOfficeId, setEditSupervisorId)} className={fieldCls}>
+                    <option value="">Select office…</option>
+                    {offices.map((o) => {
+                      const current = o.id === editFor.office_id
+                      return (
+                        <option key={o.id} value={o.id} disabled={current || o.ready === false || isFull(o)}>
+                          {o.name}{current ? ' (current)' : o.ready === false ? ' (needs setup)' : isFull(o) ? ' (full)' : ''}
+                        </option>
+                      )
+                    })}
+                  </select>
+                )}
               </label>
               <label className="block">
                 <span className="mb-1 block text-[12px] font-semibold text-ink-600">Supervisor</span>
                 <select value={editSupervisorId} onChange={(e) => setEditSupervisorId(e.target.value)}
-                  disabled={!editOfficeId || supervisorsFor(editOfficeId).length <= 1} className={`${fieldCls} disabled:bg-ink-100 disabled:text-ink-500`}>
+                  disabled={!editOfficeId || (!supOnly && supervisorsFor(editOfficeId).length <= 1)} className={`${fieldCls} disabled:bg-ink-100 disabled:text-ink-500`}>
                   <option value="">{!editOfficeId ? 'Select an office first' : 'Select supervisor…'}</option>
-                  {supervisorsFor(editOfficeId).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {supervisorsFor(editOfficeId).map((s) => {
+                    const current = supOnly && s.id === editFor.supervisor_id
+                    return <option key={s.id} value={s.id} disabled={current}>{s.name}{current ? ' (current)' : ''}</option>
+                  })}
                 </select>
               </label>
             </div>
+            {supervisorsFor(String(editFor.office_id)).length > 1 && (
+              <button type="button" onClick={() => {
+                const next = !supOnly
+                setSupOnly(next)
+                setEditOfficeId(next ? String(editFor.office_id) : '')
+                setEditSupervisorId('')
+              }} className="mt-2 text-xs font-semibold text-accent-strong hover:underline">
+                {supOnly ? 'Move to another office instead' : 'Change supervisor only'}
+              </button>
+            )}
 
             <p className="mt-3 text-xs text-ink-500">
               The recipient clocks in at the new office&apos;s QR from now on. Hours already rendered are unaffected.
@@ -516,7 +540,7 @@ export default function AdminAssignmentsPage() {
               <button onClick={() => setEditFor(null)} className="h-10 rounded-xl border border-ink-200 px-4 text-sm font-semibold text-ink-600 hover:bg-ink-50">Cancel</button>
               <button onClick={() => edit.mutate()} disabled={edit.isPending || !editOfficeId || !editSupervisorId}
                 className="inline-flex h-10 items-center gap-1.5 rounded-xl px-4 text-sm font-semibold text-white disabled:opacity-45" style={{ background: GREEN }}>
-                <MapPin className="h-4 w-4" /> {edit.isPending ? 'Saving…' : 'Move'}
+                <MapPin className="h-4 w-4" /> {edit.isPending ? 'Saving…' : supOnly ? 'Change supervisor' : 'Move'}
               </button>
             </div>
           </div>

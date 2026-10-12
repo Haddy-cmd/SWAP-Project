@@ -327,6 +327,7 @@ Allowed transitions: `submitted` → `under_review` / `interview_scheduled` / `r
 | TC-ASSIGN-025 | P1 | [N] New placements need a ready office | Admin; an office with no supervisor/pin/clock-in area; a closed office | Assign a student to each (Assignments, or the API); move a placed student into one | — | HTTP 422: "{office} isn't set up yet (needs: supervisor, map location, clock-in area). Finish it on the Offices page or pick another office." / "{office} is closed to new placements…"; Assignments shows them disabled ("Needs setup on the Offices page"); students already placed there and renewals are not affected |  |  |
 | TC-ASSIGN-026 | P1 | [N] One active placement per student | Admin; a recipient active at Campo Ranao St. for 2nd Semester 2026-2027 | Assign them to another office for 1st Semester 2026-2027; or set an old completed placement back to Active | — | HTTP 422: "{name} is already placed at Campo Ranao St. for 2nd Semester 2026-2027. Move them with Edit on that placement, or complete that term first."; moving them with Edit still works; renewals are not affected (they complete the previous term first) |  |  |
 | TC-ASSIGN-027 | P1 | [H] Old duplicates are closed and every screen agrees | A student with two active placements from before the rule (e.g. hours added in System Testing to the newer one) | Deploy (migration `2026_10_12_000001`); open the recipient dashboard, the supervisor's student page and System Testing | — | The newest placement stays active and the others become completed (hours and logs kept; audit "Completed {name}'s extra active placement (kept the newest one)"); the dashboard, supervisor pages, attendance, report, promissory and stipend all read that same placement |  |  |
+| TC-ASSIGN-028 | P2 | [N] A move must go to a different office | Admin; a placed recipient (office with one or two supervisors) | Assignments → Move on the placement; try to pick the current office; send the same office to the API | — | The modal opens with nothing selected and lists the current office as "{office} (current)", disabled, so Move stays off until another ready office is picked; the API answers HTTP 422 "{name} is already placed at {office}. Pick a different office." and nothing is sent; for an office with 2+ supervisors, "Change supervisor only" switches to another supervisor of the same office (allowed) |  |  |
 
 ---
 
@@ -948,7 +949,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | Applications | TC-APP-001..018 | 18 | Core workflow, applicant timeline | DocumentTest, ResourceAccessTest, NotificationTest, ApplicationTermTest, InterviewLifecycleTest, WordUploadTest |
 | Renewal | TC-REN-001..015 | 15 | Core workflow, return to the applicant portal | RenewalTest |
 | Admin Review & Interviews | TC-ADMR-001..044 | 44 | State machine, interview rules, renewal gate, approval → recipient, review page | AdminTest, InterviewLifecycleTest, RenewalTest, ApprovalMakesRecipientTest, AdminUsersListTest |
-| Assignments & QR | TC-ASSIGN-001..027 | 27 | Placement integrity, office capacity, office map, placement queue | AdminTest, QrCodeServiceTest, AuditTrailTest, AssignmentQueueFiltersTest, OfficeCapacityTest, RenewalTest, OfficeAddCollegesMigrationTest, OfficeDeleteTest, OfficeReadinessTest, OneActivePlacementTest |
+| Assignments & QR | TC-ASSIGN-001..028 | 28 | Placement integrity, office capacity, office map, placement queue | AdminTest, QrCodeServiceTest, AuditTrailTest, AssignmentQueueFiltersTest, OfficeCapacityTest, RenewalTest, OfficeAddCollegesMigrationTest, OfficeDeleteTest, OfficeReadinessTest, OneActivePlacementTest, MovePlacementTest |
 | Profile & Account | TC-PROF-001..022 | 22 | Account mgmt, devices, activity | AuditTrailTest, SignatureTest, EmployeeIdTest, ProfileSessionsTest, ProfileActivityTest |
 | Signature Specimen | TC-SIG-001..012 | 12 | Payout signature, receipts, lost files | SignatureTest, StipendClaimTest, AttendanceTest |
 | Attendance / Clock-In | TC-ATT-001..025 | 25 | Integrity, geofence | AttendanceTest, AuditTrailTest; axiosInterceptors (Vitest) |
@@ -972,7 +973,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | System Testing | TC-TEST-001..024 | 24 | Test tooling, bypasses, restore, file storage, email switch | TestingToolsTest, StorageCheckTest, TestingEmailSwitchTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..030 | 30 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
-| **TOTAL** | — | **615** | — | — |
+| **TOTAL** | — | **616** | — | — |
 
 ---
 

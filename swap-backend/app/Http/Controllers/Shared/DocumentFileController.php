@@ -53,6 +53,17 @@ class DocumentFileController extends Controller
             $path = $parsed ? ltrim(preg_replace('#^/storage/#', '', $parsed), '/') : null;
         }
 
+        // Imported applications carry a "not submitted" placeholder bundled with the app (no storage file).
+        if ($path && str_starts_with($path, ApplicationDocument::PLACEHOLDER_PREFIX)) {
+            $file = resource_path('placeholders/' . basename($path));
+            abort_unless(is_file($file), 404, 'Document not found.');
+
+            return response()->file($file, [
+                'Content-Type' => $doc->mime_type ?? 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . ($doc->file_name ?? basename($path)) . '"',
+            ]);
+        }
+
         if (!$path || $path === '0' || str_contains($path, '{DOC_ID}') || str_contains($path, 'api/documents')) {
             return response()->json([
                 'message' => 'Document file path is invalid or corrupted. The applicant may need to re-upload this document.',

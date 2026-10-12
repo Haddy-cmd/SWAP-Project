@@ -86,6 +86,13 @@ class AssignmentService
         $supervisorChanged = array_key_exists('supervisor_id', $data)
             && (int) $data['supervisor_id'] !== (int) $assignment->supervisor_id;
 
+        // A "move" to the office they're already in (with no supervisor change) is not a move.
+        if (array_key_exists('office_id', $data) && !$officeChanged && !$supervisorChanged) {
+            $assignment->loadMissing(['user', 'office']);
+            throw ValidationException::withMessages(['office_id' => sprintf(self::MSG_SAME_OFFICE,
+                $assignment->user?->name ?? 'This student', $assignment->office?->name ?? 'that office')]);
+        }
+
         // Reactivating an old placement while another one is active would give the student two.
         if (($data['status'] ?? null) === 'active' && $assignment->status !== 'active'
             && ($elsewhere = self::activeElsewhereMessage($assignment->user_id, $assignment->id))) {
@@ -123,6 +130,8 @@ class AssignmentService
      * Refuses (422 on office_id) when the office's active placements already reach its limit.
      * The office row is locked so two admins can't both take its last seat.
      */
+    public const MSG_SAME_OFFICE = '%s is already placed at %s. Pick a different office.';
+
     public const MSG_ACTIVE_ELSEWHERE = '%s is already placed at %s for %s %s. Move them with Edit on that placement, or complete that term first.';
 
     /** A student has at most one active placement across all terms; null when they have none (besides $ignoreId). */
