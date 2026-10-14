@@ -3,9 +3,12 @@
 namespace App\Repositories;
 
 use App\Models\Application;
+use App\Models\Interview;
 use App\Repositories\Contracts\ApplicationRepositoryInterface;
+use App\Support\InterviewWindow;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Carbon;
 
 class ApplicationRepository implements ApplicationRepositoryInterface
 {
@@ -86,6 +89,18 @@ class ApplicationRepository implements ApplicationRepositoryInterface
                 ->orWhere('email', 'ilike', $term)
                 ->orWhereHas('profile', fn ($p) => $p->where('student_id_number', 'ilike', $term))
             ));
+        }
+
+        // Admin → Applications → Interview set → Calendar: interviews on these Manila days, in time order.
+        if (!empty($filters['interview_from']) || !empty($filters['interview_to'])) {
+            $from = !empty($filters['interview_from']) ? Carbon::parse($filters['interview_from'], InterviewWindow::TIMEZONE)->startOfDay()->utc() : null;
+            $to = !empty($filters['interview_to']) ? Carbon::parse($filters['interview_to'], InterviewWindow::TIMEZONE)->endOfDay()->utc() : null;
+            $query->whereHas('interview', fn ($i) => $i
+                ->when($from, fn ($q) => $q->where('scheduled_at', '>=', $from))
+                ->when($to, fn ($q) => $q->where('scheduled_at', '<=', $to)))
+                ->reorder()
+                ->orderBy(Interview::select('scheduled_at')->whereColumn('interviews.application_id', 'applications.id')->limit(1))
+                ->orderBy('id');
         }
 
         return $query->paginate($perPage);

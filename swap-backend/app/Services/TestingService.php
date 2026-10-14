@@ -72,25 +72,6 @@ class TestingService
         private readonly AccountSnapshot $snapshots,
     ) {}
 
-    // ── Switch ──────────────────────────────────────────────────────────────
-
-    /**
-     * Switching off ends testing: every picked account is restored to how it was when
-     * picked and leaves testing. Returns how many accounts were restored.
-     */
-    public function setEnabled(User $admin, bool $on): int
-    {
-        $restored = $on ? 0 : $this->releaseAll($admin);
-
-        $was = TestTools::enabled();
-        TestTools::setEnabled($on);
-        if ($was !== $on) {
-            AuditLog::record($on ? 'testing_switched_on' : 'testing_switched_off', $admin, ['enabled' => $was], ['enabled' => $on], $admin->id);
-        }
-
-        return $restored;
-    }
-
     public const MSG_NO_RESTORE_POINT = 'This account was picked before restore points existed — use Remove to clean it up.';
 
     public static function msgSameRole(string $role): string
@@ -618,7 +599,7 @@ class TestingService
      * (Restore first to undo it). An account picked before restore points existed is cleaned up
      * from the audit log instead, as before. Works while the tools are off too.
      */
-    public function removeExisting(User $admin, int $id): void
+    public function removeExisting(?User $admin, int $id): void
     {
         $user = $this->picked($id);
         $snapshot = TestingSnapshot::where('user_id', $user->id)->first();
@@ -634,11 +615,14 @@ class TestingService
             $snapshot->delete();
             $this->unpick($user);
         });
-        AuditLog::record('testing_account_removed', $user, null, ['restored' => false], $admin->id);
+        AuditLog::record('testing_account_removed', $user, null, ['restored' => false], $admin?->id);
     }
 
-    /** Restore every picked account and take it out of testing (switching testing off). Returns how many. */
-    public function releaseAll(User $admin): int
+    /**
+     * Restore every picked account and take it out of testing (Restore all, or the server turning it off). Returns how many.
+     * $admin is null when the server does it (`testing:shutdown`, SWAP_TEST_TOOLS off): audited as the system.
+     */
+    public function releaseAll(?User $admin): int
     {
         $ids = User::whereNotNull('testing_added_at')->pluck('id');
         foreach ($ids as $id) {
@@ -654,10 +638,11 @@ class TestingService
                 $snapshot->delete();
                 $this->unpick($user);
             });
-            AuditLog::record('testing_account_removed', $user, null, ['restored' => true] + $counts, $admin->id);
+            AuditLog::record('testing_account_removed', $user, null, ['restored' => true] + $counts, $admin?->id);
         }
         if ($ids->isNotEmpty()) {
-            AuditLog::record('testing_released_all', $admin, null, ['accounts' => $ids->count()], $admin->id);
+            // Recorded on the admin, or (done by the server) on the last account restored.
+            AuditLog::record('testing_released_all', $admin ?? $user, null, ['accounts' => $ids->count()], $admin?->id);
         }
 
         return $ids->count();
@@ -738,7 +723,7 @@ class TestingService
     }
 
     /** @return list<string> */
-    private function applyCleanup(User $admin, User $user, array $plan): array
+    private function applyCleanup(?User $admin, User $user, array $plan): array
     {
         DB::transaction(function () use ($user, $plan) {
             $this->snapshots->deleteRows($user->id, $plan['rows'], $plan['windows']);
@@ -755,7 +740,7 @@ class TestingService
             TestingSnapshot::where('user_id', $user->id)->delete();
             $user->forceFill(['testing_added_at' => null])->save();
         });
-        AuditLog::record('testing_legacy_cleanup', $user, null, ['items' => $plan['items']], $admin->id);
+        AuditLog::record('testing_legacy_cleanup', $user, null, ['items' => $plan['items']], $admin?->id);
 
         return $plan['items'];
     }

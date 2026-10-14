@@ -1,4 +1,5 @@
 import apiClient from './axios'
+import { filenameFrom, rethrowBlobError } from './reports.api'
 import type { AdminOverview, AdminPeriod, ProgramInsights, SupervisorReminderResult } from '@/types/analytics.types'
 import type { ApiResponse } from '@/types/api.types'
 import type { AuditFilters, AuditOptions, AuditPage } from '@/types/audit.types'
@@ -33,4 +34,13 @@ export const auditApi = {
     }).then((r) => r.data),
 
   options: () => apiClient.get<{ data: AuditOptions }>('/admin/audit-logs/options').then((r) => r.data.data),
+
+  // Audit Logs → CSV: every entry the filters match (not just one page); over 20,000 is refused.
+  export: (filters: AuditFilters) =>
+    apiClient.get<Blob>('/admin/audit-logs/export', {
+      params: Object.fromEntries(Object.entries(filters).filter(([k, v]) => k !== 'page' && v !== undefined && v !== '')),
+      responseType: 'blob',
+    })
+      .then((r) => ({ blob: r.data, filename: filenameFrom(r.headers['content-disposition']) }))
+      .catch(rethrowBlobError),
 }

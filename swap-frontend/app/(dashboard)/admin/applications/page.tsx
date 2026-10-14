@@ -6,9 +6,10 @@ import Link from 'next/link'
 import {
   Search, ArrowRight, CheckCircle2, Inbox, Clock, CalendarClock, XCircle, CheckCircle, CalendarCheck,
   ChevronLeft, ChevronRight, Video, Users, MapPin, Ban, BadgeCheck, RefreshCw, Layers,
-  FileText, X, UserPlus, Building2,
+  FileText, X, UserPlus, Building2, CalendarDays,
 } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
+import { InterviewCalendar } from '@/components/admin/applications/InterviewCalendar'
 import { ApplicationPeriodToggle } from '@/components/admin/ApplicationPeriodToggle'
 import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
@@ -77,11 +78,19 @@ export default function AdminApplicationsPage() {
   const [page, setPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<ApplicationStatus | null>(null)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
-  // Links can open a tab directly (the dashboard's "renewals ready to approve" → ?type=renewal).
+  // Interview set tab: the queue as a list, or a month calendar of the interviews.
+  const [ivView, setIvView] = useState<'list' | 'calendar'>('list')
+  // Links can open a tab directly (the dashboard's "renewals ready to approve" → ?type=renewal,
+  // "interviews today" → ?status=interview_scheduled&view=calendar).
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('type')
+    const q = new URLSearchParams(window.location.search)
+    const t = q.get('type')
     if (t === 'renewal' || t === 'new') setTypeFilter(t)
+    const s = q.get('status')
+    if (STATUS_TABS.some((tab) => tab.status === s)) setStatusFilter(s as ApplicationStatus)
+    if (q.get('view') === 'calendar') setIvView('calendar')
   }, [])
+  const calendar = statusFilter === 'interview_scheduled' && ivView === 'calendar'
   const typeParam: Record<string, string> = typeFilter === 'all' ? {} : { type: typeFilter }
   const [selectedId, setSelectedId] = useState<number | null>(null)
 
@@ -342,8 +351,23 @@ export default function AdminApplicationsPage() {
                 </button>
               ))}
             </div>
+            {statusFilter === 'interview_scheduled' && (
+              <div className="flex gap-1 rounded-[11px] bg-ink-100 p-1" role="tablist" aria-label="Interview view">
+                {([['list', 'List', Layers], ['calendar', 'Calendar', CalendarDays]] as const).map(([v, label, Icon]) => (
+                  <button key={v} role="tab" aria-selected={ivView === v} onClick={() => setIvView(v)}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                      ivView === v ? 'bg-surface text-accent shadow-sm' : 'text-ink-500 hover:text-accent'
+                    }`}>
+                    <Icon className="h-4 w-4" /> {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
+          {calendar ? (
+            <InterviewCalendar type={typeFilter === 'all' ? undefined : typeFilter} search={search} activeId={activeId} onSelect={setSelectedId} />
+          ) : (<>
           <div className="max-h-[600px] overflow-auto">
             {isLoading ? (
               <div className="space-y-2 p-3.5">
@@ -412,6 +436,7 @@ export default function AdminApplicationsPage() {
               </div>
             </div>
           )}
+          </>)}
         </div>
 
         {/* ── detail ─────────────────────────────────────────────────────── */}

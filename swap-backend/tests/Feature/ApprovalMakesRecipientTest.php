@@ -120,10 +120,11 @@ class ApprovalMakesRecipientTest extends TestCase
         $this->putJson('/api/admin/applications/'.Application::firstWhere('user_id', $student->id)->id.'/decide', ['decision' => 'approved'])
             ->assertOk();
 
+        $office = $this->makeReadyOffice();
         $this->postJson('/api/admin/assignments', [
             'user_id' => $student->id,
-            'office_id' => $this->makeReadyOffice()->id,
-            'supervisor_id' => $this->makeUser('supervisor')->id,
+            'office_id' => $office->id,
+            'supervisor_id' => $this->makeUser('supervisor', ['office_id' => $office->id])->id,
             'academic_year' => '2024-2025',
             'semester' => '1st Semester',
             'required_hours' => 200,

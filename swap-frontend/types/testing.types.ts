@@ -47,7 +47,7 @@ export interface TestingAccount {
 }
 
 export interface TestingStatus {
-  /** The page's On/Off switch: picking, bypasses and shortcuts work only while on. */
+  /** Always true here: System Testing is on and off only by the server's SWAP_TEST_TOOLS (the API is 404 while off). */
   enabled: boolean
   accounts: TestingAccount[]
   /** The portal-wide sign-in code (OTP): required now, forced off on the server (LOGIN_OTP), the page switch. */
@@ -77,9 +77,6 @@ export interface EarlierTest {
   /** What the cleanup removes or puts back. */
   items: string[]
 }
-
-// Same text as TestTools::MSG_OFF.
-export const TESTING_OFF_MESSAGE = 'Switch System Testing on first.'
 
 export type TestingAction =
   | 'hours' | 'complete-hours' | 'reset-hours' | 'verify-hours' | 'clock-in' | 'auto-clock-out'

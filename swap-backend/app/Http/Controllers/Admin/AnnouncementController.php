@@ -10,7 +10,7 @@ use App\Services\AnnouncementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/** Admin → Announcements: message every active recipient (portal + email), see what was sent, delete a mistake. */
+/** Admin → Announcements: message an audience (portal + email), see what was sent, delete a mistake. */
 class AnnouncementController extends Controller
 {
     public function __construct(private readonly AnnouncementService $announcements) {}
@@ -25,8 +25,9 @@ class AnnouncementController extends Controller
                 'current_page' => $page->currentPage(),
                 'last_page' => $page->lastPage(),
                 'total' => $page->total(),
-                // Who a new announcement would reach right now.
+                // Who a new announcement would reach right now, per audience and per office.
                 'active_recipients' => AnnouncementService::activeRecipients()->count(),
+                ...AnnouncementService::audienceCounts(),
             ],
         ]);
     }
@@ -34,15 +35,23 @@ class AnnouncementController extends Controller
     public function store(StoreAnnouncementRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $announcement = $this->announcements->send($request->user(), $data['title'], $data['message'], $request->file('attachments', []));
+        $audience = $data['audience'] ?? 'recipients';
+        $officeId = $audience === 'office' ? (int) $data['office_id'] : null;
+        $announcement = $this->announcements->send($request->user(), $data['title'], $data['message'], $request->file('attachments', []), $audience, $officeId);
 
         $sent = $announcement->recipient_count;
+        $who = match ($audience) {
+            'everyone' => 'active recipient(s) and supervisor(s)',
+            'supervisors' => 'supervisor(s)',
+            'office' => 'student(s) and supervisor(s) at ' . $announcement->office?->name,
+            default => 'active recipient(s)',
+        };
         // Test accounts held back by System Testing's email switch aren't a mail failure.
-        $muted = AnnouncementService::emailMutedCount();
+        $muted = AnnouncementService::emailMutedCount($audience, $officeId);
         $message = match (true) {
-            $announcement->emailed_count === $sent => "Announcement sent to {$sent} active recipient(s) in the portal and by email.",
-            $announcement->emailed_count === $sent - $muted => "Announcement sent to {$sent} active recipient(s) in the portal and by email ({$muted} test account(s) in the portal only: System Testing emails are off).",
-            default => "Announcement sent to {$sent} active recipient(s) in the portal. The email reached {$announcement->emailed_count} of them; check the mail settings.",
+            $announcement->emailed_count === $sent => "Announcement sent to {$sent} {$who} in the portal and by email.",
+            $announcement->emailed_count === $sent - $muted => "Announcement sent to {$sent} {$who} in the portal and by email ({$muted} test account(s) in the portal only: System Testing emails are off).",
+            default => "Announcement sent to {$sent} {$who} in the portal. The email reached {$announcement->emailed_count} of them; check the mail settings.",
         };
 
         return response()->json([

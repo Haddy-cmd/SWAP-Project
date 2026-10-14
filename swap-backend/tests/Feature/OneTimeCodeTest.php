@@ -226,7 +226,6 @@ class OneTimeCodeTest extends TestCase
     public function test_system_testing_never_mutes_the_code(): void
     {
         $user = $this->account(['testing_added_at' => now(), 'testing_email_muted' => true]);
-        TestTools::setEnabled(true);
 
         $this->postJson('/api/auth/login', ['email' => $user->email, 'password' => 'Password@123'])->assertJsonPath('otp_required', true);
         $this->assertFalse(TestTools::mutesEmail($user, new OneTimeCodeNotification('123456', OneTimeCode::LOGIN, 10)));

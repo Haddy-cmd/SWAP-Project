@@ -2,16 +2,17 @@
 
 namespace App\Support;
 
-use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 
 /**
- * Admin → System Testing. Switched on and off from its own page (setting
- * `test_tools_enabled`, off by default). Its shortcuts and rule bypasses only ever apply
- * to existing accounts the admin picked (`users.testing_added_at`) — everyone else always
- * gets the real rules.
+ * Admin → System Testing. Switched on and off only by the environment — SWAP_TEST_TOOLS
+ * (config swap.test_tools), on the live server and locally alike; there is no switch in the app.
+ * Off: the page and its API are gone and nothing is bypassed; the next boot's
+ * `testing:shutdown` restores the accounts still in testing. On: its shortcuts and rule bypasses
+ * only ever apply to existing accounts the admin picked (`users.testing_added_at`) — everyone
+ * else always gets the real rules.
  *
  * Each picked account has its own email switch (`users.testing_email_muted`, off = muted by
  * default when picked): a muted account still gets every bell notification, and account emails
@@ -19,31 +20,21 @@ use Illuminate\Auth\Notifications\VerifyEmail;
  */
 class TestTools
 {
-    public const SETTING = 'test_tools_enabled';
-
-    public const MSG_OFF = 'Switch System Testing on first.';
+    public const MSG_UNAVAILABLE = 'System Testing is turned off on this server.';
 
     /** Account emails a picked student may still need while testing. */
     private const ALWAYS_EMAILED = [ResetPassword::class, VerifyEmail::class, \App\Notifications\OneTimeCodeNotification::class];
 
-    /** Memo for the current request/job (list resources ask once per row). */
-    private static ?bool $enabled = null;
-
+    /** Whether System Testing is on (SWAP_TEST_TOOLS). */
     public static function enabled(): bool
     {
-        return self::$enabled ??= Setting::bool(self::SETTING, false);
+        return (bool) config('swap.test_tools');
     }
 
-    public static function setEnabled(bool $on): void
+    /** Same as enabled(): this server offers System Testing. */
+    public static function available(): bool
     {
-        Setting::put(self::SETTING, $on ? '1' : '0');
-        self::$enabled = $on;
-    }
-
-    /** Drop the memo (end of each request and before each queued job). */
-    public static function flush(): void
-    {
-        self::$enabled = null;
+        return self::enabled();
     }
 
     /**

@@ -13,7 +13,7 @@ import { auditApi } from '@/lib/api/analytics.api'
 import { formatDay } from '@/lib/utils/semester'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { ApiRequestError } from '@/lib/api/axios'
-import { TESTING_OFF_MESSAGE, type TestingAccount, type TestingAction, type TestingStatus } from '@/types/testing.types'
+import type { TestingAccount, TestingAction, TestingStatus } from '@/types/testing.types'
 import { CARD, Pill, Shortcut, StepCard, cap, currentTerm, initials, stepsOf, termEnded, termLabel } from './ui'
 
 type WithStatus = { data: TestingStatus; message: string }
@@ -30,9 +30,8 @@ const SMALL = 'h-9 rounded-[9px] border border-ink-200 bg-surface px-2.5 text-[1
  * it since it was added (from the audit log), and its controls — email switch, role switch,
  * Undo all changes (restore) and Stop testing, keep changes (remove).
  */
-export function AccountPanel({ account: a, enabled, onStatus, onShortcutDone }: {
+export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
   account: TestingAccount
-  enabled: boolean
   /** Calls that return the refreshed status (email, role, restore, remove). */
   onStatus: (res: WithStatus) => void
   /** A shortcut ran: refresh the status. */
@@ -52,7 +51,7 @@ export function AccountPanel({ account: a, enabled, onStatus, onShortcutDone }: 
     onError: (e: ApiRequestError) => notifyError(e, 'That shortcut failed'),
   })
   const run = (action: TestingAction, data?: Record<string, unknown>) => act.mutate({ action, data })
-  const off = !enabled || act.isPending
+  const off = act.isPending
 
   // ── Account controls ──
   const done = (res: WithStatus) => { onStatus(res); refreshLog(); notify({ title: res.message, detail: null }) }
@@ -127,8 +126,6 @@ export function AccountPanel({ account: a, enabled, onStatus, onShortcutDone }: 
           </div>
         )}
       </div>
-
-      {!enabled && <p className="rounded-xl bg-gold-50 px-4 py-2.5 text-[12.5px] text-warning-700">{TESTING_OFF_MESSAGE} The shortcuts are paused; the controls at the bottom still work.</p>}
 
       {isRecipient ? (
         !t ? (
@@ -275,7 +272,7 @@ export function AccountPanel({ account: a, enabled, onStatus, onShortcutDone }: 
             body: `Only the role changes: applications and placements aren't touched. They see the ${isRecipient ? 'applicant' : 'recipient'} portal right away. Undo all changes puts the original role back.`,
             confirmLabel: isRecipient ? 'Make applicant' : 'Make recipient',
           }, () => role.mutate(isRecipient ? 'applicant' : 'recipient'))}
-            disabled={busy || !enabled} title={enabled ? 'Change the role only' : TESTING_OFF_MESSAGE}
+            disabled={busy} title="Change the role only"
             className="flex h-9 items-center gap-1.5 rounded-[10px] border border-ink-200 bg-surface px-3 text-[12.5px] font-semibold text-ink-700 disabled:opacity-45">
             <Shuffle className="h-4 w-4" /> {isRecipient ? 'Make applicant' : 'Make recipient'}
           </button>

@@ -286,7 +286,7 @@ class AnalyticsService
             ['key' => 'applications', 'count' => $applications, 'label' => "{$applications} " . $plural($applications, 'application to review', 'applications to review'), 'href' => '/admin/applications'],
             ['key' => 'renewals', 'count' => $renewals, 'label' => "{$renewals} " . $plural($renewals, 'renewal ready to approve', 'renewals ready to approve'), 'href' => '/admin/applications?type=renewal'],
             ['key' => 'stipends', 'count' => $stipendsReady, 'label' => "{$stipendsReady} " . $plural($stipendsReady, 'stipend to release', 'stipends to release'), 'href' => '/admin/stipend'],
-            ['key' => 'interviews', 'count' => $interviews, 'label' => "{$interviews} " . $plural($interviews, 'interview today', 'interviews today'), 'href' => '/admin/interviews'],
+            ['key' => 'interviews', 'count' => $interviews, 'label' => "{$interviews} " . $plural($interviews, 'interview today', 'interviews today'), 'href' => '/admin/applications?status=interview_scheduled&view=calendar'],
             ['key' => 'placements', 'count' => $needOffice, 'label' => "{$needOffice} approved, need an office", 'href' => '/admin/assignments'],
             ['key' => 'concerns', 'count' => $concerns, 'label' => "{$concerns} " . $plural($concerns, 'concern waiting for a reply', 'concerns waiting for a reply'), 'href' => '/admin/concerns'],
         ], fn ($t) => $t['count'] > 0));

@@ -1,6 +1,6 @@
 import apiClient from './axios'
 import type { ApiResponse } from '@/types/api.types'
-import type { Announcement, AnnouncementListMeta } from '@/types/announcement.types'
+import type { Announcement, AnnouncementAudience, AnnouncementListMeta } from '@/types/announcement.types'
 
 /**
  * An announcement file's address for <img src> / a new tab: the API base plus the
@@ -20,14 +20,17 @@ export const announcementsApi = {
       })
       .then((r) => r.data),
 
-  // Sends to every active recipient: portal notification + email. Files go as multipart.
-  send: (data: { title: string; message: string; files?: File[] }) => {
+  // Sends to the audience: portal notification + email. Files go as multipart.
+  send: (data: { title: string; message: string; audience: AnnouncementAudience; office_id?: number | null; files?: File[] }) => {
+    const to = { audience: data.audience, ...(data.audience === 'office' && { office_id: data.office_id }) }
     if (!data.files?.length) {
-      return apiClient.post<ApiResponse<Announcement>>('/admin/announcements', { title: data.title, message: data.message }).then((r) => r.data)
+      return apiClient.post<ApiResponse<Announcement>>('/admin/announcements', { title: data.title, message: data.message, ...to }).then((r) => r.data)
     }
     const form = new FormData()
     form.append('title', data.title)
     form.append('message', data.message)
+    form.append('audience', to.audience)
+    if (to.audience === 'office' && data.office_id) form.append('office_id', String(data.office_id))
     data.files.forEach((f) => form.append('attachments[]', f))
     return apiClient.post<ApiResponse<Announcement>>('/admin/announcements', form, {
       headers: { 'Content-Type': 'multipart/form-data' },

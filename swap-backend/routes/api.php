@@ -45,7 +45,9 @@ use App\Http\Controllers\Shared\LandingPhotoController as PublicLandingPhotoCont
 use App\Http\Controllers\Admin\OfficeController;
 use App\Http\Controllers\Admin\SemesterPeriodController;
 use App\Http\Controllers\Admin\TestingController;
+use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\StorageCheckController;
+use App\Http\Middleware\EnsureTestToolsAvailable;
 use App\Http\Controllers\Admin\StipendController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -221,6 +223,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
         Route::get('/stipend', [StipendController::class, 'index']);
         Route::get('/stipend/eligible', [StipendController::class, 'eligible']);
+        Route::get('/stipend/export', [StipendController::class, 'export'])->middleware('throttle:20,1');
         // Page-level step-up gate (throttled like login): one password entry unlocks
         // the release/void calls for a short window instead of per-action passwords.
         Route::post('/stipend/unlock', [StipendController::class, 'unlock'])->middleware('throttle:6,1');
@@ -240,25 +243,29 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/analytics/periods', [AnalyticsController::class, 'periods']);
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::get('/audit-logs/options', [AuditLogController::class, 'options']);
+        Route::get('/audit-logs/export', [AuditLogController::class, 'export'])->middleware('throttle:20,1');
         Route::get('/analytics/overview/export', [ReportExplorerController::class, 'overviewPdf'])->middleware('throttle:20,1');
         Route::get('/reports/{type}', [ReportExplorerController::class, 'show'])->where('type', '[a-z-]+');
         Route::get('/reports/{type}/export', [ReportExplorerController::class, 'export'])->where('type', '[a-z-]+')->middleware('throttle:20,1');
 
-        // System Testing — 404 unless SWAP_TEST_TOOLS is on; test accounts only.
-        Route::get('/testing', [TestingController::class, 'status']);
-        Route::put('/testing/switch', [TestingController::class, 'switch']);
-        Route::put('/testing/login-code', [TestingController::class, 'loginCode'])->middleware('throttle:10,1');
-        Route::get('/testing/candidates', [TestingController::class, 'candidates']);
-        Route::post('/testing/accounts/{id}', [TestingController::class, 'addAccount'])->whereNumber('id');
-        Route::delete('/testing/accounts/{id}', [TestingController::class, 'removeAccount'])->whereNumber('id');
-        Route::post('/testing/accounts/{id}/restore', [TestingController::class, 'restoreAccount'])->whereNumber('id');
-        Route::put('/testing/accounts/{id}/email', [TestingController::class, 'accountEmail'])->whereNumber('id');
-        Route::put('/testing/accounts/{id}/role', [TestingController::class, 'accountRole'])->whereNumber('id');
-        Route::get('/testing/earlier', [TestingController::class, 'earlierTests']);
-        Route::post('/testing/earlier/{id}', [TestingController::class, 'cleanUpEarlierTest'])->whereNumber('id');
-        Route::post('/testing/recipients/{id}/{action}', [TestingController::class, 'action']);
-        Route::delete('/testing', [TestingController::class, 'releaseAll']);
-        // File storage check (any time, switch on or off): where uploads go and what's missing.
+        // System Testing — on/off only by SWAP_TEST_TOOLS (live and local); 404 while off; test accounts only.
+        Route::middleware(EnsureTestToolsAvailable::class)->group(function () {
+            Route::get('/testing', [TestingController::class, 'status']);
+            Route::put('/testing/login-code', [TestingController::class, 'loginCode'])->middleware('throttle:10,1');
+            Route::get('/testing/candidates', [TestingController::class, 'candidates']);
+            Route::post('/testing/accounts/{id}', [TestingController::class, 'addAccount'])->whereNumber('id');
+            Route::delete('/testing/accounts/{id}', [TestingController::class, 'removeAccount'])->whereNumber('id');
+            Route::post('/testing/accounts/{id}/restore', [TestingController::class, 'restoreAccount'])->whereNumber('id');
+            Route::put('/testing/accounts/{id}/email', [TestingController::class, 'accountEmail'])->whereNumber('id');
+            Route::put('/testing/accounts/{id}/role', [TestingController::class, 'accountRole'])->whereNumber('id');
+            Route::get('/testing/earlier', [TestingController::class, 'earlierTests']);
+            Route::post('/testing/earlier/{id}', [TestingController::class, 'cleanUpEarlierTest'])->whereNumber('id');
+            Route::post('/testing/recipients/{id}/{action}', [TestingController::class, 'action']);
+            Route::delete('/testing', [TestingController::class, 'releaseAll']);
+        });
+        // Whether System Testing is on here (SWAP_TEST_TOOLS): the sidebar shows it only then.
+        Route::get('/system', [SystemController::class, 'show']);
+        // File storage check (System Testing → File storage): where uploads go and what's missing.
         Route::get('/storage-check', [StorageCheckController::class, 'show']);
         Route::get('/semester-periods', [SemesterPeriodController::class, 'index']);
         Route::get('/semester-periods/current', [SemesterPeriodController::class, 'current']);

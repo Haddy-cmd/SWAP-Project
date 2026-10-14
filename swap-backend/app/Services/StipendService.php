@@ -135,6 +135,14 @@ class StipendService
 
     public function paginateAll(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
+        return $this->historyQuery($filters)->paginate($perPage);
+    }
+
+    /**
+     * Admin → Stipend → History rows (list and CSV): the filters, the status chip and the sort.
+     */
+    public function historyQuery(array $filters = []): \Illuminate\Database\Eloquent\Builder
+    {
         $query = $this->filtered($filters)->with(['recipient.profile', 'releasedBy']);
 
         // Legacy stubs may lack released_at; they fall back to when they were made.
@@ -156,7 +164,7 @@ class StipendService
             default => $query->where('status', $filters['status']),
         };
 
-        return $query->paginate($perPage);
+        return $query;
     }
 
     /** Statuses that count as released (a release is final; certified/pending are legacy). */

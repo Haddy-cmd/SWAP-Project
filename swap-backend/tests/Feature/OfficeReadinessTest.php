@@ -22,7 +22,8 @@ class OfficeReadinessTest extends TestCase
         return $this->postJson('/api/admin/assignments', [
             'user_id' => $recipientId ?? $this->makeUser('recipient')->id,
             'office_id' => $officeId,
-            'supervisor_id' => $this->makeUser('supervisor')->id,
+            // One of the office's own supervisors (AssignmentService::MSG_SUPERVISOR_NOT_IN_OFFICE).
+            'supervisor_id' => \App\Models\User::where('role', 'supervisor')->where('office_id', $officeId)->value('id') ?? $this->makeUser('supervisor')->id,
             'academic_year' => '2024-2025',
             'semester' => '1st Semester',
             'required_hours' => 200,

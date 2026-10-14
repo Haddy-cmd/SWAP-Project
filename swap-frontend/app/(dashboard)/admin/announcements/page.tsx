@@ -4,13 +4,13 @@ import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   Users, Wallet, CalendarDays, Clock, CalendarX, ImagePlus, X, Trash2, Send, CheckCircle2, AlertTriangle, Info,
-  Bell, Mail, Search, Megaphone, ChevronDown, ChevronUp, Copy, Download, MailX,
+  Bell, Mail, Search, Megaphone, ChevronDown, ChevronUp, Copy, Download, MailX, Building2, GraduationCap, UserCheck,
 } from 'lucide-react'
 import { announcementsApi, announcementFileUrl } from '@/lib/api/announcements.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { ApiRequestError } from '@/lib/api/axios'
-import type { Announcement } from '@/types/announcement.types'
+import type { Announcement, AnnouncementAudience } from '@/types/announcement.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { fileKind, fileSize } from '@/components/announcements/fileKind'
 
@@ -35,6 +35,16 @@ const TEMPLATES = [
     message: 'There will be no SWAP duty on [date] because of [reason]. Regular schedules resume on [date].' },
 ]
 
+// Send to: who each choice reaches (AnnouncementService on the server).
+const AUDIENCES: { value: AnnouncementAudience; label: string; Icon: typeof Users; who: string }[] = [
+  { value: 'everyone', label: 'Everyone', Icon: Users, who: 'Active recipients and supervisors' },
+  { value: 'office', label: 'One office', Icon: Building2, who: "Students placed there and the office's supervisors" },
+  { value: 'recipients', label: 'Recipients only', Icon: GraduationCap, who: 'Active recipients + approved students waiting for an office' },
+  { value: 'supervisors', label: 'Supervisors only', Icon: UserCheck, who: 'Active supervisors' },
+]
+const noun = (to: AnnouncementAudience, n: number) =>
+  to === 'recipients' ? (n === 1 ? 'student' : 'students') : to === 'supervisors' ? (n === 1 ? 'supervisor' : 'supervisors') : n === 1 ? 'person' : 'people'
+
 interface Draft { id: string; file: File; preview: string | null }
 
 const isImage = (f: File) => f.type.startsWith('image/')
@@ -42,8 +52,8 @@ const paragraphs = (text: string) => text.trim().split(/\n\s*\n/).filter(Boolean
 
 /**
  * Admin → Announcements (layout "SWAP Admin Announcements v2"): write one message — from a
- * template if you like — with up to 5 photos or documents, check how students will see it,
- * and send it to every active recipient (approved students waiting for an office included)
+ * template if you like — with up to 5 photos or documents, check how it will look, and send it
+ * to everyone, one office (its students and supervisors), recipients only or supervisors only,
  * in the portal and by email (the email lists the files; the portal opens them). The sent
  * list can be searched, reused as a new draft, or deleted.
  */
@@ -59,6 +69,8 @@ export default function AdminAnnouncementsPage() {
   const [search, setSearch] = useState('')
   const [q, setQ] = useState('')
   const [openId, setOpenId] = useState<number | null>(null)
+  const [to, setTo] = useState<AnnouncementAudience>('recipients')
+  const [officeId, setOfficeId] = useState<number | null>(null)
   const filesRef = useRef<Draft[]>([])
   filesRef.current = files
 
@@ -76,7 +88,11 @@ export default function AdminAnnouncementsPage() {
     placeholderData: keepPreviousData,
   })
   const history = data?.data ?? []
-  const audience = data?.meta.active_recipients
+  const offices = data?.meta.offices ?? []
+  const office = offices.find((o) => o.id === officeId) ?? null
+  // How many the chosen audience reaches right now (undefined until loaded / an office is picked).
+  const audience = !data ? undefined : to === 'office' ? office?.count : data.meta.audiences?.[to] ?? data.meta.active_recipients
+  const choice = AUDIENCES.find((a) => a.value === to)!
   const lastPage = data?.meta.last_page ?? 1
 
   const resetDraft = () => {
@@ -85,7 +101,9 @@ export default function AdminAnnouncementsPage() {
   }
 
   const send = useMutation({
-    mutationFn: () => announcementsApi.send({ title: title.trim(), message: message.trim(), files: files.map((d) => d.file) }),
+    mutationFn: () => announcementsApi.send({
+      title: title.trim(), message: message.trim(), audience: to, office_id: officeId, files: files.map((d) => d.file),
+    }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['admin-announcements'] })
       resetDraft(); setPage(1); setSearch(''); setOpenId(res.data.id)
@@ -141,6 +159,7 @@ export default function AdminAnnouncementsPage() {
       title: 'Replace your draft?', body: `The title and message will be replaced with "${a.title}".`, confirmLabel: 'Use as new draft',
     }))) return
     setTitle(a.title); setMessage(a.message)
+    setTo(a.audience ?? 'recipients'); setOfficeId(a.office_id ?? null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
     if (a.attachments?.length) notify({ tone: 'info', title: 'Draft ready', detail: 'Attach the files again if you need them.' })
   }
@@ -149,7 +168,7 @@ export default function AdminAnnouncementsPage() {
     const n = audience ?? 0
     const fileNote = files.length ? ` with ${files.length} file${files.length === 1 ? '' : 's'}` : ''
     if (await confirm({
-      title: `Send to ${n} student${n === 1 ? '' : 's'}?`,
+      title: `Send to ${n} ${noun(to, n)}${to === 'office' && office ? ` at ${office.name}` : ''}?`,
       body: `"${title.trim()}"${fileNote} will appear in their notifications and inbox right away. You can't unsend it.`,
       confirmLabel: 'Yes, send',
     })) send.mutate()
@@ -167,8 +186,13 @@ export default function AdminAnnouncementsPage() {
   const hasText = title.trim().length > 0 && message.trim().length >= 10
   const brackets = /\[[^\]]+\]/.test(title + message)
   const ready = hasText && !!audience && !send.isPending
-  const hint = audience === 0
-    ? { tone: 'warn', text: 'There are no active recipients to send an announcement to yet.' }
+  const hint = to === 'office' && !office
+    ? { tone: 'info', text: 'Choose the office to send it to.' }
+    : audience === 0
+    ? { tone: 'warn', text: to === 'office' ? `${office?.name} has no students or supervisors to send this to yet.`
+        : to === 'supervisors' ? 'There are no active supervisors to send an announcement to yet.'
+        : to === 'everyone' ? 'There is no one active to send an announcement to yet.'
+        : 'There are no active recipients to send an announcement to yet.' }
     : !title.trim() ? { tone: 'info', text: 'Add a title to continue.' }
     : message.trim().length < 10 ? { tone: 'info', text: 'Write a message (at least 10 characters) to continue.' }
     : brackets ? { tone: 'warn', text: 'Fill in the [brackets] before sending.' }
@@ -183,14 +207,14 @@ export default function AdminAnnouncementsPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-serif text-[30px] font-medium leading-tight text-ink-950">Announcements</h1>
-          <p className="mt-1 text-[13.5px] text-ink-500">Write once. It goes to every student&apos;s portal notifications and email.</p>
+          <p className="mt-1 text-[13.5px] text-ink-500">Write once. It goes to their portal notifications and email.</p>
         </div>
         {audience !== undefined && (
           <div className="flex items-center gap-2.5 rounded-[14px] border border-ink-900/10 bg-surface py-2 pl-2 pr-3.5">
-            <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-accent-soft text-accent-strong"><Users className="h-[19px] w-[19px]" /></span>
+            <span className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-accent-soft text-accent-strong"><choice.Icon className="h-[19px] w-[19px]" /></span>
             <div className="leading-tight">
-              <p className="text-[13.5px] font-bold">{audience} student{audience === 1 ? '' : 's'} will get this</p>
-              <p className="text-[11.5px] text-ink-500">Active recipients + approved students waiting for an office</p>
+              <p className="text-[13.5px] font-bold">{audience} {noun(to, audience)} will get this</p>
+              <p className="text-[11.5px] text-ink-500">{to === 'office' && office ? `Students placed at ${office.name} and its supervisors` : choice.who}</p>
             </div>
           </div>
         )}
@@ -200,6 +224,34 @@ export default function AdminAnnouncementsPage() {
         {/* Composer */}
         <div className={`${CARD} overflow-hidden`}>
           <div className="flex flex-col gap-[18px] px-6 py-[22px]">
+            <div>
+              <p className="mb-2 text-[13px] font-bold">Send to</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Send to">
+                {AUDIENCES.map((a) => {
+                  const on = to === a.value
+                  const n = a.value === 'office' ? undefined : data?.meta.audiences?.[a.value]
+                  return (
+                    <button key={a.value} type="button" role="radio" aria-checked={on} onClick={() => setTo(a.value)}
+                      className={`flex flex-col items-start gap-1 rounded-xl border-[1.5px] px-3 py-2.5 text-left transition-colors ${
+                        on ? 'border-accent bg-accent-tint' : 'border-ink-200 bg-surface hover:border-accent/50'}`}>
+                      <a.Icon className={`h-[18px] w-[18px] ${on ? 'text-accent-strong' : 'text-ink-500'}`} />
+                      <span className={`text-[12.5px] font-bold ${on ? 'text-accent-strong' : 'text-ink-800'}`}>{a.label}</span>
+                      {n !== undefined && <span className="text-[11px] text-ink-500">{n} {noun(a.value, n)}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {to === 'office' && (
+                <select value={officeId ?? ''} onChange={(e) => setOfficeId(e.target.value ? Number(e.target.value) : null)} aria-label="Office"
+                  className="mt-2 h-[42px] w-full rounded-xl border border-ink-200 bg-surface px-3 text-[13.5px] text-ink-950 focus:border-accent focus:outline-none">
+                  <option value="">Choose the office…</option>
+                  {offices.map((o) => (
+                    <option key={o.id} value={o.id} disabled={o.count === 0}>{o.name} ({o.count} {noun('office', o.count)})</option>
+                  ))}
+                </select>
+              )}
+            </div>
+
             <div>
               <p className="mb-2 text-[12.5px] font-semibold text-ink-600">Start from a template <span className="font-medium text-ink-400">(optional)</span></p>
               <div className="flex flex-wrap gap-2">
@@ -294,7 +346,7 @@ export default function AdminAnnouncementsPage() {
         {/* Preview */}
         <div className="flex flex-col gap-3 lg:sticky lg:top-[88px]">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-bold">How students will see it</span>
+            <span className="text-[13px] font-bold">How they will see it</span>
             <span className="text-xs text-ink-500">Updates as you type</span>
           </div>
           <div className={`${CARD} overflow-hidden`}>
@@ -387,7 +439,7 @@ export default function AdminAnnouncementsPage() {
                     <span className="hidden flex-none text-right leading-snug sm:block">
                       <span className="block text-[12.5px] font-semibold">{a.created_at ? formatDateTime(a.created_at) : ''}</span>
                       <span className="block text-[11.5px] text-ink-500">
-                        Sent to {a.recipient_count}{att.length ? ` · ${att.length} file${att.length === 1 ? '' : 's'}` : ''}
+                        To {a.audience_label ?? 'Recipients'} · {a.recipient_count}{att.length ? ` · ${att.length} file${att.length === 1 ? '' : 's'}` : ''}
                       </span>
                     </span>
                     {open ? <ChevronUp className="h-5 w-5 flex-none text-ink-400" /> : <ChevronDown className="h-5 w-5 flex-none text-ink-400" />}
@@ -419,7 +471,7 @@ export default function AdminAnnouncementsPage() {
                         </div>
                       )}
                       <p className="flex flex-wrap gap-x-3 text-xs text-ink-500">
-                        <span>{a.recipient_count} recipient{a.recipient_count === 1 ? '' : 's'}</span>
+                        <span>To {a.audience_label ?? 'Recipients'}: {a.recipient_count} {noun(a.audience ?? 'recipients', a.recipient_count)}</span>
                         <span className={a.emailed_count < a.recipient_count ? 'font-semibold text-warning-700' : ''}>{a.emailed_count} emailed</span>
                         {a.sent_by && <span>by {a.sent_by}</span>}
                       </p>

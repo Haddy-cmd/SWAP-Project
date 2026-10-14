@@ -83,6 +83,46 @@ class AuditLogService
         ];
     }
 
+    /** Admin → Audit Logs → CSV: the most entries one file may hold. */
+    public const EXPORT_LIMIT = 20000;
+
+    public static function msgExportTooMany(int $n): string
+    {
+        return 'Too many entries (' . number_format($n) . ') for one file. Narrow the dates or area.';
+    }
+
+    public const EXPORT_HEADINGS = ['When', 'Area', 'What happened', 'Action', 'Who', 'Role', 'Student', 'Student ID', 'Record', 'Changes', 'IP address'];
+
+    /**
+     * Admin → Audit Logs → CSV: every entry the filters match (newest first), one row each in
+     * EXPORT_HEADINGS order, built in chunks with the same sentences the page shows.
+     *
+     * @return \Generator<int, list<mixed>>
+     */
+    public function exportRows(array $filters): \Generator
+    {
+        $entries = $this->query($filters)->with(['user:id,name,role', 'subject:id,name,role', 'subject.profile:id,user_id,student_id_number'])
+            ->orderByDesc('created_at')->orderByDesc('id');
+
+        foreach ($entries->lazy(500)->chunk(500) as $chunk) {
+            foreach ($this->present($chunk->collect()) as $e) {
+                yield [
+                    Carbon::parse($e['created_at'])->timezone(self::TZ)->format('Y-m-d H:i:s'),
+                    $e['area_label'],
+                    $e['summary'],
+                    $e['action'],
+                    $e['actor']['name'] ?? 'System',
+                    $e['actor']['role'] ?? null,
+                    $e['subject']['name'] ?? null,
+                    $e['subject']['student_id'] ?? null,
+                    $e['entity'],
+                    collect($e['changes'])->map(fn ($c) => "{$c['field']}: " . ($c['before'] ?? '—') . ' → ' . ($c['after'] ?? '—'))->implode('; '),
+                    $e['ip_address'],
+                ];
+            }
+        }
+    }
+
     /**
      * Profile → Activity: what this person did themselves, newest first. Only the sentence —
      * no before/after values, IPs or devices — and "Juan's" reads "your" when it is about them.

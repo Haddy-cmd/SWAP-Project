@@ -8,11 +8,13 @@ use App\Http\Requests\Stipend\ReleaseStipendRequest;
 use App\Http\Requests\Stipend\RemindStipendRequest;
 use App\Http\Requests\Stipend\UnlockStipendRequest;
 use App\Http\Requests\Stipend\VoidStipendRequest;
+use App\Models\AuditLog;
 use App\Models\StipendHistory;
 use App\Resources\StipendResource;
 use App\Services\StipendClaimService;
 use App\Services\StipendReminderService;
 use App\Services\StipendService;
+use App\Support\CsvDownload;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,6 +49,59 @@ class StipendController extends Controller
                 'terms' => $this->stipendService->terms(),
             ],
         ]);
+    }
+
+    /**
+     * Stipend → History → CSV: every row the History list shows with the same filters, chip
+     * and sort (not just one page). Audited like the report downloads.
+     */
+    public function export(Request $request)
+    {
+        $request->validate([
+            'sort' => ['nullable', 'in:new,old,amount,name'],
+            'promissory' => ['nullable', 'boolean'],
+        ]);
+        $filters = $request->only(['status', 'academic_year', 'semester', 'college', 'promissory', 'search', 'sort']);
+        $records = $this->stipendService->historyQuery($filters)->get();
+
+        $term = !empty($filters['academic_year']) && !empty($filters['semester'])
+            ? $filters['academic_year'] . '-' . strtolower(str_replace(' ', '', $filters['semester']))
+            : 'all-terms';
+        $filename = "stipend-history-{$term}-" . now('Asia/Manila')->format('Ymd') . '.csv';
+        AuditLog::record('report_exported', $request->user(), null, [
+            'type' => 'stipend-history', 'format' => 'csv', 'rows' => $records->count(),
+        ] + array_filter($filters, fn ($v) => $v !== null && $v !== ''));
+
+        $manila = fn ($t) => $t?->copy()->timezone('Asia/Manila')->format('Y-m-d H:i');
+        $rows = $records->map(function (StipendHistory $s) use ($manila) {
+            $received = $s->received_at ?? ($s->status === StipendHistory::STATUS_CLAIMED ? ($s->claimed_at ?? $s->released_at) : null);
+
+            return [
+                $s->control_number,
+                $s->recipient?->name,
+                $s->recipient?->profile?->student_id_number,
+                $s->recipient?->email,
+                $s->recipient?->profile?->college,
+                trim("{$s->semester} {$s->academic_year}"),
+                (float) $s->amount,
+                match (true) {
+                    $s->status === StipendHistory::STATUS_VOID => 'Void',
+                    $received !== null => 'Received',
+                    default => 'Released',
+                },
+                $manila($s->released_at ?? $s->created_at),
+                $manila($received),
+                $s->via_promissory ? 'Yes' : 'No',
+                $s->deficient_hours !== null ? (float) $s->deficient_hours : null,
+                $s->void_reason,
+                $s->releasedBy?->name,
+            ];
+        });
+
+        return CsvDownload::stream($filename, [
+            'Control no.', 'Recipient', 'Student ID', 'Email', 'College', 'Term', 'Amount', 'Status',
+            'Released', 'Received', 'Via promissory', 'Deficient hours', 'Void reason', 'Released by',
+        ], $rows);
     }
 
     /** "Can't release yet" → Remind: tell blocked recipients what's missing (once a day each). */

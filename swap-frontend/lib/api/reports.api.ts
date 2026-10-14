@@ -33,7 +33,8 @@ export const reportsApi = {
       .catch(rethrowBlobError),
 }
 
-function filenameFrom(header: unknown): string | null {
+/** The filename from a download's Content-Disposition header. */
+export function filenameFrom(header: unknown): string | null {
   const m = typeof header === 'string' ? /filename="?([^";]+)"?/.exec(header) : null
   return m ? m[1] : null
 }
@@ -42,7 +43,7 @@ function filenameFrom(header: unknown): string | null {
  * A failed blob download carries its JSON error as a Blob, so the interceptor can't
  * read the message (e.g. "too many rows for a PDF"). Read it here and rethrow it.
  */
-async function rethrowBlobError(err: unknown): Promise<never> {
+export async function rethrowBlobError(err: unknown): Promise<never> {
   const data = (err as { response?: { data?: unknown } })?.response?.data
   if (typeof Blob !== 'undefined' && data instanceof Blob) {
     try {

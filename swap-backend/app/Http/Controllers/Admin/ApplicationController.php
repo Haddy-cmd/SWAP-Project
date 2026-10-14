@@ -16,9 +16,15 @@ class ApplicationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        // interview_from/to (Manila days) + per_page: the Interview set calendar loads a month at once.
+        $request->validate([
+            'interview_from' => ['nullable', 'date_format:Y-m-d'],
+            'interview_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:interview_from'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
+        ]);
         $applications = $this->applicationService->paginateForAdmin($request->only([
-            'status', 'exclude_status', 'academic_year', 'semester', 'search', 'type', 'unassigned',
-        ]));
+            'status', 'exclude_status', 'academic_year', 'semester', 'search', 'type', 'unassigned', 'interview_from', 'interview_to',
+        ]), (int) $request->query('per_page', 15));
 
         return response()->json([
             'data' => ApplicationResource::collection($applications->items()),

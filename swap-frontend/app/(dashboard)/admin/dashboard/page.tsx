@@ -99,7 +99,7 @@ export default function AdminDashboard() {
         </div>
         <div className="relative grid grid-cols-3 gap-2.5 sm:w-[344px]">
           {[
-            { href: '/admin/interviews', label: 'Schedule interviews', Icon: CalendarClock, bg: GOLD, fg: '#2B2200' },
+            { href: '/admin/applications?status=interview_scheduled&view=calendar', label: 'Interviews', Icon: CalendarClock, bg: GOLD, fg: '#2B2200' },
             { href: '/admin/offices', label: 'Manage offices', Icon: Building2, bg: 'var(--color-accent-bright)', fg: '#FFFFFF' },
             { href: '/admin/analytics', label: 'Export report', Icon: BarChart3, bg: 'rgba(255,255,255,.9)', fg: '#063D27' },
           ].map(({ href, label, Icon, bg, fg }) => (

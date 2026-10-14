@@ -49,7 +49,6 @@ class TestingEmailSwitchTest extends TestCase
     public function test_picked_accounts_start_with_emails_off_and_each_has_its_switch(): void
     {
         $picked = $this->makeUser('recipient');
-        TestTools::setEnabled(true);
         Sanctum::actingAs($admin = $this->makeUser('admin'));
         $this->postJson("/api/admin/testing/accounts/{$picked->id}")->assertOk();
         $this->assertTrue($picked->fresh()->testing_email_muted);

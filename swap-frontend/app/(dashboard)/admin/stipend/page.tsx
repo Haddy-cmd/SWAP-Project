@@ -14,6 +14,7 @@ import { useAuthStore } from '@/lib/store/authStore'
 import type { StipendRecord, EligibleStipend, StipendStatus, StipendTerm } from '@/types/analytics.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
+import { ExportButtons } from '@/components/reports/ExportButtons'
 
 const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 const peso = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -541,6 +542,10 @@ function HistoryTab({ params, unlockToken, onDone, onMoneyError }: {
               <option value="name">Name A–Z</option>
             </select>
           </label>
+          {/* Every row these filters show (not just this page), as a spreadsheet. */}
+          <ExportButtons formats={['csv']} fallbackName="stipend-history" disabled={!data?.meta.total}
+            summary={data ? `${data.meta.total} ${data.meta.total === 1 ? 'stub' : 'stubs'}` : undefined}
+            download={() => adminApi.exportStipend({ ...params, ...(chip !== 'all' && { status: chip }), ...(sort !== 'new' && { sort }) })} />
         </div>
 
         <div className="overflow-x-auto">

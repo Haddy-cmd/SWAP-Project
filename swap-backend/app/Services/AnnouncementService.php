@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Mail\AnnouncementMail;
 use App\Models\Announcement;
+use App\Models\Assignment;
 use App\Models\AuditLog;
+use App\Models\Office;
 use App\Models\User;
 use App\Notifications\AnnouncementNotification;
 use App\Support\TestTools;
@@ -19,18 +21,31 @@ use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 /**
- * Admin → Announcements: one message to every active recipient — approved students
- * still waiting for an office included (approval makes them recipients) — in the portal
- * and by email. Jobs run inline in production (QUEUE_CONNECTION=sync), so the email
- * goes out in Bcc batches — a few mail calls, not one per recipient — and nobody
- * sees the others' addresses.
+ * Admin → Announcements: one message to an audience, in the portal and by email:
+ *  - everyone: every active recipient and supervisor;
+ *  - office: the students placed at one office (active placement) and that office's supervisors;
+ *  - recipients: every active recipient — approved students still waiting for an office
+ *    included (approval makes them recipients);
+ *  - supervisors: every active supervisor.
+ * Jobs run inline in production (QUEUE_CONNECTION=sync), so the email goes out in Bcc
+ * batches — a few mail calls, not one per person — and nobody sees the others' addresses.
  */
 class AnnouncementService
 {
     /** Recipients per email; well under provider per-message limits. */
     public const EMAIL_BATCH = 50;
 
+    public const AUDIENCES = ['everyone', 'office', 'recipients', 'supervisors'];
+
     public const MSG_NO_RECIPIENTS = 'There are no active recipients to send this announcement to.';
+    public const MSG_NO_SUPERVISORS = 'There are no active supervisors to send this announcement to.';
+    public const MSG_NO_ONE = 'There is no one active to send this announcement to.';
+    public const MSG_CHOOSE_OFFICE = 'Choose the office to send it to.';
+
+    public static function msgEmptyOffice(string $office): string
+    {
+        return "{$office} has no students or supervisors to send this announcement to yet.";
+    }
 
     /** Attachments: photos and office documents, up to 5 files of 10 MB each. */
     public const MAX_FILES = 5;
@@ -45,10 +60,58 @@ class AnnouncementService
         return User::where('role', 'recipient')->where('is_active', true);
     }
 
-    /** Active recipients whose email System Testing holds back right now (picked, emails off). */
-    public static function emailMutedCount(): int
+    /** Who an announcement to this audience reaches (see the class doc). */
+    public static function audienceQuery(string $audience, ?int $officeId = null): Builder
     {
-        return self::activeRecipients()->whereNotNull('testing_added_at')->where('testing_email_muted', true)->count();
+        return match ($audience) {
+            'everyone' => User::whereIn('role', ['recipient', 'supervisor'])->where('is_active', true),
+            'supervisors' => User::where('role', 'supervisor')->where('is_active', true),
+            'office' => User::where('is_active', true)->where(fn ($q) => $q
+                ->where(fn ($r) => $r->where('role', 'recipient')->whereIn('id', Assignment::select('user_id')
+                    ->where('status', 'active')->where('office_id', $officeId)))
+                ->orWhere(fn ($s) => $s->where('role', 'supervisor')->where('office_id', $officeId))),
+            default => self::activeRecipients(),
+        };
+    }
+
+    /** "Everyone", "Recipients", "Supervisors" or the office's name. */
+    public static function audienceLabel(string $audience, ?string $officeName = null): string
+    {
+        return match ($audience) {
+            'everyone' => 'Everyone',
+            'supervisors' => 'Supervisors',
+            'office' => $officeName ?? 'One office',
+            default => 'Recipients',
+        };
+    }
+
+    /** How many each audience would reach right now, and each office (Admin → Announcements → Send to). */
+    public static function audienceCounts(): array
+    {
+        $students = Assignment::where('status', 'active')
+            ->whereIn('user_id', self::activeRecipients()->select('id'))
+            ->selectRaw('office_id, COUNT(DISTINCT user_id) as n')->groupBy('office_id')->pluck('n', 'office_id');
+        $supervisors = User::where('role', 'supervisor')->where('is_active', true)->whereNotNull('office_id')
+            ->selectRaw('office_id, COUNT(*) as n')->groupBy('office_id')->pluck('n', 'office_id');
+
+        return [
+            'audiences' => [
+                'everyone' => self::audienceQuery('everyone')->count(),
+                'recipients' => self::activeRecipients()->count(),
+                'supervisors' => self::audienceQuery('supervisors')->count(),
+            ],
+            'offices' => Office::orderBy('name')->get(['id', 'name'])->map(fn (Office $o) => [
+                'id' => $o->id,
+                'name' => $o->name,
+                'count' => (int) ($students[$o->id] ?? 0) + (int) ($supervisors[$o->id] ?? 0),
+            ])->values()->all(),
+        ];
+    }
+
+    /** People in this audience whose email System Testing holds back right now (picked, emails off). */
+    public static function emailMutedCount(string $audience = 'recipients', ?int $officeId = null): int
+    {
+        return self::audienceQuery($audience, $officeId)->whereNotNull('testing_added_at')->where('testing_email_muted', true)->count();
     }
 
     /** The sent history, newest first; `$search` matches the title or the message. */
@@ -56,28 +119,42 @@ class AnnouncementService
     {
         $term = trim((string) $search);
 
-        return Announcement::with(['sender:id,name', 'attachments'])
+        return Announcement::with(['sender:id,name', 'attachments', 'office:id,name'])
             ->when($term !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->where('title', 'ilike', "%{$term}%")->orWhere('message', 'ilike', "%{$term}%")))
             ->latest()
             ->paginate($perPage);
     }
 
-    /** @param  list<UploadedFile>  $files  photos and documents (validated by StoreAnnouncementRequest) */
-    public function send(User $admin, string $title, string $message, array $files = []): Announcement
+    /**
+     * @param  list<UploadedFile>  $files  photos and documents (validated by StoreAnnouncementRequest)
+     * @param  string  $audience  one of AUDIENCES; `office` needs $officeId
+     */
+    public function send(User $admin, string $title, string $message, array $files = [], string $audience = 'recipients', ?int $officeId = null): Announcement
     {
-        $recipients = self::activeRecipients()->get(['id', 'name', 'email', 'testing_added_at', 'testing_email_muted']);
+        $office = $audience === 'office' ? Office::find($officeId) : null;
+        if ($audience === 'office' && !$office) {
+            throw new UnprocessableEntityHttpException(self::MSG_CHOOSE_OFFICE);
+        }
+        $recipients = self::audienceQuery($audience, $office?->id)->get(['id', 'name', 'email', 'testing_added_at', 'testing_email_muted']);
         if ($recipients->isEmpty()) {
-            throw new UnprocessableEntityHttpException(self::MSG_NO_RECIPIENTS);
+            throw new UnprocessableEntityHttpException(match ($audience) {
+                'office' => self::msgEmptyOffice($office->name),
+                'supervisors' => self::MSG_NO_SUPERVISORS,
+                'everyone' => self::MSG_NO_ONE,
+                default => self::MSG_NO_RECIPIENTS,
+            });
         }
 
         $disk = config('filesystems.documents_disk', 'public');
         $stored = [];
         try {
-            $announcement = DB::transaction(function () use ($admin, $title, $message, $recipients, $files, $disk, &$stored) {
+            $announcement = DB::transaction(function () use ($admin, $title, $message, $recipients, $files, $disk, $audience, $office, &$stored) {
                 $announcement = Announcement::create([
                     'title' => trim($title),
                     'message' => trim($message),
+                    'audience' => $audience,
+                    'office_id' => $office?->id,
                     'sent_by' => $admin->id,
                     'recipient_count' => $recipients->count(),
                 ]);
@@ -100,6 +177,7 @@ class AnnouncementService
                 Notification::send($recipients, new AnnouncementNotification($announcement));
                 AuditLog::record('announcement_sent', $announcement, null,
                     $announcement->only(['title', 'recipient_count'])
+                        + ['audience' => self::audienceLabel($audience, $office?->name)]
                         + ($announcement->attachments->isNotEmpty() ? ['attachments' => $announcement->attachments->pluck('file_name')->all()] : []),
                     $admin->id);
 
@@ -131,7 +209,7 @@ class AnnouncementService
         }
         $announcement->update(['emailed_count' => $emailed]);
 
-        return $announcement->load(['sender:id,name', 'attachments']);
+        return $announcement->load(['sender:id,name', 'attachments', 'office:id,name']);
     }
 
     /**

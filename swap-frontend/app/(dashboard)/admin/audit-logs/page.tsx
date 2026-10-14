@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ClipboardList, Search, SlidersHorizontal, X } from 'lucide-react'
 import { auditApi } from '@/lib/api/analytics.api'
 import { AuditEntryRow } from '@/components/admin/AuditEntryRow'
+import { ExportButtons } from '@/components/reports/ExportButtons'
 import type { AuditFilters, AuditOptions } from '@/types/audit.types'
 
 const KEYS: (keyof AuditFilters)[] = ['area', 'actor_id', 'subject', 'subject_user_id', 'record', 'from', 'to', 'sensitive', 'include_testing', 'page']
@@ -79,9 +80,15 @@ function AuditLogsView() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-ink-900">Audit Logs</h1>
-        <p className="mt-1 text-sm text-ink-500">Who changed what, and when. Click an entry to see exactly what changed.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-ink-900">Audit Logs</h1>
+          <p className="mt-1 text-sm text-ink-500">Who changed what, and when. Click an entry to see exactly what changed.</p>
+        </div>
+        {/* Every entry these filters match (not just this page), as a spreadsheet. */}
+        <ExportButtons formats={['csv']} fallbackName="audit-log" disabled={!meta?.total}
+          summary={meta ? `${meta.total} ${meta.total === 1 ? 'entry' : 'entries'}` : undefined}
+          download={() => auditApi.export(filters)} />
       </div>
 
       {/* Search + Filters */}

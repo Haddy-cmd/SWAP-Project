@@ -171,9 +171,9 @@ class ApplicationService
         return $this->applicationRepository->findById($id);
     }
 
-    public function paginateForAdmin(array $filters = []): LengthAwarePaginator
+    public function paginateForAdmin(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        return $this->applicationRepository->paginate($filters);
+        return $this->applicationRepository->paginate($filters, $perPage);
     }
 
     public function markUnderReview(Application $application, User $admin): Application

@@ -40,6 +40,7 @@ class AssignmentService
                         throw ValidationException::withMessages(['user_id' => $elsewhere]);
                     }
                     $this->assertReady((int) $data['office_id']);
+                    $this->assertSupervisorAt((int) $data['supervisor_id'], (int) $data['office_id']);
                     $this->assertRoom((int) $data['office_id']);
                 }
 
@@ -99,10 +100,17 @@ class AssignmentService
             throw ValidationException::withMessages(['status' => $elsewhere]);
         }
 
-        $updated = DB::transaction(function () use ($assignment, $data, $admin, $old, $officeChanged) {
+        $updated = DB::transaction(function () use ($assignment, $data, $admin, $old, $officeChanged, $supervisorChanged) {
             // Moving into another office needs a free seat there; a supervisor-only change never does.
             if ($officeChanged) {
                 $this->assertReady((int) $data['office_id']);
+            }
+            // Either way the supervisor must be one of that office's (linked in Offices).
+            if ($officeChanged || $supervisorChanged) {
+                $this->assertSupervisorAt((int) ($data['supervisor_id'] ?? $assignment->supervisor_id),
+                    (int) ($data['office_id'] ?? $assignment->office_id));
+            }
+            if ($officeChanged) {
                 $this->assertRoom((int) $data['office_id'], $assignment->id);
             }
 
@@ -142,6 +150,30 @@ class AssignmentService
 
         return $other ? sprintf(self::MSG_ACTIVE_ELSEWHERE, $other->user?->name ?? 'This student',
             $other->office?->name ?? 'an office', $other->semester, $other->academic_year) : null;
+    }
+
+    /**
+     * Supervisors are linked to offices only in Offices (or when invited); a placement picks
+     * one of its office's active supervisors. Renewals keep theirs.
+     */
+    public const MSG_SUPERVISOR_NOT_IN_OFFICE = "%s isn't a supervisor at %s. Add them to the office in Offices first.";
+
+    /** Null when $supervisorId is an active supervisor of $officeId; otherwise the message. */
+    public static function supervisorNotAtMessage(int $supervisorId, int $officeId): ?string
+    {
+        $supervisor = User::find($supervisorId);
+        if ($supervisor && $supervisor->role === 'supervisor' && $supervisor->is_active && (int) $supervisor->office_id === $officeId) {
+            return null;
+        }
+
+        return sprintf(self::MSG_SUPERVISOR_NOT_IN_OFFICE, $supervisor?->name ?? 'That person', Office::find($officeId)?->name ?? 'that office');
+    }
+
+    private function assertSupervisorAt(int $supervisorId, int $officeId): void
+    {
+        if ($message = self::supervisorNotAtMessage($supervisorId, $officeId)) {
+            throw ValidationException::withMessages(['supervisor_id' => $message]);
+        }
     }
 
     public const MSG_OFFICE_CLOSED = '%s is closed to new placements. Open it on the Offices page or pick another office.';

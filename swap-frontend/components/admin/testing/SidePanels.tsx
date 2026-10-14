@@ -11,10 +11,61 @@ import { CARD } from './ui'
 
 type WithStatus = { data: TestingStatus; message: string }
 
+/** Accounts tested before restore points existed: what's left over, and a one-time cleanup (only shown when any). */
+export function EarlierTestsPanel({ onCleaned }: { onCleaned: (res: WithStatus) => void }) {
+  const { data: accounts = [] } = useQuery({ queryKey: ['testing-earlier'], queryFn: testingApi.earlierTests })
+  const [open, setOpen] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const clean = useMutation({
+    mutationFn: (id: number) => testingApi.cleanUpEarlierTest(id),
+    onSuccess: (res) => { setOpen(null); onCleaned(res) },
+    onError: (e: ApiRequestError) => setError(errorText(e, 'Could not clean up this account.')),
+  })
+
+  if (!accounts.length) return null
+
+  return (
+    <div className={`${CARD} border-gold-200 p-4`}>
+      <p className="flex items-center gap-1.5 text-[14px] font-bold"><History className="h-4 w-4 text-gold-700" /> Tested before restore points</p>
+      <p className="mt-1 text-[11.5px] leading-snug text-ink-600">
+        Tested before System Testing kept a copy of each record, so some test data is still on them. A cleanup removes what was created
+        during the test (going by the audit log), reactivates an earlier placement a renewal replaced, and puts the term result back.
+      </p>
+      <ul className="mt-2.5 space-y-2">
+        {accounts.map((a: EarlierTest) => (
+          <li key={a.id} className="rounded-xl border border-gold-200 bg-gold-50/40 px-3 py-2.5 text-[12.5px]">
+            <p className="font-semibold text-ink-900">{a.name}</p>
+            <p className="font-mono text-[11px] text-ink-500">{a.email}{a.student_id_number ? ` · ID ${a.student_id_number}` : ''}</p>
+            <p className="mt-0.5 text-[11px] text-ink-500">Tested {a.tested.join('; ')}{a.picked ? ' (still picked)' : ''}</p>
+            {open === a.id ? (
+              <div className="mt-2 rounded-lg border border-gold-200 bg-surface p-2.5 text-xs text-gold-900">
+                {a.items.length
+                  ? <ul className="list-disc space-y-0.5 pl-4">{a.items.map((item) => <li key={item}>{item}</li>)}</ul>
+                  : <p>Nothing was created during the test; the cleanup only takes the account out of testing.</p>}
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => clean.mutate(a.id)} disabled={clean.isPending} className="rounded-lg bg-accent px-2.5 py-1 font-semibold text-white disabled:opacity-50">
+                    {clean.isPending ? 'Cleaning up…' : 'Clean up'}
+                  </button>
+                  <button onClick={() => setOpen(null)} disabled={clean.isPending} className="font-semibold">Cancel</button>
+                </div>
+                {error && <p className="mt-2 font-medium text-danger-700">{error}</p>}
+              </div>
+            ) : (
+              <button onClick={() => { setError(null); setOpen(a.id) }}
+                className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-accent-strong hover:underline"><Eraser className="h-3.5 w-3.5" /> Preview cleanup</button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 /**
  * Where uploads (signatures, photos, documents) are kept and whether they're still there —
  * the reasons a signature shows as a broken image on live. Three summary lines, with the
- * details on request. Works with testing off.
+ * details on request. Works whenever System Testing is on.
  */
 export function StoragePanel() {
   const check = useMutation({ mutationFn: () => testingApi.storageCheck() })
@@ -91,60 +142,10 @@ export function StoragePanel() {
   )
 }
 
-/** Accounts tested before restore points existed: what's left over, and a one-time cleanup (only shown when any). */
-export function EarlierTestsPanel({ onCleaned }: { onCleaned: (res: WithStatus) => void }) {
-  const { data: accounts = [] } = useQuery({ queryKey: ['testing-earlier'], queryFn: testingApi.earlierTests })
-  const [open, setOpen] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  const clean = useMutation({
-    mutationFn: (id: number) => testingApi.cleanUpEarlierTest(id),
-    onSuccess: (res) => { setOpen(null); onCleaned(res) },
-    onError: (e: ApiRequestError) => setError(errorText(e, 'Could not clean up this account.')),
-  })
-
-  if (!accounts.length) return null
-
-  return (
-    <div className={`${CARD} border-gold-200 p-4`}>
-      <p className="flex items-center gap-1.5 text-[14px] font-bold"><History className="h-4 w-4 text-gold-700" /> Tested before restore points</p>
-      <p className="mt-1 text-[11.5px] leading-snug text-ink-600">
-        Tested before System Testing kept a copy of each record, so some test data is still on them. A cleanup removes what was created
-        during the test (going by the audit log), reactivates an earlier placement a renewal replaced, and puts the term result back.
-      </p>
-      <ul className="mt-2.5 space-y-2">
-        {accounts.map((a: EarlierTest) => (
-          <li key={a.id} className="rounded-xl border border-gold-200 bg-gold-50/40 px-3 py-2.5 text-[12.5px]">
-            <p className="font-semibold text-ink-900">{a.name}</p>
-            <p className="font-mono text-[11px] text-ink-500">{a.email}{a.student_id_number ? ` · ID ${a.student_id_number}` : ''}</p>
-            <p className="mt-0.5 text-[11px] text-ink-500">Tested {a.tested.join('; ')}{a.picked ? ' (still picked)' : ''}</p>
-            {open === a.id ? (
-              <div className="mt-2 rounded-lg border border-gold-200 bg-surface p-2.5 text-xs text-gold-900">
-                {a.items.length
-                  ? <ul className="list-disc space-y-0.5 pl-4">{a.items.map((item) => <li key={item}>{item}</li>)}</ul>
-                  : <p>Nothing was created during the test; the cleanup only takes the account out of testing.</p>}
-                <div className="mt-2 flex gap-2">
-                  <button onClick={() => clean.mutate(a.id)} disabled={clean.isPending} className="rounded-lg bg-accent px-2.5 py-1 font-semibold text-white disabled:opacity-50">
-                    {clean.isPending ? 'Cleaning up…' : 'Clean up'}
-                  </button>
-                  <button onClick={() => setOpen(null)} disabled={clean.isPending} className="font-semibold">Cancel</button>
-                </div>
-                {error && <p className="mt-2 font-medium text-danger-700">{error}</p>}
-              </div>
-            ) : (
-              <button onClick={() => { setError(null); setOpen(a.id) }}
-                className="mt-1.5 flex items-center gap-1 text-xs font-semibold text-accent-strong hover:underline"><Eraser className="h-3.5 w-3.5" /> Preview cleanup</button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
 /**
  * The emailed sign-in code (OTP) for everyone. Off = password only. The admin's password
- * confirms either way; LOGIN_OTP=false on the server locks it off. Works with testing off.
+ * confirms either way; LOGIN_OTP=false on the server locks it off (and is the switch on servers
+ * where System Testing is off).
  */
 export function LoginCodePanel({ state, onChanged }: {
   state: TestingStatus['login_code']

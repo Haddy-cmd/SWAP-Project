@@ -28,6 +28,10 @@ php artisan view:cache
 # hiccup here never blocks the deploy.
 php artisan attendance:close-stale || true
 
+# System Testing is off where SWAP_TEST_TOOLS says so (the live server): restore any account
+# still in testing to how it was when picked and switch testing off. Does nothing elsewhere.
+php artisan testing:shutdown || true
+
 # Run Laravel's scheduler in the background so hourly jobs (e.g. attendance:close-stale)
 # keep firing while the service is up — Render's single web service has no cron.
 php artisan schedule:work &

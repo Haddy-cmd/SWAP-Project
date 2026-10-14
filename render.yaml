@@ -33,6 +33,10 @@ services:
         value: production
       - key: APP_DEBUG
         value: false
+      # Admin → System Testing is off on the live server (also the default for APP_ENV=production).
+      # On each boot start.sh runs `testing:shutdown`, which restores any account left in testing.
+      - key: SWAP_TEST_TOOLS
+        value: false
       # Generate once: php artisan key:generate --show   (set in dashboard)
       - key: APP_KEY
         sync: false
@@ -75,7 +79,7 @@ services:
         sync: false
       # Uploads (signatures, photos, documents, stubs) — the free disk is wiped on every
       # restart, so keep them in Cloudflare R2: DOCUMENTS_DISK=r2 plus the bucket's S3 keys
-      # (DEPLOYMENT.md §5, "File storage"). Admin → System Testing → File storage checks it.
+      # (DEPLOYMENT.md §5, "File storage"). Admin → System Testing → File storage checks it (while SWAP_TEST_TOOLS=true).
       - key: DOCUMENTS_DISK
         sync: false
       - key: R2_ACCESS_KEY_ID

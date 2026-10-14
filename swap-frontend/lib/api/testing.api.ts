@@ -3,14 +3,12 @@ import type { EarlierTest, StorageCheck, TestingAction, TestingCandidate, Testin
 
 type WithStatus = { data: TestingStatus; message: string }
 
-// Admin → System Testing. Picking accounts and the shortcuts need the switch on (409 otherwise).
+// Admin → System Testing, on and off only by the server's SWAP_TEST_TOOLS (live and local);
+// while it's off every call answers 404.
 export const testingApi = {
   status: () => apiClient.get<{ data: TestingStatus }>('/admin/testing').then((r) => r.data.data),
 
-  setEnabled: (enabled: boolean) =>
-    apiClient.put<WithStatus>('/admin/testing/switch', { enabled }).then((r) => r.data),
-
-  // Sign-in codes for everyone, on/off (the admin's password confirms it). Works with testing off.
+  // Sign-in codes for everyone, on/off (the admin's password confirms it).
   setLoginCode: (enabled: boolean, password: string) =>
     apiClient.put<WithStatus>('/admin/testing/login-code', { enabled, password }).then((r) => r.data),
 
@@ -51,6 +49,6 @@ export const testingApi = {
       .post<WithStatus>(`/admin/testing/recipients/${recipientId}/${action}`, data)
       .then((r) => r.data),
 
-  // File storage check (any time): where uploads go, a live write/read, image links, lost files.
+  // File storage check: where uploads go, a live write/read, image links, lost files.
   storageCheck: () => apiClient.get<{ data: StorageCheck }>('/admin/storage-check').then((r) => r.data.data),
 }

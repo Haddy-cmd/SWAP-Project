@@ -87,6 +87,11 @@ APP_URL=https://your-api-domain
 - `APP_ENV=production`, `APP_DEBUG=false`, run `php artisan key:generate` once.
 - `php artisan migrate --force` on deploy.
 - `php artisan config:cache route:cache` (re-run on each deploy).
+- `SWAP_TEST_TOOLS=false`: Admin → System Testing is turned on and off **only** by this variable, live and
+  local (no switch in the app; off by default with `APP_ENV=production`, but set it explicitly). Off: it
+  disappears from the sidebar and its API answers 404; `start.sh` runs `php artisan testing:shutdown` on every
+  boot, which restores any account still in testing to how it was when picked. Its Sign-in code and File
+  storage panels go with it while off; on live the sign-in code is controlled with `LOGIN_OTP`.
 - Serve the frontend over **HTTPS** — browser Geolocation (geofenced clock-in) requires a secure context.
 - Point the frontend `NEXT_PUBLIC_API_URL` at the production API origin.
 - **PostgreSQL is required** — the analytics queries use `TO_CHAR` / `DATE_TRUNC` and
@@ -123,7 +128,7 @@ still points to them — a signature then shows as a broken image and the stub p
    `R2_BUCKET` and `R2_ENDPOINT` (`https://<account-id>.r2.cloudflarestorage.com`). The bucket stays
    private — the API streams every file after checking who is asking.
 3. Make sure `APP_URL` is the backend's **https** address: signature and photo links are built from it.
-4. After the redeploy, open **Admin → System Testing → File storage → Check storage**. It shows the disk in
+4. After the redeploy, open **Admin → System Testing → File storage → Check storage** (set `SWAP_TEST_TOOLS=true` for the check, then back to `false`). It shows the disk in
    use, saves and reads back a test file, checks `APP_URL`, and lists the accounts whose signature or
    photo is on record but gone. Files saved before R2 can't be recovered: those people draw their signature
    (or upload their photo) again. A redrawn signature is also put back on the claim stubs that lost it.

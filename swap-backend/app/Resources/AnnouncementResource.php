@@ -2,6 +2,7 @@
 
 namespace App\Resources;
 
+use App\Services\AnnouncementService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,6 +14,9 @@ class AnnouncementResource extends JsonResource
             'id' => $this->id,
             'title' => $this->title,
             'message' => $this->message,
+            'audience' => $this->audience ?? 'recipients',
+            'office_id' => $this->office_id,
+            'audience_label' => AnnouncementService::audienceLabel($this->audience ?? 'recipients', $this->office?->name),
             'sent_by' => $this->whenLoaded('sender', fn () => $this->sender?->name),
             'recipient_count' => $this->recipient_count,
             'emailed_count' => $this->emailed_count,

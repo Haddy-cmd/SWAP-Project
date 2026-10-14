@@ -7,16 +7,15 @@ use App\Models\AuditLog;
 use App\Models\Setting;
 use App\Services\OneTimeCodeService;
 use App\Services\TestingService;
-use App\Support\TestTools;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 /**
- * Admin → System Testing. The page and its switch are always there for admins; picking
- * accounts and the shortcuts need the switch on (409 otherwise). Every action touches
- * picked accounts only, and switching off (or removing an account) restores each one to
- * how it was when picked (TestingService).
+ * Admin → System Testing, switched on and off only by the environment (SWAP_TEST_TOOLS; the
+ * routes answer 404 while it's off — EnsureTestToolsAvailable). Every action touches picked
+ * accounts only; Restore all (or turning it off on the server: 	esting:shutdown) restores
+ * each one to how it was when picked (TestingService).
  */
 class TestingController extends Controller
 {
@@ -28,30 +27,12 @@ class TestingController extends Controller
 
     public function __construct(private readonly TestingService $testing) {}
 
-    private function guard(): void
-    {
-        abort_unless(TestTools::enabled(), 409, TestTools::MSG_OFF);
-    }
 
     public function status(): JsonResponse
     {
         return response()->json(['data' => $this->testing->status()]);
     }
 
-    public function switch(Request $request): JsonResponse
-    {
-        $data = $request->validate(['enabled' => ['required', 'boolean']]);
-        $restored = $this->testing->setEnabled($request->user(), (bool) $data['enabled']);
-
-        return response()->json([
-            'data' => $this->testing->status(),
-            'message' => match (true) {
-                (bool) $data['enabled'] => 'System Testing is on.',
-                $restored === 0 => 'System Testing is off.',
-                default => $restored === 1 ? 'System Testing is off. 1 account was restored to how it was when picked.' : "System Testing is off. {$restored} accounts were restored to how they were when picked.",
-            },
-        ]);
-    }
 
     /**
      * The portal-wide sign-in code (OTP) switch. Lowers security for every account, so the admin
@@ -79,7 +60,7 @@ class TestingController extends Controller
         ]);
     }
 
-    /** A picked account's email switch. Works with the switch off too. */
+    /** A picked account's email switch. */
     public function accountEmail(Request $request, int $id): JsonResponse
     {
         $data = $request->validate(['muted' => ['required', 'boolean']]);
@@ -93,10 +74,9 @@ class TestingController extends Controller
         ]);
     }
 
-    /** Applicant ↔ recipient, the role only (needs the switch on). */
+    /** Applicant ↔ recipient, the role only. */
     public function accountRole(Request $request, int $id): JsonResponse
     {
-        $this->guard();
         $data = $request->validate(['role' => ['required', Rule::in(['applicant', 'recipient'])]]);
         $user = $this->testing->setRole($request->user(), $id, $data['role']);
 
@@ -111,7 +91,6 @@ class TestingController extends Controller
         return $role === 'applicant' ? 'an' : 'a';
     }
 
-    // Works with the switch off too.
     public function restoreAccount(Request $request, int $id): JsonResponse
     {
         $this->testing->restoreExisting($request->user(), $id);
@@ -132,7 +111,6 @@ class TestingController extends Controller
 
     public function addAccount(Request $request, int $id): JsonResponse
     {
-        $this->guard();
         $user = $this->testing->addExisting($request->user(), $id);
 
         return response()->json([
@@ -141,7 +119,6 @@ class TestingController extends Controller
         ]);
     }
 
-    // Works with the switch off too, so picked accounts can always be released.
     public function removeAccount(Request $request, int $id): JsonResponse
     {
         $this->testing->removeExisting($request->user(), $id);
@@ -170,7 +147,6 @@ class TestingController extends Controller
 
     public function action(Request $request, int $id, string $action): JsonResponse
     {
-        $this->guard();
         abort_unless(in_array($action, self::ACTIONS, true), 404);
 
         $recipient = $this->testing->testRecipient($id);
@@ -245,7 +221,7 @@ class TestingController extends Controller
         return response()->json(['message' => $message, 'data' => $this->testing->status()]);
     }
 
-    // Works with the switch off too: every picked account is restored and leaves testing.
+    // Restore all: every picked account is restored and leaves testing.
     public function releaseAll(Request $request): JsonResponse
     {
         $count = $this->testing->releaseAll($request->user());

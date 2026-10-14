@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-/** A DSA announcement sent to every active recipient (portal + email). */
+/** A DSA announcement sent to an audience (AnnouncementService::AUDIENCES) in the portal and by email. */
 class Announcement extends Model
 {
     protected $fillable = [
         'title',
         'message',
+        'audience',
+        'office_id',
         'sent_by',
         'recipient_count',
         'emailed_count',
@@ -34,5 +36,11 @@ class Announcement extends Model
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sent_by');
+    }
+
+    /** The office it was sent to (audience "office"). */
+    public function office(): BelongsTo
+    {
+        return $this->belongsTo(Office::class);
     }
 }

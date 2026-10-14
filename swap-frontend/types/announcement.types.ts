@@ -11,10 +11,17 @@ export interface AnnouncementAttachment {
   url: string
 }
 
+/** Who it reaches (AnnouncementService): everyone = recipients + supervisors; office = its students + supervisors. */
+export type AnnouncementAudience = 'everyone' | 'office' | 'recipients' | 'supervisors'
+
 export interface Announcement {
   id: number
   title: string
   message: string
+  audience: AnnouncementAudience
+  office_id: number | null
+  /** "Everyone", "Recipients", "Supervisors" or the office's name. */
+  audience_label: string
   sent_by?: string | null
   recipient_count: number
   // How many the email reached (short of recipient_count when mail failed).
@@ -29,4 +36,7 @@ export interface AnnouncementListMeta {
   total: number
   // Who a new announcement would reach right now.
   active_recipients: number
+  audiences: { everyone: number; recipients: number; supervisors: number }
+  /** Each office: its placed students + its supervisors. */
+  offices: { id: number; name: string; count: number }[]
 }

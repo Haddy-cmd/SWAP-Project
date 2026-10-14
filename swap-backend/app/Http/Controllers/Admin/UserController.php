@@ -22,7 +22,8 @@ class UserController extends Controller
     {
         $users = $this->userRepository->paginate(
             $request->only(['role', 'is_active', 'search', 'sort', 'unverified']),
-            min(50, max(1, (int) $request->query('per_page', 15)))
+            // Up to 100: the Offices drawer lists every supervisor in one call.
+            min(100, max(1, (int) $request->query('per_page', 15)))
         );
 
         return response()->json([

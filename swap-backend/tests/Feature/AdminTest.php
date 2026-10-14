@@ -146,8 +146,8 @@ class AdminTest extends TestCase
     public function test_admin_creates_assignment_with_qr(): void
     {
         $recipient = $this->makeUser('recipient');
-        $supervisor = $this->makeUser('supervisor');
         $office = $this->makeReadyOffice();
+        $supervisor = $this->makeUser('supervisor', ['office_id' => $office->id]);
 
         Sanctum::actingAs($this->makeUser('admin'));
         $res = $this->postJson('/api/admin/assignments', [
@@ -168,8 +168,8 @@ class AdminTest extends TestCase
     public function test_a_second_active_assignment_for_the_same_term_is_refused(): void
     {
         $recipient = $this->makeUser('recipient');
-        $supervisor = $this->makeUser('supervisor');
         $office = $this->makeReadyOffice();
+        $supervisor = $this->makeUser('supervisor', ['office_id' => $office->id]);
         $payload = [
             'user_id' => $recipient->id,
             'office_id' => $office->id,

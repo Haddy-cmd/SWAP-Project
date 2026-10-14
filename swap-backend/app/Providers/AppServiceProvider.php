@@ -3,7 +3,6 @@
 namespace App\Providers;
 
 use App\Support\TestTools;
-use Illuminate\Queue\Events\JobProcessing;
 use App\Repositories\ApplicationRepository;
 use App\Repositories\AssignmentRepository;
 use App\Repositories\Contracts\ApplicationRepositoryInterface;
@@ -75,10 +74,7 @@ class AppServiceProvider extends ServiceProvider
             if ($this->app->resolved(SemesterPeriodService::class)) {
                 $this->app->make(SemesterPeriodService::class)->flush();
             }
-            TestTools::flush();
         });
-        // Queue workers are long-running too: read the System Testing switch fresh per job.
-        Event::listen(JobProcessing::class, fn () => TestTools::flush());
 
         // System Testing → email switch off: picked accounts get the bell copy only
         // (returning false cancels just this channel for this notifiable).

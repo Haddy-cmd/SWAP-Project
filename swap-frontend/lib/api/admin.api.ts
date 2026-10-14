@@ -1,4 +1,5 @@
 import apiClient from './axios'
+import { filenameFrom, rethrowBlobError } from './reports.api'
 import type { User } from '@/types/auth.types'
 import type { StipendRecord, EligibleStipend, StipendHistorySummary, StipendTerm, StipendReminderResult } from '@/types/analytics.types'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
@@ -24,6 +25,12 @@ export const adminApi = {
   // meta.summary = the History cards and chip counts (not narrowed by the status filter).
   getStipendRecords: (params?: Record<string, string>) =>
     apiClient.get<PaginatedResponse<StipendRecord> & { meta: { summary?: StipendHistorySummary; terms?: StipendTerm[] } }>('/admin/stipend', { params }).then((r) => r.data),
+
+  // Stipend → History → CSV: every row the same filters, chip and sort show (not just one page).
+  exportStipend: (params: Record<string, string>) =>
+    apiClient.get<Blob>('/admin/stipend/export', { params, responseType: 'blob' })
+      .then((r) => ({ blob: r.data, filename: filenameFrom(r.headers['content-disposition']) }))
+      .catch(rethrowBlobError),
 
   // "Can't release yet" → Remind: some recipients, or every blocked one when omitted (once a day each).
   remindStipend: (userIds?: number[]) =>

@@ -36,7 +36,6 @@ class TestingToolsTest extends TestCase
     {
         parent::setUp();
         Storage::fake(config('filesystems.documents_disk', 'public'));
-        TestTools::setEnabled(true);
         $this->admin = $this->makeUser('admin', ['position_title' => 'Director']);
     }
 
@@ -87,44 +86,28 @@ class TestingToolsTest extends TestCase
         return $this->postJson("/api/admin/testing/recipients/{$recipient->id}/{$action}", $data);
     }
 
-    public function test_admins_switch_it_on_and_off_from_the_page(): void
+    public function test_the_environment_switches_it_and_only_admins_use_it(): void
     {
-        TestTools::setEnabled(false);
         Sanctum::actingAs($this->admin);
+        $this->getJson('/api/admin/testing')->assertOk()->assertJsonPath('data.enabled', true);
+        $this->putJson('/api/admin/testing/switch', ['enabled' => false])->assertNotFound(); // no switch in the app
 
-        $this->putJson('/api/admin/testing/switch', ['enabled' => true])->assertOk()
-            ->assertJsonPath('data.enabled', true)
-            ->assertJsonPath('message', 'System Testing is on.');
-        $this->assertTrue(TestTools::enabled());
-        $this->assertDatabaseHas('audit_logs', ['action' => 'testing_switched_on', 'user_id' => $this->admin->id]);
-
-        $this->putJson('/api/admin/testing/switch', ['enabled' => false])->assertOk()->assertJsonPath('data.enabled', false);
-        TestTools::flush();
+        config(['swap.test_tools' => false]);
         $this->assertFalse(TestTools::enabled());
-        $this->assertDatabaseHas('audit_logs', ['action' => 'testing_switched_off', 'user_id' => $this->admin->id]);
+        $this->getJson('/api/admin/testing')->assertNotFound()->assertJsonPath('message', TestTools::MSG_UNAVAILABLE);
 
+        config(['swap.test_tools' => true]);
         foreach (['supervisor', 'recipient'] as $role) {
             Sanctum::actingAs($this->makeUser($role));
-            $this->putJson('/api/admin/testing/switch', ['enabled' => true])->assertStatus(403);
             $this->getJson('/api/admin/testing')->assertStatus(403);
         }
-        TestTools::flush();
-        $this->assertFalse(TestTools::enabled());
     }
 
-    public function test_while_off_the_page_shows_but_only_removing_works(): void
+    public function test_restore_all_puts_every_account_back(): void
     {
         [$student] = $this->realRecipient();
         $this->pick($student)->assertOk();
-        TestTools::setEnabled(false);
-
-        Sanctum::actingAs($this->admin);
-        $this->getJson('/api/admin/testing')->assertOk()
-            ->assertJsonPath('data.enabled', false)
-            ->assertJsonCount(1, 'data.accounts');
-        $this->pick($this->makeUser('recipient'))->assertStatus(409)->assertJsonPath('message', TestTools::MSG_OFF);
-        $this->act($student, 'end-term')->assertStatus(409)->assertJsonPath('message', TestTools::MSG_OFF);
-        $this->assertFalse(TestTools::bypasses($student->fresh()));
+        $this->getJson('/api/admin/testing')->assertOk()->assertJsonCount(1, 'data.accounts');
 
         Sanctum::actingAs($this->admin);
         $this->deleteJson('/api/admin/testing')->assertOk()
@@ -168,8 +151,7 @@ class TestingToolsTest extends TestCase
         $this->assertTrue($row['restorable']);
         $this->assertNotNull($row['picked_at']);
 
-        // Restore and Remove work with the switch off too. Restore keeps the account in testing.
-        TestTools::setEnabled(false);
+        // Restore keeps the account in testing; Remove takes it out as it is.
         Sanctum::actingAs($this->admin);
         $this->postJson("/api/admin/testing/accounts/{$student->id}/restore")->assertOk()
             ->assertJsonPath('message', 'Restored to how it was when picked. It stays in System Testing.');
@@ -275,8 +257,8 @@ class TestingToolsTest extends TestCase
         $this->postJson("/api/admin/applications/{$pickedApp->id}/interview", $slot)->assertSuccessful();
         $this->postJson("/api/admin/applications/{$otherApp->id}/interview", $slot)->assertStatus(422);
 
-        // Switched off, the picked account follows the real rules too.
-        TestTools::setEnabled(false);
+        // Turned off on the server, the picked account follows the real rules too.
+        config(['swap.test_tools' => false]);
         $this->assertFalse(TestTools::bypasses($student->fresh()));
     }
 
@@ -309,9 +291,9 @@ class TestingToolsTest extends TestCase
         $this->assertSame('2nd Semester', Assignment::where('user_id', $student->id)->where('status', 'active')->firstOrFail()->semester);
         $this->assertGreaterThan(0, \Illuminate\Support\Facades\DB::table('notifications')->where('notifiable_id', $supervisor->id)->count());
 
-        // Switching testing off puts everything back exactly as it was.
-        $this->putJson('/api/admin/testing/switch', ['enabled' => false])->assertOk()
-            ->assertJsonPath('message', 'System Testing is off. 1 account was restored to how it was when picked.');
+        // Restore all (as turning it off on the server does) puts everything back exactly as it was.
+        $this->deleteJson('/api/admin/testing')->assertOk()
+            ->assertJsonPath('message', '1 account was restored to how it was when picked and removed from System Testing.');
 
         $this->assertSame($before, $this->record($student));
         $this->assertSame(['1st Semester'], Assignment::where('user_id', $student->id)->pluck('semester')->all());
@@ -502,11 +484,11 @@ class TestingToolsTest extends TestCase
         $this->assertNull($own->time_out);
         $this->assertNull($own->clocked_out_reason);
 
-        // Like every shortcut, the new ones need the switch on.
+        // Like every shortcut, the new ones are gone while System Testing is off on the server.
         $this->pick($student)->assertOk();
-        TestTools::setEnabled(false);
+        config(['swap.test_tools' => false]);
         foreach (['complete-hours', 'reset-hours', 'clock-in', 'auto-clock-out', 'file-promissory'] as $action) {
-            $this->act($student, $action)->assertStatus(409);
+            $this->act($student, $action)->assertNotFound();
         }
     }
 
@@ -715,12 +697,9 @@ class TestingToolsTest extends TestCase
         $this->postJson("/api/admin/testing/accounts/{$student->id}/restore")->assertOk();
         $this->assertSame('recipient', $student->fresh()->role);
 
-        // Needs the switch on; switching off restores the role too.
+        // Restore all puts the role back too.
         $this->putJson("/api/admin/testing/accounts/{$student->id}/role", ['role' => 'applicant'])->assertOk();
-        TestTools::setEnabled(false);
-        $this->putJson("/api/admin/testing/accounts/{$student->id}/role", ['role' => 'recipient'])->assertStatus(409);
-        TestTools::setEnabled(true);
-        $this->putJson('/api/admin/testing/switch', ['enabled' => false])->assertOk();
+        $this->deleteJson('/api/admin/testing')->assertOk();
         $this->assertSame('recipient', $student->fresh()->role);
         $this->assertNull($student->fresh()->testing_added_at);
     }
