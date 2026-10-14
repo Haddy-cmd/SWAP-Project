@@ -169,12 +169,13 @@ export function StudentPanel({ row, onClose, onReport, onRequired, onDocs }: {
           </button>
           <button type="button" className={TOOL} onClick={onRequired}><SlidersHorizontal className="h-4 w-4" /> Required hours</button>
           <Link href={`/supervisor/students/${row.userId}/logs`} className={TOOL}><ListChecks className="h-4 w-4" /> Time logs</Link>
+          <Link href={`/supervisor/students/${row.userId}/duty-slip`} className={TOOL}><FileText className="h-4 w-4" /> Duty slip</Link>
           <button type="button" className={TOOL} onClick={() => remind.mutate()} disabled={!!remindBlocked || remind.isPending}
             title={remindBlocked ?? 'Remind them they are behind'}>
             {remind.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bell className="h-4 w-4" />} {remindBlocked === 'Reminded today' ? 'Reminded' : 'Remind'}
           </button>
           <button type="button" className={TOOL} onClick={onDocs}><FolderOpen className="h-4 w-4" /> Documents</button>
-          <Link href={`/supervisor/students/${row.userId}`} className={TOOL}><UserRound className="h-4 w-4" /> Full profile</Link>
+          <Link href={`/supervisor/students/${row.userId}`} className={`${TOOL} col-span-2`}><UserRound className="h-4 w-4" /> Full profile</Link>
         </div>
         {remindBlocked && <p className="-mt-2 text-[11.5px] text-ink-400">Remind: {remindBlocked.toLowerCase()}.</p>}
 
