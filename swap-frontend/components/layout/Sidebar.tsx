@@ -8,18 +8,14 @@ import { avatarSrc } from '@/lib/utils/avatar'
 import { useAuthStore } from '@/lib/store/authStore'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useNotifications } from '@/lib/hooks/useNotifications'
-import { useQuery } from '@tanstack/react-query'
-import { systemApi } from '@/lib/api/system.api'
 import type { LucideIcon } from 'lucide-react'
 import {
   LayoutDashboard, FileText, Clock, CheckSquare, Users,
   BarChart2, Building2, Banknote, Bell, BookOpen,
-  ClipboardList, LogOut, CalendarRange, X, QrCode, RefreshCw, Images, Megaphone, Inbox, FlaskConical,
+  ClipboardList, LogOut, CalendarRange, X, QrCode, RefreshCw, Images, Megaphone, Inbox,
 } from 'lucide-react'
 
 type NavLink = { label: string; href: string; icon: LucideIcon }
-
-const TESTING_HREF = '/admin/testing'
 
 const ROLE_NAV: Record<string, NavLink[]> = {
   applicant: [
@@ -57,8 +53,7 @@ const ROLE_NAV: Record<string, NavLink[]> = {
     { label: 'Concerns', href: '/admin/concerns', icon: Inbox },
     { label: 'Landing Page', href: '/admin/landing', icon: Images },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: BookOpen },
-    // Only while SWAP_TEST_TOOLS is on (live and local): see Sidebar below.
-    { label: 'System Testing', href: TESTING_HREF, icon: FlaskConical },
+    // System Testing has no menu item: open /admin/testing directly (only while SWAP_TEST_TOOLS is on).
   ],
 }
 
@@ -88,13 +83,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { logout, isLoggingOut } = useAuth()
   const { data: notif } = useNotifications()
   const unread = notif?.meta?.unread_count ?? 0
-  // Admins: whether this server has System Testing at all (hidden until it says so).
-  const { data: system } = useQuery({
-    queryKey: ['admin-system'], queryFn: systemApi.get, enabled: user?.role === 'admin' && !!token, staleTime: 5 * 60_000,
-  })
 
-  const roleNav = (user?.role ? ROLE_NAV[user.role] ?? [] : [])
-    .filter((i) => i.href !== TESTING_HREF || system?.test_tools_available)
+  const roleNav = user?.role ? ROLE_NAV[user.role] ?? [] : []
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
