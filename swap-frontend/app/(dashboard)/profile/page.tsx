@@ -1,17 +1,17 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, ChevronRight, Lock } from 'lucide-react'
+import { Check, Lock } from 'lucide-react'
 import { useAuthStore } from '@/lib/store/authStore'
 import { authApi } from '@/lib/api/auth.api'
 import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { BackLink } from '@/components/shared/BackLink'
 import { ThemeSetting } from '@/components/layout/ThemeToggle'
 import { ProfileAside } from '@/components/profile/ProfileAside'
 import { SignatureCard } from '@/components/profile/SignatureCard'
@@ -51,7 +51,7 @@ const goTo = (id: string) => {
   ;(el?.querySelector('input,button') as HTMLElement | null)?.focus({ preventScroll: true })
 }
 
-function ProfileTab({ user }: { user: User }) {
+function ProfileTab({ user, onDirtyChange }: { user: User; onDirtyChange: (dirty: boolean) => void }) {
   const setAuth = useAuthStore((s) => s.setAuth)
   const queryClient = useQueryClient()
   const { notify } = useFeedback()
@@ -68,7 +68,8 @@ function ProfileTab({ user }: { user: User }) {
   // A different account (or the first load) refills the form; edits in progress are kept otherwise.
   useEffect(() => { reset(valuesOf(user)) }, [user.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Leaving with unsaved edits asks first.
+  // Leaving with unsaved edits asks first (closing the tab here; the Back link in the page).
+  useEffect(() => { onDirtyChange(isDirty) }, [isDirty, onDirtyChange])
   useEffect(() => {
     if (!isDirty) return
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
@@ -217,16 +218,19 @@ function ProfilePageInner() {
   const asked = params.get('tab')
   const tab: Tab = asked === 'security' || asked === 'activity' ? asked : 'profile'
   const setTab = (t: Tab) => router.replace(t === 'profile' ? pathname : `${pathname}?tab=${t}`, { scroll: false })
+  const { confirm } = useFeedback()
+  const [dirty, setDirty] = useState(false)
 
   if (!user) return null
 
+  // Back with unsaved profile edits asks first.
+  const leave = async () => !dirty || confirm({
+    title: 'Leave without saving?', body: "Your profile changes aren't saved yet.", confirmLabel: 'Leave', tone: 'danger',
+  })
+
   return (
     <div className="text-ink-950">
-      <div className="mb-5 flex items-center gap-1.5 text-[13px] text-ink-400">
-        <Link href={getRoleDashboard(user.role)} className="transition-colors hover:text-accent">Dashboard</Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="font-semibold text-accent">My profile</span>
-      </div>
+      <BackLink href={getRoleDashboard(user.role)} history guard={leave} className="mb-5" />
 
       <div className="grid gap-5 lg:grid-cols-[300px_1fr] lg:items-start">
         <div className="lg:sticky lg:top-4"><ProfileAside user={user} /></div>
@@ -243,7 +247,7 @@ function ProfilePageInner() {
           </div>
 
           {/* Kept mounted so unsaved edits survive a look at another tab. */}
-          <div hidden={tab !== 'profile'}><ProfileTab user={user} /></div>
+          <div hidden={tab !== 'profile'}><ProfileTab user={user} onDirtyChange={setDirty} /></div>
           {tab === 'security' && <SecurityTab />}
           {tab === 'activity' && <ActivityTab />}
         </div>

@@ -1,12 +1,17 @@
 'use client'
 
 import { type ReactNode } from 'react'
+import { usePathname } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { SidebarHint } from './SidebarHint'
 import { ChevronRight } from 'lucide-react'
 import { SessionSync } from '@/components/auth/SessionSync'
+import { BackLink } from '@/components/shared/BackLink'
+import { ROLE_NAV } from '@/lib/constants/navigation'
+import { useAuthStore } from '@/lib/store/authStore'
 import { useUIStore } from '@/lib/store/uiStore'
+import { getRoleDashboard } from '@/lib/utils/roleGuard'
 import { cn } from '@/lib/utils/cn'
 
 // Soft seal-green glow top-left, gold glow bottom-right, a lift of white in the middle.
@@ -69,6 +74,13 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
   const handleNavigate = () => {
     setMobileSidebarOpen(false)
   }
+
+  // Every menu page but the dashboard gets "← Back" (to the page you came from, else the
+  // dashboard). Sub-pages and off-menu pages (details, Profile, Notifications…) have their own.
+  const pathname = usePathname()
+  const role = useAuthStore((s) => s.user?.role)
+  const home = role ? getRoleDashboard(role) : null
+  const menuPage = !!role && !!home && (ROLE_NAV[role] ?? []).some((i) => i.href === pathname && i.href !== home)
 
   return (
     // print:* — printable documents (duty slips) are positioned against the page, so
@@ -134,7 +146,10 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <Topbar />
         <main className="flex-1 overflow-y-auto print:overflow-visible">
-          <div className="mx-auto w-full max-w-[1680px] px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 md:px-5 md:pt-6 md:pb-[max(1.5rem,env(safe-area-inset-bottom))] print:max-w-none print:p-0">{children}</div>
+          <div className="mx-auto w-full max-w-[1680px] px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 md:px-5 md:pt-6 md:pb-[max(1.5rem,env(safe-area-inset-bottom))] print:max-w-none print:p-0">
+            {menuPage && home && <BackLink href={home} label="Back" history className="mb-3" />}
+            {children}
+          </div>
         </main>
       </div>
     </div>

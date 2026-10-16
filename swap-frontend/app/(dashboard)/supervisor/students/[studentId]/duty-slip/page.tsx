@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
+import { BackLink } from '@/components/shared/BackLink'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import {
   DutySlipControls, DutySlipDocument, mondayOf, iso,
@@ -54,10 +53,7 @@ export default function SupervisorDutySlipPage() {
 
   return (
     <div className="space-y-5">
-      <Link href={`/supervisor/students/${studentId}`}
-        className="no-print flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-500 hover:text-brand-700 transition-colors">
-        <ArrowLeft className="h-[19px] w-[19px]" /> Back to {s?.name ?? 'student'}
-      </Link>
+      <BackLink href={`/supervisor/students/${studentId}`} label={`Back to ${s?.name ?? 'student'}`} />
       <DutySlipControls
         title={`${s?.name ? `${s.name} — ` : ''}${mode === 'semester' ? 'Semestral Service Report' : 'Duty Slip'}`}
         subtitle={mode === 'semester'

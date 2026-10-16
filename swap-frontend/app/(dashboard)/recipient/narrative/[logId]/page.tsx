@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Send } from 'lucide-react'
-import Link from 'next/link'
+import { Send } from 'lucide-react'
+import { BackLink } from '@/components/shared/BackLink'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import type { ApiError } from '@/types/api.types'
 import type { TimeLog } from '@/types/attendance.types'
@@ -96,13 +96,7 @@ export default function NarrativePage() {
             )}
           </dl>
         </div>
-        <Link
-          href="/recipient/attendance"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-600 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Hours
-        </Link>
+        <BackLink href="/recipient/attendance" label="Back to Hours & attendance" />
       </div>
     )
   }
@@ -110,13 +104,7 @@ export default function NarrativePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link
-          href="/recipient/attendance"
-          className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
+        <BackLink href="/recipient/attendance" label="Back to Hours & attendance" />
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Task Description</h1>
           <p className="text-sm text-ink-500">Required before clocking out. It prints on your duty slip.</p>

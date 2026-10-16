@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Eye, Calendar, MapPin, Video } from 'lucide-react'
-import Link from 'next/link'
+import { Eye, Calendar, MapPin, Video } from 'lucide-react'
+import { BackLink } from '@/components/shared/BackLink'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
@@ -41,13 +41,7 @@ export default function ApplicationDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link
-          href="/applicant/dashboard"
-          className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
+        <BackLink href="/applicant/dashboard" label="Back to dashboard" />
         <div className="flex-1">
           <h1 className="text-xl font-bold text-ink-900">
             {application.type === 'renewal' ? 'My Renewal Application' : 'My SWAP Application'}

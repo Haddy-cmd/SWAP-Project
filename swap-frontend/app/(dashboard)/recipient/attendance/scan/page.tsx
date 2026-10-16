@@ -8,6 +8,7 @@ import { SelfieCapture } from '@/components/attendance/SelfieCapture'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { getBestPosition } from '@/lib/utils/geolocation'
+import { BackLink } from '@/components/shared/BackLink'
 
 export default function ScanAttendancePage() {
   const queryClient = useQueryClient()
@@ -70,6 +71,7 @@ export default function ScanAttendancePage() {
 
   return (
     <div className="space-y-6">
+      <BackLink href="/recipient/attendance" label="Back to Hours & attendance" />
       <div>
         <h1 className="text-2xl font-bold text-ink-900">Scan QR Code</h1>
         <p className="mt-1 text-sm text-ink-500">

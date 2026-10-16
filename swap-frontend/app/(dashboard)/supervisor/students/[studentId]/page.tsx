@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
+import { BackLink } from '@/components/shared/BackLink'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, BadgeCheck, Building2, CalendarClock, CalendarDays, CircleAlert, FileText, Flag, History, Info, MoreHorizontal,
+  BadgeCheck, Building2, CalendarClock, CalendarDays, CircleAlert, FileText, Flag, History, Info, MoreHorizontal,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
@@ -98,9 +99,7 @@ export default function StudentDetailPage() {
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-4">
-      <Link href="/supervisor/students" className="flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-600 transition-colors hover:text-accent-strong">
-        <ArrowLeft className="h-[18px] w-[18px]" /> My students
-      </Link>
+      <BackLink href="/supervisor/students" label="Back to My students" />
 
       <div className="flex flex-wrap items-center gap-4">
         <UserAvatar name={name} avatarUrl={student?.avatar_url} className="h-[60px] w-[60px] rounded-full bg-accent-soft" />

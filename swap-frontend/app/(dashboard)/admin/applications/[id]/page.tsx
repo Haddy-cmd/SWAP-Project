@@ -3,8 +3,8 @@
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, CheckCircle, XCircle, Eye, Calendar } from 'lucide-react'
+import { BackLink } from '@/components/shared/BackLink'
+import { CheckCircle, XCircle, Eye, Calendar } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
@@ -152,10 +152,7 @@ export default function AdminApplicationDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin/applications" className="flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Link>
+        <BackLink href="/admin/applications" label="Back to Applications" />
         <div className="flex-1">
           <h1 className="text-xl font-bold text-ink-900">Application #{application.id}</h1>
           <p className="text-sm text-ink-500">{application.user?.name}</p>

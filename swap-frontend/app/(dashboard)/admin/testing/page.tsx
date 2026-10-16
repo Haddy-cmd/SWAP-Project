@@ -10,6 +10,7 @@ import type { TestingCandidate, TestingStatus } from '@/types/testing.types'
 import { AccountPanel } from '@/components/admin/testing/AccountPanel'
 import { EarlierTestsPanel, LoginCodePanel, StoragePanel } from '@/components/admin/testing/SidePanels'
 import { CARD, initials, stageOf } from '@/components/admin/testing/ui'
+import { BackLink } from '@/components/shared/BackLink'
 
 type WithStatus = { data: TestingStatus; message: string }
 
@@ -60,12 +61,15 @@ export default function SystemTestingPage() {
     // 404: this server has no System Testing (SWAP_TEST_TOOLS off — the live server).
     const unavailable = (error as ApiRequestError | null)?.status === 404
     return (
-      <div className={`${CARD} p-8 text-center`}>
-        <FlaskConical className="mx-auto h-8 w-8 text-ink-300" />
-        <p className="mt-2 font-semibold text-ink-900">{unavailable ? 'System Testing is turned off on this server.' : 'Could not load System Testing'}</p>
-        <p className="mt-1 text-sm text-ink-500">
-          {unavailable ? 'Set SWAP_TEST_TOOLS=true on the server to use it.' : 'Refresh the page to try again.'}
-        </p>
+      <div className="space-y-4">
+        <BackLink href="/admin/dashboard" label="Back to dashboard" />
+        <div className={`${CARD} p-8 text-center`}>
+          <FlaskConical className="mx-auto h-8 w-8 text-ink-300" />
+          <p className="mt-2 font-semibold text-ink-900">{unavailable ? 'System Testing is turned off on this server.' : 'Could not load System Testing'}</p>
+          <p className="mt-1 text-sm text-ink-500">
+            {unavailable ? 'Set SWAP_TEST_TOOLS=true on the server to use it.' : 'Refresh the page to try again.'}
+          </p>
+        </div>
       </div>
     )
   }
@@ -84,6 +88,8 @@ export default function SystemTestingPage() {
 
   return (
     <div className="space-y-[18px]">
+      {/* No menu item (opened by its address), so a way back to the dashboard. */}
+      <BackLink href="/admin/dashboard" label="Back to dashboard" />
       <div>
         <h1 className="flex items-center gap-2.5 font-serif text-[30px] font-medium leading-tight text-ink-950">
           <FlaskConical className="h-7 w-7 text-accent" /> System Testing

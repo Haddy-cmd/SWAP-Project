@@ -3,10 +3,10 @@
 import { useParams } from 'next/navigation'
 import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import Link from 'next/link'
+import { BackLink } from '@/components/shared/BackLink'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, PlusCircle, Target, CheckCircle, XCircle, Clock, FileText,
+  PlusCircle, Target, CheckCircle, XCircle, Clock, FileText,
   ChevronDown, Sparkles, MapPinOff, Info, CheckCircle2, Ban, Hourglass, CalendarX, Loader2, X, ZoomIn,
 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
@@ -155,10 +155,7 @@ export default function StudentLogsPage() {
 
   return (
     <div className="mx-auto max-w-[900px] space-y-5">
-      <Link href={`/supervisor/students/${studentId}`}
-        className="flex w-fit items-center gap-1.5 text-[13px] font-semibold text-ink-500 hover:text-brand-700 transition-colors">
-        <ArrowLeft className="h-[18px] w-[18px]" /> Back to students
-      </Link>
+      <BackLink href={`/supervisor/students/${studentId}`} label={`Back to ${name}`} />
 
       {/* header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
