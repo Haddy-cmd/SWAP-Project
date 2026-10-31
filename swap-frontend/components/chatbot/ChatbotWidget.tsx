@@ -90,6 +90,9 @@ export function ChatbotWidget() {
     if (!d.moved) toggleChat() // a tap (not a drag) toggles the chat
   }
 
+  // The browser took the gesture over (e.g. a system swipe): end the drag without toggling the chat.
+  const onPointerCancel = () => { drag.current.active = false }
+
   if (!mounted) return null
 
   // Anchor the panel near the robot, clamped to stay on screen.
@@ -137,6 +140,7 @@ export function ChatbotWidget() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerCancel}
         style={{ left: pos.x, top: pos.y, width: FAB, height: FAB }}
         className="fixed z-[60] flex touch-none select-none items-center justify-center rounded-full text-white shadow-lg ring-4 ring-brand-700/15 transition-transform hover:scale-105 active:scale-95"
         aria-label={chatOpen ? 'Close SWAP Assistant' : 'Open SWAP Assistant'}

@@ -188,8 +188,10 @@ html {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar > button, .no-scrollbar > a { flex-shrink: 0; white-space: nowrap; }
 
-/* No double-tap zoom delay on controls. */
-button, a, [role="button"], label, summary { touch-action: manipulation; }
+/* No double-tap zoom delay on controls. In the base layer so utilities like `touch-none` (draggable controls) still win. */
+@layer base {
+  button, a, [role="button"], label, summary { touch-action: manipulation; }
+}
 
 /* iOS Safari zooms into any field under 16px when it's focused: never on phones. */
 @media (max-width: 639px) {

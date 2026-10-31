@@ -14,6 +14,7 @@ use App\Models\TermReport;
 use App\Models\TestingSnapshot;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Services\AttendanceService;
 use App\Services\TestingService;
 use App\Support\AccountSnapshot;
 use App\Support\TestTools;
@@ -487,9 +488,47 @@ class TestingToolsTest extends TestCase
         // Like every shortcut, the new ones are gone while System Testing is off on the server.
         $this->pick($student)->assertOk();
         config(['swap.test_tools' => false]);
-        foreach (['complete-hours', 'reset-hours', 'clock-in', 'auto-clock-out', 'file-promissory'] as $action) {
+        foreach (['complete-hours', 'reset-hours', 'clock-in', 'clock-out', 'auto-clock-out', 'file-promissory'] as $action) {
             $this->act($student, $action)->assertNotFound();
         }
+    }
+
+    public function test_clock_out_needs_the_task_description_first(): void
+    {
+        [$student, $assignment] = $this->realRecipient();
+        $this->pick($student)->assertOk();
+
+        $this->act($student, 'clock-out')->assertStatus(422)->assertJsonPath('message', TestingService::MSG_NOT_CLOCKED_IN);
+        $this->act($student, 'clock-in')->assertOk()->assertJsonPath('data.accounts.0.clocked_in_task', null);
+        $log = TimeLog::where('user_id', $student->id)->where('status', 'open')->firstOrFail();
+
+        // Like the student's own clock-out: no Task Description, no clock-out.
+        $this->act($student, 'clock-out')->assertStatus(422)->assertJsonPath('message', AttendanceService::MSG_TASK_REQUIRED);
+        $this->act($student, 'clock-out', ['task' => 'Too short'])->assertStatus(422)->assertJsonValidationErrors('task');
+        $this->assertSame('open', $log->fresh()->status);
+
+        $this->act($student, 'clock-out', ['task' => 'Filed and sorted the incoming office records.'])->assertOk()
+            ->assertJsonPath('message', "Clocked out with the task description. The log now waits for the supervisor's review.")
+            ->assertJsonPath('data.accounts.0.clocked_in_since', null);
+        $log->refresh();
+        $this->assertSame('pending_verification', $log->status);
+        $this->assertSame('manual', $log->clocked_out_reason);
+        $this->assertSame('Filed and sorted the incoming office records.', $log->narrativeReport?->content);
+
+        $this->release($student)->assertOk();
+        $this->assertNull(TimeLog::find($log->id));
+        $this->assertSame(0, NarrativeReport::where('time_log_id', $log->id)->count());
+
+        // A shift the student already described: their task is shown and kept, none is needed.
+        $own = $this->makeOpenLog($assignment, $student);
+        $own->narrativeReport()->create(['content' => 'Assisted students at the front desk.', 'submitted_at' => now()]);
+        $this->pick($student)->assertOk()->assertJsonPath('data.accounts.0.clocked_in_task', 'Assisted students at the front desk.');
+        $this->act($student, 'clock-out')->assertOk();
+        $this->assertSame('manual', $own->fresh()->clocked_out_reason);
+        $this->assertSame(1, NarrativeReport::where('time_log_id', $own->id)->count());
+        $this->release($student)->assertOk();
+        $this->assertSame('open', $own->fresh()->status);
+        $this->assertSame('Assisted students at the front desk.', $own->fresh()->narrativeReport?->content);
     }
 
     public function test_the_whole_flow_from_pending_hours_to_a_paid_stipend_and_back(): void

@@ -22,6 +22,7 @@ const ROLE = {
   recipient: { label: 'Recipient', fg: 'var(--text-accent-strong)', bg: 'var(--color-accent-soft)' },
   applicant: { label: 'Applicant', fg: 'var(--text-violet-600)', bg: 'var(--color-violet-100)' },
 }
+const TASK_MIN = 10 // same minimum as the student's own Task Description
 const SMALL = 'h-9 rounded-[9px] border border-ink-200 bg-surface px-2.5 text-[13px] focus:border-accent focus:outline-none'
 
 /**
@@ -68,6 +69,12 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
   const [as, setAs] = useState<'verified' | 'pending_verification'>('verified')
   const [date, setDate] = useState('')
   const [eligible, setEligible] = useState(true)
+  // Clock out: the Task Description box opens first (unless the student already wrote it).
+  const [writing, setWriting] = useState(false)
+  const [task, setTask] = useState('')
+  const clockOut = (data?: Record<string, unknown>) =>
+    act.mutate({ action: 'clock-out', data }, { onSuccess: () => { setWriting(false); setTask('') } })
+  const taskBox = writing && !!a.clocked_in_since && !a.clocked_in_task
 
   const steps = isRecipient ? stepsOf(a) : []
   const nextOpen = steps.findIndex((s) => !s.done)
@@ -161,6 +168,24 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
                   <Plus className="h-4 w-4" /> Add
                 </button>
               </div>
+              {taskBox && (
+                <div className="animate-panel-in flex flex-col gap-2 rounded-[10px] border border-ink-200 bg-surface-2 p-3">
+                  <label className="flex flex-col gap-1 text-[11.5px] font-semibold text-ink-500">
+                    <span className="flex justify-between">Task description <span className="font-normal">{task.trim().length}/{TASK_MIN}+</span></span>
+                    <textarea autoFocus rows={3} maxLength={5000} value={task} onChange={(e) => setTask(e.target.value)}
+                      placeholder={`What the student did this shift (at least ${TASK_MIN} characters)`}
+                      className="resize-y rounded-[9px] border border-ink-200 bg-surface px-2.5 py-2 text-[13px] font-normal text-ink-900 focus:border-accent focus:outline-none" />
+                  </label>
+                  <div className="flex justify-end gap-1.5">
+                    <button type="button" onClick={() => { setWriting(false); setTask('') }} disabled={off}
+                      className="h-8 rounded-[9px] border border-ink-200 bg-surface px-3 text-[12.5px] font-semibold text-ink-700 disabled:opacity-45">Cancel</button>
+                    <button type="button" onClick={() => clockOut({ task: task.trim() })} disabled={off || task.trim().length < TASK_MIN}
+                      className="flex h-8 items-center gap-1 rounded-[9px] bg-accent px-3 text-[12.5px] font-bold text-white disabled:opacity-45">
+                      {off ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Clock out
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 <Shortcut icon={BadgeCheck} label="Verify waiting" onClick={() => run('verify-hours')} disabled={off}
                   title="As the supervisor: verify every hour waiting for review (the real verification, with its notifications)." />
@@ -168,6 +193,11 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
                   title="Log exactly the hours still missing, verified (up to 8 h a day on past days), so the required hours are complete." />
                 <Shortcut icon={LogIn} label="Clock in now" onClick={() => run('clock-in')} disabled={off}
                   title="Open a shift now without the QR scan. The student clocks out by scanning their office QR." />
+                <Shortcut icon={LogOut} label="Clock out" disabled={off || taskBox}
+                  onClick={() => (a.clocked_in_since && !a.clocked_in_task ? setWriting(true) : clockOut())}
+                  title={a.clocked_in_task
+                    ? `Clock out now without the QR scan, with the student's task: "${a.clocked_in_task}"`
+                    : 'Clock out now without the QR scan, like the student does: write the task description first (it prints on the duty slip).'} />
                 <Shortcut icon={LogOut} label="Auto clock-out" onClick={() => run('auto-clock-out')} disabled={off}
                   title="Close the open shift the way the hourly safety net does after 12 hours; the log then waits for the supervisor's review." />
                 <Shortcut icon={Eraser} label="Reset hours" danger disabled={off}

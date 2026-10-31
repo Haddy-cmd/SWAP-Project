@@ -178,6 +178,22 @@ class AttendanceService
     }
 
     /**
+     * System Testing's "Clock out": the recipient's own clock-out without the QR scan. The
+     * Task Description rule still applies.
+     */
+    public function clockOutWithoutScan(TimeLog $log): TimeLog
+    {
+        if ($log->status !== 'open') {
+            throw new UnprocessableEntityHttpException('No open attendance log found with this ID.');
+        }
+        if (!$log->hasNarrative()) {
+            throw new UnprocessableEntityHttpException(self::MSG_TASK_REQUIRED);
+        }
+
+        return $this->finalizeClockOut($log, $log->user, 'manual', null, null);
+    }
+
+    /**
      * System-triggered clock-out when a recipient leaves the office geofence.
      * Skips the QR scan (they have physically left the premises) — which is exactly
      * why the server re-checks the fence: otherwise calling this endpoint directly

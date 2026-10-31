@@ -227,31 +227,30 @@ export default function AdminAnnouncementsPage() {
         <div className={`${CARD} overflow-hidden`}>
           <div className="flex flex-col gap-[18px] px-6 py-[22px]">
             <div>
-              <p className="mb-2 text-[13px] font-bold">Send to</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Send to">
-                {AUDIENCES.map((a) => {
-                  const on = to === a.value
-                  const n = a.value === 'office' ? undefined : data?.meta.audiences?.[a.value]
-                  return (
-                    <button key={a.value} type="button" role="radio" aria-checked={on} onClick={() => setTo(a.value)}
-                      className={`flex flex-col items-start gap-1 rounded-xl border-[1.5px] px-3 py-2.5 text-left transition-colors ${
-                        on ? 'border-accent bg-accent-tint' : 'border-ink-200 bg-surface hover:border-accent/50'}`}>
-                      <a.Icon className={`h-[18px] w-[18px] ${on ? 'text-accent-strong' : 'text-ink-500'}`} />
-                      <span className={`text-[12.5px] font-bold ${on ? 'text-accent-strong' : 'text-ink-800'}`}>{a.label}</span>
-                      {n !== undefined && <span className="text-[11px] text-ink-500">{n} {noun(a.value, n)}</span>}
-                    </button>
-                  )
-                })}
+              <label htmlFor="send-to" className="mb-2 block text-[13px] font-bold">Send to</label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="relative sm:w-[260px] sm:flex-none">
+                  <choice.Icon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-accent-strong" />
+                  <select id="send-to" value={to} onChange={(e) => setTo(e.target.value as AnnouncementAudience)}
+                    className="h-[42px] w-full appearance-none rounded-xl border border-ink-200 bg-surface pl-10 pr-9 text-[13.5px] font-semibold text-ink-950 focus:border-accent focus:outline-none">
+                    {AUDIENCES.map((a) => {
+                      const n = a.value === 'office' ? undefined : data?.meta.audiences?.[a.value]
+                      return <option key={a.value} value={a.value}>{a.label}{n !== undefined ? ` (${n} ${noun(a.value, n)})` : ''}</option>
+                    })}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                </div>
+                {to === 'office' && (
+                  <select value={officeId ?? ''} onChange={(e) => setOfficeId(e.target.value ? Number(e.target.value) : null)} aria-label="Office"
+                    className="h-[42px] min-w-0 flex-1 rounded-xl border border-ink-200 bg-surface px-3 text-[13.5px] text-ink-950 focus:border-accent focus:outline-none">
+                    <option value="">Choose the office…</option>
+                    {offices.map((o) => (
+                      <option key={o.id} value={o.id} disabled={o.count === 0}>{o.name} ({o.count} {noun('office', o.count)})</option>
+                    ))}
+                  </select>
+                )}
               </div>
-              {to === 'office' && (
-                <select value={officeId ?? ''} onChange={(e) => setOfficeId(e.target.value ? Number(e.target.value) : null)} aria-label="Office"
-                  className="mt-2 h-[42px] w-full rounded-xl border border-ink-200 bg-surface px-3 text-[13.5px] text-ink-950 focus:border-accent focus:outline-none">
-                  <option value="">Choose the office…</option>
-                  {offices.map((o) => (
-                    <option key={o.id} value={o.id} disabled={o.count === 0}>{o.name} ({o.count} {noun('office', o.count)})</option>
-                  ))}
-                </select>
-              )}
+              <p className="mt-1.5 text-[11.5px] text-ink-500">{to === 'office' && office ? `Students placed at ${office.name} and its supervisors` : choice.who}</p>
             </div>
 
             <div>

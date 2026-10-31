@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Building2, X, Users, Copy, Check, Search, Trash2, User as UserIcon, CheckCircle2, Circle, Construction,
-  PauseCircle, QrCode, ChevronDown, ArrowRight, Plus, Minus, UserCog,
+  PauseCircle, QrCode, ChevronDown, ArrowRight, Plus, Minus, UserCog, Printer,
 } from 'lucide-react'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { adminApi } from '@/lib/api/admin.api'
@@ -76,6 +76,45 @@ function OfficeLogo({ office, bg, fg, size = 44, square = false }: { office: Off
       )}
     </span>
   )
+}
+
+/** Prints a clean one-page QR sheet (office name + code) through a hidden iframe, so the page behind the modal isn't printed. */
+function printOfficeQr(name: string, svg: string) {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
+  document.body.appendChild(frame)
+  const doc = frame.contentDocument
+  const win = frame.contentWindow
+  if (!doc || !win) { frame.remove(); return }
+  doc.open()
+  doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>Office QR — ${esc(name)}</title><style>
+    @page { size: A4 portrait; margin: 18mm; }
+    body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; color: #0B2716; }
+    .card { border: 1.5px solid #0B2716; border-radius: 14px; padding: 14mm 12mm; text-align: center; }
+    .kicker { font-size: 11pt; letter-spacing: .14em; text-transform: uppercase; font-weight: 700; margin: 0; }
+    h1 { font-size: 24pt; margin: 4mm 0 8mm; line-height: 1.2; }
+    svg { width: 90mm; height: 90mm; }
+    .how { font-size: 14pt; font-weight: 600; margin: 8mm 0 2mm; }
+    .note { font-size: 10.5pt; color: #333; margin: 0; }
+    .foot { font-size: 9pt; color: #555; margin-top: 10mm; }
+  </style></head><body><div class="card">
+    <p class="kicker">SWAP Attendance</p>
+    <h1>${esc(name)}</h1>
+    ${svg}
+    <p class="how">Scan with your phone camera to clock in / out</p>
+    <p class="note">Open the link, sign in, and confirm your location when asked.</p>
+    <p class="foot">Division of Student Affairs · MSU Marawi</p>
+  </div></body></html>`)
+  doc.close()
+  const cleanup = () => setTimeout(() => frame.remove(), 500)
+  win.addEventListener('afterprint', cleanup)
+  setTimeout(() => {
+    win.focus()
+    win.print()
+    setTimeout(() => frame.isConnected && frame.remove(), 60_000) // fallback if afterprint never fires
+  }, 150)
 }
 
 /** A read-only value with a copy-to-clipboard button — manual fallback when the QR won't scan. */
@@ -714,6 +753,7 @@ export default function AdminOfficesPage() {
   // The panel has unsaved changes.
   const [dirty, setDirty] = useState(false)
   const [qrView, setQrView] = useState<{ name: string; token: string } | null>(null)
+  const qrRef = useRef<HTMLDivElement>(null)
   const [viewOffice, setViewOffice] = useState<Office | null>(null)
 
   const { data, isLoading } = useQuery({
@@ -901,10 +941,15 @@ export default function AdminOfficesPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex justify-center">
+            <div ref={qrRef} className="flex justify-center">
               <QrDisplay value={`${window.location.origin}/scan?t=${encodeURIComponent(qrView.token)}`} size={220} caption={qrView.name} />
             </div>
-            <p className="mt-4 text-center text-xs text-ink-500">
+            <button type="button"
+              onClick={() => { const svg = qrRef.current?.querySelector('svg'); if (svg) printOfficeQr(qrView.name, svg.outerHTML) }}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 transition-colors">
+              <Printer className="h-4 w-4" /> Print QR
+            </button>
+            <p className="mt-3 text-center text-xs text-ink-500">
               Print and post this at the office entrance. Recipients scan it with their phone camera to clock in.
             </p>
             <div className="mt-4 space-y-3 border-t border-ink-200 pt-4">

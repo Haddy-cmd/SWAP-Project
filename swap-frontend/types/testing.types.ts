@@ -42,6 +42,8 @@ export interface TestingAccount {
   email_muted: boolean
   /** When their open shift started (ISO), or null when not clocked in. */
   clocked_in_since: string | null
+  /** The open shift's Task Description, when the student already wrote it. */
+  clocked_in_task: string | null
   assignments: TestingAssignment[]
   applications: TestingApplication[]
 }
@@ -79,7 +81,7 @@ export interface EarlierTest {
 }
 
 export type TestingAction =
-  | 'hours' | 'complete-hours' | 'reset-hours' | 'verify-hours' | 'clock-in' | 'auto-clock-out'
+  | 'hours' | 'complete-hours' | 'reset-hours' | 'verify-hours' | 'clock-in' | 'clock-out' | 'auto-clock-out'
   | 'end-term' | 'file-promissory' | 'approve-promissory' | 'reject-promissory' | 'close-term'
   | 'term-report' | 'review-report' | 'renewal' | 'reset-term' | 'release-stub' | 'reset-stipend'
 

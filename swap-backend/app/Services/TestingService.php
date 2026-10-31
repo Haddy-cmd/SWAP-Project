@@ -133,7 +133,8 @@ class TestingService
             ->get()
             ->groupBy('user_id');
         $applications = Application::whereIn('user_id', $users->pluck('id'))->orderByDesc('id')->get()->groupBy('user_id');
-        $openShifts = TimeLog::whereIn('user_id', $users->pluck('id'))->where('status', 'open')->get(['user_id', 'time_in'])->keyBy('user_id');
+        $openShifts = TimeLog::whereIn('user_id', $users->pluck('id'))->where('status', 'open')->with('narrativeReport:id,time_log_id,content')
+            ->get(['id', 'user_id', 'time_in'])->keyBy('user_id');
         $stubs = StipendHistory::whereIn('user_id', $users->pluck('id'))->whereIn('status', self::LIVE_STIPEND)
             ->orderBy('id')->get(['user_id', 'academic_year', 'semester', 'status'])
             ->keyBy(fn ($s) => "{$s->user_id}|{$s->academic_year}|{$s->semester}");
@@ -155,6 +156,8 @@ class TestingService
                 // Its email switch: true = bell notifications only, no emails (default when picked).
                 'email_muted' => (bool) $u->testing_email_muted,
                 'clocked_in_since' => $openShifts->get($u->id)?->time_in?->toISOString(),
+                // The open shift's Task Description, when the student already wrote it.
+                'clocked_in_task' => $openShifts->get($u->id)?->narrativeReport?->content,
                 'assignments' => ($assignments[$u->id] ?? collect())->map(fn (Assignment $a) => [
                     'id' => $a->id,
                     'term' => "{$a->semester} {$a->academic_year}",
@@ -501,18 +504,41 @@ class TestingService
         return $log;
     }
 
+    /**
+     * The student's own clock-out, without the QR scan: the Task Description comes first (it
+     * prints on the duty slip) — the one the student already wrote, or $task.
+     */
+    public function clockOutNow(User $recipient, User $admin, ?string $task = null): TimeLog
+    {
+        $log = $this->openShift($recipient);
+
+        $taskAdded = false;
+        if (!$log->hasNarrative() && trim((string) $task) !== '') {
+            $log->narrativeReport()->create(['content' => trim($task), 'submitted_at' => now()]);
+            $taskAdded = true;
+        }
+
+        $this->attendance->clockOutWithoutScan($log);
+        $this->audit('testing_clocked_out', $log->assignment, ['time_log_id' => $log->id, 'task_added' => $taskAdded], $admin);
+
+        return $log->fresh();
+    }
+
     /** Run the hourly safety net (attendance:close-stale) on the student's open shift now. */
     public function autoClockOut(User $recipient, User $admin): TimeLog
     {
-        $log = TimeLog::where('user_id', $recipient->id)->where('status', 'open')->latest('id')->first();
-        if (!$log) {
-            throw new UnprocessableEntityHttpException(self::MSG_NOT_CLOCKED_IN);
-        }
+        $log = $this->openShift($recipient);
 
         $this->attendance->closeStaleLog($log, self::STALE_HOURS);
         $this->audit('testing_auto_clocked_out', $log->assignment, ['time_log_id' => $log->id], $admin);
 
         return $log->fresh();
+    }
+
+    private function openShift(User $recipient): TimeLog
+    {
+        return TimeLog::where('user_id', $recipient->id)->where('status', 'open')->latest('id')->first()
+            ?? throw new UnprocessableEntityHttpException(self::MSG_NOT_CLOCKED_IN);
     }
 
     // ── Existing accounts: pick, restore ────────────────────────────────────

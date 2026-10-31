@@ -20,7 +20,7 @@ use Illuminate\Validation\Rule;
 class TestingController extends Controller
 {
     public const ACTIONS = [
-        'hours', 'complete-hours', 'reset-hours', 'verify-hours', 'clock-in', 'auto-clock-out', 'end-term', 'file-promissory',
+        'hours', 'complete-hours', 'reset-hours', 'verify-hours', 'clock-in', 'clock-out', 'auto-clock-out', 'end-term', 'file-promissory',
         'approve-promissory', 'reject-promissory', 'close-term', 'term-report', 'review-report', 'renewal',
         'reset-term', 'release-stub', 'reset-stipend',
     ];
@@ -190,6 +190,16 @@ class TestingController extends Controller
                 return "Stipend released ({$stub->control_number}) with the supervisor's, director's and student's signatures.";
             })(),
             'clock-in' => ($this->testing->clockInNow($recipient, $admin) ? 'Clocked in now. The student can clock out by scanning their office QR.' : ''),
+            'clock-out' => (function () use ($request, $recipient, $admin) {
+                $data = $request->validate(
+                    ['task' => ['nullable', 'string', 'min:10', 'max:5000']],
+                    [],
+                    ['task' => 'task description'],
+                );
+                $this->testing->clockOutNow($recipient, $admin, $data['task'] ?? null);
+
+                return "Clocked out with the task description. The log now waits for the supervisor's review.";
+            })(),
             'auto-clock-out' => ($this->testing->autoClockOut($recipient, $admin)
                 ? "Clocked out automatically, as the 12-hour safety net does. The log now waits for the supervisor's review." : ''),
             'end-term' => ($this->testing->endTerm($recipient, $admin) ? 'Term ended yesterday. Promissory notes and term-end rules now apply.' : ''),
