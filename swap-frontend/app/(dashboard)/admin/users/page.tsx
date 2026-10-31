@@ -109,7 +109,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-[1320px] flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-extrabold tracking-[-0.02em] text-ink-950">Users</h1>
@@ -162,7 +162,9 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <div className={`${CARD} overflow-hidden`}>
+      {/* The list is full width until a person is clicked; then their panel opens beside it (wide screens). */}
+      <div className={`grid items-start gap-4 ${open ? 'lg:grid-cols-[minmax(0,1fr)_minmax(380px,460px)]' : ''}`}>
+      <div className={`${CARD} min-w-0 overflow-hidden`}>
         <div className={`hidden border-b border-ink-900/[.06] px-5 py-3 text-[11.5px] font-bold uppercase tracking-[0.08em] text-ink-400 ${GRID}`}>
           <input type="checkbox" checked={allSel} disabled={!shownSelectable.length} aria-label="Select all shown"
             onChange={(e) => setSel(e.target.checked ? shownSelectable.map((u) => u.id) : [])} className="h-4 w-4 accent-[var(--color-accent)]" />
@@ -179,7 +181,7 @@ export default function AdminUsersPage() {
           return (
             <div key={u.id} role="button" tabIndex={0} onClick={() => setOpenId(u.id)}
               onKeyDown={(e) => { if (e.key === 'Enter') setOpenId(u.id) }}
-              className={`flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink-900/[.04] px-4 py-3 last:border-0 hover:bg-ink-50 sm:px-5 ${GRID} ${isSel ? 'bg-accent-tint' : ''} ${u.is_active ? '' : 'opacity-60'}`}>
+              className={`flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-2 border-b border-ink-900/[.04] px-4 py-3 last:border-0 hover:bg-ink-50 sm:px-5 ${GRID} ${isSel || u.id === openId ? 'bg-accent-tint' : ''} ${u.id === openId ? 'shadow-[inset_3px_0_0_var(--color-accent)]' : ''} ${u.is_active ? '' : 'opacity-60'}`}>
               <span className="flex w-6 items-center sm:w-auto" onClick={(e) => e.stopPropagation()}>
                 <input type="checkbox" checked={isSel} disabled={!selectable(u)} onChange={() => toggleSel(u.id)}
                   aria-label={`Select ${u.name}`} title={selectable(u) ? undefined : u.role === 'admin' ? 'Admins are protected' : isYou ? 'This is you' : 'Already deactivated'}
@@ -216,12 +218,13 @@ export default function AdminUsersPage() {
       </div>
 
       {open && (
-        <UserPanel user={open} isYou={open.id === me?.id} busy={toggle.isPending || remove.isPending}
+        <UserPanel key={open.id} user={open} isYou={open.id === me?.id} busy={toggle.isPending || remove.isPending}
           onClose={() => setOpenId(null)}
           onHistory={() => { setHistory({ id: open.id, name: open.name }); setOpenId(null) }}
           onToggle={() => askToggle(open)}
           onDelete={() => remove.mutate(open)} />
       )}
+      </div>
       {history && <AuditHistoryDrawer scope={{ subjectUserId: history.id }} title={`History · ${history.name}`} onClose={() => setHistory(null)} />}
       {inviting && <InviteModal onClose={() => { setInviting(false); refresh() }} />}
     </div>

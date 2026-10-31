@@ -200,6 +200,8 @@ export default function AdminAnnouncementsPage() {
   const HintIcon = hint.tone === 'ok' ? CheckCircle2 : hint.tone === 'warn' ? AlertTriangle : Info
   const photos = files.filter((d) => d.preview)
   const docs = files.filter((d) => !d.preview)
+  // The preview appears once something is written (or attached); until then the composer is full width.
+  const writing = !!title.trim() || !!message.trim() || files.length > 0
 
   return (
     <div className="space-y-[18px]">
@@ -220,7 +222,7 @@ export default function AdminAnnouncementsPage() {
         )}
       </div>
 
-      <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)]">
+      <div className={`grid items-start gap-[18px] ${writing ? 'lg:grid-cols-[minmax(0,1.35fr)_minmax(300px,1fr)]' : ''}`}>
         {/* Composer */}
         <div className={`${CARD} overflow-hidden`}>
           <div className="flex flex-col gap-[18px] px-6 py-[22px]">
@@ -343,8 +345,9 @@ export default function AdminAnnouncementsPage() {
           </div>
         </div>
 
-        {/* Preview */}
-        <div className="flex flex-col gap-3 lg:sticky lg:top-[88px]">
+        {/* Preview (only once writing has started) */}
+        {writing && (
+        <div className="flex animate-panel-in flex-col gap-3 lg:sticky lg:top-[88px]">
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-bold">How they will see it</span>
             <span className="text-xs text-ink-500">Updates as you type</span>
@@ -395,6 +398,7 @@ export default function AdminAnnouncementsPage() {
             <span className="flex items-center gap-1"><Mail className="h-4 w-4 text-accent" /> Email{files.length > 0 ? ' (lists the files)' : ''}</span>
           </div>
         </div>
+        )}
       </div>
 
       {/* Sent */}

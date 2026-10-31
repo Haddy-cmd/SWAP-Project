@@ -496,10 +496,20 @@ All comparisons in **Asia/Manila**.
   `components/recipient/hours/`); `/recipient/hours` redirects there keeping `#report`, and every email / bell / checklist
   link points at `/recipient/attendance` (`#report` for the end-of-term report). One sidebar item, "Hours & attendance";
   Scan is a button in the clock card (`/recipient/attendance/scan` unchanged).
-- Sections: clock card (QR, selfie, task description at clock-out, geofence watch — unchanged rules — plus a location check on
-  load that only informs), progress hero (summary + `/recipient/progress` forecast and breakdown), today's sessions, this term,
-  hours per week, time logs (filters, Add task description), the end-of-term report strip (top once due or submitted) and past
-  terms. No backend change besides the links and the "Hours & Attendance page" wording in reminder messages.
+- Sections (layout v2, 2026-10-23): clock card (Scan QR to clock in / Scan QR to clock out with an in-page scanner, "Enter the
+  code instead" fallback, selfie, task description at clock-out, geofence watch — unchanged rules — and a location line),
+  "Your hours" (bar, verified / waiting / to go, supervisor, term end, days on duty, best week), "Hours per week" as a modal
+  with the weekly goal line, time logs grouped by day (filters, "Add what you did" opens the task form in place), the
+  end-of-term report strip (top once open or submitted, Locked at the bottom before that) and past terms.
+
+- The end-of-term report opens (2026-10-24) only **after the semester ends**, and then with the required hours verified
+  **or** a promissory note filed for the shortfall (pending is enough) — `TermReportService::submitBlock`, enforced on the
+  first save (a report already in stays editable); `GET /recipient/term-report` meta carries `can_submit` / `submit_block`.
+  The hours-met reminder no longer goes out mid-term, and the supervisor's "Remind to submit" is refused while it's locked.
+  System Testing accounts skip the lock. Nothing prompts for it until it opens: the Hours & Attendance strip is hidden, the
+  dashboard checklist item has no link ("opens after the semester ends" / "opens once you file a promissory note"), the
+  Stipend page doesn't ask for it, and the term-ended email/bell waits — a student short on hours gets it when they file
+  their promissory note.
 
 ### One active placement per student (2026-10-12)
 - A student has at most one `active` assignment across all terms: new placements (`StoreAssignmentRequest` +
@@ -541,7 +551,7 @@ All comparisons in **Asia/Manila**.
 
 ### PDF/Word uploads (2026-10-11)
 - The letter of intent (only that application document) and the promissory note also accept Word (.doc/.docx), 5 MB.
-- The end-of-term report is typed (100+ characters) OR uploaded as PDF/Word: `term_reports` gained `file_path`, `file_name`,
+- The end-of-term report is typed (50+ characters since 2026-10-24) OR uploaded as PDF/Word: `term_reports` gained `file_path`, `file_name`,
   `mime_type`, `file_size` and a nullable `content` (migration `2026_10_11_000004`). The form posts multipart with
   `_method=PUT`; a new file replaces and deletes the old one, `remove_file` drops it, and text or a file must remain.
   Downloads: `GET /recipient/term-report/file` and `GET /supervisor/assignments/{id}/term-report/file`.

@@ -166,6 +166,15 @@ trait MakesSwapData
         ]);
     }
 
+    /** The semester is over (ended yesterday) and the required hours are verified: the report can be submitted. */
+    protected function endTermWithHoursDone(Assignment $assignment): Assignment
+    {
+        $assignment->update(['start_date' => Carbon::today()->subDays(120)->toDateString(), 'end_date' => Carbon::yesterday()->toDateString()]);
+        $this->makeClosedLog($assignment, (float) $assignment->required_hours, 'verified', 20);
+
+        return $assignment->fresh();
+    }
+
     /** The end-of-term narrative report a stipend release requires (StipendClaimService). */
     protected function submitTermReport(Assignment $assignment): TermReport
     {

@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Bot } from 'lucide-react'
+import { Bot, X } from 'lucide-react'
 import { ChatWindow } from './ChatWindow'
 import { useUIStore } from '@/lib/store/uiStore'
 
 const FAB = 56 // robot button size (px)
-const PANEL_W = 380
-const PANEL_H = 560
+const PANEL_W = 580
+const PANEL_H = 860
 const POS_KEY = 'swap-chat-pos'
+const INTRO_KEY = 'swap-chat-intro' // sessionStorage: the hello was shown this visit
+const INTRO_W = 230
 const DRAG_THRESHOLD = 5 // px moved before a press counts as a drag (vs a click)
 
 type Pos = { x: number; y: number }
@@ -23,6 +25,7 @@ export function ChatbotWidget() {
   const { chatOpen, setChatOpen, toggleChat } = useUIStore()
   const [mounted, setMounted] = useState(false)
   const [pos, setPos] = useState<Pos>({ x: 0, y: 0 })
+  const [intro, setIntro] = useState(false)
   const drag = useRef({ active: false, moved: false, startX: 0, startY: 0, offX: 0, offY: 0 })
 
   // Initialise position (saved, or bottom-right) once on the client.
@@ -39,6 +42,20 @@ export function ChatbotWidget() {
     }
     setPos({ x: window.innerWidth - FAB - 24, y: window.innerHeight - FAB - 24 })
   }, [])
+
+  // A short hello beside the robot, once per visit (this tab's session), then it fades on its own.
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(INTRO_KEY)) return
+      sessionStorage.setItem(INTRO_KEY, '1')
+    } catch {
+      return
+    }
+    const show = setTimeout(() => setIntro(true), 1200)
+    const hide = setTimeout(() => setIntro(false), 1200 + 7000)
+    return () => { clearTimeout(show); clearTimeout(hide) }
+  }, [])
+  useEffect(() => { if (chatOpen) setIntro(false) }, [chatOpen])
 
   // Persist position whenever it settles.
   useEffect(() => {
@@ -63,7 +80,7 @@ export function ChatbotWidget() {
     if (!d.moved && Math.hypot(e.clientX - d.startX, e.clientY - d.startY) > DRAG_THRESHOLD) {
       d.moved = true
     }
-    if (d.moved) setPos(clampToViewport(e.clientX - d.offX, e.clientY - d.offY))
+    if (d.moved) { setIntro(false); setPos(clampToViewport(e.clientX - d.offX, e.clientY - d.offY)) }
   }
 
   const onPointerUp = (e: React.PointerEvent) => {
@@ -81,8 +98,32 @@ export function ChatbotWidget() {
   const panelLeft = Math.min(Math.max(pos.x + FAB - panelW, 8), window.innerWidth - panelW - 8)
   const panelTop = Math.min(Math.max(pos.y - panelH - 12, 8), window.innerHeight - panelH - 8)
 
+  // The hello sits left of the robot when there's room, else above it; always on screen.
+  const introBeside = pos.x > INTRO_W + 24
+  const introLeft = introBeside ? pos.x - INTRO_W - 12 : Math.min(Math.max(pos.x + FAB - INTRO_W, 8), window.innerWidth - INTRO_W - 8)
+  const introTop = introBeside ? pos.y + FAB / 2 - 24 : Math.max(pos.y - 60, 8)
+
   return (
     <>
+      {intro && !chatOpen && (
+        <div role="status" style={{ left: introLeft, top: introTop, width: INTRO_W }}
+          className="animate-panel-in fixed z-[60] flex items-center gap-2 rounded-2xl border border-ink-900/[.08] bg-surface py-2.5 pl-3.5 pr-2 shadow-[0_10px_30px_rgba(10,30,20,.18)]">
+          <button type="button" onClick={() => { setIntro(false); setChatOpen(true) }}
+            className="min-w-0 flex-1 text-left text-[13.5px] font-semibold leading-snug text-ink-950">
+            Hi! I&apos;m your AI SWAP assistant!
+          </button>
+          <button type="button" onClick={() => setIntro(false)} aria-label="Dismiss"
+            className="flex h-7 w-7 flex-none items-center justify-center rounded-lg text-ink-400 hover:bg-ink-100 hover:text-ink-700">
+            <X className="h-4 w-4" />
+          </button>
+          {/* Tail pointing at the robot */}
+          <span aria-hidden className={`absolute h-3 w-3 rotate-45 border-ink-900/[.08] bg-surface ${introBeside
+            ? '-right-[7px] top-[18px] border-r border-t'
+            : '-bottom-[7px] border-b border-r'}`}
+            style={introBeside ? undefined : { left: Math.min(Math.max(pos.x + FAB / 2 - introLeft - 6, 16), INTRO_W - 24) }} />
+        </div>
+      )}
+
       {chatOpen && (
         <div
           className="fixed z-[60] animate-in fade-in"

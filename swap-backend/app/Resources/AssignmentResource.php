@@ -66,7 +66,8 @@ class AssignmentResource extends JsonResource
                 'name' => $this->office->name,
                 'logo_url' => $this->office->logo_url,
                 'location' => $this->office->location,
-                'head_name' => $this->office->head_name,
+                // The office head is the supervisor (the separate head field is no longer used).
+                'head_name' => $this->relationLoaded('supervisor') ? $this->supervisor?->name : $this->office->head_name,
             ]),
             'office_name' => $this->whenLoaded('office', fn () => $this->office?->name),
             'supervisor' => $this->whenLoaded('supervisor', fn () => new UserResource($this->supervisor)),

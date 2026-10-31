@@ -73,15 +73,15 @@ class WordUploadTest extends TestCase
         Notification::fake();
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $supervisor);
+        $assignment = $this->endTermWithHoursDone($this->makeAssignment($recipient, $supervisor));
         Sanctum::actingAs($recipient);
 
         // Neither text nor file.
         $this->post('/api/recipient/term-report', ['_method' => 'PUT'], ['Accept' => 'application/json'])
             ->assertStatus(422)->assertJsonPath('message', 'Write your report or upload it as a PDF/Word file.');
-        // Short text still needs 100 characters when there's no file.
+        // Short text still needs 50 characters when there's no file.
         $this->post('/api/recipient/term-report', ['_method' => 'PUT', 'content' => 'Too short.'], ['Accept' => 'application/json'])
-            ->assertStatus(422)->assertJsonPath('errors.content.0', 'Your report must be at least 100 characters.');
+            ->assertStatus(422)->assertJsonPath('errors.content.0', 'Your report must be at least 50 characters.');
         // Only PDF or Word.
         $this->post('/api/recipient/term-report', ['_method' => 'PUT', 'file' => UploadedFile::fake()->image('report.jpg')], ['Accept' => 'application/json'])
             ->assertStatus(422)->assertJsonPath('errors.file.0', 'Upload the report as a PDF or Word file (.pdf, .doc, .docx).');
@@ -119,7 +119,7 @@ class WordUploadTest extends TestCase
     public function test_a_typed_report_has_no_file_to_download(): void
     {
         $recipient = $this->makeUser('recipient');
-        $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $this->endTermWithHoursDone($this->makeAssignment($recipient, $this->makeUser('supervisor')));
         Sanctum::actingAs($recipient);
 
         $this->putJson('/api/recipient/term-report', ['content' => str_repeat('Assisted the office with records and queries. ', 3)])

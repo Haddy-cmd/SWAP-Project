@@ -26,6 +26,23 @@ export function blocksBulkVerify(log: TimeLog): boolean {
   return !log.is_manual && !!log.location_flagged
 }
 
+/** How long the clock-out label stays on a flagged log; after this it resets (disappears). */
+export const CLOCKED_OUT_WINDOW_MS = 12 * 60 * 60 * 1000
+
+/**
+ * "Clocked out just now / 5 min ago / 3 h ago" for a log's time-out, or null when there is
+ * none or it was 12 hours ago or more.
+ */
+export function clockedOutAgo(timeOut: string | null | undefined, now: number): string | null {
+  if (!timeOut) return null
+  const ms = now - new Date(timeOut).getTime()
+  if (Number.isNaN(ms) || ms < 0 || ms >= CLOCKED_OUT_WINDOW_MS) return ms < 0 ? 'Clocked out just now' : null
+  const min = Math.floor(ms / 60_000)
+  if (min < 1) return 'Clocked out just now'
+  if (min < 60) return `Clocked out ${min} min ago`
+  return `Clocked out ${Math.floor(min / 60)} h ago`
+}
+
 /** Short human reason a log needs a closer look, or null when it's clean. */
 export function reviewReason(log: TimeLog): string | null {
   if (!needsReview(log)) return null

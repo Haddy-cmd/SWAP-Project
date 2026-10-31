@@ -436,40 +436,21 @@ Figure 3.4 presents the Hierarchical Input-Process-Output (HIPO) model of the sy
 
 #### 3.2.2 Input-Process-Output
 
-| Inputs | Processes | Outputs |
-|---|---|---|
-| Student’s personal information: first, middle and last name, nine-digit student ID, college, program and year level | Display the registration form, with colleges and programs from the official list | New applicant account created in the system |
-| Institutional email (@s.msumain.edu.ph) and an optional contact number | Validate the inputs: required fields, email domain, student ID format, uniqueness of email and student ID, and the password rules (at least 8 characters with upper- and lower-case letters and a number) | Student profile linked to the account |
-| Chosen password | Hold the registration for 30 minutes and email a six-digit code (valid for 10 minutes, up to 5 tries) | Applicant role and permissions assigned |
-| Six-digit code from the email | On the correct code, create the user record with the Applicant role and its student profile | The student is signed in automatically and can apply |
-| | Discard registrations that are never confirmed | |
-
-*Figure 3.5 Input-Process-Output for Account Creation*
+> **[Insert figure]** Insert docs/manuscript/figures/fig3-5-ipo-account.png.
+>
+> *Figure 3.5 Input-Process-Output for Account Creation*
 
 Figure 3.5 shows how a student’s personal details, institutional email, password and the code sent to that email are collected as inputs and validated by the system. The account is created only after the email code is confirmed, with the Applicant role, and the student is signed in automatically.
 
-| Inputs | Processes | Outputs |
-|---|---|---|
-| Recipient’s signed-in session and active assignment (office, supervisor, required hours) | Check that the scanned QR code belongs to the recipient’s assigned office | Stored time-log records: time-in and time-out, GPS location and accuracy, flags, selfie, Task Description and duration |
-| Office QR code scanned at time-in and time-out | Check the allowed day and time (Monday to Saturday, 6:00 AM to 5:30 PM, Philippine time) | Verification status of each log: Open, Pending Verification, Verified or Rejected |
-| GPS coordinates and their accuracy | Check the GPS position against the office geofence; flag readings with accuracy worse than 100 meters | Updated rendered, verified and remaining hours and the pace on the recipient’s dashboard |
-| Selfie photo (when required by the supervisor) | Create the time log at time-in; at time-out, save the Task Description and compute the duration | Weekly duty slips and the semester service report |
-| Task Description entered at time-out | Close sessions automatically when the recipient leaves the geofence or after twelve hours | Supervisor’s queue of logs to verify |
-| Supervisor’s decision (verify or reject) | Send each completed log to the office supervisor; recompute verified hours against the required hours | Term result (Qualified or Deficient) when the semester ends |
-
-*Figure 3.6 Input-Process-Output for Time Computation*
+> **[Insert figure]** Insert docs/manuscript/figures/fig3-6-ipo-time.png.
+>
+> *Figure 3.6 Input-Process-Output for Time Computation*
 
 Figure 3.6 illustrates how the recipient’s session, the office QR code, the GPS location, the selfie and the Task Description serve as inputs that the system checks, records and computes into hours. Each completed log is sent to the office supervisor for verification, and only verified hours count toward the required hours, the duty slips and the term result.
 
-| Inputs | Processes | Outputs |
-|---|---|---|
-| Report type chosen by the user’s role | Allow only the reports of the user’s role (a supervisor sees only their own students; a recipient only their own records) | On-screen table and charts of the filtered data |
-| Term (academic year and semester) | Filter the stored records on the server by term and the selected filters | PDF of exactly the filtered view, with the filters printed |
-| Filters (e.g., college, office, verdict, status, search) | Sort, group and total the results | CSV file of the same data |
-| Sort order and grouping | Compile the charts and the summary figures | Admin overview PDF |
-| Request to download | Generate the PDF or CSV on demand and record the export in the audit log | Audit-log entry of who exported what |
-
-*Figure 3.7 Input-Process-Output for Reports and Analytics*
+> **[Insert figure]** Insert docs/manuscript/figures/fig3-7-ipo-reports.png.
+>
+> *Figure 3.7 Input-Process-Output for Reports and Analytics*
 
 Figure 3.7 presents how the user’s selected report, term, filters, sorting and grouping are processed on the server into on-screen tables and charts, and into PDF or CSV files of exactly what is on screen. Reports are generated on demand rather than archived. The available reports are: for DSA administrators, Applications, Recipients and Hours, Term Results, Stipend and Offices; for office supervisors, My Students and Term Results; and for recipients, My Time Logs and My Terms.
 

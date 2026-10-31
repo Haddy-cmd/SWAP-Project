@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Building2, X, Users, Copy, Check, Search, Trash2, User as UserIcon, CheckCircle2, Circle, Construction,
-  PauseCircle, MapPin, QrCode, ChevronRight, ChevronDown, ArrowRight, Plus, Minus, Store, UserCog,
+  PauseCircle, QrCode, ChevronDown, ArrowRight, Plus, Minus, UserCog,
 } from 'lucide-react'
 import { assignmentsApi } from '@/lib/api/assignments.api'
 import { adminApi } from '@/lib/api/admin.api'
@@ -51,13 +52,13 @@ function officeInitials(name: string): string {
  * Per-office logo. Renders the uploaded image when the office has one, and
  * otherwise a clean monogram of the office's initials in a tinted circle.
  */
-function OfficeLogo({ office, bg, fg, size = 44 }: { office: Office; bg: string; fg: string; size?: number }) {
+function OfficeLogo({ office, bg, fg, size = 44, square = false }: { office: Office; bg: string; fg: string; size?: number; square?: boolean }) {
   const [broken, setBroken] = useState(false)
   const showImage = !!office.logo_url && !broken
 
   return (
     <span
-      className="flex flex-none items-center justify-center overflow-hidden rounded-full"
+      className={`flex flex-none items-center justify-center overflow-hidden ${square ? 'rounded-[30%]' : 'rounded-full'}`}
       style={{ width: size, height: size, background: showImage ? '#FFFFFF' : bg, color: fg, border: showImage ? '1px solid var(--color-ink-200)' : 'none' }}
     >
       {showImage ? (
@@ -306,10 +307,12 @@ type Sup = { id: number; name: string; office_id?: number | null }
 type LogoChange = { file: File | null; remove: boolean }
 
 /**
- * One office: the 3-step setup (supervisors, location + map pin, clock-in area), student slots,
- * open/closed, more details, and Save. Nothing is sent until Save (new offices are created on Save).
+ * The right-hand panel for one office (like Assignments' "Assigning" panel): the 3-step setup
+ * (supervisors, location + map pin, clock-in area), student slots, open/closed, more details, and
+ * Save. Nothing is sent until Save (new offices are created on Save). Unsaved changes are reported
+ * up, so the page asks before switching to another office.
  */
-function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClose, onSaved, onRecipients, onQr }: {
+function OfficePanel({ office, offices, allSupervisors, nextLeft, onNext, onClose, onSaved, onRecipients, onQr, onDirtyChange }: {
   office: Office | null // null = new office
   offices: Office[]
   allSupervisors: Sup[]
@@ -319,6 +322,7 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
   onSaved: (id: number) => Promise<void>
   onRecipients: (o: Office) => void
   onQr: (o: Office) => void
+  onDirtyChange: (dirty: boolean) => void
 }) {
   const { notify, notifyError, confirm } = useFeedback()
   const isNew = !office
@@ -368,14 +372,8 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
     go()
   }
 
-  // Escape closes, with the same "Discard changes?" check as the backdrop and the X.
-  const leaveRef = useRef(leave)
-  leaveRef.current = leave
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !e.defaultPrevented) leaveRef.current(onClose) }
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onClose])
+  // The page asks "Discard changes?" before switching away while this is true.
+  useEffect(() => { onDirtyChange(dirty && !(isNew && !(form.name ?? '').trim())) }, [dirty, isNew, form.name, onDirtyChange])
 
   const save = async () => {
     if (!(form.name ?? '').trim()) { notify({ tone: 'error', title: 'Give the office a name', detail: null }); setMore(true); return }
@@ -414,250 +412,277 @@ function OfficeDrawer({ office, offices, allSupervisors, nextLeft, onNext, onClo
 
   const [bg, fg] = palette(office?.id ?? 0)
   const shown = { ...(office ?? {}), ...form, name: form.name || 'New office' } as Office
-  const tick = (ok: boolean) => ok
-    ? <CheckCircle2 className="h-[18px] w-[18px] text-accent" />
-    : <Circle className="h-[18px] w-[18px] text-ink-300" />
+  const placeDone = steps.location && steps.clock_in_area
+  const missingNow = [!steps.supervisor && 'supervisor', !placeDone && 'location'].filter(Boolean) as string[]
+  const headline = draftStatus === 'ready' ? 'Students can be placed and clock in here.'
+    : draftStatus === 'off' ? 'Closed to new placements.'
+      : `${2 - missingNow.length} of 2 steps done — add the ${missingNow.join(' and ')}.`
+  const cap = form.max_recipients ?? 0
+  const fillPct = cap ? Math.min(100, Math.round((filled / cap) * 100)) : 0
+  const isReady = !isNew && office ? statusOf(office) === 'ready' : false
+
+  // A numbered circle that turns into a green check once the step is done.
+  const stepDot = (ok: boolean, n: number) => (
+    <span className={`flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-[13px] font-extrabold ${ok ? 'bg-accent text-white' : 'bg-gold-50 text-warning-700'}`}>
+      {ok ? <Check className="h-[18px] w-[18px]" strokeWidth={3} /> : n}
+    </span>
+  )
+  const SEG = 'flex gap-0.5 rounded-[11px] bg-ink-100 p-[3px]'
+  const segBtn = (on: boolean) => `h-[34px] rounded-[9px] px-3.5 text-[13px] font-bold ${on ? 'bg-surface text-accent-strong shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-600 hover:text-ink-900'}`
 
   return (
-    <>
-      <div onClick={() => leave(onClose)} className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-ink-950/40 p-4 sm:p-6">
-      <div role="dialog" aria-modal="true" aria-label={shown.name} onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[92dvh] w-full max-w-[880px] flex-col overflow-hidden rounded-[20px] bg-surface pb-safe shadow-[0_30px_70px_rgba(11,39,22,.35)]">
-        {/* Header */}
-        <div className="flex items-center gap-3 border-b border-ink-900/[.06] py-4 pl-6 pr-5">
-          <OfficeLogo office={shown} bg={draftStatus === 'off' ? 'var(--color-ink-100)' : bg} fg={draftStatus === 'off' ? 'var(--text-ink-400)' : fg} />
-          <div className="min-w-0 flex-1">
-            <p className="break-words text-[17px] font-extrabold leading-tight text-ink-950">{shown.name}</p>
-            <div className="mt-1.5"><StatusPill k={draftStatus} small /></div>
-          </div>
-          <button type="button" onClick={() => leave(onClose)} aria-label="Close"
-            className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px] bg-ink-100 text-ink-700 hover:bg-ink-200">
-            <X className="h-5 w-5" />
-          </button>
+    <div aria-label={shown.name} className={`${CARD} overflow-hidden rounded-[20px]`}>
+      {/* Header: dark green with a gold glow */}
+      <div className="flex flex-wrap items-center gap-3.5 bg-accent-deep px-6 py-5 text-white"
+        style={{ backgroundImage: 'radial-gradient(120% 160% at 100% 0%, rgba(221,187,56,.25), transparent 50%)' }}>
+        <OfficeLogo office={shown} size={48} square bg="rgba(255,255,255,.14)" fg="#FFFFFF" />
+        <div className="min-w-[200px] flex-1">
+          <p className="break-words text-[19px] font-extrabold leading-tight">{shown.name}</p>
+          <p className="mt-0.5 text-[12.5px] text-white/75">{isNew ? 'Name the office, then set it up below.' : headline}</p>
         </div>
+        <StatusPill k={draftStatus} />
+        <button type="button" onClick={() => leave(onClose)} aria-label={isNew ? 'Cancel new office' : 'Close'}
+          className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] bg-white/15 text-white hover:bg-white/25">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-        {/* Wide screens: setup on the left, the map in its own column. Phones: one column, map under Location. */}
-        <div className="grid flex-1 grid-cols-1 gap-5 overflow-y-auto px-6 py-5 lg:grid-cols-2 lg:gap-x-7">
-          <div className="space-y-5 lg:col-start-1">
-          {isNew && (
-            <label className="block">
-              <span className="mb-1.5 block text-[13px] font-semibold text-ink-900">Office name</span>
-              <input value={form.name ?? ''} onChange={(e) => set({ name: e.target.value })} autoFocus placeholder="e.g. College of Agriculture" className={inputCls} />
-            </label>
-          )}
+      <div className="px-6 pb-1 pt-2">
+        {isNew && (
+          <label className="block border-b border-ink-900/[.06] py-[18px]">
+            <span className="mb-1.5 block text-[15px] font-bold text-ink-950">Office name</span>
+            <input value={form.name ?? ''} onChange={(e) => set({ name: e.target.value })} autoFocus placeholder="e.g. College of Agriculture" className={inputCls} />
+          </label>
+        )}
 
-          {/* Setup */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2.5">
-              <span className="text-[14px] font-bold text-ink-950">Setup</span>
-              <span className="text-[12.5px] text-ink-500">{done} of 3 done</span>
+        {/* 1. Supervisor */}
+        <div className="flex gap-4 border-b border-ink-900/[.06] py-[18px]">
+          {stepDot(steps.supervisor, 1)}
+          <div className="flex min-w-0 flex-1 flex-col gap-2.5">
+            <div>
+              <p className="text-[15px] font-bold text-ink-950">Supervisor <span className="text-[12.5px] font-medium text-ink-400">(office head)</span></p>
+              <p className="mt-0.5 text-[12.5px] text-ink-500">The head of this office, who verifies hours here. Each supervisor handles one office.</p>
             </div>
-
-            {/* 1. Supervisors */}
-            <div className="space-y-2">
-              <span className="flex items-center gap-2 text-[13px] font-semibold text-ink-900">{tick(steps.supervisor)}Supervisors</span>
-              {supList.map((s) => (
-                <div key={s.id} className="flex items-center gap-2.5 rounded-xl border border-ink-200 px-3 py-2">
-                  <UserIcon className="h-4 w-4 flex-none text-ink-400" />
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink-900">{s.name}</span>
-                  {adds.includes(s.id) && <span className="text-[11px] font-semibold text-accent-strong">New</span>}
-                  <button type="button" aria-label={`Remove ${s.name}`}
-                    onClick={() => adds.includes(s.id) ? setAdds((a) => a.filter((x) => x !== s.id)) : setRemoves((r) => [...r, s.id])}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg text-ink-400 hover:bg-danger-50 hover:text-danger-700">
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              <select value={pick} onChange={(e) => {
-                const id = Number(e.target.value)
-                if (id) { setAdds((a) => [...a, id]); setRemoves((r) => r.filter((x) => x !== id)) }
-                setPick('')
-              }} className={`${inputCls} h-11 cursor-pointer`}>
-                <option value="">{options.length ? 'Add supervisor…' : 'No more supervisors'}</option>
-                {options.map((s) => {
-                  const elsewhere = s.office_id != null && s.office_id !== office?.id
-                  return <option key={s.id} value={s.id} disabled={elsewhere}>{s.name}{elsewhere ? ` — at ${officeName(s.office_id)}` : ''}</option>
-                })}
-              </select>
-              <p className="text-[12px] text-ink-400">Each supervisor handles one office. Invite new supervisors in Users.</p>
-            </div>
-
-            {/* 2. Location */}
-            <div className="space-y-2">
-              <span className="flex items-center gap-2 text-[13px] font-semibold text-ink-900">{tick(steps.location)}Location</span>
-              <input value={form.location ?? ''} onChange={(e) => set({ location: e.target.value })}
-                placeholder="Building and floor, e.g. Admin Bldg, 2nd floor" className={inputCls} />
-              <p className="text-[12px] text-ink-400">{steps.location ? 'Pin set. Click the map to move it.' : 'Drop the office pin on the map. Clock-in checks it.'}</p>
-            </div>
-          </section>
-          </div>
-
-          <div className="space-y-2 lg:col-start-2 lg:row-span-2 lg:row-start-1">
-            <OfficeMapPicker
-              latitude={lat}
-              longitude={lng}
-              radius={form.radius_meters ?? 50}
-              onChange={(la, ln) => set({ latitude: la, longitude: ln })}
-              onRadiusChange={(r) => set({ radius_meters: r, geofence_enabled: true })}
-              height={420}
-            />
-          </div>
-
-          <div className="space-y-5 lg:col-start-1">
-          <section className="space-y-4">
-
-            {/* 3. Clock-in area */}
-            <div className="space-y-2">
-              <span className="flex items-center gap-2 text-[13px] font-semibold text-ink-900">{tick(steps.clock_in_area)}Clock-in area</span>
-              <div className="grid grid-cols-5 gap-1.5">
-                {GEO_CHOICES.map((m) => {
-                  const on = !otherGeo && form.geofence_enabled && form.radius_meters === m
-                  return (
-                    <button key={m} type="button" onClick={() => { setOtherGeo(false); set({ radius_meters: m, geofence_enabled: true }) }}
-                      className={`h-10 rounded-[11px] border-[1.5px] text-[13px] font-bold ${on ? 'border-accent bg-accent-tint text-accent-strong' : 'border-ink-200 bg-surface text-ink-700 hover:border-accent/50'}`}>
-                      {m} m
+            {supList.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {supList.map((s) => (
+                  <span key={s.id} className="inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-surface py-1 pl-2.5 pr-1 text-[13px] font-medium text-ink-900">
+                    <UserIcon className="h-3.5 w-3.5 text-ink-400" />{s.name}
+                    {adds.includes(s.id) && <span className="text-[11px] font-semibold text-accent-strong">new</span>}
+                    <button type="button" aria-label={`Remove ${s.name}`}
+                      onClick={async () => {
+                        if (adds.includes(s.id)) { setAdds((a) => a.filter((x) => x !== s.id)); return }
+                        if (!(await confirm({
+                          title: `Remove ${s.name}?`,
+                          body: `${s.name} will no longer supervise ${shown.name} once you press Save. Their current students keep their placements.`,
+                          confirmLabel: 'Remove', tone: 'danger',
+                        }))) return
+                        setRemoves((r) => (r.includes(s.id) ? r : [...r, s.id]))
+                      }}
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-ink-400 hover:bg-danger-50 hover:text-danger-700">
+                      <X className="h-3.5 w-3.5" />
                     </button>
-                  )
-                })}
-                <button type="button" onClick={() => { setOtherGeo(true); set({ geofence_enabled: true, radius_meters: form.radius_meters ?? 70 }) }}
-                  className={`h-10 rounded-[11px] border-[1.5px] text-[13px] font-bold ${otherGeo ? 'border-accent bg-accent-tint text-accent-strong' : 'border-ink-200 bg-surface text-ink-700 hover:border-accent/50'}`}>
-                  Other
-                </button>
-              </div>
-              {otherGeo && (
-                <label className="flex items-center gap-2 text-[13px] text-ink-700">
-                  <input type="number" min={10} max={1000} value={form.radius_meters ?? ''}
-                    onChange={(e) => set({ radius_meters: e.target.value ? Math.min(1000, Math.max(10, Number(e.target.value))) : null, geofence_enabled: true })}
-                    className={`${inputCls} w-28`} /> meters (10–1000)
-                </label>
-              )}
-              <p className="text-[12px] text-ink-400">Recipients can only clock in within this distance of the pin.</p>
-            </div>
-          </section>
-
-          <div className="h-px bg-ink-900/[.06]" />
-
-          {/* Slots */}
-          <div className="flex items-center gap-3.5">
-            <div className="flex-1">
-              <p className="text-[14px] font-bold text-ink-950">Student slots</p>
-              <p className="mt-0.5 text-[12.5px] text-ink-500">{filled} placed · {Math.max(0, (form.max_recipients ?? 0) - filled)} open</p>
-            </div>
-            <div className="flex items-center rounded-xl border-[1.5px] border-ink-200">
-              <button type="button" aria-label="Fewer slots" onClick={() => set({ max_recipients: Math.max(filled, (form.max_recipients ?? 1) - 1, 1) })}
-                className="flex h-10 w-10 items-center justify-center text-ink-700 hover:text-accent-strong"><Minus className="h-4 w-4" /></button>
-              <input value={form.max_recipients ?? ''} inputMode="numeric" aria-label="Student slots"
-                onChange={(e) => { const n = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10); set({ max_recipients: Number.isFinite(n) ? n : 1 }) }}
-                onBlur={() => set({ max_recipients: Math.max(filled, form.max_recipients ?? 1, 1) })}
-                className="w-11 border-none bg-transparent text-center text-[15px] font-extrabold text-ink-950 focus:outline-none" />
-              <button type="button" aria-label="More slots" onClick={() => set({ max_recipients: (form.max_recipients ?? 0) + 1 })}
-                className="flex h-10 w-10 items-center justify-center text-ink-700 hover:text-accent-strong"><Plus className="h-4 w-4" /></button>
-            </div>
-          </div>
-
-          {/* Open for placements */}
-          <div className="flex items-center gap-3.5">
-            <div className="flex-1">
-              <p className="text-[14px] font-bold text-ink-950">Open for placements</p>
-              <p className="mt-0.5 text-[12.5px] text-ink-500">{form.is_active ? 'New students can be placed here.' : 'Closed. No new students will be placed.'}</p>
-            </div>
-            <button type="button" role="switch" aria-checked={!!form.is_active} aria-label="Open for placements" onClick={() => set({ is_active: !form.is_active })}
-              className={`flex h-[30px] w-[50px] flex-none rounded-full p-[3px] transition-colors ${form.is_active ? 'justify-end bg-accent' : 'justify-start bg-ink-300'}`}>
-              <span className="h-6 w-6 rounded-full bg-white shadow" />
-            </button>
-          </div>
-
-          {!isNew && (
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => onRecipients(office!)}
-                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-ink-200 bg-surface text-[13.5px] font-semibold text-ink-900 hover:bg-ink-50">
-                <Users className="h-[18px] w-[18px]" /> Recipients
-              </button>
-              <button type="button" onClick={() => onQr(office!)}
-                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-ink-200 bg-surface text-[13.5px] font-semibold text-ink-900 hover:bg-ink-50">
-                <QrCode className="h-[18px] w-[18px]" /> Office QR
-              </button>
-            </div>
-          )}
-
-          {/* More details */}
-          <section className="rounded-xl border border-ink-200">
-            <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more}
-              className="flex w-full items-center justify-between px-4 py-3 text-[13.5px] font-semibold text-ink-900">
-              More details <ChevronDown className={`h-4 w-4 text-ink-400 transition-transform ${more ? 'rotate-180' : ''}`} />
-            </button>
-            {more && (
-              <div className="space-y-4 border-t border-ink-200 px-4 py-4">
-                {!isNew && (
-                  <label className="block">
-                    <span className={labelCls}>Office name</span>
-                    <input value={form.name ?? ''} onChange={(e) => set({ name: e.target.value })} className={inputCls} />
-                  </label>
-                )}
-                <label className="block">
-                  <span className={labelCls}>Office head <span className="font-normal text-ink-400">(optional)</span></span>
-                  <input value={form.head_name ?? ''} onChange={(e) => set({ head_name: e.target.value })} placeholder="Full name" className={inputCls} />
-                </label>
-                <label className="block">
-                  <span className={labelCls}>Description <span className="font-normal text-ink-400">(optional)</span></span>
-                  <textarea value={form.description ?? ''} onChange={(e) => set({ description: e.target.value })} rows={2} maxLength={500} className={inputCls} />
-                </label>
-                <div>
-                  <span className={labelCls}>Logo <span className="font-normal text-ink-400">(optional)</span></span>
-                  <LogoPicker name={form.name ?? ''} currentUrl={office?.logo_url ?? null} file={logo.file} remove={logo.remove}
-                    onPick={(f) => setLogo({ file: f, remove: false })} onRemove={() => setLogo({ file: null, remove: true })}
-                    onUndoRemove={() => setLogo({ file: null, remove: false })} />
-                </div>
-                <label className="flex items-start gap-2.5 text-[13px] text-ink-900">
-                  <input type="checkbox" checked={form.auto_clock_out !== false} onChange={(e) => set({ auto_clock_out: e.target.checked })} className="mt-0.5 h-4 w-4 accent-brand-700" />
-                  <span>Automatic clock-out when a student leaves the area
-                    <span className="block text-[12px] text-ink-500">Turn off for offices that send students on errands; they clock out by scanning the QR.</span>
                   </span>
-                </label>
-                {!isNew && filled === 0 && (confirmDelete ? (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl bg-danger-50 p-3 text-[12.5px] text-danger-800">
-                    <span className="flex-1">Delete {office!.name}? This can&apos;t be undone.</span>
-                    <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 font-semibold text-ink-700">Keep</button>
-                    <button type="button" onClick={remove} disabled={deleting} className="rounded-lg bg-danger-700 px-3 py-1.5 font-bold text-white hover:bg-danger-800 disabled:opacity-60">
-                      {deleting ? 'Deleting…' : 'Delete'}
-                    </button>
-                  </div>
-                ) : (
-                  <button type="button" onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 text-[13px] font-semibold text-danger-700 hover:text-danger-800">
-                    <Trash2 className="h-4 w-4" /> Delete office
-                  </button>
                 ))}
               </div>
             )}
-          </section>
+            <div className="flex h-12 items-center gap-2.5 rounded-xl border-[1.5px] border-ink-200 bg-surface px-3 focus-within:border-accent">
+              <UserIcon className="h-5 w-5 flex-none text-ink-400" />
+              <select value={pick} aria-label="Add a supervisor" onChange={(e) => {
+                const id = Number(e.target.value)
+                if (id) {
+                  // Picking back someone removed from this office just undoes the removal (no duplicate).
+                  if ((office?.supervisors ?? []).some((s) => s.id === id)) setRemoves((r) => r.filter((x) => x !== id))
+                  else setAdds((a) => (a.includes(id) ? a : [...a, id]))
+                }
+                setPick('')
+              }} className="h-11 min-w-0 flex-1 cursor-pointer border-none bg-transparent text-[14px] text-ink-950 focus:outline-none">
+                <option value="">{options.length ? (supList.length ? 'Add another supervisor…' : 'Choose a supervisor…') : 'No more supervisors'}</option>
+                {options.map((s) => {
+                  const elsewhere = s.office_id != null && s.office_id !== office?.id
+                  return <option key={s.id} value={s.id} disabled={elsewhere}>{s.name}{elsewhere ? ` — already at ${officeName(s.office_id)}` : ''}</option>
+                })}
+              </select>
+            </div>
+            <span className="text-[12px] text-ink-400">Not on the list? <Link href="/admin/users" className="font-semibold text-accent hover:text-accent-hover">Invite them in Users</Link></span>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex flex-wrap items-center gap-2.5 border-t border-ink-900/[.06] px-6 py-3.5">
-          {!isNew && nextLeft > 0 ? (
-            <button type="button" onClick={() => leave(onNext)} className="flex h-11 items-center gap-1.5 rounded-xl border border-ink-200 px-3.5 text-[13px] font-semibold text-ink-700 hover:bg-ink-50">
-              Next office <ArrowRight className="h-4 w-4" />
-              <span className="text-[11.5px] font-normal text-ink-400">({nextLeft} more)</span>
-            </button>
-          ) : <span />}
-          <button type="button" onClick={save} disabled={saving || !dirty}
-            className="ml-auto flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[14px] font-bold text-white hover:bg-accent-hover disabled:opacity-50">
-            <Check className="h-[18px] w-[18px]" strokeWidth={2.5} /> {saving ? 'Saving…' : isNew ? 'Add office' : 'Save'}
-          </button>
+        {/* 2. Location & clock-in area */}
+        <div className="flex gap-4 border-b border-ink-900/[.06] py-[18px]">
+          {stepDot(placeDone, 2)}
+          <div className="flex min-w-0 flex-1 flex-col gap-3">
+            <div>
+              <p className="text-[15px] font-bold text-ink-950">Location &amp; clock-in area</p>
+              <p className="mt-0.5 text-[12.5px] text-ink-500">Click the map where the office is. Recipients can only clock in inside the green circle.</p>
+            </div>
+            {/* isolate: keeps Leaflet's own z-indexes (400–1000) inside the map, so pop-ups such as
+                the recipients list and the QR window stay on top of it. */}
+            <div className="relative isolate z-0">
+              <OfficeMapPicker
+                latitude={lat}
+                longitude={lng}
+                radius={form.radius_meters ?? 50}
+                onChange={(la, ln) => set({ latitude: la, longitude: ln, geofence_enabled: true, radius_meters: form.radius_meters ?? 50 })}
+                onRadiusChange={(r) => set({ radius_meters: r, geofence_enabled: true })}
+                height={320}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[13px] font-semibold text-ink-700">Circle size</span>
+              <div className={SEG}>
+                {GEO_CHOICES.map((m) => (
+                  <button key={m} type="button" onClick={() => { setOtherGeo(false); set({ radius_meters: m, geofence_enabled: true }) }}
+                    className={segBtn(!otherGeo && !!form.geofence_enabled && form.radius_meters === m)}>{m} m</button>
+                ))}
+                <button type="button" onClick={() => { setOtherGeo(true); set({ geofence_enabled: true, radius_meters: form.radius_meters ?? 70 }) }}
+                  className={segBtn(otherGeo)}>Other</button>
+              </div>
+              <span className="text-[12px] text-ink-400">
+                {otherGeo ? 'Custom size' : RADIUS_HINT[form.radius_meters ?? 0] ?? ''}
+              </span>
+            </div>
+            {otherGeo && (
+              <label className="flex items-center gap-2 text-[13px] text-ink-700">
+                <input type="number" min={10} max={1000} value={form.radius_meters ?? ''}
+                  onChange={(e) => set({ radius_meters: e.target.value ? Math.min(1000, Math.max(10, Number(e.target.value))) : null, geofence_enabled: true })}
+                  className={`${inputCls} w-28`} /> meters (10–1000)
+              </label>
+            )}
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-semibold text-ink-900">Room or floor <span className="font-medium text-ink-400">(optional, shown to students)</span></span>
+              <input value={form.location ?? ''} onChange={(e) => set({ location: e.target.value })}
+                placeholder="e.g. Admin Bldg, 2nd floor, Room 204" className={inputCls} />
+            </label>
+          </div>
         </div>
+
+        {/* Slots, open/closed, recipients and QR */}
+        <div className="flex gap-4 py-[18px]">
+          <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full bg-ink-100 text-ink-500"><Users className="h-[17px] w-[17px]" /></span>
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div className="flex flex-wrap items-center gap-3.5">
+              <div className="min-w-[180px] flex-1">
+                <p className="text-[15px] font-bold text-ink-950">Student slots</p>
+                <div className="mt-1.5 flex items-center gap-2.5">
+                  <div className="h-1.5 max-w-[220px] flex-1 overflow-hidden rounded-full bg-ink-100">
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${fillPct}%` }} />
+                  </div>
+                  <span className="text-[12.5px] text-ink-500">{filled} placed · {Math.max(0, cap - filled)} open</span>
+                </div>
+              </div>
+              <div className="flex items-center rounded-xl border-[1.5px] border-ink-200">
+                <button type="button" aria-label="Fewer slots" onClick={() => set({ max_recipients: Math.max(filled, (form.max_recipients ?? 1) - 1, 1) })}
+                  className="flex h-[42px] w-[42px] items-center justify-center text-ink-700 hover:text-accent-strong"><Minus className="h-4 w-4" /></button>
+                <input value={form.max_recipients ?? ''} inputMode="numeric" aria-label="Student slots"
+                  onChange={(e) => { const n = parseInt(e.target.value.replace(/[^0-9]/g, ''), 10); set({ max_recipients: Number.isFinite(n) ? n : 1 }) }}
+                  onBlur={() => set({ max_recipients: Math.max(filled, form.max_recipients ?? 1, 1) })}
+                  className="w-10 border-none bg-transparent text-center text-[15px] font-extrabold text-ink-950 focus:outline-none" />
+                <button type="button" aria-label="More slots" onClick={() => set({ max_recipients: (form.max_recipients ?? 0) + 1 })}
+                  className="flex h-[42px] w-[42px] items-center justify-center text-ink-700 hover:text-accent-strong"><Plus className="h-4 w-4" /></button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3.5">
+              <div className="flex-1">
+                <p className="text-[15px] font-bold text-ink-950">Open for placements</p>
+                <p className="mt-0.5 text-[12.5px] text-ink-500">{form.is_active ? 'New students can be placed here.' : 'Closed. Current recipients stay; no new placements.'}</p>
+              </div>
+              <button type="button" role="switch" aria-checked={!!form.is_active} aria-label="Open for placements" onClick={() => set({ is_active: !form.is_active })}
+                className={`flex h-[30px] w-[50px] flex-none rounded-full p-[3px] transition-colors ${form.is_active ? 'justify-end bg-accent' : 'justify-start bg-ink-300'}`}>
+                <span className="h-6 w-6 rounded-full bg-white shadow" />
+              </button>
+            </div>
+            {!isNew && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => onRecipients(office!)}
+                  className="flex h-10 items-center gap-1.5 rounded-[11px] border border-ink-200 bg-surface px-3.5 text-[13px] font-semibold text-ink-900 hover:bg-ink-50">
+                  <Users className="h-[18px] w-[18px]" /> See recipients
+                </button>
+                <button type="button" onClick={() => onQr(office!)} disabled={!isReady} title={isReady ? 'Office QR' : 'Set the office up first'}
+                  className="flex h-10 items-center gap-1.5 rounded-[11px] border border-ink-200 bg-surface px-3.5 text-[13px] font-semibold text-ink-900 hover:bg-ink-50 disabled:cursor-not-allowed disabled:text-ink-350 disabled:hover:bg-surface">
+                  <QrCode className="h-[18px] w-[18px]" /> Office QR
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* More details */}
+        <section className="mb-4 rounded-xl border border-ink-200">
+          <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={more}
+            className="flex w-full items-center justify-between px-4 py-3 text-[13.5px] font-semibold text-ink-900">
+            More details <ChevronDown className={`h-4 w-4 text-ink-400 transition-transform ${more ? 'rotate-180' : ''}`} />
+          </button>
+          {more && (
+            <div className="space-y-4 border-t border-ink-200 px-4 py-4">
+              {!isNew && (
+                <label className="block">
+                  <span className={labelCls}>Office name</span>
+                  <input value={form.name ?? ''} onChange={(e) => set({ name: e.target.value })} className={inputCls} />
+                </label>
+              )}
+              <label className="block">
+                <span className={labelCls}>Description <span className="font-normal text-ink-400">(optional)</span></span>
+                <textarea value={form.description ?? ''} onChange={(e) => set({ description: e.target.value })} rows={2} maxLength={500} className={inputCls} />
+              </label>
+              <div>
+                <span className={labelCls}>Logo <span className="font-normal text-ink-400">(optional)</span></span>
+                <LogoPicker name={form.name ?? ''} currentUrl={office?.logo_url ?? null} file={logo.file} remove={logo.remove}
+                  onPick={(f) => setLogo({ file: f, remove: false })} onRemove={() => setLogo({ file: null, remove: true })}
+                  onUndoRemove={() => setLogo({ file: null, remove: false })} />
+              </div>
+              <label className="flex items-start gap-2.5 text-[13px] text-ink-900">
+                <input type="checkbox" checked={form.auto_clock_out !== false} onChange={(e) => set({ auto_clock_out: e.target.checked })} className="mt-0.5 h-4 w-4 accent-brand-700" />
+                <span>Automatic clock-out when a student leaves the area
+                  <span className="block text-[12px] text-ink-500">Turn off for offices that send students on errands; they clock out by scanning the QR.</span>
+                </span>
+              </label>
+              {!isNew && filled === 0 && (confirmDelete ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl bg-danger-50 p-3 text-[12.5px] text-danger-800">
+                  <span className="flex-1">Delete {office!.name}? This can&apos;t be undone.</span>
+                  <button type="button" onClick={() => setConfirmDelete(false)} className="rounded-lg border border-ink-200 bg-surface px-3 py-1.5 font-semibold text-ink-700">Keep</button>
+                  <button type="button" onClick={remove} disabled={deleting} className="rounded-lg bg-danger-700 px-3 py-1.5 font-bold text-white hover:bg-danger-800 disabled:opacity-60">
+                    {deleting ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmDelete(true)} className="flex items-center gap-1.5 text-[13px] font-semibold text-danger-700 hover:text-danger-800">
+                  <Trash2 className="h-4 w-4" /> Delete office
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
+
+      {/* Footer */}
+      <div className="flex flex-wrap items-center gap-3 border-t border-ink-900/[.06] bg-ink-50/60 px-6 py-3.5">
+        <span className={`flex flex-1 items-center gap-1.5 text-[12.5px] ${dirty ? 'font-semibold text-warning-700' : 'text-ink-500'}`}>
+          {dirty ? <><span className="h-2 w-2 rounded-full bg-gold-accent" /> Unsaved changes</> : <><CheckCircle2 className="h-4 w-4 text-accent" /> All changes saved</>}
+        </span>
+        <button type="button" onClick={save} disabled={saving || !dirty}
+          className="flex h-11 items-center gap-2 rounded-xl bg-accent px-5 text-[14px] font-bold text-white hover:bg-accent-hover disabled:opacity-50">
+          <Check className="h-[18px] w-[18px]" strokeWidth={2.5} /> {saving ? 'Saving…' : isNew ? 'Add office' : 'Save'}
+        </button>
+        {!isNew && nextLeft > 0 && (
+          <button type="button" onClick={() => leave(onNext)}
+            className="flex h-11 items-center gap-1.5 rounded-xl border border-ink-200 bg-surface px-4 text-[13.5px] font-bold text-accent-strong hover:bg-accent-tint">
+            Next office to set up <span className="text-[12px] font-semibold text-ink-500">{nextLeft} left</span> <ArrowRight className="h-[18px] w-[18px]" />
+          </button>
+        )}
       </div>
-    </>
+    </div>
   )
 }
+
+const RADIUS_HINT: Record<number, string> = { 30: 'One room', 50: 'One building', 100: 'Building + grounds', 150: 'Large area' }
 
 /** The fields the office form sends (and compares to detect changes). */
 function pickFields(o: Partial<Office>) {
   return {
     name: (o.name ?? '').trim(),
     description: o.description || null,
-    head_name: o.head_name || null,
+    // No separate "office head": the supervisor is the head (step 1). Not sent, so stored values stay.
     location: o.location || null,
     max_recipients: o.max_recipients ?? 1,
     is_active: !!o.is_active,
@@ -672,22 +697,22 @@ function pickFields(o: Partial<Office>) {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 type Tab = 'all' | StatusKey
-type Sort = 'az' | 'space' | 'full'
 
 /**
  * Admin → Offices (layout "SWAP Admin Offices v3"): every office is Ready, Needs setup or Closed.
- * The banner walks the admin through the ones not ready; a card opens the office drawer.
+ * Two parts like Assignments: the list on the left, the picked office's setup/edit panel on the right.
  * New placements are refused server-side in an office that isn't ready (AssignmentService).
  */
 export default function AdminOfficesPage() {
   const queryClient = useQueryClient()
-  const { notifyError } = useFeedback()
+  const { notifyError, confirm } = useFeedback()
   const [tab, setTab] = useState<Tab>('all')
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<Sort>('az')
-  // 'new' = the add-office drawer; a number = that office; null = closed.
+  // 'new' = a blank add-office panel; a number = that office; null = no panel (list full width).
   const [cur, setCur] = useState<number | 'new' | null>(null)
   const [version, setVersion] = useState(0)
+  // The panel has unsaved changes.
+  const [dirty, setDirty] = useState(false)
   const [qrView, setQrView] = useState<{ name: string; token: string } | null>(null)
   const [viewOffice, setViewOffice] = useState<Office | null>(null)
 
@@ -714,12 +739,9 @@ export default function AdminOfficesPage() {
 
   const q = search.trim().toLowerCase()
   const supNames = (o: Office) => (o.supervisors ?? []).map((s) => s.name).join(', ')
-  const open = (o: Office) => o.max_recipients - (o.active_recipients ?? 0)
   const list = offices
     .filter((o) => (tab === 'all' || statusOf(o) === tab) && (!q || `${o.name} ${supNames(o)}`.toLowerCase().includes(q)))
-    .sort((a, b) => sort === 'space' ? open(b) - open(a)
-      : sort === 'full' ? (b.active_recipients ?? 0) / (b.max_recipients || 1) - (a.active_recipients ?? 0) / (a.max_recipients || 1)
-        : a.name.localeCompare(b.name))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   // Setup queue: needs setup first, then closed, by name.
   const rank: Record<StatusKey, number> = { setup: 0, off: 1, ready: 2 }
@@ -727,7 +749,6 @@ export default function AdminOfficesPage() {
     .sort((a, b) => rank[statusOf(a)] - rank[statusOf(b)] || a.name.localeCompare(b.name))
   const current = typeof cur === 'number' ? offices.find((o) => o.id === cur) ?? null : null
   const nextList = needSetup.filter((o) => o.id !== current?.id)
-  const readyPct = counts.all ? Math.round((counts.ready / counts.all) * 100) : 0
 
   const refresh = async (id: number) => {
     await Promise.all([
@@ -739,160 +760,136 @@ export default function AdminOfficesPage() {
     if (id) setCur(id)
   }
 
-  const TABS: [Tab, string][] = [['all', 'All'], ['setup', 'Needs setup'], ['ready', 'Ready'], ['off', 'Closed']]
+  const TABS: [Tab, string][] = [['setup', 'To set up'], ['ready', 'Ready'], ['off', 'Closed'], ['all', 'All']]
+  // Open on "To set up" while any office needs it (once, when the list first loads).
+  const tabChosen = useRef(false)
+  useEffect(() => {
+    if (tabChosen.current || !data) return
+    tabChosen.current = true
+    if (offices.some((o) => statusOf(o) === 'setup')) setTab('setup')
+  }, [data]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The panel opens only once an office is clicked (or Add office); the list is full width until then.
+  const shownOffice = cur === 'new' ? null : current
+  const panelOpen = cur === 'new' || !!shownOffice
+  // Switching away from unsaved changes asks first (the panel reports them).
+  const go = async (next: () => void) => {
+    if (dirty && !(await confirm({ title: 'Discard changes?', body: 'Your changes to this office are not saved.', confirmLabel: 'Discard', tone: 'danger' }))) return
+    setDirty(false)
+    next()
+  }
+  const pick = (id: number | 'new') => go(() => {
+    setCur(id)
+    if (typeof window !== 'undefined' && !window.matchMedia('(min-width: 1024px)').matches) {
+      setTimeout(() => document.getElementById('office-panel')?.scrollIntoView({ behavior: 'smooth' }), 0)
+    }
+  })
+  const readyPct = counts.all ? Math.round((counts.ready / counts.all) * 100) : 0
+  // Supervisor · location · clock-in area, done or missing.
+  const dots = (o: Office) => {
+    const miss = missingOf(o)
+    return (['supervisor', 'location', 'clock_in_area'] as MissingKey[]).map((k) => ({ k, ok: o.ready || !miss.includes(k) }))
+  }
+  const subLine = (o: Office) => {
+    const st = statusOf(o)
+    if (st === 'off') return 'Closed'
+    if (st === 'setup') return `Needs ${missingOf(o).map((m) => MISSING_LABEL[m].toLowerCase()).join(' & ')}`
+    return `${supNames(o) || 'No supervisor'} · ${Math.max(0, o.max_recipients - (o.active_recipients ?? 0))} open`
+  }
 
   return (
     <div className="space-y-[18px]">
+      {/* Header: title, readiness, Add office */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[28px] font-extrabold tracking-[-.02em] text-ink-950">Offices</h1>
-          <p className="mt-1 text-[14px] text-ink-500">Where recipients are placed to work. Click an office to set it up or change it.</p>
+          <div className="mt-2 flex items-center gap-2.5">
+            <div className="h-1.5 w-[180px] overflow-hidden rounded-full bg-ink-200">
+              <div className="h-full rounded-full bg-accent" style={{ width: `${readyPct}%` }} />
+            </div>
+            <span className="text-[13px] text-ink-600"><b className="text-ink-950">{counts.ready} of {counts.all}</b> ready for students</span>
+          </div>
           {totalOffices > offices.length && (
             <p className="mt-1 text-[12.5px] text-warning-700">Showing the first {offices.length} of {totalOffices} offices. Use search to find the rest.</p>
           )}
         </div>
-        <button type="button" onClick={() => setCur('new')}
+        <button type="button" onClick={() => pick('new')}
           className="flex h-11 items-center gap-2 rounded-xl bg-accent px-[18px] text-[14px] font-bold text-white shadow-[0_6px_16px_rgba(23,129,95,.25)] hover:bg-accent-hover">
-          <Store className="h-5 w-5" /> Add office
+          <Plus className="h-5 w-5" strokeWidth={2.5} /> Add office
         </button>
       </div>
 
-      {/* Setup banner */}
-      {needSetup.length > 0 && (
-        <div className="flex flex-wrap items-center gap-4 rounded-[18px] bg-accent-deep px-5 py-[18px] text-white"
-          style={{ backgroundImage: 'radial-gradient(120% 160% at 100% 0%, rgba(221,187,56,.28), transparent 50%)' }}>
-          <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[14px] bg-white/[.12] text-gold-accent">
-            <Construction className="h-6 w-6" />
-          </span>
-          <div className="min-w-[240px] flex-1">
-            <p className="text-[16px] font-bold">{needSetup.length} {needSetup.length === 1 ? "office isn't" : "offices aren't"} ready for students yet</p>
-            <p className="mt-0.5 text-[13px] text-white/75">Students can&apos;t be placed in an office until it has a supervisor, a location and a clock-in area.</p>
-            <div className="mt-2.5 flex items-center gap-2.5">
-              <div className="h-1.5 max-w-[320px] flex-1 overflow-hidden rounded-full bg-white/15">
-                <div className="h-full rounded-full bg-gold-accent" style={{ width: `${readyPct}%` }} />
-              </div>
-              <span className="text-[12.5px] font-semibold text-white/85">{counts.ready} of {counts.all} ready</span>
+      <div className={`grid items-start gap-5 ${panelOpen ? 'lg:grid-cols-[minmax(300px,.85fr)_minmax(0,1.25fr)]' : ''}`}>
+        {/* Left: the office list */}
+        <div className={`${CARD} flex flex-col overflow-hidden rounded-[20px] lg:sticky lg:top-4 lg:max-h-[calc(100dvh-120px)]`}>
+          <div className="flex flex-col gap-2.5 border-b border-ink-900/[.06] p-3.5">
+            <div className="flex h-[42px] items-center gap-2 rounded-xl bg-ink-100/70 px-3 focus-within:ring-2 focus-within:ring-accent/30">
+              <Search className="h-[18px] w-[18px] flex-none text-ink-400" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search office or supervisor" aria-label="Search offices"
+                className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-ink-950 placeholder:text-ink-400 focus:outline-none" />
+              {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="text-ink-400 hover:text-ink-700"><X className="h-4 w-4" /></button>}
+            </div>
+            <div className="flex gap-0.5 rounded-[11px] bg-ink-100 p-[3px]" role="tablist">
+              {TABS.map(([k, label]) => {
+                const on = tab === k
+                return (
+                  <button key={k} type="button" role="tab" aria-selected={on} onClick={() => go(() => { setTab(k); setCur(null) })}
+                    className={`flex h-8 flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-[9px] px-1.5 text-[12.5px] font-semibold ${
+                      on ? 'bg-surface text-ink-950 shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-500 hover:text-ink-800'}`}>
+                    {label}<span className="text-[11px] font-bold opacity-60">{counts[k]}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
-          <button type="button" onClick={() => setCur(needSetup[0].id)}
-            className="btn-gold flex h-11 items-center gap-2 rounded-xl px-[18px] text-[14px] font-extrabold">
-            Start setup <ArrowRight className="h-[18px] w-[18px]" />
-          </button>
-        </div>
-      )}
 
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="no-scrollbar flex gap-0.5 overflow-x-auto rounded-[13px] border border-ink-900/[.08] bg-surface p-1">
-          {TABS.map(([k, label]) => {
-            const on = tab === k
-            return (
-              <button key={k} type="button" onClick={() => setTab(k)} aria-pressed={on}
-                className={`flex h-9 flex-none items-center gap-1.5 rounded-[10px] px-3.5 text-[13px] font-semibold ${on ? 'bg-accent-deep text-white' : 'text-ink-600 hover:text-ink-900'}`}>
-                {label}<span className="text-[11.5px] font-bold opacity-65">{counts[k]}</span>
-              </button>
-            )
-          })}
+          <div className="min-h-0 flex-1 overflow-auto">
+            {isLoading ? (
+              <div className="space-y-2 p-3.5">{[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-[54px] animate-pulse rounded-xl bg-ink-200/50" />)}</div>
+            ) : list.length === 0 ? (
+              <p className="px-5 py-10 text-center text-[13.5px] text-ink-500">
+                {offices.length === 0 ? 'No offices yet. Add your first host office.' : 'No offices match.'}
+              </p>
+            ) : list.map((o) => {
+              const st = statusOf(o)
+              const [bg, fg] = palette(o.id)
+              const on = cur !== 'new' && shownOffice?.id === o.id
+              const d = dots(o)
+              const missing = d.filter((x) => !x.ok).map((x) => MISSING_LABEL[x.k].toLowerCase())
+              return (
+                <button key={o.id} type="button" onClick={() => pick(o.id)} aria-current={on}
+                  className={`flex w-full items-center gap-3 border-b border-ink-900/[.04] px-4 py-3 text-left transition-colors ${
+                    on ? 'bg-accent-tint shadow-[inset_3px_0_0_var(--color-accent)]' : 'hover:bg-ink-50'}`}>
+                  <OfficeLogo office={o} size={38} square bg={st === 'off' ? 'var(--color-ink-100)' : bg} fg={st === 'off' ? 'var(--text-ink-400)' : fg} />
+                  <span className="min-w-0 flex-1">
+                    <span className={`block truncate text-[13.5px] leading-snug text-ink-950 ${on ? 'font-bold' : 'font-semibold'}`}>{o.name}</span>
+                    <span className={`mt-0.5 block truncate text-[12px] ${st === 'setup' ? 'text-warning-700' : 'text-ink-500'}`}>{subLine(o)}</span>
+                  </span>
+                  <span className="flex flex-none gap-[3px]" title={missing.length ? `Missing: ${missing.join(', ')}` : 'All set'}>
+                    {d.map((x) => <span key={x.k} className={`h-[7px] w-[7px] rounded-full ${x.ok ? 'bg-accent' : 'bg-ink-200'}`} />)}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 border-t border-ink-900/[.06] px-4 py-2.5 text-[11.5px] text-ink-400">
+            <span className="flex items-center gap-1.5"><span className="h-[7px] w-[7px] rounded-full bg-accent" />done</span>
+            <span className="flex items-center gap-1.5"><span className="h-[7px] w-[7px] rounded-full bg-ink-200" />missing</span>
+            <span>· supervisor, location, clock-in area</span>
+          </div>
         </div>
-        <div className="flex h-[46px] min-w-[220px] flex-1 items-center gap-2 rounded-[13px] border border-ink-900/10 bg-surface px-3.5">
-          <Search className="h-5 w-5 text-ink-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search office or supervisor" aria-label="Search offices"
-            className="min-w-0 flex-1 border-none bg-transparent text-[14px] text-ink-950 focus:outline-none" />
-          {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear search" className="text-ink-400"><X className="h-4 w-4" /></button>}
-        </div>
-        <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort offices"
-          className="h-[46px] cursor-pointer rounded-[13px] border border-ink-900/10 bg-surface px-3 text-[13.5px] font-semibold text-ink-700 focus:border-accent focus:outline-none">
-          <option value="az">Name A–Z</option>
-          <option value="space">Most open slots</option>
-          <option value="full">Fullest first</option>
-        </select>
+
+        {/* Right: the selected office */}
+        {panelOpen && (
+          <div id="office-panel" className="animate-panel-in scroll-mt-4">
+            <OfficePanel key={`${cur === 'new' ? 'new' : shownOffice?.id}-${version}`} office={cur === 'new' ? null : shownOffice} offices={offices}
+              allSupervisors={allSupervisors} nextLeft={nextList.length} onNext={() => nextList[0] && setCur(nextList[0].id)}
+              onClose={() => { setDirty(false); setCur(null) }} onSaved={refresh} onDirtyChange={setDirty}
+              onRecipients={(o) => setViewOffice(o)} onQr={(o) => officeQr.mutate(o)} />
+          </div>
+        )}
       </div>
-
-      {/* Grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-3.5">
-          {[1, 2, 3, 4, 5, 6].map((n) => <div key={n} className="h-48 animate-pulse rounded-[18px] bg-ink-200/50" />)}
-        </div>
-      ) : list.length === 0 ? (
-        <div className={`${CARD} px-5 py-12 text-center text-[14px] text-ink-500`}>
-          {offices.length === 0 ? 'No offices yet. Add your first host office.' : 'No offices match. Try another search or tab.'}
-        </div>
-      ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-3.5">
-          {list.map((o) => {
-            const st = statusOf(o)
-            const [bg, fg] = palette(o.id)
-            const filled = o.active_recipients ?? 0
-            const cap = o.max_recipients || 0
-            const ratio = cap ? filled / cap : 0
-            const bar = ratio >= 1 ? 'var(--color-red-accent)' : ratio >= 0.8 ? 'var(--color-gold-accent)' : 'var(--color-accent)'
-            const sups = supNames(o)
-            return (
-              <div key={o.id} role="button" tabIndex={0} onClick={() => setCur(o.id)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && e.target === e.currentTarget) setCur(o.id) }}
-                className={`${CARD} flex cursor-pointer flex-col gap-3.5 p-[18px] transition-shadow hover:border-accent hover:shadow-[0_8px_24px_rgba(20,40,30,.08)] ${st === 'off' ? 'opacity-75' : ''}`}>
-                <div className="flex items-start gap-3">
-                  <OfficeLogo office={o} bg={st === 'off' ? 'var(--color-ink-100)' : bg} fg={st === 'off' ? 'var(--text-ink-400)' : fg} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[14.5px] font-bold leading-snug text-ink-950">{o.name}</p>
-                    <p className={`mt-0.5 flex items-center gap-1 text-[12.5px] ${sups ? 'text-ink-600' : 'text-ink-350'}`}>
-                      <UserIcon className="h-3.5 w-3.5 flex-none" /><span className="truncate">{sups || 'No supervisor yet'}</span>
-                    </p>
-                  </div>
-                  <StatusPill k={st} small />
-                </div>
-
-                {st === 'ready' && (
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[13px] text-ink-700">
-                      <span><b className="text-ink-950">{filled}</b> of {cap} students placed</span>
-                      <span className="font-semibold text-accent-strong">{Math.max(0, cap - filled)} open</span>
-                    </div>
-                    <div className="h-[7px] overflow-hidden rounded-full bg-ink-100">
-                      <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.round(ratio * 100))}%`, background: bar }} />
-                    </div>
-                  </div>
-                )}
-                {st === 'setup' && (
-                  <div className="space-y-2">
-                    <p className="text-[12.5px] text-ink-500">Still needs:</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {missingOf(o).map((m) => (
-                        <span key={m} className="flex items-center gap-1 rounded-full border border-dashed border-gold-accent/60 bg-gold-50 px-2.5 py-1 text-[12px] font-semibold text-warning-700">
-                          <Plus className="h-3.5 w-3.5" />{MISSING_LABEL[m]}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {st === 'off' && <p className="text-[13px] text-ink-500">Closed. No new students can be placed here.</p>}
-
-                <div className="mt-auto flex items-center gap-2 border-t border-ink-900/[.05] pt-3">
-                  <span className={`flex min-w-0 flex-1 items-center gap-1 text-[12.5px] ${o.location ? 'text-ink-500' : 'text-ink-350'}`}>
-                    <MapPin className="h-3.5 w-3.5 flex-none" /><span className="truncate">{o.location || 'No location yet'}</span>
-                  </span>
-                  {st === 'ready' && (
-                    <button type="button" title="Office QR" onClick={(e) => { e.stopPropagation(); officeQr.mutate(o) }}
-                      className="flex h-[34px] flex-none items-center gap-1 rounded-[10px] border border-ink-200 bg-surface px-2.5 text-[12.5px] font-semibold text-ink-700 hover:border-accent hover:text-accent-strong">
-                      <QrCode className="h-4 w-4" /> QR
-                    </button>
-                  )}
-                  <span className="flex flex-none items-center text-[12.5px] font-bold text-accent-strong">
-                    {st === 'setup' ? 'Set up' : st === 'off' ? 'Open' : 'Manage'}<ChevronRight className="h-4 w-4" />
-                  </span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {cur !== null && (cur === 'new' || current) && (
-        <OfficeDrawer key={`${cur}-${version}`} office={cur === 'new' ? null : current} offices={offices} allSupervisors={allSupervisors}
-          nextLeft={nextList.length} onNext={() => nextList[0] && setCur(nextList[0].id)}
-          onClose={() => setCur(null)} onSaved={refresh}
-          onRecipients={(o) => setViewOffice(o)} onQr={(o) => officeQr.mutate(o)} />
-      )}
 
       {/* Office QR */}
       {qrView && (

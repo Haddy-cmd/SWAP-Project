@@ -40,6 +40,7 @@ class TermReportReviewTest extends TestCase
     {
         Notification::fake();
         [$supervisor, $student, $assignment] = $this->placement();
+        $assignment = $this->endTermWithHoursDone($assignment);
 
         // Submitting tells the supervisor; nothing to accept before that.
         Sanctum::actingAs($supervisor);
@@ -67,7 +68,7 @@ class TermReportReviewTest extends TestCase
             ->assertJsonPath('data.0.term_report.renewal_eligible', true);
         $this->getJson("/api/supervisor/students/{$student->id}/summary")->assertOk()
             ->assertJsonPath('term_report.renewal_eligible', true)
-            ->assertJsonPath('hours_met', false);
+            ->assertJsonPath('hours_met', true); // the term ended with the hours done (the report is locked until then)
         $this->assertDatabaseHas('audit_logs', ['action' => 'term_report_reviewed', 'user_id' => $supervisor->id]);
 
         // Once accepted, the student can't edit it any more.

@@ -30,7 +30,8 @@ class OfficesDataset extends ReportDataset
     {
         return [
             self::col('office', 'Office'),
-            self::col('head', 'Head'),
+            // The office head is its supervisor(s) (Admin → Offices → Supervisor).
+            self::col('head', 'Head (Supervisor)'),
             self::col('location', 'Location'),
             self::col('capacity', 'Capacity', 'number', metric: true),
             self::col('active_recipients', 'Active Recipients', 'number', metric: true),
@@ -46,16 +47,17 @@ class OfficesDataset extends ReportDataset
             ->where('academic_year', $this->scope->academicYear)->where('semester', $this->scope->semester)
             ->where('status', 'active')
             ->selectRaw('office_id, COUNT(*) as n')->groupBy('office_id')->pluck('n', 'office_id');
-        $supervisors = User::where('role', 'supervisor')->whereNotNull('office_id')
-            ->selectRaw('office_id, COUNT(*) as n')->groupBy('office_id')->pluck('n', 'office_id');
+        $names = User::where('role', 'supervisor')->whereNotNull('office_id')->orderBy('name')
+            ->get(['name', 'office_id'])->groupBy('office_id')->map(fn ($g) => $g->pluck('name'));
 
-        return Office::orderBy('name')->get()->map(function (Office $o) use ($active, $supervisors) {
+        return Office::orderBy('name')->get()->map(function (Office $o) use ($active, $names) {
             $n = (int) ($active[$o->id] ?? 0);
             $cap = (int) $o->max_recipients;
+            $heads = $names[$o->id] ?? collect();
 
             return [
                 'office' => $o->name,
-                'head' => $o->head_name,
+                'head' => $heads->isNotEmpty() ? $heads->implode(', ') : null,
                 'location' => $o->location,
                 'capacity' => $cap,
                 'active_recipients' => $n,
@@ -65,7 +67,7 @@ class OfficesDataset extends ReportDataset
                     $n === 0 => 'Empty',
                     default => 'Has Slots',
                 },
-                'supervisors' => (int) ($supervisors[$o->id] ?? 0),
+                'supervisors' => $heads->count(),
             ];
         });
     }

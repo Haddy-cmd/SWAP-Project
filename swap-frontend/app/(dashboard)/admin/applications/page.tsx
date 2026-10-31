@@ -136,8 +136,8 @@ export default function AdminApplicationsPage() {
       applicationsApi.adminListApplications({ type: 'renewal', status: 'submitted', page: '1' }).then((r) => r.meta?.total ?? 0),
   })
 
-  // The active selection defaults to the first item in the current queue.
-  const activeId = selectedId ?? applications[0]?.id ?? null
+  // Nothing is open until a row (or a calendar slot) is clicked; the list stays full width until then.
+  const activeId = selectedId
 
   const { data: selected, isLoading: detailLoading } = useQuery({
     queryKey: ['admin-application', activeId],
@@ -325,7 +325,7 @@ export default function AdminApplicationsPage() {
       </div>
 
       {/* List / detail */}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)]">
+      <div className={`grid items-start gap-4 ${activeId ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.45fr)]' : ''}`}>
         {/* ── list ───────────────────────────────────────────────────────── */}
         <div className={`${CARD} overflow-hidden`}>
           <div className="space-y-2.5 border-b border-ink-900/[.06] p-3.5">
@@ -440,14 +440,9 @@ export default function AdminApplicationsPage() {
         </div>
 
         {/* ── detail ─────────────────────────────────────────────────────── */}
-        <div className={`${CARD} overflow-hidden lg:sticky lg:top-[88px]`}>
-          {!activeId ? (
-            <div className="px-8 py-[70px] text-center">
-              <BadgeCheck className="mx-auto h-11 w-11 text-success-600" />
-              <p className="mt-3.5 font-serif text-[22px] font-semibold text-ink-950">All caught up</p>
-              <p className="mt-1.5 text-[13.5px] text-ink-500">Nothing is selected. Pick a student on the left to review them.</p>
-            </div>
-          ) : detailLoading || !selected ? (
+        {activeId && (
+        <div className={`${CARD} animate-panel-in overflow-hidden lg:sticky lg:top-[88px]`}>
+          {detailLoading || !selected ? (
             <div className="space-y-4 p-6">
               <div className="h-14 animate-pulse rounded-xl bg-ink-200/60" />
               <div className="h-24 animate-pulse rounded-xl bg-ink-200/60" />
@@ -477,6 +472,10 @@ export default function AdminApplicationsPage() {
                   <p className="mt-0.5 truncate text-[13px] text-ink-400">{selected.user?.email ?? '—'}</p>
                 </div>
                 <StatusPill status={selected.status} />
+                <button type="button" onClick={() => setSelectedId(null)} aria-label="Close"
+                  className="flex h-9 w-9 flex-none items-center justify-center rounded-[10px] text-ink-500 hover:bg-ink-100 hover:text-ink-800">
+                  <X className="h-5 w-5" />
+                </button>
               </div>
 
               <div className="space-y-5 px-6 py-5">
@@ -615,6 +614,7 @@ export default function AdminApplicationsPage() {
             </div>
           )}
         </div>
+        )}
       </div>
 
       {dialog && selected && (

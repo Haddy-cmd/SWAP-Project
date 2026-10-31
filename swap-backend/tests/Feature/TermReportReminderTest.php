@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\SemesterPeriod;
 use App\Notifications\TermReportDueNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\MakesSwapData;
 use Tests\TestCase;
@@ -38,7 +40,7 @@ class TermReportReminderTest extends TestCase
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 5]);
+        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 5, 'end_date' => Carbon::yesterday()->toDateString()]);
         $this->makeClosedLog($assignment, 3);
         $first = $this->makeClosedLog($assignment, 1, 'pending_verification', daysAgo: 1);
         $last = $this->makeClosedLog($assignment, 1, 'pending_verification', daysAgo: 0);
@@ -84,7 +86,7 @@ class TermReportReminderTest extends TestCase
     {
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 10]);
+        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 10, 'end_date' => Carbon::yesterday()->toDateString()]);
         $this->makeClosedLog($assignment, 6);
 
         Sanctum::actingAs($supervisor);
@@ -93,13 +95,28 @@ class TermReportReminderTest extends TestCase
         Notification::assertSentToTimes($recipient, TermReportDueNotification::class, 1);
     }
 
+    public function test_finishing_the_hours_mid_term_does_not_remind_yet(): void
+    {
+        // The report opens only after the semester ends, so there's nothing to act on yet.
+        $supervisor = $this->makeUser('supervisor');
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 2, 'end_date' => Carbon::today()->addMonth()->toDateString()]);
+        $log = $this->makeClosedLog($assignment, 2, 'pending_verification', daysAgo: 0);
+
+        Sanctum::actingAs($supervisor);
+        $this->putJson("/api/supervisor/verifications/{$log->id}", ['action' => 'verified'])->assertOk();
+
+        Notification::assertNotSentTo($recipient, TermReportDueNotification::class);
+        $this->assertNull($assignment->fresh()->report_due_hours_at);
+    }
+
     public function test_the_end_of_the_term_reminds_current_placements_without_a_report(): void
     {
         $this->period(endedDaysAgo: 1);
         $supervisor = $this->makeUser('supervisor');
         $without = $this->makeUser('recipient');
         $withoutTerm = $this->makeAssignment($without, $supervisor, null, ['required_hours' => 10]);
-        $this->makeClosedLog($withoutTerm, 4);
+        $this->makeClosedLog($withoutTerm, 10);
         $with = $this->makeUser('recipient');
         $withTerm = $this->makeAssignment($with, $supervisor, null, ['required_hours' => 10]);
         $this->submitTermReport($withTerm);
@@ -112,6 +129,34 @@ class TermReportReminderTest extends TestCase
             === '1st Semester 2024-2025 has ended. Submit your end-of-term narrative report on the Hours & Attendance page — your stipend and renewal need it.');
         Notification::assertNotSentTo($with, TermReportDueNotification::class);
         $this->assertNotNull($withoutTerm->fresh()->report_due_ended_at);
+    }
+
+    public function test_short_on_hours_is_reminded_when_the_promissory_note_is_filed(): void
+    {
+        // The report only opens once a note is filed, so that's when the reminder goes out.
+        Storage::fake('public');
+        $this->period(endedDaysAgo: 1);
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), null, ['required_hours' => 10]);
+        $this->makeClosedLog($assignment, 4);
+
+        $this->artisan('semester:close')->assertSuccessful();
+        Notification::assertNotSentTo($recipient, TermReportDueNotification::class);
+        $this->assertNull($assignment->fresh()->report_due_ended_at);
+
+        Sanctum::actingAs($recipient);
+        $this->post('/api/recipient/promissory', [
+            'assignment_id' => $assignment->id,
+            'reason' => 'Fell short during exam weeks; will render the lacking hours.',
+            'file' => UploadedFile::fake()->create('promissory.pdf', 50, 'application/pdf'),
+        ], ['Accept' => 'application/json'])->assertStatus(201);
+
+        Notification::assertSentToTimes($recipient, TermReportDueNotification::class, 1);
+        $this->assertNotNull($assignment->fresh()->report_due_ended_at);
+
+        // Closing again doesn't repeat it.
+        $this->artisan('semester:close')->assertSuccessful();
+        Notification::assertSentToTimes($recipient, TermReportDueNotification::class, 1);
     }
 
     public function test_an_old_semester_is_recorded_without_reminders(): void

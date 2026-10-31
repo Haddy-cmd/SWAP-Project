@@ -125,7 +125,8 @@ export default function AdminAssignmentsPage() {
   const supervisorsFor = (id: string) => officeById(id)?.supervisors ?? []
 
   // The recipient loaded into the assign panel.
-  const selected: Application | null = queue.find((a) => a.id === selectedAppId) ?? queue[0] ?? null
+  // Nothing until a row is clicked; the list stays full width until then.
+  const selected: Application | null = queue.find((a) => a.id === selectedAppId) ?? null
   const terms = Array.from(new Set(queue.map((a) => `${a.academic_year} · ${a.semester}`)))
 
   // Picking an office auto-selects its supervisor when there's exactly one; otherwise the admin picks.
@@ -263,7 +264,7 @@ export default function AdminAssignmentsPage() {
       </div>
 
       {tab === 'queue' ? (
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+        <div className={`grid items-start gap-4 ${selected ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]' : ''}`}>
           {/* Waiting list */}
           <div className={`${CARD} overflow-hidden`}>
             <p className="border-b border-ink-900/[.06] px-4 py-3 text-[12.5px] font-semibold text-ink-600">
@@ -304,29 +305,31 @@ export default function AdminAssignmentsPage() {
             <Pager page={queuePage} lastPage={queueData?.meta?.last_page ?? 1} onPage={(p) => { setQueuePage(p); setSelectedAppId(null) }} />
           </div>
 
-          {/* Assign panel */}
-          <div className={`${CARD} overflow-hidden lg:sticky lg:top-[88px]`}>
+          {/* Assign panel: opens only once a student is clicked */}
+          {selected && (
+          <div className={`${CARD} animate-panel-in overflow-hidden lg:sticky lg:top-[88px]`}>
             <div className="px-6 py-4 text-white"
               style={{ background: 'var(--hero-gradient)' }}>
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-gold-accent">Assigning</p>
-              {selected ? (
-                <div className="mt-1.5 flex items-center gap-3">
-                  <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
-                    className="h-10 w-10 rounded-full border border-white/25 bg-white/15 text-[14px] font-bold text-white" />
-                  <div className="min-w-0 leading-tight">
-                    <p className="truncate text-[16px] font-bold">{selected.user?.name ?? '—'}</p>
-                    <p className="truncate text-[12px] text-white/75">
-                      {selected.user?.profile?.student_id_number ? `ID ${selected.user.profile.student_id_number} · ` : ''}{selected.user?.email ?? ''}
-                    </p>
-                  </div>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10.5px] font-bold uppercase tracking-[0.16em] text-gold-accent">Assigning</p>
+                <button type="button" onClick={() => setSelectedAppId(null)} aria-label="Close"
+                  className="flex h-8 w-8 flex-none items-center justify-center rounded-[10px] bg-white/15 text-white hover:bg-white/25">
+                  <X className="h-[18px] w-[18px]" />
+                </button>
+              </div>
+              <div className="mt-1.5 flex items-center gap-3">
+                <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
+                  className="h-10 w-10 rounded-full border border-white/25 bg-white/15 text-[14px] font-bold text-white" />
+                <div className="min-w-0 leading-tight">
+                  <p className="truncate text-[16px] font-bold">{selected.user?.name ?? '—'}</p>
+                  <p className="truncate text-[12px] text-white/75">
+                    {selected.user?.profile?.student_id_number ? `ID ${selected.user.profile.student_id_number} · ` : ''}{selected.user?.email ?? ''}
+                  </p>
                 </div>
-              ) : (
-                <p className="mt-1 text-sm text-white/80">No one is waiting.</p>
-              )}
+              </div>
             </div>
 
-            {selected ? (
-              <>
+            <>
                 <div className="space-y-5 px-6 py-5">
                   {/* 1. Office */}
                   <section>
@@ -398,15 +401,9 @@ export default function AdminAssignmentsPage() {
                     <Check className="h-4 w-4" strokeWidth={2.5} /> {assign.isPending ? 'Assigning…' : 'Confirm assignment'}
                   </button>
                 </div>
-              </>
-            ) : (
-              <div className="px-6 py-12 text-center">
-                <CheckCircle2 className="mx-auto h-8 w-8 text-success-600" />
-                <p className="mt-2.5 text-sm font-semibold text-ink-950">All caught up</p>
-                <p className="mt-1 text-xs text-ink-400">Every approved student has an office.</p>
-              </div>
-            )}
+            </>
           </div>
+          )}
         </div>
       ) : (
         <div className="space-y-3.5">

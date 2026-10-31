@@ -128,7 +128,11 @@ class RecipientProgressService
         };
 
         $report = $a->termReport;
+        // Not open yet (semester running, or short on hours with no promissory note): no "Submit" prompt.
+        $reportBlocked = !$report?->submitted_at && TermReportService::submitBlock($a) !== null;
         $reportItem = match (true) {
+            $reportBlocked && !$ended => $item('report', 'todo', 'End-of-term report: opens after the semester ends'),
+            $reportBlocked => $item('report', 'todo', 'End-of-term report: opens once you file a promissory note'),
             !$report?->submitted_at => $item('report', 'todo', 'Submit your end-of-term narrative report', '/recipient/attendance#report'),
             !$report->reviewed_at => $item('report', 'waiting', 'End-of-term report submitted — waiting for your supervisor to accept it', '/recipient/attendance#report'),
             (bool) $report->renewal_eligible => $item('report', 'done', 'End-of-term report accepted — eligible for renewal', '/recipient/attendance#report'),

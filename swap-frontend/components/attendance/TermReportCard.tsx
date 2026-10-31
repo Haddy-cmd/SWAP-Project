@@ -9,7 +9,7 @@ import type { ApiRequestError } from '@/lib/api/axios'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { TermReport } from '@/types/attendance.types'
 
-const MIN_CHARS = 100
+const MIN_CHARS = 50
 const FILE_ACCEPT = '.pdf,.doc,.docx'
 const FILE_EXT = /\.(pdf|docx?)$/i
 const fileSize = (b?: number | null) => (!b ? '' : b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`)
@@ -63,11 +63,13 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
 
   if (isLoading || !meta?.has_assignment) return null
 
-  const showForm = meta.editable && (!report || editing)
+  // A first submission opens after the semester ends (with the hours done or a promissory note filed).
+  const blocked = !report && !meta.can_submit ? meta.submit_block : null
+  const showForm = meta.editable && !blocked && (!report || editing)
   const chars = form.content.trim().length
   const savedFile = report?.has_file && !removeFile && !file ? report : null
   const hasFile = !!file || !!savedFile
-  // Typed (100+ characters) or uploaded — the same rule as SaveTermReportRequest.
+  // Typed (50+ characters) or uploaded — the same rule as SaveTermReportRequest.
   const textOk = chars === 0 ? hasFile : chars >= MIN_CHARS
 
   const pickFile = (f: File | null) => {
@@ -108,7 +110,11 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
         )}
       </div>
 
-      {showForm ? (
+      {blocked ? (
+        <p className="mt-4 flex items-start gap-2 rounded-xl border border-ink-200 bg-ink-50 px-4 py-3 text-sm text-ink-600">
+          <Lock className="mt-0.5 h-4 w-4 flex-none text-ink-400" /> {blocked}
+        </p>
+      ) : showForm ? (
         <div className="mt-4 space-y-3">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink-900">Narrative of your service this term</label>

@@ -69,6 +69,10 @@ export interface TermReport {
 export interface TermReportMeta {
   has_assignment: boolean
   editable: boolean
+  /** Saving is open now. A first submission opens after the semester ends, with the hours done or a promissory note filed. */
+  can_submit: boolean
+  /** Why a first submission isn't open yet (the server's message), else null. */
+  submit_block: string | null
   academic_year: string | null
   semester: string | null
 }

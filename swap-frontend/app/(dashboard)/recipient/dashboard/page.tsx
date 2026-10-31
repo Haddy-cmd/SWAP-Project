@@ -44,7 +44,6 @@ export default function RecipientDashboard() {
   const { data: progress } = useQuery({ queryKey: ['recipient-progress'], queryFn: () => attendanceApi.getProgress() })
   const { data: recent } = useQuery({ queryKey: ['my-logs', 'recent'], queryFn: () => attendanceApi.getMyLogs({ per_page: '5' }) })
 
-  const done = !!summary && summary.required > 0 && summary.remaining <= 0
   const office = assignment?.office?.name
 
   return (
@@ -78,7 +77,7 @@ export default function RecipientDashboard() {
       {/* The current term has ended: Qualified, or Deficient and what to do */}
       {assignment && <TermEndedBanner assignment={assignment} />}
       {/* Hours met or term ended, and the end-of-term report isn't in yet */}
-      {assignment && <TermReportDueBanner assignment={assignment} hoursMet={done} />}
+      {assignment && <TermReportDueBanner assignment={assignment} />}
 
       <div className="grid gap-5 xl:grid-cols-2">
         {/* Service hours */}

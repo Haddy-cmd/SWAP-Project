@@ -10,7 +10,7 @@ type StepState = 'done' | 'now' | 'todo'
 
 /**
  * The end-of-term report as a strip: Submitted → Supervisor review → Accepted, with the form
- * or the submitted report one click away (the same TermReportCard rules: 100 characters or a PDF/Word file,
+ * or the submitted report one click away (the same TermReportCard rules: 50 characters or a PDF/Word file,
  * editable until accepted or the stipend is released). `#report` opens it.
  */
 export function ReportStrip({ report, meta, due }: { report: TermReport | null; meta: TermReportMeta; due: boolean }) {
@@ -36,11 +36,13 @@ export function ReportStrip({ report, meta, due }: { report: TermReport | null; 
     now: 'bg-gold-100 text-gold-700',
     todo: 'bg-surface-3 text-ink-400',
   }
+  // Not open yet: semester not over, or hours short with no promissory note (the server's reason).
+  // No prompt until then (the dashboard checklist says when it opens).
+  if (!report && meta.editable && !meta.can_submit) return null
   const subtitle = accepted ? 'Accepted by your supervisor.'
     : submitted ? 'Submitted. Your supervisor reviews it next.'
-    : due ? 'Due now. Your stipend can’t be released without it.'
-    : 'Due when your hours are done or the term ends. You can write it any time.'
-  const canWrite = !report && meta.editable
+    : 'Due now. Your stipend can’t be released without it.'
+  const canWrite = !report && meta.editable && meta.can_submit
 
   return (
     <div id="report" className={`${CARD} scroll-mt-24 overflow-hidden ${due && !submitted ? 'border-gold-accent' : ''}`}>

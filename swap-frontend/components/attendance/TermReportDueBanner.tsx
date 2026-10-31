@@ -9,16 +9,17 @@ import type { Assignment } from '@/types/assignment.types'
 const manilaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(new Date())
 
 /**
- * Recipient dashboard: the end-of-term narrative report is due — the required hours are
- * met or the term has ended — and it isn't in yet. Same moments as the email/bell
- * reminders (TermReportReminderService); the stipend and the renewal both need it.
+ * Recipient dashboard: the end-of-term narrative report can be submitted (the semester is over,
+ * with the hours done or a promissory note filed — the server's `can_submit`) and it isn't in yet.
+ * The stipend and the renewal both need it.
  */
-export function TermReportDueBanner({ assignment, hoursMet }: { assignment: Assignment; hoursMet: boolean }) {
+export function TermReportDueBanner({ assignment }: { assignment: Assignment }) {
   const { data } = useQuery({ queryKey: ['term-report'], queryFn: attendanceApi.getTermReport })
 
   const end = assignment.effective_end_date
   const ended = !!end && end < manilaToday()
-  if (!data || data.data?.submitted_at || !data.meta.editable || (!hoursMet && !ended)) return null
+  // Only once the student can actually submit (the server decides: semester over, hours done or a promissory note filed).
+  if (!data || data.data?.submitted_at || !data.meta.can_submit) return null
 
   const term = `${assignment.semester} ${assignment.academic_year}`
 

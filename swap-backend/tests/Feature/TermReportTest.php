@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
 use App\Services\TermReportService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\MakesSwapData;
 use Tests\TestCase;
@@ -26,17 +28,77 @@ class TermReportTest extends TestCase
         ], $overrides);
     }
 
+    public function test_the_report_opens_only_after_the_semester_ends(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $end = Carbon::today()->addWeeks(3);
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), null, ['required_hours' => 10, 'end_date' => $end->toDateString()]);
+        $this->makeClosedLog($assignment, 10); // hours done early: still locked
+        Sanctum::actingAs($recipient);
+
+        $msg = 'You can submit your end-of-term report after the semester ends on ' . $end->format('M j, Y') . '.';
+        $this->getJson('/api/recipient/term-report')->assertOk()
+            ->assertJsonPath('meta.can_submit', false)->assertJsonPath('meta.submit_block', $msg);
+        $this->putJson('/api/recipient/term-report', $this->report())->assertStatus(422)->assertJsonPath('message', $msg);
+        $this->assertSame(0, $assignment->termReport()->count());
+
+        // Ended with the hours done: open.
+        $assignment->update(['end_date' => Carbon::yesterday()->toDateString()]);
+        $this->getJson('/api/recipient/term-report')->assertJsonPath('meta.can_submit', true)->assertJsonPath('meta.submit_block', null);
+        $this->putJson('/api/recipient/term-report', $this->report())->assertOk();
+    }
+
+    public function test_short_on_hours_needs_a_promissory_note_first(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), null, [
+            'required_hours' => 200, 'start_date' => Carbon::today()->subDays(120)->toDateString(), 'end_date' => Carbon::yesterday()->toDateString(),
+        ]);
+        $this->makeClosedLog($assignment, 187.5);
+        Sanctum::actingAs($recipient);
+
+        $msg = "You're 12.5h short of the 200 required hours. File a promissory note on the Stipend page first, then submit your report.";
+        $this->getJson('/api/recipient/term-report')->assertJsonPath('meta.can_submit', false)->assertJsonPath('meta.submit_block', $msg);
+        $this->putJson('/api/recipient/term-report', $this->report())->assertStatus(422)->assertJsonPath('message', $msg);
+
+        // A filed (still pending) promissory note is enough.
+        PromissoryNote::create(['assignment_id' => $assignment->id, 'user_id' => $recipient->id, 'academic_year' => $assignment->academic_year,
+            'semester' => $assignment->semester, 'verified_hours_snapshot' => 187.5, 'lacking_hours' => 12.5, 'deficient_hours' => 12.5,
+            'status' => PromissoryNote::STATUS_PENDING, 'file_path' => 'p.pdf', 'file_name' => 'p.pdf', 'mime_type' => 'application/pdf', 'file_size' => 1]);
+        $this->getJson('/api/recipient/term-report')->assertJsonPath('meta.can_submit', true);
+        $this->putJson('/api/recipient/term-report', $this->report())->assertOk();
+    }
+
+    public function test_a_submitted_report_stays_editable_and_system_testing_skips_the_lock(): void
+    {
+        // Already in (from before the rule): editing still works mid-term.
+        $recipient = $this->makeUser('recipient');
+        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), null, ['end_date' => Carbon::today()->addMonth()->toDateString()]);
+        $this->submitTermReport($assignment);
+        Sanctum::actingAs($recipient);
+        $this->putJson('/api/recipient/term-report', $this->report(['challenges' => 'Slow printer.']))->assertOk();
+
+        // A System Testing account submits any time.
+        config(['swap.test_tools' => true]);
+        $tester = $this->makeUser('recipient');
+        $tester->forceFill(['testing_added_at' => now()])->save();
+        $this->makeAssignment($tester, $this->makeUser('supervisor'), null, ['end_date' => Carbon::today()->addMonth()->toDateString()]);
+        Sanctum::actingAs($tester);
+        $this->getJson('/api/recipient/term-report')->assertJsonPath('meta.can_submit', true);
+        $this->putJson('/api/recipient/term-report', $this->report())->assertOk();
+    }
+
     public function test_recipient_writes_and_edits_their_report(): void
     {
         $recipient = $this->makeUser('recipient');
-        $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        $assignment = $this->endTermWithHoursDone($this->makeAssignment($recipient, $this->makeUser('supervisor')));
         Sanctum::actingAs($recipient);
 
         $this->getJson('/api/recipient/term-report')
             ->assertOk()->assertJsonPath('data', null)->assertJsonPath('meta.editable', true);
 
         $this->putJson('/api/recipient/term-report', $this->report(['content' => 'Too short.']))
-            ->assertStatus(422)->assertJsonPath('errors.content.0', 'Your report must be at least 100 characters.');
+            ->assertStatus(422)->assertJsonPath('errors.content.0', 'Your report must be at least 50 characters.');
 
         $this->putJson('/api/recipient/term-report', $this->report())
             ->assertOk()

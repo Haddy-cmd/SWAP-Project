@@ -10,7 +10,8 @@ import {
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { UserAvatar } from '@/components/shared/UserAvatar'
-import { needsReview, blocksBulkVerify, reviewReason } from '@/lib/utils/attendanceReview'
+import { needsReview, blocksBulkVerify, reviewReason, clockedOutAgo } from '@/lib/utils/attendanceReview'
+import { useNow } from '@/lib/hooks/useNow'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import type { TimeLog } from '@/types/attendance.types'
 
@@ -38,6 +39,8 @@ export default function VerificationsPage() {
   const { user } = useAuthStore()
   const [tab, setTab] = useState<'pending' | 'flagged' | 'reviewed'>('pending')
   const [query, setQuery] = useState('')
+  // Ticks each minute so a flagged log's "Clocked out … ago" counts up and drops off after 12 hours.
+  const now = useNow()
   const [sel, setSel] = useState<Record<number, true>>({})
   const [modalId, setModalId] = useState<number | null>(null)
   const [rejecting, setRejecting] = useState<{ id: number; reason: string } | null>(null)
@@ -269,9 +272,14 @@ export default function VerificationsPage() {
                   <div className="min-w-0 leading-tight">
                     <div className="truncate text-[13.5px] font-semibold text-ink-950">{l.user?.name ?? '—'}</div>
                     {flagged && flagWhy ? (
-                      <div className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded bg-gold-50 px-1.5 py-px text-[10.5px] font-bold text-warning-700">
-                        <ShieldAlert className="h-3 w-3 flex-none" /> <span className="truncate">{flagWhy}</span>
-                      </div>
+                      <>
+                        <div className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded bg-gold-50 px-1.5 py-px text-[10.5px] font-bold text-warning-700">
+                          <ShieldAlert className="h-3 w-3 flex-none" /> <span className="truncate">{flagWhy}</span>
+                        </div>
+                        {pending && clockedOutAgo(l.time_out, now) && (
+                          <div className="mt-0.5 truncate text-[11px] text-warning-700">{clockedOutAgo(l.time_out, now)}</div>
+                        )}
+                      </>
                     ) : (
                       <div className="truncate text-[11.5px] text-ink-400">{l.office?.name ?? '—'}</div>
                     )}

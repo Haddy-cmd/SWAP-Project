@@ -103,6 +103,9 @@ class PromissoryService
             return $note;
         });
 
+        // The note opens the end-of-term report for a student short on hours: remind them now (once).
+        app(TermReportReminderService::class)->termEnded($assignment->fresh());
+
         foreach ($assignment->governingSupervisors() as $supervisor) {
             $this->dispatchQuietly('promissory_submitted', [
                 'user_id' => $supervisor->id,

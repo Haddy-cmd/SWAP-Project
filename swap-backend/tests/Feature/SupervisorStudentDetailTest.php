@@ -25,6 +25,12 @@ class SupervisorStudentDetailTest extends TestCase
         $student = $a->user;
         Sanctum::actingAs($supervisor);
 
+        // Mid-term the report isn't open to the student yet, so there's nothing to remind about.
+        $this->postJson("/api/supervisor/students/{$student->id}/remind-report")->assertStatus(422)
+            ->assertJsonPath('errors.report.0', TermReportReminderService::MSG_NOT_OPEN);
+        Notification::assertNotSentTo($student, TermReportDueNotification::class);
+
+        $this->endTermWithHoursDone($a);
         $this->postJson("/api/supervisor/students/{$student->id}/remind-report")->assertOk()
             ->assertJsonPath('message', "Reminder sent to {$student->name}.");
         Notification::assertSentTo($student, TermReportDueNotification::class,

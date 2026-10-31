@@ -16,13 +16,16 @@ class TermReportController extends Controller
 
     public function show(Request $request): JsonResponse
     {
-        ['assignment' => $assignment, 'report' => $report, 'editable' => $editable] = $this->reports->forUser($request->user());
+        ['assignment' => $assignment, 'report' => $report, 'editable' => $editable, 'submit_block' => $block] = $this->reports->forUser($request->user());
 
         return response()->json([
             'data' => TermReportService::toArray($report),
             'meta' => [
                 'has_assignment' => $assignment !== null,
                 'editable' => $editable,
+                // A first submission: open now, or why not yet (semester not over, hours short).
+                'can_submit' => $editable && $block === null,
+                'submit_block' => $editable ? $block : null,
                 'academic_year' => $assignment?->academic_year,
                 'semester' => $assignment?->semester,
             ],

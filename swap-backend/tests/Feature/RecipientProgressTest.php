@@ -78,11 +78,11 @@ class RecipientProgressTest extends TestCase
         $states = fn () => collect($this->getJson('/api/recipient/progress')->assertOk()->json('data.checklist'))
             ->mapWithKeys(fn ($i) => [$i['key'] => [$i['state'], $i['label']]])->all();
 
-        // Term over, 6 hours short, nothing else done.
+        // Term over, 6 hours short, nothing else done: the report opens only once a note is filed (no link).
         $this->assertSame([
             'hours' => ['todo', 'Short 6 hours — file a promissory note'],
             'signature' => ['done', 'Digital signature saved'],
-            'report' => ['todo', 'Submit your end-of-term narrative report'],
+            'report' => ['todo', 'End-of-term report: opens once you file a promissory note'],
             'stipend' => ['waiting', 'Stipend released by the DSA once the items above are done'],
         ], $states());
 

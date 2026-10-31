@@ -280,6 +280,9 @@ body {
 .animate-fade-up { opacity: 0; animation: swapFadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both; }
 .animate-fade-in { opacity: 0; animation: swapFadeIn 0.9s ease both; }
 .animate-float   { animation: swapFloat 5s ease-in-out infinite; }
+/* A side panel opening beside a list (Students, Assignments, Applications, Users, Announcements). */
+@keyframes panelIn { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+.animate-panel-in { animation: panelIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 /* Scroll-reveal: hidden until the Reveal component adds `.is-visible` in view. */
 .reveal {
@@ -291,7 +294,7 @@ body {
 .reveal.is-visible { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-up, .animate-fade-in, .animate-float { animation: none; opacity: 1; }
+  .animate-fade-up, .animate-fade-in, .animate-float, .animate-panel-in { animation: none; opacity: 1; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .hero-kenburns { animation: none; }
   .hero-drift { animation: none !important; }

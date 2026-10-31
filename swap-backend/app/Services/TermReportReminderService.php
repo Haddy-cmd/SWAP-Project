@@ -25,12 +25,17 @@ class TermReportReminderService
     public const MSG_SUBMITTED = 'The report is already in.';
     public const MSG_LOCKED = 'This term is closed for reports.';
     public const MSG_TODAY = 'Already reminded today.';
+    public const MSG_NOT_OPEN = "They can't submit it yet: the report opens after the semester ends, with the hours done or a promissory note filed.";
 
     /** After the hours change: the requirement is met and the report isn't in. */
     public function hoursMet(Assignment $assignment): bool
     {
         if ($assignment->report_due_hours_at || $assignment->report_due_ended_at
             || $assignment->required_hours <= 0 || $assignment->remaining_hours > 0) {
+            return false;
+        }
+        // Mid-term the report can't be submitted yet; the term-ended reminder covers it.
+        if (TermReportService::submitBlock($assignment) !== null) {
             return false;
         }
 
@@ -40,7 +45,9 @@ class TermReportReminderService
     /** When the term closes (semester:close, current placements only). */
     public function termEnded(Assignment $assignment): bool
     {
-        if ($assignment->report_due_ended_at) {
+        // Only once the report can be submitted: a student short on hours is reminded when they
+        // file their promissory note instead (PromissoryService::submit calls this again).
+        if ($assignment->report_due_ended_at || TermReportService::submitBlock($assignment) !== null) {
             return false;
         }
 
@@ -59,6 +66,10 @@ class TermReportReminderService
         }
         if (TermReportService::isLocked($assignment)) {
             $refuse(self::MSG_LOCKED);
+        }
+        // Not open to the student yet (semester not over, or hours short with no promissory note).
+        if (TermReportService::submitBlock($assignment) !== null) {
+            $refuse(self::MSG_NOT_OPEN);
         }
         if (self::supervisorRemindedToday($assignment)) {
             $refuse(self::MSG_TODAY);

@@ -21,7 +21,7 @@ class SaveTermReportRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'content' => ['nullable', 'string', 'min:100', 'max:5000'],
+            'content' => ['nullable', 'string', 'min:50', 'max:5000'],
             'file' => ['nullable', 'file', 'mimes:pdf,doc,docx', 'max:5120'],
             'remove_file' => ['nullable', 'boolean'],
             'accomplishments' => ['nullable', 'string', 'max:3000'],
@@ -32,7 +32,7 @@ class SaveTermReportRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'content.min' => 'Your report must be at least 100 characters.',
+            'content.min' => 'Your report must be at least 50 characters.',
             'content.max' => 'Your report must be 5,000 characters or fewer.',
             'file.uploaded' => 'The file couldn\'t be uploaded. Use a PDF or Word file of up to 5 MB.',
             'file.mimes' => 'Upload the report as a PDF or Word file (.pdf, .doc, .docx).',

@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { CameraOff, Check, CheckCheck, CircleCheckBig, Eye, FileText, Loader2, MapPinOff, Sparkles } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
-import { needsReview, reviewReason } from '@/lib/utils/attendanceReview'
+import { clockedOutAgo, needsReview, reviewReason } from '@/lib/utils/attendanceReview'
+import { useNow } from '@/lib/hooks/useNow'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { TermReportReviewModal } from '@/components/supervisor/TermReportReview'
 import { RejectLogDialog } from '@/components/supervisor/RejectLogDialog'
@@ -24,6 +25,8 @@ export function WorkQueue({ logs, reports, loading }: { logs: TimeLog[]; reports
   const [tab, setTab] = useState<Tab>('logs')
   const [rejecting, setRejecting] = useState<TimeLog | null>(null)
   const [reportFor, setReportFor] = useState<{ id: number; name: string } | null>(null)
+  // Ticks each minute so "Clocked out 5 min ago" counts up and drops off after 12 hours.
+  const now = useNow()
 
   const flagged = logs.filter(needsReview)
   const normal = logs.filter((l) => !needsReview(l))
@@ -101,7 +104,9 @@ export function WorkQueue({ logs, reports, loading }: { logs: TimeLog[]; reports
                         <Link href={`/supervisor/students/${l.user_id}/logs`} className="block truncate text-[13px] font-semibold text-ink-900 hover:text-accent">{l.user?.name ?? 'Recipient'}</Link>
                         <div className="flex items-center gap-1 truncate text-[11.5px] text-danger-700">
                           {l.location_flagged ? <MapPinOff className="h-3.5 w-3.5 flex-none" /> : <CameraOff className="h-3.5 w-3.5 flex-none" />}
-                          <span className="truncate first-letter:uppercase">{reviewReason(l)} · {hrs(l.duration_hours)} · {shortDate(l.date)}</span>
+                          <span className="truncate first-letter:uppercase">
+                            {[reviewReason(l), clockedOutAgo(l.time_out, now), hrs(l.duration_hours), shortDate(l.date)].filter(Boolean).join(' · ')}
+                          </span>
                         </div>
                       </div>
                       <div className="ml-auto flex gap-1.5">

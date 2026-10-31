@@ -3,10 +3,11 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogIn, LogOut, CheckCircle2, AlertTriangle, MapPin, MapPinOff, QrCode, ScanLine, FileText, Loader2, LocateFixed, Navigation } from 'lucide-react'
+import { LogOut, CheckCircle2, AlertTriangle, MapPin, MapPinOff, ScanLine, FileText, Loader2, LocateFixed, Navigation, Building2, X } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import { SelfieCapture } from '@/components/attendance/SelfieCapture'
+import { QrScanner } from '@/components/attendance/QrScanner'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { getCurrentPosition, getBestPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
@@ -63,6 +64,9 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   const [geoWarning, setGeoWarning] = useState<string | null>(null)
   const [narrativeOpen, setNarrativeOpen] = useState(false)
   const [selfieOpen, setSelfieOpen] = useState(false)
+  // "Enter the code instead" shown; the in-page scanner for clocking out.
+  const [showCode, setShowCode] = useState(false)
+  const [scanOut, setScanOut] = useState(false)
   const [now, setNow] = useState(() => Date.now())
   const outsideSinceRef = useRef<number | null>(null)
 
@@ -99,24 +103,25 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
       const premises = res.data.location_flagged ? 'Your location couldn’t be fully verified (weak GPS).' : 'You’re inside the office premises.'
       notify({ title: 'Clocked in', detail: `${formatDateTime(res.data.time_in)}${res.data.office?.name ? ` · ${res.data.office.name}` : ''}\n${premises}` })
       invalidate()
-      setQrToken('')
+      setQrToken(''); setShowCode(false)
     },
     onError: (err: { message?: string }) => { setSelfieOpen(false); notifyError(err, 'Could not clock you in') },
   })
 
   const timeOut = useMutation({
-    mutationFn: async () => {
+    // A scanned token is passed straight in; otherwise the typed one is used.
+    mutationFn: async (token?: string) => {
       if (!openLogId) throw new Error('No open log')
       let coords: Coords | undefined
       try { coords = await getBestPosition() } catch { coords = undefined }
-      return attendanceApi.timeOut(openLogId, qrToken, coords)
+      return attendanceApi.timeOut(openLogId, token ?? qrToken, coords)
     },
     onSuccess: (res) => {
       setOpenLogId(null); setGeoWarning(null); outsideSinceRef.current = null
       const hours = Number(res.data.duration_hours) || 0
       notify({ title: 'Clocked out', detail: `${hours ? `${hours.toFixed(2)}h logged · ` : ''}out at ${formatDateTime(res.data.time_out!)}\nYour supervisor will verify the hours.` })
       invalidate()
-      setQrToken('')
+      setQrToken(''); setShowCode(false)
     },
     onError: (err: { message?: string }) => notifyError(err, 'Could not clock you out'),
   })
@@ -134,7 +139,13 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   })
 
   // Clock out: straight out when the Task Description is in, otherwise ask for it first.
-  const handleClockOut = () => (currentLog?.has_narrative ? timeOut.mutate() : setNarrativeOpen(true))
+  const handleClockOut = (token?: string) => (currentLog?.has_narrative ? timeOut.mutate(token) : setNarrativeOpen(true))
+  // A scanned office QR: keep it (the task description may come first), then clock out.
+  const onScanOut = (token: string) => {
+    setScanOut(false)
+    setQrToken(token)
+    handleClockOut(token)
+  }
 
   const clockedIn = !!openLogId
   const completed = !!summary && summary.required > 0 && summary.remaining <= 0
@@ -178,7 +189,6 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
     return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`
   })()
 
-  const canClockIn = qrToken.trim().length > 0 && !completed
   const location = clockedIn
     ? geoWarning
       ? { tone: 'warn', Icon: AlertTriangle, title: 'You appear to have left the premises', text: geoWarning }
@@ -195,85 +205,105 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
     muted: { background: 'var(--color-surface-2)', borderColor: 'var(--color-ink-200)', color: 'var(--text-ink-500)' },
   }[location.tone as 'ok' | 'warn' | 'bad' | 'muted']
 
+  const clockIn = () => (selfieRequired ? setSelfieOpen(true) : timeIn.mutate(undefined))
+  const hasCode = qrToken.trim().length > 0
+  // "Camera not working?": the office code typed or pasted, then Clock in / Clock out.
+  const codeEntry = (
+    <div className="flex gap-2">
+      <input value={qrToken} onChange={(e) => setQrToken(e.target.value)} aria-label="Office code" autoFocus
+        placeholder="Paste the office code"
+        className="h-[46px] min-w-0 flex-1 rounded-xl border-[1.5px] border-ink-200 bg-surface px-3.5 text-sm text-ink-950 focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent/15" />
+      <button type="button" disabled={!hasCode || timeIn.isPending || timeOut.isPending}
+        onClick={() => (clockedIn ? handleClockOut() : clockIn())}
+        className={`h-[46px] flex-none rounded-xl border-[1.5px] bg-surface px-4 text-[13.5px] font-bold disabled:cursor-not-allowed ${
+          hasCode ? (clockedIn ? 'border-danger-700 text-danger-700' : 'border-accent text-accent-strong') : 'border-ink-200 text-ink-400'}`}>
+        {clockedIn ? (timeOut.isPending ? 'Recording…' : 'Clock out') : timeIn.isPending ? 'Verifying…' : 'Clock in'}
+      </button>
+    </div>
+  )
+  const codeLink = (
+    <button type="button" onClick={() => setShowCode(true)} className="self-center text-[13px] font-semibold text-accent hover:text-accent-strong">
+      Camera not working? Enter the code instead
+    </button>
+  )
+
   return (
-    <div className={`${CARD} flex flex-col overflow-hidden`}>
-      <div className={`flex items-center justify-between gap-2.5 border-b border-ink-900/[.05] px-5 py-4 ${clockedIn ? 'bg-accent-tint' : 'bg-surface-2'}`}>
-        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-bold ${clockedIn ? 'bg-accent-soft text-accent-strong' : 'bg-surface-3 text-ink-600'}`}>
+    <div className={`${CARD} flex flex-col gap-4 p-[22px]`}>
+      <div className="flex items-center justify-between gap-2.5">
+        <span className={`inline-flex flex-none items-center gap-[7px] whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-bold ${clockedIn ? 'bg-accent-soft text-accent-strong' : 'bg-surface-3 text-ink-600'}`}>
           <span className={`h-2 w-2 rounded-full ${clockedIn ? 'animate-pulse bg-accent-bright' : 'bg-ink-350'}`} />
-          {clockedIn ? 'Clocked in' : 'Not clocked in'}
+          {clockedIn ? 'On duty' : completed ? 'All hours done' : 'Not clocked in'}
         </span>
-        <span className="text-[12.5px] text-ink-500">{clockedIn ? 'Remember to clock out' : completed ? 'All hours done' : 'Scan when you arrive'}</span>
+        <span className="flex min-w-0 items-center gap-1.5 text-right text-[12.5px] leading-snug text-ink-500">
+          <Building2 className="h-4 w-4 flex-none" /><span className="truncate">{officeName}</span>
+        </span>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3.5 p-5">
-        {clockedIn && (
-          <div className="py-1.5 text-center">
-            <p className="text-xs font-bold tracking-[0.12em] text-ink-500">ON DUTY FOR</p>
-            <p className="mt-1 text-[44px] font-extrabold leading-[1.1] tabular-nums text-accent-deep">{elapsed}</p>
-            <p className="mt-1 text-[12.5px] text-ink-500">Since {fmtClock(currentLog?.time_in)} · {officeName}</p>
+      {clockedIn ? (
+        <>
+          <div className="flex flex-col items-center gap-1 pb-1 pt-[18px]">
+            <p className="text-[44px] font-extrabold leading-none tracking-[-.02em] tabular-nums text-ink-950">{elapsed}</p>
+            <p className="mt-1 text-[13px] text-ink-500">Since {fmtClock(currentLog?.time_in)}</p>
           </div>
-        )}
-
-        {completed && !clockedIn ? (
-          <p className="flex items-center gap-2 rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm font-medium text-success-800">
-            <CheckCircle2 className="h-4 w-4 flex-none" /> You have completed all your required service hours. No further clock-ins are needed.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {/* The office QR token is needed to clock out as well as in. */}
-            <span className="text-[12.5px] font-bold text-ink-600">Office QR code</span>
-            <div className="flex gap-2">
-              <div className="flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-ink-200 bg-surface-2 px-3.5 focus-within:border-accent">
-                <QrCode className="h-5 w-5 flex-none text-ink-400" />
-                <input value={qrToken} onChange={(e) => setQrToken(e.target.value)} aria-label="Office QR token"
-                  placeholder={clockedIn ? 'Paste your office QR token to clock out' : 'Paste your office QR token'}
-                  className="min-w-0 flex-1 border-none bg-transparent text-sm text-ink-950 focus:outline-none" />
-              </div>
-              <Link href="/recipient/attendance/scan"
-                className="flex h-12 flex-none items-center gap-1.5 rounded-xl border border-accent bg-surface px-4 text-[13.5px] font-bold text-accent-strong hover:bg-accent-tint">
-                <ScanLine className="h-5 w-5" /> Scan
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {!completed || clockedIn ? (
-          <div className="flex items-center gap-3 rounded-xl border px-3.5 py-3" style={{ background: toneStyle.background, borderColor: toneStyle.borderColor }}>
-            <location.Icon className="h-[22px] w-[22px] flex-none" style={{ color: toneStyle.color }} />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-bold text-ink-950">{location.title}</span>
-              <span className="mt-px block text-xs text-ink-500">{location.text}</span>
-            </span>
-            {!clockedIn && loc.kind !== 'unchecked' && (
-              <button type="button" onClick={recheck} disabled={loc.kind === 'checking'} aria-label="Check my location again" title="Check again"
-                className="flex h-8 flex-none items-center gap-1 rounded-lg px-2 text-xs font-semibold text-ink-600 hover:bg-surface disabled:opacity-50">
-                {loc.kind === 'checking' ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />} Check
-              </button>
-            )}
-          </div>
-        ) : null}
-
-        {clockedIn && (
-          <p className="flex items-center gap-2 text-xs text-ink-500">
+          <p className="flex items-center justify-center gap-2 text-center text-xs text-ink-500">
             <FileText className="h-3.5 w-3.5 flex-none" />
-            {currentLog?.has_narrative ? 'Task description saved, ready to clock out.' : 'You’ll write your task description when you clock out. It prints on your duty slip.'}
+            {currentLog?.has_narrative ? 'Task description saved, ready to clock out.' : 'You’ll write your task description when you clock out.'}
           </p>
-        )}
+          {/* The office QR is needed to clock out as well as in. */}
+          <button type="button" onClick={() => setScanOut(true)} disabled={timeOut.isPending}
+            className="flex h-[54px] items-center justify-center gap-2 rounded-[14px] bg-danger-700 text-[15px] font-bold text-white hover:bg-danger-800 disabled:opacity-60">
+            <LogOut className="h-[21px] w-[21px]" /> {timeOut.isPending ? 'Recording…' : 'Scan QR to clock out'}
+          </button>
+          {showCode ? codeEntry : codeLink}
+        </>
+      ) : completed ? (
+        <p className="flex items-center gap-2 rounded-xl border border-success-200 bg-success-50 px-4 py-3 text-sm font-medium text-success-800">
+          <CheckCircle2 className="h-4 w-4 flex-none" /> You have completed all your required service hours. No further clock-ins are needed.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-[20px] font-extrabold tracking-[-.01em] text-ink-950">Arrived at your office?</p>
+            <p className="mt-0.5 text-[13.5px] text-ink-500">Scan the QR code posted at the office to start your shift.</p>
+          </div>
+          <Link href="/recipient/attendance/scan"
+            className="flex h-[54px] items-center justify-center gap-2.5 rounded-[14px] bg-accent text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(23,129,95,.25)] hover:bg-accent-hover hover:text-white">
+            <ScanLine className="h-[22px] w-[22px]" /> Scan QR to clock in
+          </Link>
+          {showCode ? codeEntry : codeLink}
+        </div>
+      )}
 
-        {clockedIn ? (
-          <button onClick={handleClockOut} disabled={timeOut.isPending || !qrToken.trim()}
-            className="mt-auto flex h-[54px] items-center justify-center gap-2 rounded-[14px] bg-ink-950 text-[15px] font-extrabold text-surface disabled:cursor-not-allowed disabled:opacity-50">
-            <LogOut className="h-[22px] w-[22px]" /> {timeOut.isPending ? 'Recording…' : qrToken.trim() ? 'Clock out' : 'Scan the QR code to clock out'}
-          </button>
-        ) : (
-          <button onClick={() => (selfieRequired ? setSelfieOpen(true) : timeIn.mutate(undefined))} disabled={timeIn.isPending || !canClockIn}
-            className={`mt-auto flex h-[54px] items-center justify-center gap-2 rounded-[14px] text-[15px] font-extrabold disabled:cursor-not-allowed ${canClockIn ? 'btn-gold' : ''}`}
-            style={canClockIn ? undefined : { background: 'var(--color-surface-3)', color: 'var(--text-ink-400)' }}>
-            <LogIn className="h-[22px] w-[22px]" />
-            {timeIn.isPending ? 'Verifying location…' : completed ? 'Requirement complete' : canClockIn ? 'Clock in' : 'Scan the QR code to clock in'}
-          </button>
-        )}
-      </div>
+      {(!completed || clockedIn) && (
+        <div className="mt-auto flex items-center gap-3 rounded-xl border px-3.5 py-2.5" style={{ background: toneStyle.background, borderColor: toneStyle.borderColor }}>
+          <location.Icon className="h-5 w-5 flex-none" style={{ color: toneStyle.color }} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-bold text-ink-950">{location.title}</span>
+            <span className="mt-px block text-xs text-ink-500">{location.text}</span>
+          </span>
+          {!clockedIn && loc.kind !== 'unchecked' && (
+            <button type="button" onClick={recheck} disabled={loc.kind === 'checking'} aria-label="Check my location again" title="Check again"
+              className="flex h-8 flex-none items-center gap-1 rounded-lg px-2 text-xs font-semibold text-ink-600 hover:bg-surface disabled:opacity-50">
+              {loc.kind === 'checking' ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />} Check
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Clock-out scan: the camera reads the office QR, then the usual clock-out (task first if missing). */}
+      {scanOut && (
+        <div className="sheet-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setScanOut(false)}>
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[16px] font-bold text-ink-950">Scan the office QR to clock out</p>
+              <button type="button" onClick={() => setScanOut(false)} aria-label="Close" className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-500 hover:bg-ink-100">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <QrScanner onScan={onScanOut} onError={(e) => { setScanOut(false); setShowCode(true); notifyError({ message: e }, 'Camera unavailable') }} />
+          </div>
+        </div>
+      )}
 
       {/* Proof-of-presence selfie before clocking in. */}
       {selfieOpen && (
@@ -290,7 +320,7 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
           onSubmitted={() => {
             setNarrativeOpen(false)
             invalidate()
-            timeOut.mutate()
+            timeOut.mutate(undefined)
           }} />
       )}
     </div>
