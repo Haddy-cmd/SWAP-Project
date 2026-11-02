@@ -497,6 +497,7 @@ class TestingService
             'user_id' => $recipient->id,
             'date' => Carbon::today()->toDateString(),
             'time_in' => now(),
+            'selfie_required' => false,
             'status' => 'open',
         ]);
         $this->audit('testing_clocked_in', $assignment, ['time_log_id' => $log->id], $admin);

@@ -3,14 +3,15 @@ import type { TimeLog } from '@/types/attendance.types'
 /**
  * A pending log worth a second glance: either the server flagged its location
  * (weak GPS / reused coordinates / improbable travel), or there's no
- * proof-of-presence selfie. Manual/bonus entries are exempt — a supervisor or
- * admin created them, so they never have a clock-in photo or GPS fix.
+ * proof-of-presence selfie although one was required when the shift started
+ * (the supervisor can turn the selfie off). Manual/bonus entries are exempt — a
+ * supervisor or admin created them, so they never have a clock-in photo or GPS fix.
  *
  * Surfacing only. Use blocksBulkVerify() to decide what can be selected.
  */
 export function needsReview(log: TimeLog): boolean {
   if (log.is_manual) return false
-  return !!log.location_flagged || !log.time_in_photo_url
+  return !!log.location_flagged || (!log.time_in_photo_url && log.selfie_required !== false)
 }
 
 /**

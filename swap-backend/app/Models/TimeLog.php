@@ -35,6 +35,7 @@ class TimeLog extends Model
         'location_flagged',
         'location_flag_reason',
         'time_in_photo_path',
+        'selfie_required',
         'is_manual',
         'manual_reason',
         'recorded_by',
@@ -55,6 +56,7 @@ class TimeLog extends Model
             'time_in_accuracy' => 'decimal:2',
             'time_out_accuracy' => 'decimal:2',
             'location_flagged' => 'boolean',
+            'selfie_required' => 'boolean',
             'is_manual' => 'boolean',
         ];
     }

@@ -319,7 +319,7 @@ export default function StudentLogsPage() {
                                 </button>
                               )}
                               <div className="min-w-0 text-[12px]">
-                                <span className="font-semibold text-ink-500">{l.time_in_photo_url ? 'Clock-in selfie' : 'No clock-in selfie'}</span>
+                                <span className="font-semibold text-ink-500">{l.time_in_photo_url ? 'Clock-in selfie' : l.selfie_required === false ? 'Selfie not required' : 'No clock-in selfie'}</span>
                                 {l.location_flag_reason && (
                                   <p className="mt-1 rounded-md bg-gold-50 px-2 py-1 font-semibold text-warning-700">⚠ {l.location_flag_reason}</p>
                                 )}

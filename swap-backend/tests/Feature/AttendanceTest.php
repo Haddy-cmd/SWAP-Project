@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\TimeLog;
+use App\Resources\TimeLogResource;
 use App\Services\AttendanceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
@@ -420,6 +422,45 @@ class AttendanceTest extends TestCase
         ])->assertStatus(201);
 
         $this->assertDatabaseHas('time_logs', ['user_id' => $recipient->id, 'status' => 'open']);
+    }
+
+    public function test_the_log_remembers_whether_a_selfie_was_required_at_clock_in(): void
+    {
+        Storage::fake('public');
+        $this->travelToValidClockIn();
+        $resolve = fn (TimeLog $log) => TimeLogResource::make($log->fresh())->resolve(Request::create('/'));
+
+        // Selfie off: recorded as not required, so a missing photo isn't worth flagging.
+        $off = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($off, $this->makeSupervisorWithoutSelfie(), $office);
+        Sanctum::actingAs($off);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertStatus(201);
+        $offLog = TimeLog::where('user_id', $off->id)->firstOrFail();
+        $this->assertFalse($offLog->selfie_required);
+        $this->assertFalse($resolve($offLog)['selfie_required']);
+
+        // Selfie on: recorded as required, and it stays so after the supervisor turns it off.
+        $on = $this->makeUser('recipient');
+        $supervisor = $this->makeUser('supervisor');
+        $this->makeAssignment($on, $supervisor, $office);
+        Sanctum::actingAs($on);
+        $this->post('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 8.0, 'longitude' => 124.0,
+            'photo' => UploadedFile::fake()->image('selfie.jpg'),
+        ])->assertStatus(201);
+        $onLog = TimeLog::where('user_id', $on->id)->firstOrFail();
+        $this->assertTrue($onLog->selfie_required);
+        $supervisor->update(['require_clock_in_selfie' => false]);
+        $this->assertTrue($resolve($onLog)['selfie_required']);
+
+        // A log from before this was recorded follows the student's current setting.
+        $onLog->forceFill(['selfie_required' => null])->save();
+        $this->assertFalse($resolve($onLog)['selfie_required']);
+        $supervisor->update(['require_clock_in_selfie' => true]);
+        $this->assertTrue($resolve($onLog)['selfie_required']);
     }
 
     public function test_office_supervisor_can_turn_the_selfie_off_for_a_student_assigned_to_a_colleague(): void

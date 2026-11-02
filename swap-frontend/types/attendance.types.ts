@@ -18,6 +18,8 @@ export interface TimeLog {
   location_flagged?: boolean
   location_flag_reason?: string | null
   time_in_photo_url?: string | null
+  /** Whether a clock-in selfie was required for this shift (false: a missing one isn't flagged). */
+  selfie_required?: boolean
   is_manual?: boolean
   manual_reason?: string | null
   time_in_accuracy?: number | string | null

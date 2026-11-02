@@ -33,6 +33,7 @@ class TimeLogResource extends JsonResource
                 ? rtrim(config('app.url'), '/') . '/api/attendance/' . $this->id . '/photo'
                     . ($request->bearerToken() ? '?token=' . urlencode($request->bearerToken()) : '')
                 : null,
+            'selfie_required' => $this->selfieRequired($request),
             'is_manual' => (bool) $this->is_manual,
             'manual_reason' => $this->manual_reason,
             'time_in_lat' => $this->time_in_lat,
@@ -72,5 +73,33 @@ class TimeLogResource extends JsonResource
                 ])
             ),
         ];
+    }
+
+    /**
+     * Whether a clock-in selfie was required for this shift (so a missing one is worth a look).
+     * Recorded at clock-in; logs from before that follow the student's current setting, looked
+     * up once per placement for the request.
+     */
+    private function selfieRequired(Request $request): bool
+    {
+        if ($this->is_manual) {
+            return false;
+        }
+        if ($this->selfie_required !== null) {
+            return (bool) $this->selfie_required;
+        }
+        if (!$this->assignment_id) {
+            return true;
+        }
+
+        $key = 'selfie_required:' . $this->assignment_id;
+        if (!$request->attributes->has($key)) {
+            $assignment = $this->assignment ?? \App\Models\Assignment::find($this->assignment_id);
+            $request->attributes->set($key, $assignment
+                ? app(\App\Services\AttendanceService::class)->selfieRequiredFor($assignment)
+                : true);
+        }
+
+        return (bool) $request->attributes->get($key);
     }
 }

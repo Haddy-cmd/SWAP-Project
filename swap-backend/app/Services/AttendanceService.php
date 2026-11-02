@@ -479,6 +479,8 @@ class AttendanceService
                 'time_in_accuracy' => $accuracy,
                 'location_flagged' => $assessment['flagged'],
                 'location_flag_reason' => $assessment['reason'],
+                // Recorded now, so turning the selfie on or off later doesn't change how this shift reads.
+                'selfie_required' => $this->selfieRequiredFor($assignment),
                 'status' => 'open',
             ]);
         } catch (\Illuminate\Database\UniqueConstraintViolationException) {
