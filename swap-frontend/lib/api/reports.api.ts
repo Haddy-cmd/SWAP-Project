@@ -1,6 +1,7 @@
 import apiClient from './axios'
 import type { ApiResponse } from '@/types/api.types'
 import type { ReportParams, ReportResult, ReportRole } from '@/types/report.types'
+import { termParams } from '@/lib/utils/term'
 
 /** Drop empty values so the query string (and the cache key) stays minimal. */
 function clean(params: ReportParams): Record<string, unknown> {
@@ -26,9 +27,9 @@ export const reportsApi = {
       .then((r) => ({ blob: r.data, filename: filenameFrom(r.headers['content-disposition']) }))
       .catch(rethrowBlobError),
 
-  /** Admin: the term's KPIs and program insights as one PDF. */
+  /** Admin: the term's (or all semesters') KPIs and program insights as one PDF. */
   overviewPdf: (academicYear: string, semester: string) =>
-    apiClient.get<Blob>('/admin/analytics/overview/export', { params: { academic_year: academicYear, semester }, responseType: 'blob' })
+    apiClient.get<Blob>('/admin/analytics/overview/export', { params: termParams(academicYear, semester), responseType: 'blob' })
       .then((r) => ({ blob: r.data, filename: filenameFrom(r.headers['content-disposition']) }))
       .catch(rethrowBlobError),
 }

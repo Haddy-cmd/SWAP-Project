@@ -4,6 +4,7 @@ namespace App\Http\Requests\Auth;
 
 use App\Support\Colleges;
 use App\Support\PasswordPolicy;
+use App\Support\PrivacyNotice;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -75,7 +76,7 @@ class RegisterRequest extends FormRequest
             // 5th year only exists for the five-year programs (FIVE_YEAR_PROGRAMS);
             // everyone else caps at 4. The extra cap is enforced in withValidator().
             'year_level' => ['required', 'integer', 'min:1', 'max:5'],
-        ];
+        ] + PrivacyNotice::rules();
     }
 
     public function withValidator($validator): void
@@ -161,7 +162,7 @@ class RegisterRequest extends FormRequest
         $nameMessage = 'Use letters, spaces, hyphens, apostrophes and periods only.';
 
         return [
-            'email.ends_with' => 'Please use your MSU-Main student email (' . self::EMAIL_DOMAIN . ').',
+            'email.ends_with' => 'Please use your institutional email.',
             'student_id_number.regex' => 'Student ID must be exactly 9 digits.',
             'first_name.regex' => $nameMessage,
             'middle_name.regex' => $nameMessage,
@@ -173,6 +174,6 @@ class RegisterRequest extends FormRequest
             'year_level.max' => 'Select your year level.',
             'college.in' => Colleges::MSG_COLLEGE,
             'program.in' => Colleges::MSG_PROGRAM,
-        ] + PasswordPolicy::messages();
+        ] + PasswordPolicy::messages() + PrivacyNotice::messages();
     }
 }

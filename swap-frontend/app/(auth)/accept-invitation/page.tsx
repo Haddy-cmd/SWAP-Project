@@ -38,6 +38,7 @@ function AcceptInvitationForm() {
   const { setAuth } = useAuthStore()
 
   const [showPw, setShowPw] = useState(false)
+  const [agreed, setAgreed] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
 
   const { data: invite, isLoading, isError } = useQuery({
@@ -61,7 +62,7 @@ function AcceptInvitationForm() {
   }, [invite, setValue])
 
   const accept = useMutation({
-    mutationFn: (data: FormData) => authApi.acceptInvitation(token, data),
+    mutationFn: (data: FormData) => authApi.acceptInvitation(token, { ...data, privacy_consent: agreed }),
     onSuccess: (res) => {
       markLoginSplash()
       setAuth(res.data, res.token)
@@ -173,13 +174,22 @@ function AcceptInvitationForm() {
           )}
         </div>
 
+        <label className="flex cursor-pointer items-start gap-2.5 text-[13px] leading-relaxed text-ink-600">
+          <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] flex-none rounded accent-brand-700" />
+          <span>
+            I have read and agree to the{' '}
+            <Link href="/privacy" target="_blank" className="font-semibold text-brand-700 underline hover:text-brand-600">Privacy Notice</Link>
+            {' '}and consent to the collection and use of my personal data for the SWAP program.
+          </span>
+        </label>
+
         {serverError && (
           <p className="rounded-lg bg-danger-50 px-3 py-2 text-xs font-medium text-danger-600">{serverError}</p>
         )}
 
         <button
           type="submit"
-          disabled={accept.isPending}
+          disabled={accept.isPending || !agreed}
           className="w-full rounded-xl bg-gradient-to-b from-brand-600 to-brand-800 px-5 py-3 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(22,69,43,.26)] hover:opacity-95 disabled:opacity-60 transition-opacity"
         >
           {accept.isPending ? 'Creating your account…' : 'Create Account & Sign In'}

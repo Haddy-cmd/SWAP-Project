@@ -7,6 +7,7 @@ use App\Http\Requests\Analytics\RemindSupervisorsRequest;
 use App\Services\AnalyticsService;
 use App\Services\ProgramInsightsService;
 use App\Services\SupervisorReminderService;
+use App\Support\TermScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,28 +17,20 @@ class AnalyticsController extends Controller
 
     public function overview(Request $request): JsonResponse
     {
-        $request->validate([
-            'academic_year' => ['required', 'string'],
-            'semester' => ['required', 'string'],
-        ]);
+        // No term: every semester (Analytics → "All semesters").
+        $data = $request->validate(TermScope::rules());
 
-        $overview = $this->analyticsService->getAdminOverview(
-            $request->academic_year,
-            $request->semester
-        );
+        $overview = $this->analyticsService->getAdminOverview($data['academic_year'] ?? null, $data['semester'] ?? null);
 
         return response()->json(['data' => $overview]);
     }
 
-    /** Program insights for one term: results, renewals, money, integrity, workload, funnel, offices. */
+    /** Program insights for one term, or every term: results, renewals, money, integrity, workload, funnel, offices. */
     public function insights(Request $request, ProgramInsightsService $insights): JsonResponse
     {
-        $data = $request->validate([
-            'academic_year' => ['required', 'string'],
-            'semester' => ['required', 'string'],
-        ]);
+        $data = $request->validate(TermScope::rules());
 
-        return response()->json(['data' => $insights->forTerm($data['academic_year'], $data['semester'])]);
+        return response()->json(['data' => $insights->forTerm($data['academic_year'] ?? null, $data['semester'] ?? null)]);
     }
 
     /** Supervisors tab: remind the busy supervisors (at most once a day each). */

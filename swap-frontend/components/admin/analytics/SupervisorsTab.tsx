@@ -15,7 +15,7 @@ const initials = (name: string) =>
  * or the oldest waiting 3+ days (the backend's rule); "Remind busy supervisors" emails them,
  * at most once a day each.
  */
-export function SupervisorsTab({ academicYear, semester }: TabProps) {
+export function SupervisorsTab({ academicYear, semester, allTerms }: TabProps) {
   const { insights, loading } = useAnalytics(academicYear, semester)
   const { notify, notifyError, confirm } = useFeedback()
   const [show, setShow] = useState<'all' | 'busy' | 'ok'>('all')
@@ -52,13 +52,14 @@ export function SupervisorsTab({ academicYear, semester }: TabProps) {
   return (
     <Card title="Hour logs waiting for supervisors"
       hint={total ? `${plural(total, 'log', 'logs')} in total${oldest ? ` · the oldest has waited ${plural(oldest, 'day', 'days')}` : ''}` : 'No hour logs are waiting for verification.'}
-      right={
+      // Reminders are per term (RemindSupervisorsRequest); not offered for all semesters.
+      right={allTerms ? undefined : (
         <button onClick={ask} disabled={busy.length === 0 || remind.isPending}
           title={busy.length === 0 ? 'No supervisor is busy right now' : undefined}
           className="flex h-[38px] items-center gap-1.5 rounded-[10px] border border-ink-200 bg-surface px-3.5 text-[13px] font-semibold text-accent-strong hover:border-accent disabled:opacity-45">
           <Send className="h-[18px] w-[18px]" /> {remind.isPending ? 'Sending…' : 'Remind busy supervisors'}
         </button>
-      }>
+      )}>
       {all.length === 0 ? (
         <p className="mt-5 flex items-center gap-2.5 rounded-[14px] bg-surface-2 px-4 py-3.5 text-[13.5px] text-ink-600">
           <CheckCircle2 className="h-5 w-5 text-accent" /> Every supervisor is on top of their verifications.

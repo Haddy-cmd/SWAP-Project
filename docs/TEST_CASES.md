@@ -94,7 +94,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
 |---|---|---|---|---|---|---|---|---|
 | TC-REG-001 | P1 | [H] Successful registration with institutional email | Application period **open** | Fill in the form (POST `/auth/register`), then enter the emailed 6-digit code (POST `/auth/register/verify`) | email `juan.delacruz@s.msumain.edu.ph`, student ID `200912345`, password `Abcd1234`, program `BS Computer Science` | Step one: HTTP 202 "We sent a 6-digit code to your email. Enter it to create your account." and **no account exists yet**; the right code creates the account (verified, active applicant), shows "Welcome to SWAP! Your account is ready." and signs the student in straight to the applicant dashboard (no separate sign-in or sign-in code) |  |  |
-| TC-REG-002 | P1 | [N] Reject non-institutional email | Period open | Register with a gmail/other domain | `juan@gmail.com`, `juan@msumain.edu.ph` | HTTP 422, "Please use your MSU-Main student email (@s.msumain.edu.ph)." |  |  |
+| TC-REG-002 | P1 | [N] Reject non-institutional email | Period open | Register with a gmail/other domain | `juan@gmail.com`, `juan@msumain.edu.ph` | HTTP 422, "Please use your institutional email." |  |  |
 | TC-REG-003 | P1 | [B] Student ID must be exactly 9 digits | Period open | Register with 8-digit / 10-digit / non-numeric ID | `20091234` / `2009123456` / `20091234A` | HTTP 422, "Student ID must be exactly 9 digits." |  |  |
 | TC-REG-004 | P2 | [N] Duplicate email rejected | An account with that email exists | Register with the same email | existing email | HTTP 422, email unique validation error |  |  |
 | TC-REG-005 | P2 | [N] Duplicate student ID rejected | A profile with that student ID exists | Register with the same student ID | existing student ID | HTTP 422, student_id_number unique error |  |  |
@@ -115,6 +115,8 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-REG-020 | P2 | [H] Filling the form again replaces the waiting sign-up | A sign-up waiting for its code | Go back ("Change my details"), change a detail, submit again | — | A new code is emailed and the earlier code no longer works; confirming creates the account with the new details |  |  |
 | TC-REG-021 | P2 | [N] Email or student ID taken while waiting | Sign-up waiting; the same email (or student ID) gets registered another way meanwhile | Enter the right code | — | HTTP 422 "This email is already registered." / "This student ID is already registered."; no duplicate account |  |  |
 | TC-REG-022 | P2 | [H] Each auth step has its own request limit | — | Register, enter two wrong codes, then "Send a new code"; likewise sign in, two wrong codes, resend | — | The resend works (each auth route counts its own requests, e.g. resend 3 a minute), instead of "Too many requests" |  |  |
+| TC-REG-023 | P1 | [N] Privacy Notice consent required | Period open | On the Review step tick only "I certify…", then also tick "I have read and agree to the Privacy Notice…"; send the API a valid form without `privacy_consent` (and with `false`) | — | "Submit Application" stays disabled until both boxes are ticked; the API answers HTTP 422 "Please read and agree to the Privacy Notice." and no code is emailed; with consent the code creates the account, which records when consent was given (the form's submit time, not the code time) and the notice version `2026-11` |  |  |
+| TC-REG-024 | P2 | [H] Privacy Notice page is public | Signed out | Open the "Privacy Notice" link on the Review step (new tab), in the sign-in page footer and on the invitation page; also type /privacy | — | The notice opens without signing in and the registration form keeps what was typed; it lists who runs SWAP, what is collected (incl. GPS and selfies), why, who can see it, how long it is kept, the rights under RA 10173 and the DSA contact |  |  |
 
 ---
 
@@ -193,6 +195,7 @@ Visitor → Applicant → Admin (review & placement) → Recipient → Superviso
 | TC-INV-007 | P2 | [N] Invite for an email that already has an account | Account exists for the invited email | Accept the invitation | existing email | HTTP 422, "An account with this email already exists. Please sign in instead." |  |  |
 | TC-INV-008 | P2 | [S] **OBSOLETE** — direct staff creation removed | — | POST `/admin/users` as admin | name, email, password, role | HTTP 405 (route removed; staff accounts only come through invitations) |  |  |
 | TC-INV-009 | P1 | [N] Accepting needs a valid employee ID | Valid invitation | Accept with no employee ID; `EMP-0123`; an ID another account already has; then `20190123` | — | HTTP 422 "Enter your employee ID (digits only)." / "This employee ID is already used by another account."; with `20190123` the account is created and its profile shows Employee ID 20190123 |  |  |
+| TC-INV-010 | P1 | [N] Accepting needs Privacy Notice consent | Valid invitation | Fill in the form without ticking "I have read and agree to the Privacy Notice…"; send the API `privacy_consent=false`; then tick it and submit | — | "Create Account & Sign In" stays disabled until ticked; the API answers HTTP 422 "Please read and agree to the Privacy Notice." and no account is created; ticked, the account is created with the consent time and notice version `2026-11` |  |  |
 
 ---
 
@@ -680,6 +683,7 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-QR-004 | P2 | [H] Supervisor fetches office QR | Supervisor with office | GET `/supervisor/office-qr` | — | HTTP 200 with the office QR |  |  |
 | TC-QR-005 | P1 | [S] **OBSOLETE** — public QR endpoints removed | Assignment exists | GET `/qr-codes/{assignmentId}` and `/qr-codes/{assignmentId}/view` without a token | ids 1, 2, 3 | HTTP 404 for every id (they used to leak names and clock-out QR tokens) |  |  |
 | TC-QR-006 | P2 | [S] A token only works for its own assignment | Two assignments | Validate assignment A's token as B | A's token | Rejected |  |  |
+| TC-QR-007 | P2 | [H] Print the office QR | A Ready office | Admin → Offices → the office → Office QR → Print QR | — | The print dialog shows a one-page sheet with only the office name and its QR (no page behind the window); the window stays open; scanning the printed QR opens `/scan?t=…` |  |  |
 
 ### 22.2 Chatbot / FAQ
 | ID | Pri | Test Scenario | Preconditions | Test Steps | Test Data | Expected Result | Actual | Status |
@@ -758,6 +762,8 @@ Duty slips are built in the browser from the attendance logs and carry a Control
 | TC-ANL-018 | P1 | [S] Reminder rules on the server | As TC-ANL-017 | POST `/admin/analytics/remind-supervisors` with the term; again the same Manila day; without a term; as a supervisor | academic_year, semester | First: `{reminded: 2, already_today: 0}`, two audit entries "Reminded {supervisor} to verify {n} waiting hour logs ({term})" (area Hours & attendance, actor the admin); second: `{reminded: 0, already_today: 2}` and no new notification; no term → HTTP 422; supervisor → HTTP 403. Muted test accounts get the bell notification only |  |  |
 | TC-ANL-019 | P2 | [H] Stipend & renewals tab and All reports | Renewals approved, ready and blocked (no COR, stipend not released); released, ready and incomplete stipends; closed terms | Analytics & reports → Stipend & renewals: click "Review the {n} ready renewals", a term-result tile; then All reports: pick each report; open an old link `/admin/analytics?tab=applications&f_college=CICS` and `/admin/reports` | — | Renewals: "{n} returning students applied · {a} approved" with a bar and rows Approved / Ready to approve now / Blocked — {reasons with counts} (/ Rejected), the renewal rate against the previous semester; the link opens Admin → Applications on Renewal. Stipends: Released (count + ₱ amount), Ready to release, Missing a requirement, or "Nothing released yet this term" when all are 0. Term results In progress / Qualified / Deficient open Term Results filtered by verdict. All reports shows the report pills and the full filter / sort / chart / PDF + CSV view; the old links open All reports → Applications (filtered to CICS) |  |  |
 | TC-ANL-020 | P2 | [H] Audit Logs CSV | Admin; entries in several areas | Audit Logs → Filters: area Stipend, last 30 days → CSV; try a range with more than 20,000 entries | — | `audit-log-{date}.csv` with every matching entry (not just the page): when (Manila), area, what happened, action, who, role, student, student ID, record, changes ("field: before → after"), IP; System Testing entries only if included; over 20,000 → "Too many entries (n) for one file. Narrow the dates or area."; the export itself is audited |  |  |
+| TC-ANL-021 | P2 | [H] "All semesters" view | Data in at least two terms | Analytics & reports → School year → "All semesters"; open each tab; Download summary; back to a school year | — | The Semester picker hides and the subtitle reads "across all semesters"; the numbers cover every term (at least the per-semester ones); Hours & offices shows "Service hours per month"; "Worth a look" and "Remind busy supervisors" are hidden; the renewal rate line is not shown; Download summary gives `program-overview-all-semesters-{date}.pdf` with "Term: All semesters"; choosing a school year returns to 1st Semester of that year with the per-semester view unchanged |  |  |
+| TC-ANL-022 | P2 | [H] All reports across all semesters | "All semesters" chosen | All reports → Applications, Recipients & Hours, Stipend, Offices, Term Results; download a CSV | — | Applications, Recipients & Hours and Stipend list every term with a filterable **Term** column ("1st Semester 2026-2027"); Offices counts the currently active recipients; Term Results shows "Choose a school year and semester for this report."; files are named `{report}-all-semesters-{date}`; with one term chosen there is no Term column (as before); the API refuses half a term (only `academic_year`) with HTTP 422 |  |  |
 
 
 ### 22.7 Announcements (`TC-ANN`) — Admin → all active recipients
@@ -951,11 +957,11 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 
 | Module | Test Case Range | Count | Priority focus | Automated by (PHPUnit / Vitest) |
 |---|---|---|---|---|
-| Registration | TC-REG-001..022 | 22 | Auth integrity, validation | AuthTest, CollegeListTest, RegistrationTest |
+| Registration | TC-REG-001..024 | 24 | Auth integrity, validation, privacy consent | AuthTest, CollegeListTest, RegistrationTest, PrivacyConsentTest |
 | Email Verification | TC-EV-001..010 | 10 | Account activation | AuthTest, OneTimeCodeTest |
 | Login / Sessions | TC-AUTH-001..024 | 24 | Auth, session revocation, one session per browser | AuthTest, AccountStatusTest; middleware, authStore (Vitest) |
 | Password Reset | TC-PWD-001..007 | 7 | Auth | OneTimeCodeTest |
-| Staff Invitations | TC-INV-001..009 | 9 | Onboarding | EmployeeIdTest |
+| Staff Invitations | TC-INV-001..010 | 10 | Onboarding, privacy consent | EmployeeIdTest, PrivacyConsentTest |
 | Applications | TC-APP-001..018 | 18 | Core workflow, applicant timeline | DocumentTest, ResourceAccessTest, NotificationTest, ApplicationTermTest, InterviewLifecycleTest, WordUploadTest |
 | Renewal | TC-REN-001..015 | 15 | Core workflow, return to the applicant portal | RenewalTest |
 | Admin Review & Interviews | TC-ADMR-001..045 | 45 | State machine, interview rules, renewal gate, approval → recipient, review page | AdminTest, InterviewLifecycleTest, RenewalTest, ApprovalMakesRecipientTest, AdminUsersListTest |
@@ -970,12 +976,12 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | Verification & Students | TC-VERIF-001..035 | 35 | Integrity, hours, term verdict | VerificationTest, SupervisorReportTest, AuditTrailTest, TermStatusTest, TermHistoryTest, PaceReminderTest, SupervisorStudentDetailTest |
 | Stipend Release | TC-STIP-001..057 | 57 | Money integrity, final release, void, promissory deficiency, reminders, received tracking | StipendClaimTest, StipendTotalsTest, SignatureTest, PromissoryNoteTest, StudentIdReferenceTest, ReleaseReadyToClaimStubsMigrationTest, StipendReminderTest, StipendReceivedTest, StipendFiltersTest |
 | Reports & Duty Slips | TC-RPT-001..035 | 35 | Reporting, supervisor insights | RemovedEndpointsTest, SupervisorReportTest, StipendTotalsTest, TermHistoryTest; DutySlip (Vitest) |
-| QR codes | TC-QR-001..006 | 6 | Security | QrCodeServiceTest |
+| QR codes | TC-QR-001..007 | 7 | Security, printing | QrCodeServiceTest |
 | Chatbot / FAQ | TC-BOT-001..006 | 6 | Support, cost | ChatbotTest |
 | Concerns | TC-CON-001..017 | 17 | Support | ConcernTest |
 | Settings | TC-SET-001..005 | 5 | Config | — (manual) |
 | Notifications | TC-NOTIF-001..010 | 10 | Comms | NotificationTest |
-| Analytics & Audit | TC-ANL-001..020 | 20 | Admin, traceability, program insights, supervisor reminders | StipendTotalsTest, AuditTrailTest, AuditLogTest, AnalyticsOverviewTasksTest, ListQueryCountTest, ProgramInsightsTest, SupervisorReminderTest |
+| Analytics & Audit | TC-ANL-001..022 | 22 | Admin, traceability, program insights, supervisor reminders, all-semesters view | StipendTotalsTest, AuditTrailTest, AuditLogTest, AnalyticsOverviewTasksTest, ListQueryCountTest, ProgramInsightsTest, SupervisorReminderTest, AnalyticsAllTermsTest |
 | Announcements | TC-ANN-001..016 | 16 | Comms, attachments, audiences | AnnouncementTest, AnnouncementAttachmentTest, AnnouncementAudienceTest |
 | Semester periods | TC-SEM-001..014 | 14 | Term calendar, renewal window | SemesterPeriodTest |
 | End-of-term verdict | TC-TERM-001..011 | 11 | Deficiency record, notifications | TermStatusTest, RenewalTest |
@@ -983,7 +989,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | System Testing | TC-TEST-001..026 | 26 | Test tooling, bypasses, restore, file storage, email switch, off on live | TestingToolsTest, StorageCheckTest, TestingEmailSwitchTest, TestToolsAvailabilityTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..030 | 30 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
-| **TOTAL** | — | **626** | — | — |
+| **TOTAL** | — | **632** | — | — |
 
 ---
 

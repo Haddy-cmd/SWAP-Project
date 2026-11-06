@@ -14,6 +14,7 @@ use App\Services\ProgramInsightsService;
 use App\Services\ReportExplorerService;
 use App\Services\ReportPdfService;
 use App\Support\ReportQuery;
+use App\Support\TermScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -88,28 +89,30 @@ class ReportExplorerController extends Controller
         return response()->json(['data' => $periods]);
     }
 
-    /** Admin: the term's KPIs and program insights as one PDF. */
+    /** Admin: the term's KPIs and program insights as one PDF (no term: all semesters). */
     public function overviewPdf(Request $request, AnalyticsService $analytics, ProgramInsightsService $insights): Response
     {
         $data = $request->validate([
-            'academic_year' => ['required', 'string', 'regex:/^\d{4}-\d{4}$/'],
-            'semester' => ['required', 'string', Rule::in(SemesterPeriod::SEMESTERS)],
+            'academic_year' => ['nullable', 'string', 'regex:/^\d{4}-\d{4}$/', 'required_with:semester'],
+            'semester' => ['nullable', 'string', Rule::in(SemesterPeriod::SEMESTERS), 'required_with:academic_year'],
         ]);
-        $term = "{$data['semester']} {$data['academic_year']}";
+        $ay = $data['academic_year'] ?? null;
+        $semester = $data['semester'] ?? null;
+        $term = TermScope::label($ay, $semester);
 
         AuditLog::record('report_exported', $request->user(), null, ['type' => 'overview', 'format' => 'pdf', 'term' => $term]);
 
         $pdf = $this->pdf->renderOverview(
-            $analytics->getAdminOverview($data['academic_year'], $data['semester']),
-            $insights->forTerm($data['academic_year'], $data['semester']),
+            $analytics->getAdminOverview($ay, $semester),
+            $insights->forTerm($ay, $semester),
             $term,
             $request->user(),
         );
-        $sem = str_replace(' ', '', strtolower($data['semester']));
+        $slug = TermScope::isAll($ay, $semester) ? 'all-semesters' : $ay . '-' . str_replace(' ', '', strtolower($semester));
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => "attachment; filename=\"program-overview-{$data['academic_year']}-{$sem}-" . now('Asia/Manila')->format('Ymd') . '.pdf"',
+            'Content-Disposition' => "attachment; filename=\"program-overview-{$slug}-" . now('Asia/Manila')->format('Ymd') . '.pdf"',
         ]);
     }
 

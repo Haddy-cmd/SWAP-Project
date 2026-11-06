@@ -24,9 +24,15 @@ class RecipientsDataset extends ReportDataset
         return 'office';
     }
 
+    public function needsTerm(): bool
+    {
+        return false; // no term: every semester (admin "All semesters")
+    }
+
     public function columns(): array
     {
         return [
+            ...$this->termColumn(),
             self::col('recipient', 'Recipient'),
             self::col('email', 'Email'),
             self::col('student_id', 'Student ID'),
@@ -47,7 +53,7 @@ class RecipientsDataset extends ReportDataset
     public function rows(): Collection
     {
         return Assignment::whereHas('user')
-            ->where('academic_year', $this->scope->academicYear)->where('semester', $this->scope->semester)
+            ->tap(fn ($q) => $this->inTerm($q))
             ->with(['user.profile', 'office', 'supervisor.profile'])
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->orderBy('office_id')->get()
@@ -56,6 +62,7 @@ class RecipientsDataset extends ReportDataset
                 $required = (float) $a->required_hours;
 
                 return [
+                    ...$this->termCell($a),
                     'recipient' => self::name($a->user),
                     'email' => $a->user?->email,
                     'student_id' => $a->user?->profile?->student_id_number,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Bot, X } from 'lucide-react'
 import { ChatWindow } from './ChatWindow'
 import { useUIStore } from '@/lib/store/uiStore'
@@ -12,6 +13,7 @@ const POS_KEY = 'swap-chat-pos'
 const INTRO_KEY = 'swap-chat-intro' // sessionStorage: the hello was shown this visit
 const INTRO_W = 230
 const DRAG_THRESHOLD = 5 // px moved before a press counts as a drag (vs a click)
+const HIDDEN_ON = ['/privacy'] // pages read on their own, without the assistant
 
 type Pos = { x: number; y: number }
 
@@ -23,6 +25,7 @@ const clampToViewport = (x: number, y: number): Pos => ({
 /** Draggable floating robot that opens the SWAP Assistant chat from anywhere in the app. */
 export function ChatbotWidget() {
   const { chatOpen, setChatOpen, toggleChat } = useUIStore()
+  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [pos, setPos] = useState<Pos>({ x: 0, y: 0 })
   const [intro, setIntro] = useState(false)
@@ -93,7 +96,7 @@ export function ChatbotWidget() {
   // The browser took the gesture over (e.g. a system swipe): end the drag without toggling the chat.
   const onPointerCancel = () => { drag.current.active = false }
 
-  if (!mounted) return null
+  if (!mounted || HIDDEN_ON.includes(pathname)) return null
 
   // Anchor the panel near the robot, clamped to stay on screen.
   const panelW = Math.min(PANEL_W, window.innerWidth - 16)

@@ -298,7 +298,7 @@ export function TimeLogList({ logs, loading, hasMore, onMore, loadingMore }: {
       )}
 
       {taskFor != null && (
-        <NarrativeModal logId={taskFor} onClose={() => setTaskFor(null)}
+        <NarrativeModal logId={taskFor} pastLog onClose={() => setTaskFor(null)}
           onSubmitted={() => { setTaskFor(null); queryClient.invalidateQueries({ queryKey: ['my-logs'] }) }} />
       )}
     </div>

@@ -10,6 +10,7 @@ use App\Notifications\StaffInvitationNotification;
 use App\Resources\UserResource;
 use App\Support\EmployeeId;
 use App\Support\PasswordPolicy;
+use App\Support\PrivacyNotice;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -87,7 +88,7 @@ class InvitationController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'employee_id' => EmployeeId::rules(),
             'password' => ['required', 'confirmed', PasswordPolicy::rule()],
-        ], EmployeeId::messages() + PasswordPolicy::messages());
+        ] + PrivacyNotice::rules(), EmployeeId::messages() + PasswordPolicy::messages() + PrivacyNotice::messages());
 
         $user = User::create([
             'name' => $validated['name'],
@@ -99,6 +100,7 @@ class InvitationController extends Controller
             'is_active' => true,
             'email_verified_at' => now(), // proved ownership by opening the emailed link
         ]);
+        $user->forceFill(PrivacyNotice::stamp())->save();
 
         $invitation->update(['accepted_at' => now()]);
         AuditLog::record('created', $user);

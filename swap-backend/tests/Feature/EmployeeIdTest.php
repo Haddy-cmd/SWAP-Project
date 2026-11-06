@@ -31,7 +31,7 @@ class EmployeeIdTest extends TestCase
     {
         return $this->postJson("/api/invitations/{$token}/accept", array_merge([
             'name' => 'Maria Santos', 'employee_id' => '20190123',
-            'password' => 'Secret123', 'password_confirmation' => 'Secret123',
+            'password' => 'Secret123', 'password_confirmation' => 'Secret123', 'privacy_consent' => true,
         ], $overrides));
     }
 

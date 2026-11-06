@@ -27,10 +27,12 @@ interface NarrativeModalProps {
   onClose: () => void
   /** External (clock-out) pending state, to keep the button busy through both steps. */
   clockingOut?: boolean
+  /** Written to add a task to a past log ("Add what you did"), not to clock out: the button just saves. */
+  pastLog?: boolean
 }
 
 /** The clock-out note. Clocking out waits for its Task Description (AttendanceService::MSG_TASK_REQUIRED). */
-export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut }: NarrativeModalProps) {
+export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut, pastLog }: NarrativeModalProps) {
   const {
     register,
     handleSubmit,
@@ -65,7 +67,7 @@ export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut }: Nar
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="font-semibold text-ink-900">Task Description</h2>
-            <p className="text-sm text-ink-500">Required before you clock out. It prints on your duty slip.</p>
+            <p className="text-sm text-ink-500">{pastLog ? 'What you did on this shift. It prints on your duty slip.' : 'Required before you clock out. It prints on your duty slip.'}</p>
           </div>
           <button onClick={onClose} className="text-ink-350 hover:text-danger-600 transition-colors" aria-label="Close">
             <X className="h-5 w-5" />
@@ -106,10 +108,11 @@ export function NarrativeModal({ logId, onSubmitted, onClose, clockingOut }: Nar
             <button
               type="submit"
               disabled={busy}
-              className="flex items-center gap-2 rounded-xl bg-danger-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-danger-700 disabled:opacity-60 transition-colors"
+              className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60 transition-colors ${
+                pastLog ? 'bg-brand-700 hover:bg-brand-600' : 'bg-danger-600 hover:bg-danger-700'}`}
             >
-              <LogOut className="h-4 w-4" />
-              {busy ? 'Submitting…' : 'Save & Clock Out'}
+              {!pastLog && <LogOut className="h-4 w-4" />}
+              {busy ? 'Submitting…' : pastLog ? 'Save' : 'Save & Clock Out'}
             </button>
           </div>
         </form>

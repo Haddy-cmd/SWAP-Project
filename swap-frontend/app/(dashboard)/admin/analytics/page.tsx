@@ -11,6 +11,7 @@ import { useReportUrlState } from '@/lib/hooks/useReportUrlState'
 import { ReportExplorer } from '@/components/reports/ReportExplorer'
 import { ExportButtons } from '@/components/reports/ExportButtons'
 import { TermSelect, resolveTerm } from '@/components/reports/TermSelect'
+import { isAllTerms, termSlug } from '@/lib/utils/term'
 import { OverviewTab } from '@/components/admin/analytics/OverviewTab'
 import { ApplicationsTab } from '@/components/admin/analytics/ApplicationsTab'
 import { HoursTab } from '@/components/admin/analytics/HoursTab'
@@ -39,7 +40,8 @@ const REPORTS: { key: string; label: string; icon: Icon }[] = [
 ]
 
 /**
- * Admin → Analytics & reports. Five summary tabs answer "how is SWAP doing this semester";
+ * Admin → Analytics & reports. Five summary tabs answer "how is SWAP doing this semester" (or
+ * across all semesters);
  * their numbers open the matching detailed report under All reports, already filtered.
  * The term, tab and every filter live in the URL.
  */
@@ -50,21 +52,22 @@ function AdminAnalyticsReports() {
   const term = resolveTerm(state.ay, state.sem, periods)
   const report = REPORTS.find((r) => r.key === state.tab)?.key ?? null
   const tab = report ? 'reports' : TABS.some((t) => t.key === state.tab) ? state.tab! : 'overview'
-  const props = { academicYear: term.academic_year, semester: term.semester, onDrill: drill }
+  const allTerms = isAllTerms(term.academic_year)
+  const props = { academicYear: term.academic_year, semester: term.semester, allTerms, onDrill: drill }
 
   return (
     <div className="space-y-5 text-ink-950">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-serif text-[30px] font-medium leading-tight tracking-tight text-ink-950">Analytics &amp; reports</h1>
-          <p className="mt-1 text-[13.5px] text-ink-500">The short version of how SWAP is doing this semester.</p>
+          <p className="mt-1 text-[13.5px] text-ink-500">{allTerms ? 'The short version of how SWAP has done across all semesters.' : 'The short version of how SWAP is doing this semester.'}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <TermSelect term={term} periods={periods} onChange={(t) => setTerm(t.academic_year, t.semester)} />
+          <TermSelect allowAll term={term} periods={periods} onChange={(t) => setTerm(t.academic_year, t.semester)} />
           <ExportButtons
             formats={['pdf']}
             download={() => reportsApi.overviewPdf(term.academic_year, term.semester)}
-            fallbackName={`program-overview-${term.academic_year}-${term.semester.replace(/\s+/g, '').toLowerCase()}`}
+            fallbackName={`program-overview-${termSlug(term.academic_year, term.semester)}`}
             label="Download summary"
           />
         </div>
@@ -105,7 +108,7 @@ function AdminAnalyticsReports() {
               )
             })}
           </div>
-          <ReportExplorer role="admin" type={report} term={term} state={state} onChange={update} />
+          <ReportExplorer role="admin" type={report} term={allTerms ? null : term} state={state} onChange={update} />
         </div>
       )}
     </div>

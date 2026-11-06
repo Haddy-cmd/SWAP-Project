@@ -25,9 +25,15 @@ class StipendDataset extends ReportDataset
         return 'college';
     }
 
+    public function needsTerm(): bool
+    {
+        return false; // no term: every semester (admin "All semesters")
+    }
+
     public function columns(): array
     {
         return [
+            ...$this->termColumn(),
             self::col('recipient', 'Recipient'),
             self::col('email', 'Email'),
             self::col('student_id', 'Student ID'),
@@ -46,21 +52,23 @@ class StipendDataset extends ReportDataset
     public function rows(): Collection
     {
         $stipends = StipendHistory::whereHas('recipient')
-            ->where('academic_year', $this->scope->academicYear)->where('semester', $this->scope->semester)
+            ->tap(fn ($q) => $this->inTerm($q))
             ->with('recipient.profile')->orderByDesc('created_at')->get();
 
         // A stub has no assignment link; the student's placement for the same term names the office.
+        $key = fn ($m) => "{$m->user_id}|{$m->academic_year}|{$m->semester}";
         $offices = Assignment::whereIn('user_id', $stipends->pluck('user_id'))
-            ->where('academic_year', $this->scope->academicYear)->where('semester', $this->scope->semester)
+            ->tap(fn ($q) => $this->inTerm($q))
             ->with('office')->orderBy('id')->get()
-            ->mapWithKeys(fn ($a) => [$a->user_id => $a->office?->name]);
+            ->mapWithKeys(fn ($a) => [$key($a) => $a->office?->name]);
 
         return $stipends->map(fn (StipendHistory $s) => [
+            ...$this->termCell($s),
             'recipient' => self::name($s->recipient),
             'email' => $s->recipient?->email,
             'student_id' => $s->recipient?->profile?->student_id_number,
             'college' => $s->recipient?->profile?->college,
-            'office' => $offices[$s->user_id] ?? null,
+            'office' => $offices[$key($s)] ?? null,
             'control_number' => $s->control_number,
             'amount' => round((float) $s->amount, 2),
             // A release is final (2026-10-05): every live stub counts as released, legacy

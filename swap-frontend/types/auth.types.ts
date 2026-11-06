@@ -76,6 +76,7 @@ export interface RegisterData {
   college: string
   program: string
   year_level: number
+  privacy_consent: boolean
 }
 
 export interface AuthResponse {

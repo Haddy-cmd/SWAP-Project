@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { ArrowRight, Filter, X } from 'lucide-react'
 import { reportsApi } from '@/lib/api/reports.api'
+import { termParams } from '@/lib/utils/term'
 import { REPORT_BLANK } from '@/types/report.types'
 import { BLUE, CARD, GOLD, GREEN, RED, Card, Labeled, SELECT, Seg, Skeleton, pct, type TabProps } from './shared'
 
@@ -32,8 +33,8 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
   const [showAll, setShowAll] = useState(false)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['report', 'admin', 'applications', { academic_year: academicYear, semester, filters: {} }],
-    queryFn: () => reportsApi.get('admin', 'applications', { academic_year: academicYear, semester, filters: {} }),
+    queryKey: ['report', 'admin', 'applications', { ...termParams(academicYear, semester), filters: {} }],
+    queryFn: () => reportsApi.get('admin', 'applications', { ...termParams(academicYear, semester), filters: {} }),
     placeholderData: keepPreviousData,
   })
 

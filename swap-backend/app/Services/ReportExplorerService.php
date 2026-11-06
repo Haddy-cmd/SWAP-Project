@@ -81,9 +81,12 @@ class ReportExplorerService
     /** `{slug}-{term}-{date}.{ext}`, e.g. term-results-2025-2026-1stsemester-20261006.pdf */
     public function filename(array $report, ReportScope $scope, string $ext): string
     {
-        $term = $scope->hasTerm()
-            ? '-' . $scope->academicYear . '-' . str_replace(' ', '', strtolower($scope->semester))
-            : '';
+        // An admin's report without a term covers all semesters (a recipient's own reports have no term).
+        $term = match (true) {
+            $scope->hasTerm() => '-' . $scope->academicYear . '-' . str_replace(' ', '', strtolower($scope->semester)),
+            $scope->user->role === 'admin' => '-all-semesters',
+            default => '',
+        };
 
         return "{$report['slug']}{$term}-" . now('Asia/Manila')->format('Ymd') . ".{$ext}";
     }

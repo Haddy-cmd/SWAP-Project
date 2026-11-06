@@ -26,6 +26,12 @@ class OfficesDataset extends ReportDataset
         return 'availability';
     }
 
+    /** No term: each office's currently active recipients, whatever their term. */
+    public function needsTerm(): bool
+    {
+        return false;
+    }
+
     public function columns(): array
     {
         return [
@@ -44,7 +50,7 @@ class OfficesDataset extends ReportDataset
     public function rows(): Collection
     {
         $active = Assignment::whereHas('user')
-            ->where('academic_year', $this->scope->academicYear)->where('semester', $this->scope->semester)
+            ->tap(fn ($q) => $this->inTerm($q))
             ->where('status', 'active')
             ->selectRaw('office_id, COUNT(*) as n')->groupBy('office_id')->pluck('n', 'office_id');
         $names = User::where('role', 'supervisor')->whereNotNull('office_id')->orderBy('name')

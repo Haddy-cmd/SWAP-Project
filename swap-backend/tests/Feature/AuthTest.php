@@ -34,6 +34,7 @@ class AuthTest extends TestCase
             'college' => 'CICS',
             'program' => 'BS Computer Science',
             'year_level' => 3,
+            'privacy_consent' => true,
         ], $overrides);
     }
 

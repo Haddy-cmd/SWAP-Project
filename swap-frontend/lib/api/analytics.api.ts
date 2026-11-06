@@ -2,17 +2,19 @@ import apiClient from './axios'
 import { filenameFrom, rethrowBlobError } from './reports.api'
 import type { AdminOverview, AdminPeriod, ProgramInsights, SupervisorReminderResult } from '@/types/analytics.types'
 import type { ApiResponse } from '@/types/api.types'
+import { termParams } from '@/lib/utils/term'
 import type { AuditFilters, AuditOptions, AuditPage } from '@/types/audit.types'
 
 export const analyticsApi = {
+  // academicYear 'all' (ALL_TERMS) sends no term: every semester.
   getAdminOverview: (academicYear: string, semester: string) =>
     apiClient.get<ApiResponse<AdminOverview>>('/admin/analytics/overview', {
-      params: { academic_year: academicYear, semester },
+      params: termParams(academicYear, semester),
     }).then((r) => r.data.data),
 
   getInsights: (academicYear: string, semester: string) =>
     apiClient.get<ApiResponse<ProgramInsights>>('/admin/analytics/insights', {
-      params: { academic_year: academicYear, semester },
+      params: termParams(academicYear, semester),
     }).then((r) => r.data.data),
 
   getPeriods: () =>

@@ -277,7 +277,10 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-[11.5px] text-ink-350">Division of Student Affairs · dsa@msumain.edu.ph</p>
+        <p className="text-[11.5px] text-ink-350">
+          Division of Student Affairs · dsa@msumain.edu.ph ·{' '}
+          <Link href="/privacy" className="underline hover:text-brand-700">Privacy Notice</Link>
+        </p>
       </div>
 
       {/* Photo panel */}

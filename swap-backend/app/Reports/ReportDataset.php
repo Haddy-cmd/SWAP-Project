@@ -2,6 +2,7 @@
 
 namespace App\Reports;
 
+use App\Support\TermScope;
 use Illuminate\Support\Collection;
 
 /**
@@ -47,6 +48,24 @@ abstract class ReportDataset
     public function meta(): array
     {
         return [];
+    }
+
+    /** Narrow a query to the scope's term; with no term (admin "All semesters") it covers every term. */
+    protected function inTerm($query, string $table = '')
+    {
+        return TermScope::apply($query, $this->scope->academicYear, $this->scope->semester, $table);
+    }
+
+    /** A Term column, only when the rows span every term. */
+    protected function termColumn(): array
+    {
+        return $this->scope->hasTerm() ? [] : [self::col('term', 'Term', filterable: true)];
+    }
+
+    /** The term cell for a row (keyed only when termColumn() is shown). */
+    protected function termCell($model): array
+    {
+        return $this->scope->hasTerm() ? [] : ['term' => TermScope::label($model->academic_year, $model->semester)];
     }
 
     protected static function col(string $key, string $label, string $type = 'text', bool $filterable = false, bool $metric = false): array

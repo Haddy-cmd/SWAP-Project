@@ -13,7 +13,7 @@ const OFFICE_COLORS = ['var(--color-brand-700)', 'var(--color-gold-500)', 'var(-
  * Hours & offices: service hours logged per week (verified + waiting), and every office's
  * students, verified hours and flagged attendance logs. An office opens its recipients.
  */
-export function HoursTab({ academicYear, semester, onDrill }: TabProps) {
+export function HoursTab({ academicYear, semester, allTerms, onDrill }: TabProps) {
   const { overview, insights, loading } = useAnalytics(academicYear, semester)
   const [view, setView] = useChartType('analytics-hours-week', ['column', 'line'] as const, 'column')
   const [sort, setSort] = useState<'hours' | 'flag' | 'name'>('hours')
@@ -24,6 +24,8 @@ export function HoursTab({ academicYear, semester, onDrill }: TabProps) {
   const weeks = (overview?.weekly_hours ?? []).map((w) => ({ label: w.week, n: Math.round((w.verified + w.pending) * 10) / 10, verified: w.verified, pending: w.pending }))
   const total = weeks.reduce((s, w) => s + w.n, 0)
   const max = Math.max(1, ...weeks.map((w) => w.n))
+  // All semesters: the backend buckets by month (weeks over several years would be too many bars).
+  const monthly = overview?.hours_interval === 'month'
 
   const flags = new Map((insights?.integrity ?? []).map((i) => [i.office, i.flagged]))
   const offices = (insights?.offices ?? [])
@@ -39,14 +41,14 @@ export function HoursTab({ academicYear, semester, onDrill }: TabProps) {
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-2">
-      <Card title="Service hours per week" hint="Verified and waiting hours, by the week they were served"
+      <Card title={monthly ? 'Service hours per month' : 'Service hours per week'} hint={`Verified and waiting hours, by the ${monthly ? 'month' : 'week'} they were served`}
         right={<Seg label="Hours chart" value={view} onChange={setView} options={[['column', 'Bars'], ['line', 'Line']] as const} />}>
         <div className="mt-4 flex items-baseline gap-2">
           <span className="text-[30px] font-extrabold">{formatHours(total)}</span>
-          <span className="text-[13px] text-ink-500">logged in the last {plural(weeks.length, 'week', 'weeks')}</span>
+          <span className="text-[13px] text-ink-500">logged {monthly ? `over ${plural(weeks.length, 'month', 'months')}` : `in the last ${plural(weeks.length, 'week', 'weeks')}`}</span>
         </div>
         {weeks.length === 0 ? (
-          <p className="mt-4 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-4 py-6 text-center text-[13px] text-ink-500">No hours logged this semester yet.</p>
+          <p className="mt-4 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-4 py-6 text-center text-[13px] text-ink-500">{allTerms ? 'No hours logged yet.' : 'No hours logged this semester yet.'}</p>
         ) : view === 'column' ? (
           <>
             <div className="mt-[18px] flex h-[180px] items-end gap-3 border-b border-ink-900/[.08] px-2.5 sm:gap-6">

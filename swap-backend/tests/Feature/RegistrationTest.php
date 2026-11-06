@@ -30,7 +30,7 @@ class RegistrationTest extends TestCase
         return array_merge([
             'email' => 'amina@s.msumain.edu.ph', 'password' => 'Password@123', 'password_confirmation' => 'Password@123',
             'student_id_number' => '202400111', 'first_name' => 'Amina', 'last_name' => 'Alonto',
-            'college' => 'CICS', 'program' => 'BS Computer Science', 'year_level' => 2,
+            'college' => 'CICS', 'program' => 'BS Computer Science', 'year_level' => 2, 'privacy_consent' => true,
         ], $overrides);
     }
 

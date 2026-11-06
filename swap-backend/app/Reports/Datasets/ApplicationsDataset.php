@@ -26,9 +26,15 @@ class ApplicationsDataset extends ReportDataset
         return 'college';
     }
 
+    public function needsTerm(): bool
+    {
+        return false; // no term: every semester (admin "All semesters")
+    }
+
     public function columns(): array
     {
         return [
+            ...$this->termColumn(),
             self::col('applicant', 'Applicant'),
             self::col('email', 'Email'),
             self::col('student_id', 'Student ID'),
@@ -44,9 +50,10 @@ class ApplicationsDataset extends ReportDataset
     public function rows(): Collection
     {
         return Application::whereHas('user')
-            ->where('academic_year', $this->scope->academicYear)->where('semester', $this->scope->semester)
+            ->tap(fn ($q) => $this->inTerm($q))
             ->with('user.profile')->orderBy('created_at')->get()
             ->map(fn (Application $a) => [
+                ...$this->termCell($a),
                 'applicant' => self::name($a->user),
                 'email' => $a->user?->email,
                 'student_id' => $a->user?->profile?->student_id_number,

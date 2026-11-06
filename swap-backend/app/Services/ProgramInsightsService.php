@@ -10,10 +10,11 @@ use App\Models\SemesterPeriod;
 use App\Models\StipendHistory;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Support\TermScope;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Admin → Analytics → Program insights for one term: how the term ended, renewals, money,
+ * Admin → Analytics → Program insights for one term (or every term, with no term given): how the term ended, renewals, money,
  * attendance integrity, supervisor workload, the application funnel and office use.
  * Everything is read from data the system already records, in aggregate queries;
  * records of soft-deleted users are left out, as in the overview.
@@ -27,7 +28,7 @@ class ProgramInsightsService
         private readonly StipendService $stipends,
     ) {}
 
-    public function forTerm(string $academicYear, string $semester): array
+    public function forTerm(?string $academicYear, ?string $semester): array
     {
         return [
             'term_results' => $this->termResults($academicYear, $semester),
@@ -41,15 +42,14 @@ class ProgramInsightsService
     }
 
     /** The term's placements (current or finished; suspended ones aren't measured). */
-    private function placements(string $ay, string $sem): Builder
+    private function placements(?string $ay, ?string $sem): Builder
     {
         return Assignment::whereHas('user')
-            ->where('assignments.academic_year', $ay)
-            ->where('assignments.semester', $sem)
+            ->tap(fn ($q) => TermScope::apply($q, $ay, $sem, 'assignments'))
             ->whereIn('assignments.status', ['active', 'completed']);
     }
 
-    private function termResults(string $ay, string $sem): array
+    private function termResults(?string $ay, ?string $sem): array
     {
         $verdicts = $this->placements($ay, $sem)
             ->selectRaw("COALESCE(term_status, 'in_progress') as verdict, COUNT(*) as n, COALESCE(SUM(deficient_hours), 0) as short")
@@ -58,8 +58,7 @@ class ProgramInsightsService
             ->keyBy('verdict');
 
         $notes = PromissoryNote::whereHas('student')
-            ->where('academic_year', $ay)
-            ->where('semester', $sem)
+            ->tap(fn ($q) => TermScope::apply($q, $ay, $sem))
             ->selectRaw('status, COUNT(*) as n')
             ->groupBy('status')
             ->pluck('n', 'status');
@@ -88,13 +87,12 @@ class ProgramInsightsService
      * (the same check the approval runs), and the renewal rate against the recipients
      * of the semester period before this one.
      */
-    private function renewals(string $ay, string $sem): array
+    private function renewals(?string $ay, ?string $sem): array
     {
         $renewals = Application::whereHas('user')
             ->with('documents')
             ->where('type', 'renewal')
-            ->where('academic_year', $ay)
-            ->where('semester', $sem)
+            ->tap(fn ($q) => TermScope::apply($q, $ay, $sem))
             ->get();
 
         $blocked = [];
@@ -105,7 +103,8 @@ class ProgramInsightsService
         arsort($blocked);
 
         $approved = $renewals->where('status', 'approved')->count();
-        $previous = $this->previousPeriod($ay, $sem);
+        // No "previous term" to compare with across all semesters.
+        $previous = TermScope::isAll($ay, $sem) ? null : $this->previousPeriod($ay, $sem);
         $previousRecipients = $previous
             ? Assignment::whereHas('user')
                 ->where('academic_year', $previous->academic_year)
@@ -159,13 +158,13 @@ class ProgramInsightsService
      * too), how much went through promissory notes, what was voided, and who is payable
      * but not released yet — split into ready (signature + report in) and still missing one.
      */
-    private function stipend(string $ay, string $sem): array
+    private function stipend(?string $ay, ?string $sem): array
     {
-        $term = fn () => StipendHistory::whereHas('recipient')->where('academic_year', $ay)->where('semester', $sem);
+        $term = fn () => StipendHistory::whereHas('recipient')->tap(fn ($q) => TermScope::apply($q, $ay, $sem));
         $released = $term()->whereIn('status', StipendHistory::LIVE_STATUSES);
 
         $eligible = collect($this->stipends->eligibleRecipients())
-            ->filter(fn ($row) => $row['academic_year'] === $ay && $row['semester'] === $sem);
+            ->filter(fn ($row) => TermScope::isAll($ay, $sem) || ($row['academic_year'] === $ay && $row['semester'] === $sem));
         $ready = $eligible->filter(fn ($row) => $row['has_signature'] && $row['narrative_submitted'])->count();
 
         return [
@@ -179,12 +178,11 @@ class ProgramInsightsService
     }
 
     /** Per office: flagged locations, automatic clock-outs, rejected logs, logs with no task description. */
-    private function integrity(string $ay, string $sem): array
+    private function integrity(?string $ay, ?string $sem): array
     {
         $rows = TimeLog::whereHas('user')
             ->join('assignments', 'assignments.id', '=', 'time_logs.assignment_id')
-            ->where('assignments.academic_year', $ay)
-            ->where('assignments.semester', $sem)
+            ->tap(fn ($q) => TermScope::apply($q, $ay, $sem, 'assignments'))
             ->selectRaw("assignments.office_id as office_id,
                 COUNT(*) as logs,
                 SUM(CASE WHEN time_logs.location_flagged THEN 1 ELSE 0 END) as flagged,
@@ -212,12 +210,11 @@ class ProgramInsightsService
      * Per supervisor: what waits for them (pending logs of the placements they're assigned
      * to, and how old the oldest is) and how quickly they verified this term's logs.
      */
-    public function workload(string $ay, string $sem): array
+    public function workload(?string $ay, ?string $sem): array
     {
         $termLogs = fn () => TimeLog::whereHas('user')
             ->join('assignments', 'assignments.id', '=', 'time_logs.assignment_id')
-            ->where('assignments.academic_year', $ay)
-            ->where('assignments.semester', $sem);
+            ->tap(fn ($q) => TermScope::apply($q, $ay, $sem, 'assignments'));
 
         $pending = $termLogs()
             ->where('time_logs.status', 'pending_verification')
@@ -257,11 +254,10 @@ class ProgramInsightsService
     }
 
     /** New applications for the term: from submission to decision, by college. */
-    private function funnel(string $ay, string $sem): array
+    private function funnel(?string $ay, ?string $sem): array
     {
         $apps = fn () => Application::whereHas('user')
-            ->where('applications.academic_year', $ay)
-            ->where('applications.semester', $sem)
+            ->tap(fn ($q) => TermScope::apply($q, $ay, $sem, 'applications'))
             ->where(fn ($q) => $q->whereNull('applications.type')->orWhere('applications.type', '!=', 'renewal'));
 
         $byStatus = $apps()->selectRaw('status, COUNT(*) as n')->groupBy('status')->pluck('n', 'status');
@@ -296,7 +292,7 @@ class ProgramInsightsService
     }
 
     /** Active offices: capacity against this term's current placements, hours and completion. */
-    private function offices(string $ay, string $sem): array
+    private function offices(?string $ay, ?string $sem): array
     {
         $placements = $this->placements($ay, $sem)
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')

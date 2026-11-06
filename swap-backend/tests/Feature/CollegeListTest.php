@@ -25,7 +25,7 @@ class CollegeListTest extends TestCase
             'email' => 'amina' . uniqid() . '@s.msumain.edu.ph',
             'password' => 'Password@123', 'password_confirmation' => 'Password@123',
             'student_id_number' => (string) random_int(100000000, 999999999),
-            'first_name' => 'Amina', 'last_name' => 'Macarambon', 'year_level' => 2,
+            'first_name' => 'Amina', 'last_name' => 'Macarambon', 'year_level' => 2, 'privacy_consent' => true,
         ], $overrides));
     }
 

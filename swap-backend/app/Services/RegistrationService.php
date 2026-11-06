@@ -8,6 +8,7 @@ use App\Models\PendingRegistration;
 use App\Models\StudentProfile;
 use App\Models\User;
 use App\Notifications\OneTimeCodeNotification;
+use App\Support\PrivacyNotice;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -37,7 +38,10 @@ class RegistrationService
         PendingRegistration::where('email', $data['email'])->delete();
 
         $data['password'] = Hash::make($data['password']);
-        unset($data['password_confirmation']);
+        unset($data['password_confirmation'], $data['privacy_consent']);
+        // Consent is given now, on the form; the code only confirms the email.
+        $data['privacy_accepted_at'] = now()->toIso8601String();
+        $data['privacy_version'] = PrivacyNotice::VERSION;
 
         $pending = PendingRegistration::create([
             'email' => $data['email'],
@@ -114,6 +118,8 @@ class RegistrationService
             $user->forceFill([
                 'name' => $d['name'], 'email' => $d['email'], 'role' => 'applicant',
                 'is_active' => true, 'email_verified_at' => now(),
+                // Null only for a sign-up held before the notice existed.
+                'privacy_accepted_at' => $d['privacy_accepted_at'] ?? null, 'privacy_version' => $d['privacy_version'] ?? null,
             ]);
             // Already hashed when the form was held (the `hashed` cast leaves a hash as it is).
             $user->setRawAttributes(array_merge($user->getAttributes(), ['password' => $d['password']]));

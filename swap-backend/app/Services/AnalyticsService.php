@@ -11,6 +11,7 @@ use App\Models\SemesterPeriod;
 use App\Models\StipendHistory;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Support\TermScope;
 use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
@@ -63,33 +64,31 @@ class AnalyticsService
         };
     }
 
-    public function getAdminOverview(string $academicYear, string $semester): array
+    public function getAdminOverview(?string $academicYear, ?string $semester): array
     {
         // Every count below excludes records whose owning user has been
         // soft-deleted (whereHas('user') respects the SoftDeletes scope), so the
         // dashboard stays consistent with the filtered listings.
         $statusCounts = Application::whereHas('user')
-            ->where('academic_year', $academicYear)
-            ->where('semester', $semester)
+            ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester))
             ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
 
         $totalVerifiedHours = TimeLog::whereHas('user')->whereHas('assignment', fn ($q) =>
-            $q->where('academic_year', $academicYear)->where('semester', $semester)
+            TermScope::apply($q, $academicYear, $semester)
         )->where('status', 'verified')
             ->sum('duration_hours');
 
         $pendingVerifications = TimeLog::whereHas('user')->whereHas('assignment', fn ($q) =>
-            $q->where('academic_year', $academicYear)->where('semester', $semester)
+            TermScope::apply($q, $academicYear, $semester)
         )->where('status', 'pending_verification')
             ->count();
 
         $officeDistribution = Assignment::with('office')
             ->whereHas('user')
-            ->where('academic_year', $academicYear)
-            ->where('semester', $semester)
+            ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester))
             ->where('status', 'active')
             ->selectRaw('office_id, COUNT(*) as recipient_count')
             ->groupBy('office_id')
@@ -102,8 +101,7 @@ class AnalyticsService
             ->toArray();
 
         $monthlyStats = Application::whereHas('user')
-            ->where('academic_year', $academicYear)
-            ->where('semester', $semester)
+            ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester))
             ->selectRaw("TO_CHAR(created_at, 'Mon YYYY') as month, COUNT(*) as total_applications, SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved, SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected")
             ->groupByRaw("TO_CHAR(created_at, 'Mon YYYY')")
             ->orderByRaw("MIN(created_at)")
@@ -118,8 +116,7 @@ class AnalyticsService
 
         // Applicants grouped by their college (from the student profile), period-scoped.
         $applicantsByCollege = Application::whereHas('user')
-            ->where('academic_year', $academicYear)
-            ->where('semester', $semester)
+            ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester))
             ->join('student_profiles', 'student_profiles.user_id', '=', 'applications.user_id')
             ->selectRaw("student_profiles.college as college, COUNT(*) as applicant_count,
                 SUM(CASE WHEN applications.status = 'approved' THEN 1 ELSE 0 END) as approved,
@@ -139,8 +136,7 @@ class AnalyticsService
 
         // Active recipients grouped by their college (from the student profile), period-scoped.
         $recipientsByCollege = Assignment::whereHas('user')
-            ->where('assignments.academic_year', $academicYear)
-            ->where('assignments.semester', $semester)
+            ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester, 'assignments'))
             ->where('assignments.status', 'active')
             ->join('student_profiles', 'student_profiles.user_id', '=', 'assignments.user_id')
             ->selectRaw('student_profiles.college as college, COUNT(*) as recipient_count')
@@ -153,14 +149,17 @@ class AnalyticsService
             ])
             ->toArray();
 
-        // Weekly verified vs. pending hours for the trend chart (previously had no data source).
+        // Verified vs. pending hours for the trend chart: per week for one term, per month
+        // across all of them (weeks over several years would be too many bars).
+        $allTerms = TermScope::isAll($academicYear, $semester);
+        $bucket = $allTerms ? "TO_CHAR(DATE_TRUNC('month', date), 'Mon YYYY')" : "TO_CHAR(DATE_TRUNC('week', date), 'Mon DD')";
         $weeklyHours = TimeLog::whereHas('user')->whereHas('assignment', fn ($q) =>
-            $q->where('academic_year', $academicYear)->where('semester', $semester)
+            TermScope::apply($q, $academicYear, $semester)
         )
             ->whereNotNull('time_out')
             ->whereIn('status', ['verified', 'pending_verification'])
-            ->selectRaw("TO_CHAR(DATE_TRUNC('week', date), 'Mon DD') as week, SUM(CASE WHEN status = 'verified' THEN duration_hours ELSE 0 END) as verified, SUM(CASE WHEN status = 'pending_verification' THEN duration_hours ELSE 0 END) as pending")
-            ->groupByRaw("TO_CHAR(DATE_TRUNC('week', date), 'Mon DD')")
+            ->selectRaw("{$bucket} as week, SUM(CASE WHEN status = 'verified' THEN duration_hours ELSE 0 END) as verified, SUM(CASE WHEN status = 'pending_verification' THEN duration_hours ELSE 0 END) as pending")
+            ->groupByRaw($bucket)
             ->orderByRaw("MIN(date)")
             ->get()
             ->map(fn ($row) => [
@@ -172,8 +171,7 @@ class AnalyticsService
 
         // A release is final: every live stub is money released (legacy payouts included).
         $releasedTotal = (float) StipendHistory::whereHas('recipient')
-            ->where('academic_year', $academicYear)
-            ->where('semester', $semester)
+            ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester))
             ->whereIn('status', StipendHistory::LIVE_STATUSES)
             ->sum('amount');
         // Payable now and not released yet, with signature + end-of-term report in (any term).
@@ -236,19 +234,20 @@ class AnalyticsService
             'applicants_by_college' => $applicantsByCollege,
             'recipients_by_college' => $recipientsByCollege,
             'weekly_hours' => $weeklyHours,
+            'hours_interval' => $allTerms ? 'month' : 'week',
             'stipend_summary' => [
                 'total_released' => $releasedTotal,
                 'ready_to_release' => $readyToRelease,
             ],
             // The banner's "Today:" list: work waiting for an admin, each linking to its page.
-            'tasks' => $this->tasks($academicYear, $semester, $readyToRelease),
+            'tasks' => $allTerms ? [] : $this->tasks($academicYear, $semester, $readyToRelease),
         ];
     }
 
     /**
      * What is waiting for an admin, in the order it's usually handled; kinds with nothing
      * waiting are left out. Per-term ones follow the selected term; interviews are today's
-     * (Manila), concerns and stipends whatever is open now.
+     * (Manila), concerns and stipends whatever is open now. Not shown for "All semesters".
      *
      * @return list<array{key: string, count: int, label: string, href: string}>
      */

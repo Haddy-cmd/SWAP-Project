@@ -16,6 +16,8 @@ export interface AdminOverview {
   applicants_by_college: ApplicantsByCollege[]
   recipients_by_college: RecipientsByCollege[]
   weekly_hours: WeeklyHours[]
+  /** weekly_hours buckets: weeks for one term, months for all semesters. */
+  hours_interval?: 'week' | 'month'
   stipend_summary: StipendSummary
   /** The dashboard banner's "Today:" list — only kinds with something waiting (AnalyticsService::tasks). */
   tasks?: AdminTask[]

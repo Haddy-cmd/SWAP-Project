@@ -26,7 +26,7 @@ const EMAIL_DOMAIN = '@s.msumain.edu.ph'
 const NAME_RE = /^[\p{L}\p{M}\-'. ]+$/u
 
 const NAME_CHARS_MSG = 'Use letters, spaces, hyphens, apostrophes and periods only.'
-const EMAIL_DOMAIN_MSG = `Please use your MSU-Main student email (${EMAIL_DOMAIN}).`
+const EMAIL_DOMAIN_MSG = 'Please use your institutional email.'
 
 /** Trim, then collapse every run of whitespace to one space. Mirrors the backend. */
 const normalizeName = (value?: string) => (value ?? '').trim().replace(/\s+/gu, ' ')
@@ -159,6 +159,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1)
   const [showPw, setShowPw] = useState(false)
   const [certified, setCertified] = useState(false)
+  const [agreed, setAgreed] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null)
@@ -219,6 +220,7 @@ export default function RegisterPage() {
         last_name: toNameCase(normalizeName(data.last_name)),
         name: fullNameFrom(data.first_name, data.middle_name, data.last_name),
         email: data.email.trim().toLowerCase(),
+        privacy_consent: agreed,
       }),
     onSuccess: () => {
       // Nothing is created yet: the emailed code creates the account and signs them in.
@@ -465,6 +467,14 @@ export default function RegisterPage() {
                     <input type="checkbox" checked={certified} onChange={(e) => setCertified(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] flex-none rounded accent-brand-700" />
                     I certify that the information provided is accurate and complete.
                   </label>
+                  <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-[13px] leading-relaxed text-ink-600">
+                    <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] flex-none rounded accent-brand-700" />
+                    <span>
+                      I have read and agree to the{' '}
+                      <Link href="/privacy" target="_blank" className="font-semibold text-brand-700 underline hover:text-brand-600">Privacy Notice</Link>
+                      {' '}and consent to the collection and use of my personal data, including my location and photos, for the SWAP program.
+                    </span>
+                  </label>
                 </div>
               )}
             </div>
@@ -487,7 +497,7 @@ export default function RegisterPage() {
                   Continue <ArrowRight className="h-[18px] w-[18px]" />
                 </button>
               ) : (
-                <button type="submit" disabled={signup.isPending || !certified} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-brand-600 to-brand-800 px-6 text-[14.5px] font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-50">
+                <button type="submit" disabled={signup.isPending || !certified || !agreed} className="flex h-12 items-center gap-2 rounded-[11px] bg-gradient-to-b from-brand-600 to-brand-800 px-6 text-[14.5px] font-semibold text-cream shadow-[0_12px_24px_rgba(22,69,43,0.26)] transition hover:brightness-110 disabled:opacity-50">
                   {signup.isPending ? 'Submitting…' : 'Submit Application'} <Check className="h-[18px] w-[18px]" />
                 </button>
               )}

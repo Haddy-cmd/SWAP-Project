@@ -10,7 +10,7 @@ const peso = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDig
  * Stipend & renewals: where the term's renewals stand (approved / ready / blocked and why),
  * the stipends, and the term's results. Term-result tiles open the Term Results report.
  */
-export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
+export function MoneyTab({ academicYear, semester, allTerms, onDrill }: TabProps) {
   const { insights, loading } = useAnalytics(academicYear, semester)
   if (loading && !insights) return <div className="grid gap-5 lg:grid-cols-2"><Skeleton h="h-80" /><Skeleton h="h-80" /></div>
   if (!insights) return null
@@ -26,7 +26,7 @@ export function MoneyTab({ academicYear, semester, onDrill }: TabProps) {
   return (
     <div className="grid items-start gap-5 lg:grid-cols-2">
       <Card title="Renewals"
-        hint={r.submitted ? `${plural(r.submitted, 'returning student applied', 'returning students applied')} · ${r.approved} approved${r.rejected ? ` · ${r.rejected} rejected` : ''}` : 'No renewals this semester yet.'}>
+        hint={r.submitted ? `${plural(r.submitted, 'returning student applied', 'returning students applied')} · ${r.approved} approved${r.rejected ? ` · ${r.rejected} rejected` : ''}` : allTerms ? 'No renewals yet.' : 'No renewals this semester yet.'}>
         {r.submitted > 0 && (
           <>
             <div className="mt-[18px] flex h-7 gap-[3px] overflow-hidden rounded-lg bg-surface-3">

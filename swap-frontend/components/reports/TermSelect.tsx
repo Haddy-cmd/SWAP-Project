@@ -1,6 +1,7 @@
 'use client'
 
 import { Calendar, ChevronDown } from 'lucide-react'
+import { ALL_TERMS, isAllTerms } from '@/lib/utils/term'
 
 export interface Term {
   academic_year: string
@@ -25,25 +26,40 @@ export function resolveTerm(ay: string | null, sem: string | null, periods: Term
   return periods[0] ?? { academic_year: schoolYearOf(), semester: SEMESTERS[0] }
 }
 
-/** School-year + semester pickers; years come from the terms that have data. */
-export function TermSelect({ term, periods, onChange }: { term: Term; periods: Term[]; onChange: (t: Term) => void }) {
-  const years = Array.from(new Set([...periods.map((p) => p.academic_year), term.academic_year])).sort().reverse()
+/**
+ * School-year + semester pickers; years come from the terms that have data.
+ * `allowAll` adds "All semesters" first (admin analytics); the semester picker hides while it's on.
+ */
+export function TermSelect({ term, periods, onChange, allowAll = false }: {
+  term: Term; periods: Term[]; onChange: (t: Term) => void; allowAll?: boolean
+}) {
+  const all = isAllTerms(term.academic_year)
+  const years = Array.from(new Set([...periods.map((p) => p.academic_year), ...(all ? [] : [term.academic_year])])).sort().reverse()
+  const pickYear = (academic_year: string) => onChange(
+    isAllTerms(academic_year)
+      ? { academic_year: ALL_TERMS, semester: ALL_TERMS }
+      // Leaving "All semesters" starts at the first semester.
+      : { academic_year, semester: all ? SEMESTERS[0] : term.semester },
+  )
 
   return (
     <div className="flex gap-2.5">
       <div className="relative">
         <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gold-600" />
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-        <select aria-label="School year" value={term.academic_year} onChange={(e) => onChange({ ...term, academic_year: e.target.value })} className={`${SELECT} pl-10 pr-9`}>
+        <select aria-label="School year" value={term.academic_year} onChange={(e) => pickYear(e.target.value)} className={`${SELECT} pl-10 pr-9`}>
+          {allowAll && <option value={ALL_TERMS}>All semesters</option>}
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
-      <div className="relative">
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-        <select aria-label="Semester" value={term.semester} onChange={(e) => onChange({ ...term, semester: e.target.value })} className={`${SELECT} pl-4 pr-9`}>
-          {SEMESTERS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-      </div>
+      {!all && (
+        <div className="relative">
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+          <select aria-label="Semester" value={term.semester} onChange={(e) => onChange({ ...term, semester: e.target.value })} className={`${SELECT} pl-4 pr-9`}>
+            {SEMESTERS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      )}
     </div>
   )
 }

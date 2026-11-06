@@ -271,7 +271,8 @@ class ReportExplorerTest extends TestCase
 
         $res = $this->get('/api/admin/analytics/overview/export?' . self::TERM)->assertOk()->assertHeader('Content-Type', 'application/pdf');
         $this->assertStringStartsWith('%PDF', $res->getContent());
-        $this->getJson('/api/admin/analytics/overview/export')->assertStatus(422);
+        // No term is "All semesters"; half a term is still refused.
+        $this->getJson('/api/admin/analytics/overview/export?academic_year=2024-2025')->assertStatus(422);
     }
 
     public function test_offices_report_cells_line_up_with_their_headers(): void

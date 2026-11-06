@@ -23,8 +23,10 @@ export const isBusy = (pending: number, oldestDays: number | null) =>
 export const READY = 'Ready to approve'
 
 export interface TabProps {
+  /** 'all' (ALL_TERMS) with allTerms: every semester. */
   academicYear: string
   semester: string
+  allTerms: boolean
   onDrill: (d: ReportDrill) => void
 }
 

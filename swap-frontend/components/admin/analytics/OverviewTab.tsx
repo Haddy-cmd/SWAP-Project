@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { reportsApi } from '@/lib/api/reports.api'
 import { saveBlob } from '@/lib/utils/download'
+import { termParams, termSlug } from '@/lib/utils/term'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { useChartType } from '@/components/charts/ChartTypeToggle'
 import { CARD, GOLD, GREEN, READY, RED, Card, Seg, Skeleton, pct, plural, useAnalytics, type TabProps } from './shared'
@@ -24,7 +25,7 @@ const TONE: Record<Tone, { bg: string; border: string; fg: string }> = {
  * Overview: four KPIs, "Worth a look" (what stands out, each opening its tab), where the
  * term's applications stand, and one-click ready-made reports.
  */
-export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps & { onTab: (tab: string) => void }) {
+export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }: TabProps & { onTab: (tab: string) => void }) {
   const { overview, insights, loading } = useAnalytics(academicYear, semester)
   const [appView, setAppView] = useChartType('analytics-applications-stand', ['bar', 'pie'] as const, 'bar')
 
@@ -34,7 +35,7 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
 
   const pending = overview?.pending_applications ?? 0
   const kpis: { label: string; value: string | number; hint: string; Icon: Icon; bg: string; fg: string; onClick: () => void }[] = [
-    { label: 'Applications', value: overview?.total_applications ?? 0, hint: 'this semester', Icon: FileText, bg: 'var(--color-gold-100)', fg: 'var(--text-gold-700)',
+    { label: 'Applications', value: overview?.total_applications ?? 0, hint: allTerms ? 'all semesters' : 'this semester', Icon: FileText, bg: 'var(--color-gold-100)', fg: 'var(--text-gold-700)',
       onClick: () => onDrill({ tab: 'applications' }) },
     { label: 'Active recipients', value: overview?.active_recipients ?? 0, hint: `in ${plural(overview?.office_distribution_all?.filter((o) => o.recipient_count > 0).length ?? 0, 'office', 'offices')}`,
       Icon: Users, bg: 'var(--color-accent-soft)', fg: 'var(--text-accent-strong)', onClick: () => onDrill({ tab: 'recipients', filters: { status: ['Active'] } }) },
@@ -99,7 +100,7 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        <Card title="Worth a look" hint="We picked out what stands out. Click one to see the details.">
+        {!allTerms && <Card title="Worth a look" hint="We picked out what stands out. Click one to see the details.">
           <div className="mt-4 flex flex-col gap-2.5">
             {items.length === 0 ? (
               <p className="flex items-center gap-2.5 rounded-[14px] border border-ink-900/[.06] bg-surface-2 px-4 py-3.5 text-[13.5px] text-ink-600">
@@ -121,11 +122,11 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
               )
             })}
           </div>
-        </Card>
+        </Card>}
 
         <div className="flex flex-col gap-5">
           <Card title="Where applications stand"
-            hint={total ? <>{total} new this semester{avg != null ? ` · ${avg} days to a decision on average` : ''}</> : 'No new applications this semester yet.'}
+            hint={total ? <>{total} new {allTerms ? 'across all semesters' : 'this semester'}{avg != null ? ` · ${avg} days to a decision on average` : ''}</> : allTerms ? 'No new applications yet.' : 'No new applications this semester yet.'}
             right={<Seg label="Applications chart" value={appView} onChange={setAppView} options={[['bar', 'Bar'], ['pie', 'Donut']] as const} />}>
             {total > 0 && (appView === 'bar' ? (
               <div className="mt-[18px] flex h-[30px] gap-[3px] overflow-hidden rounded-[9px]">
@@ -157,7 +158,7 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
           </Card>
 
           <Card title="Ready-made reports" hint="One click, no setup">
-            <ReadyReports academicYear={academicYear} semester={semester} recipients={overview?.active_recipients ?? 0} />
+            <ReadyReports academicYear={academicYear} semester={semester} allTerms={allTerms} recipients={overview?.active_recipients ?? 0} />
           </Card>
         </div>
       </div>
@@ -166,18 +167,18 @@ export function OverviewTab({ academicYear, semester, onDrill, onTab }: TabProps
 }
 
 /** One-click downloads of the term's usual files (the same exports as All reports). */
-function ReadyReports({ academicYear, semester, recipients }: { academicYear: string; semester: string; recipients: number }) {
+function ReadyReports({ academicYear, semester, allTerms, recipients }: { academicYear: string; semester: string; allTerms: boolean; recipients: number }) {
   const { notify, notifyError } = useFeedback()
-  const term = { academic_year: academicYear, semester, filters: {} }
-  const slug = `${academicYear}-${semester.replace(/\s+/g, '').toLowerCase()}`
+  const term = { ...termParams(academicYear, semester), filters: {} }
+  const slug = termSlug(academicYear, semester)
   const reports: { key: string; Icon: Icon; name: string; desc: string; fmt: 'PDF' | 'CSV'; file: string; run: () => Promise<{ blob: Blob; filename: string | null }> }[] = [
-    { key: 'summary', Icon: ClipboardList, name: 'Semester summary', desc: 'The numbers on these tabs, for meetings', fmt: 'PDF', file: `program-overview-${slug}.pdf`,
+    { key: 'summary', Icon: ClipboardList, name: allTerms ? 'Program summary' : 'Semester summary', desc: 'The numbers on these tabs, for meetings', fmt: 'PDF', file: `program-overview-${slug}.pdf`,
       run: () => reportsApi.overviewPdf(academicYear, semester) },
     { key: 'hours', Icon: Clock, name: 'Hours per recipient', desc: recipients ? `Verified and remaining hours for all ${recipients} recipients` : 'Verified and remaining hours per recipient', fmt: 'CSV', file: `recipients-${slug}.csv`,
       run: () => reportsApi.export('admin', 'recipients', term, 'csv') },
     { key: 'rosters', Icon: Building2, name: 'Office rosters', desc: 'Who is assigned where, with supervisors', fmt: 'CSV', file: `office-rosters-${slug}.csv`,
       run: () => reportsApi.export('admin', 'recipients', { ...term, sort: 'office', dir: 'asc' }, 'csv') },
-    { key: 'stipend', Icon: Wallet, name: 'Stipend release list', desc: 'Stipends of the term and their status', fmt: 'PDF', file: `stipend-${slug}.pdf`,
+    { key: 'stipend', Icon: Wallet, name: 'Stipend release list', desc: allTerms ? 'Every stipend and its status' : 'Stipends of the term and their status', fmt: 'PDF', file: `stipend-${slug}.pdf`,
       run: () => reportsApi.export('admin', 'stipend', term, 'pdf') },
   ]
   const [busy, setBusy] = useState<string | null>(null)
