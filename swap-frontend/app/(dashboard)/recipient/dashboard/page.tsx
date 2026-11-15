@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/store/authStore'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatHours } from '@/lib/utils/formatHours'
 import { formatDate } from '@/lib/utils/formatDate'
+import { CountUp } from '@/components/ui/CountUp'
 import { TermEndedBanner } from '@/components/attendance/TermEndedBanner'
 import { TermReportDueBanner } from '@/components/attendance/TermReportDueBanner'
 import type { RecipientProgress, TimeLog } from '@/types/attendance.types'
@@ -95,9 +96,9 @@ export default function RecipientDashboard() {
             <div className="flex flex-wrap items-center gap-7">
               <Ring verified={summary.verified} pending={summary.pending} required={summary.required} />
               <div className="flex min-w-[180px] flex-1 flex-col">
-                <HoursRow color="var(--color-accent)" label="Verified" value={formatHours(summary.verified)} />
-                <HoursRow color="var(--color-gold-accent)" label="Waiting for supervisor" value={formatHours(summary.pending)} />
-                <HoursRow color="var(--color-ink-200)" label="Still needed" value={formatHours(summary.remaining)} last />
+                <HoursRow color="var(--color-accent)" label="Verified" value={summary.verified} />
+                <HoursRow color="var(--color-gold-accent)" label="Waiting for supervisor" value={summary.pending} />
+                <HoursRow color="var(--color-ink-200)" label="Still needed" value={summary.remaining} last />
               </div>
             </div>
           ) : (
@@ -153,7 +154,7 @@ function ClockPanel({ timeIn, office, placed }: { timeIn: string | null; office?
     <div className="relative z-[2] flex w-full flex-col gap-2.5 rounded-2xl bg-surface p-4 shadow-[0_8px_24px_rgba(0,0,0,.18)]">
       <div className="flex items-center justify-between">
         <span className={`flex items-center gap-[7px] text-[12.5px] font-bold ${timeIn ? 'text-accent-strong' : 'text-ink-600'}`}>
-          <span className={`h-2 w-2 rounded-full ${timeIn ? 'animate-pulse bg-accent-bright' : 'bg-ink-350'}`} />
+          <span className={`h-2 w-2 rounded-full ${timeIn ? 'animate-live bg-accent-bright' : 'bg-ink-350'}`} />
           {timeIn ? 'Clocked in' : 'Not clocked in'}
         </span>
         <span className="text-xs text-ink-500">{today}</span>
@@ -195,22 +196,23 @@ function Ring({ verified, pending, required }: { verified: number; pending: numb
   const p = required > 0 ? Math.min(pending / required, 1 - v) : 0
   const pct = Math.round(v * 100)
   return (
-    <div role="img" aria-label={`${pct}% complete`} className="relative h-[156px] w-[156px] flex-none rounded-full"
-      style={{ background: `conic-gradient(#17815F 0deg ${v * 360}deg, #DDBB38 ${v * 360}deg ${(v + p) * 360}deg, #EEF1EC ${(v + p) * 360}deg 360deg)` }}>
+    <div role="img" aria-label={`${pct}% complete`} className="ring-fill relative h-[156px] w-[156px] flex-none rounded-full"
+      // --a / --b sweep from 0 (globals.css .ring-fill): verified up to --a, waiting up to --b.
+      style={{ '--a': v * 100, '--b': (v + p) * 100, background: 'conic-gradient(#17815F 0 calc(var(--a) * 1%), #DDBB38 calc(var(--a) * 1%) calc(var(--b) * 1%), #EEF1EC calc(var(--b) * 1%) 100%)' } as CSSProperties}>
       <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-surface">
-        <span className="text-[32px] font-extrabold leading-none">{pct}%</span>
+        <CountUp value={pct} format={(n) => `${Math.round(n)}%`} className="text-[32px] font-extrabold leading-none" />
         <span className="mt-1 text-xs text-ink-500">complete</span>
       </div>
     </div>
   )
 }
 
-function HoursRow({ color, label, value, last = false }: { color: string; label: string; value: string; last?: boolean }) {
+function HoursRow({ color, label, value, last = false }: { color: string; label: string; value: number; last?: boolean }) {
   return (
     <div className={`flex items-center gap-2.5 py-2.5 ${last ? '' : 'border-b border-surface-3'}`}>
       <span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: color }} />
       <span className="flex-1 text-[13.5px] text-ink-600">{label}</span>
-      <strong className="text-[17px]">{value}</strong>
+      <CountUp value={Number(value) || 0} format={formatHours} className="text-[17px] font-bold" />
     </div>
   )
 }
@@ -267,7 +269,7 @@ function StipendSteps({ checklist }: { checklist: RecipientProgress['checklist']
         <span className="whitespace-nowrap rounded-full bg-accent-soft px-2.5 py-1 text-[12.5px] font-bold text-accent-strong">{doneCount} of {checklist.length} done</span>
       </div>
       <div className="h-1.5 rounded-md bg-surface-3">
-        <div className="h-full rounded-md" style={{ width: `${checklist.length ? (doneCount / checklist.length) * 100 : 0}%`, background: 'linear-gradient(90deg,#2FA57C,#17815F)' }} />
+        <div className="bar-grow-x h-full rounded-md" style={{ width: `${checklist.length ? (doneCount / checklist.length) * 100 : 0}%`, background: 'linear-gradient(90deg,#2FA57C,#17815F)' }} />
       </div>
       <ul>
         {checklist.map((item, i) => {

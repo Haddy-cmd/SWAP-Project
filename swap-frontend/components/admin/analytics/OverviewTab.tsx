@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ComponentType } from 'react'
+import { useState, type ComponentType, type CSSProperties } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import {
   FileText, Users, Hourglass, Timer, RefreshCw, UserCheck, Flag, CalendarX, ChevronRight, Download, Loader2,
@@ -11,6 +11,7 @@ import { saveBlob } from '@/lib/utils/download'
 import { termParams, termSlug } from '@/lib/utils/term'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { useChartType } from '@/components/charts/ChartTypeToggle'
+import { CountUp } from '@/components/ui/CountUp'
 import { CARD, GOLD, GREEN, READY, RED, Card, Seg, Skeleton, pct, plural, useAnalytics, type TabProps } from './shared'
 
 type Icon = ComponentType<{ className?: string }>
@@ -26,7 +27,7 @@ const TONE: Record<Tone, { bg: string; border: string; fg: string }> = {
  * term's applications stand, and one-click ready-made reports.
  */
 export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }: TabProps & { onTab: (tab: string) => void }) {
-  const { overview, insights, loading } = useAnalytics(academicYear, semester)
+  const { overview, insights, loading, refreshing } = useAnalytics(academicYear, semester)
   const [appView, setAppView] = useChartType('analytics-applications-stand', ['bar', 'pie'] as const, 'bar')
 
   if (loading && !overview) {
@@ -34,14 +35,14 @@ export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }
   }
 
   const pending = overview?.pending_applications ?? 0
-  const kpis: { label: string; value: string | number; hint: string; Icon: Icon; bg: string; fg: string; onClick: () => void }[] = [
+  const kpis: { label: string; value: number; format?: (n: number) => string; hint: string; Icon: Icon; bg: string; fg: string; onClick: () => void }[] = [
     { label: 'Applications', value: overview?.total_applications ?? 0, hint: allTerms ? 'all semesters' : 'this semester', Icon: FileText, bg: 'var(--color-gold-100)', fg: 'var(--text-gold-700)',
       onClick: () => onDrill({ tab: 'applications' }) },
     { label: 'Active recipients', value: overview?.active_recipients ?? 0, hint: `in ${plural(overview?.office_distribution_all?.filter((o) => o.recipient_count > 0).length ?? 0, 'office', 'offices')}`,
       Icon: Users, bg: 'var(--color-accent-soft)', fg: 'var(--text-accent-strong)', onClick: () => onDrill({ tab: 'recipients', filters: { status: ['Active'] } }) },
     { label: 'Waiting for a decision', value: pending, hint: pending ? 'applications not yet decided' : 'all caught up', Icon: Hourglass, bg: 'var(--color-info-100)', fg: 'var(--text-info-700)',
       onClick: () => onDrill({ tab: 'applications', filters: { status: ['Submitted', 'Under Review', 'Interview Scheduled'] } }) },
-    { label: 'Avg. completion', value: `${Number(overview?.avg_completion_rate ?? 0).toFixed(1)}%`, hint: 'of the required hours', Icon: Timer, bg: 'var(--color-danger-100)', fg: 'var(--text-red-strong)',
+    { label: 'Avg. completion', value: Number(overview?.avg_completion_rate ?? 0), format: (n) => `${n.toFixed(1)}%`, hint: 'of the required hours', Icon: Timer, bg: 'var(--color-danger-100)', fg: 'var(--text-red-strong)',
       onClick: () => onDrill({ tab: 'recipients', sort: 'verified_hours', dir: 'asc' }) },
   ]
 
@@ -84,8 +85,8 @@ export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }
   const avg = f?.avg_days_to_decision
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className={`space-y-5 transition-opacity ${refreshing ? 'opacity-60' : ''}`}>
+      <div className="stagger grid grid-cols-2 gap-4 lg:grid-cols-4">
         {kpis.map((k) => (
           <button key={k.label} onClick={k.onClick} title={`Open ${k.label.toLowerCase()} in All reports`}
             className={`${CARD} px-5 py-[18px] text-left transition-shadow hover:shadow-[0_8px_22px_rgba(19,36,26,0.10)]`}>
@@ -93,7 +94,7 @@ export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }
               <span className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px]" style={{ background: k.bg, color: k.fg }}><k.Icon className="h-[18px] w-[18px]" /></span>
               {k.label}
             </span>
-            <span className="mt-3 block text-[32px] font-extrabold leading-none text-ink-950">{k.value}</span>
+            <CountUp value={k.value} format={k.format} className="mt-3 block text-[32px] font-extrabold leading-none text-ink-950" />
             <span className="mt-1.5 block text-[12.5px] text-ink-500">{k.hint}</span>
           </button>
         ))}
@@ -101,7 +102,7 @@ export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }
 
       <div className="grid items-start gap-5 lg:grid-cols-2">
         {!allTerms && <Card title="Worth a look" hint="We picked out what stands out. Click one to see the details.">
-          <div className="mt-4 flex flex-col gap-2.5">
+          <div className="stagger mt-4 flex flex-col gap-2.5">
             {items.length === 0 ? (
               <p className="flex items-center gap-2.5 rounded-[14px] border border-ink-900/[.06] bg-surface-2 px-4 py-3.5 text-[13.5px] text-ink-600">
                 <CheckCircle2 className="h-5 w-5 text-accent" /> Nothing stands out this semester.
@@ -129,18 +130,20 @@ export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }
             hint={total ? <>{total} new {allTerms ? 'across all semesters' : 'this semester'}{avg != null ? ` · ${avg} days to a decision on average` : ''}</> : allTerms ? 'No new applications yet.' : 'No new applications this semester yet.'}
             right={<Seg label="Applications chart" value={appView} onChange={setAppView} options={[['bar', 'Bar'], ['pie', 'Donut']] as const} />}>
             {total > 0 && (appView === 'bar' ? (
-              <div className="mt-[18px] flex h-[30px] gap-[3px] overflow-hidden rounded-[9px]">
-                {approved > 0 && <div style={{ flex: approved, background: GREEN }} title={`Approved: ${approved}`} />}
-                {waiting > 0 && <div style={{ flex: waiting, background: GOLD }} title={`Waiting: ${waiting}`} />}
-                {rejected > 0 && <div style={{ flex: rejected, background: RED }} title={`Not approved: ${rejected}`} />}
+              <div className="animate-content-in mt-[18px] flex h-[30px] gap-[3px] overflow-hidden rounded-[9px]">
+                {approved > 0 && <div className="bar-grow-x" style={{ flex: approved, background: GREEN }} title={`Approved: ${approved}`} />}
+                {waiting > 0 && <div className="bar-grow-x" style={{ flex: waiting, background: GOLD }} title={`Waiting: ${waiting}`} />}
+                {rejected > 0 && <div className="bar-grow-x" style={{ flex: rejected, background: RED }} title={`Not approved: ${rejected}`} />}
               </div>
             ) : (
-              <div className="mt-[18px] flex justify-center">
-                <div className="relative h-[150px] w-[150px] rounded-full" style={{
-                  background: `conic-gradient(${GREEN} 0 ${pct(approved, total)}%, ${GOLD} ${pct(approved, total)}% ${pct(approved + waiting, total)}%, ${RED} ${pct(approved + waiting, total)}% 100%)`,
-                }}>
+              <div className="animate-content-in mt-[18px] flex justify-center">
+                {/* --a / --b sweep from 0 (globals.css .ring-fill). */}
+                <div className="ring-fill relative h-[150px] w-[150px] rounded-full" style={{
+                  '--a': pct(approved, total), '--b': pct(approved + waiting, total),
+                  background: `conic-gradient(${GREEN} 0 calc(var(--a) * 1%), ${GOLD} calc(var(--a) * 1%) calc(var(--b) * 1%), ${RED} calc(var(--b) * 1%) 100%)`,
+                } as CSSProperties}>
                   <div className="absolute inset-6 flex flex-col items-center justify-center rounded-full bg-surface">
-                    <span className="text-2xl font-extrabold leading-none">{pct(approved, total)}%</span>
+                    <CountUp value={pct(approved, total)} format={(n) => `${Math.round(n)}%`} className="text-2xl font-extrabold leading-none" />
                     <span className="mt-1 text-[11.5px] text-ink-500">approved</span>
                   </div>
                 </div>
@@ -151,7 +154,7 @@ export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }
                 <button key={label} onClick={() => onDrill({ tab: 'applications', filters: { status: [...statuses], type: ['New'] } })}
                   className="-mx-1 rounded-lg px-1 py-0.5 text-left hover:bg-ink-50" title={`See the ${label.toLowerCase()} applications`}>
                   <span className="flex items-center gap-1.5 text-[12.5px] text-ink-600"><span className="h-[9px] w-[9px] rounded-[3px]" style={{ background: color }} />{label}</span>
-                  <span className="mt-0.5 block text-xl font-extrabold">{n}</span>
+                  <CountUp value={n} className="mt-0.5 block text-xl font-extrabold" />
                 </button>
               ))}
             </div>

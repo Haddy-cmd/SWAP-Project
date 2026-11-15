@@ -115,7 +115,7 @@ function ProfileTab({ user, onDirtyChange }: { user: User; onDirtyChange: (dirty
             <span className="text-[12.5px] font-semibold text-ink-500">{doneCount} of {steps.length} done</span>
           </div>
           <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-ink-100">
-            <div className="h-full rounded-full bg-accent transition-all" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+            <div className="bar-grow-x h-full rounded-full bg-accent" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {steps.map((s) => (

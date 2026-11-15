@@ -37,7 +37,7 @@ export function BehindList({ students }: { students: StudentRow[] }) {
         <p className="mt-0.5 text-[11.5px] text-ink-500">Most behind first · there&apos;s still time to help</p>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto px-2 py-1.5">
+      <div className="stagger min-h-0 flex-1 overflow-auto px-2 py-1.5">
         {students.length === 0 ? (
           <p className="px-4 py-10 text-center text-[12.5px] text-ink-500">No one is falling behind.</p>
         ) : students.map((s) => {
@@ -54,7 +54,7 @@ export function BehindList({ students }: { students: StudentRow[] }) {
                   <span className="flex-none text-[12px] font-bold text-warning-700">{pct}%</span>
                 </div>
                 <div className="mt-[5px] h-[5px] rounded-full bg-ink-100">
-                  <div className="h-full rounded-full bg-warning-500" style={{ width: `${pct}%` }} />
+                  <div className="bar-grow-x h-full rounded-full bg-warning-500" style={{ width: `${pct}%` }} />
                 </div>
                 <div className="mt-1 text-[11px] text-ink-500">
                   {hrs(s.verified_hours)} of {hrs(s.required_hours)}{gap ? ` · ${hrs(gap)} behind` : ' · behind schedule'}

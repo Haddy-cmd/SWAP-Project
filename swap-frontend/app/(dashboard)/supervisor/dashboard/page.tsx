@@ -9,6 +9,7 @@ import { isBehind } from '@/lib/utils/pace'
 import { WorkQueue } from '@/components/supervisor/dashboard/WorkQueue'
 import { BehindList, BEHIND_HREF } from '@/components/supervisor/dashboard/BehindList'
 import { SideColumn } from '@/components/supervisor/dashboard/SideColumn'
+import { CountUp } from '@/components/ui/CountUp'
 import { firstName, hrs, type StudentRow } from '@/components/supervisor/dashboard/shared'
 
 /** Supervisor home (layout "SWAP Supervisor Dashboard v2"): the work queue first, then who needs help. */
@@ -45,10 +46,10 @@ export default function SupervisorDashboard() {
     : "You're all caught up. Nice work."
 
   const KPIS = [
-    { Icon: Users, value: students.length, label: 'Students', tint: 'bg-accent-soft text-accent-strong', href: '/supervisor/students' },
-    { Icon: ClipboardList, value: waiting, label: 'To verify', tint: 'bg-warning-50 text-warning-700', href: '/supervisor/verifications' },
-    { Icon: BadgeCheck, value: hrs(typed?.meta?.verified_hours_this_week ?? 0), label: 'Verified this week', tint: 'bg-info-100 text-info-700', href: '/supervisor/verifications' },
-    { Icon: TrendingDown, value: behind.length, label: 'Falling behind', tint: 'bg-warning-50 text-warning-700', href: BEHIND_HREF },
+    { Icon: Users, value: students.length, format: undefined, label: 'Students', tint: 'bg-accent-soft text-accent-strong', href: '/supervisor/students' },
+    { Icon: ClipboardList, value: waiting, format: undefined, label: 'To verify', tint: 'bg-warning-50 text-warning-700', href: '/supervisor/verifications' },
+    { Icon: BadgeCheck, value: Number(typed?.meta?.verified_hours_this_week ?? 0), format: hrs, label: 'Verified this week', tint: 'bg-info-100 text-info-700', href: '/supervisor/verifications' },
+    { Icon: TrendingDown, value: behind.length, format: undefined, label: 'Falling behind', tint: 'bg-warning-50 text-warning-700', href: BEHIND_HREF },
   ]
 
   return (
@@ -58,13 +59,13 @@ export default function SupervisorDashboard() {
           <h1 className="text-[22px] font-extrabold tracking-[-0.01em] text-ink-950">Good day, {firstName(user?.name)}</h1>
           <p className="mt-0.5 text-[13px] text-ink-500">{summary}</p>
         </div>
-        <div className="flex flex-wrap gap-2.5">
-          {KPIS.map(({ Icon, value, label, tint, href }) => (
+        <div className="stagger flex flex-wrap gap-2.5">
+          {KPIS.map(({ Icon, value, format, label, tint, href }) => (
             <Link key={label} href={href}
               className="flex items-center gap-2.5 rounded-[14px] border border-ink-900/[.08] bg-surface py-2 pl-2.5 pr-3.5 transition-colors hover:border-accent/40">
               <span className={`flex h-8 w-8 items-center justify-center rounded-[10px] ${tint}`}><Icon className="h-[18px] w-[18px]" /></span>
               <span className="leading-tight">
-                <span className="block text-[18px] font-extrabold text-ink-950">{value}</span>
+                <CountUp value={value} format={format} className="block text-[18px] font-extrabold text-ink-950" />
                 <span className="block text-[11.5px] text-ink-500">{label}</span>
               </span>
             </Link>

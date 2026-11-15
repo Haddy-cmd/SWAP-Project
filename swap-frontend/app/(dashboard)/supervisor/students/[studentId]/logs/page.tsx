@@ -217,7 +217,7 @@ export default function StudentLogsPage() {
             <span className="ml-auto font-serif text-[22px] font-semibold tabular-nums text-brand-700">{Math.round(pct)}%</span>
           </div>
           <div className="my-3.5 h-3 overflow-hidden rounded-full bg-ink-100">
-            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#1F5B3A,#3D8A5C)' }} />
+            <div className="bar-grow-x h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#1F5B3A,#3D8A5C)' }} />
           </div>
           <p className="text-[12.5px] text-ink-500">{fmtHrs(remaining)} hrs remaining to complete the requirement</p>
         </div>

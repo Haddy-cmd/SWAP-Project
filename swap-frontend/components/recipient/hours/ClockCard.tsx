@@ -231,7 +231,7 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
     <div className={`${CARD} flex flex-col gap-4 p-[22px]`}>
       <div className="flex items-center justify-between gap-2.5">
         <span className={`inline-flex flex-none items-center gap-[7px] whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-bold ${clockedIn ? 'bg-accent-soft text-accent-strong' : 'bg-surface-3 text-ink-600'}`}>
-          <span className={`h-2 w-2 rounded-full ${clockedIn ? 'animate-pulse bg-accent-bright' : 'bg-ink-350'}`} />
+          <span className={`h-2 w-2 rounded-full ${clockedIn ? 'animate-live bg-accent-bright' : 'bg-ink-350'}`} />
           {clockedIn ? 'On duty' : completed ? 'All hours done' : 'Not clocked in'}
         </span>
         <span className="flex min-w-0 items-center gap-1.5 text-right text-[12.5px] leading-snug text-ink-500">

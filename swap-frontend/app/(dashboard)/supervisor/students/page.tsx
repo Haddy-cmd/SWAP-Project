@@ -56,7 +56,7 @@ function Hours({ r }: { r: Row }) {
   return (
     <div className="min-w-0">
       <div className="flex justify-between text-[11.5px]"><strong className="text-ink-900">{hrs(r.verified)}</strong><span className="text-ink-500">{pctOf(r)}%</span></div>
-      <div className="mt-1 h-[5px] rounded-full bg-ink-100"><div className={`h-full rounded-full ${barColor(r)}`} style={{ width: `${pctOf(r)}%` }} /></div>
+      <div className="mt-1 h-[5px] rounded-full bg-ink-100"><div className={`bar-grow-x h-full rounded-full ${barColor(r)}`} style={{ width: `${pctOf(r)}%` }} /></div>
     </div>
   )
 }

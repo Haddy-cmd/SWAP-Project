@@ -8,6 +8,7 @@ import { TermBadge } from '@/components/shared/TermBadge'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import type { HoursSummary, RecipientProgress, TimeLog } from '@/types/attendance.types'
 import type { Assignment, TermHistoryItem } from '@/types/assignment.types'
+import { CountUp } from '@/components/ui/CountUp'
 import { CARD, LOG_STATUS, fmtClock, fmtDur, fmtH, localDay, manilaToday } from './ui'
 
 // ── Weeks ───────────────────────────────────────────────────────────────────
@@ -76,11 +77,11 @@ export function YourHours({ summary, progress, assignment, endDate, weeks }: {
       <div>
         <div className="flex items-baseline justify-between gap-2.5">
           <span className="text-[15px] font-bold text-ink-950">Your hours</span>
-          <span className="whitespace-nowrap text-[13px] text-ink-500"><b className="text-[20px] text-ink-950">{fmtH(round1(v))}h</b> of {req}h</span>
+          <span className="whitespace-nowrap text-[13px] text-ink-500"><CountUp value={round1(v)} format={(n) => `${fmtH(round1(n))}h`} className="text-[20px] font-bold text-ink-950" /> of {req}h</span>
         </div>
         <div className="mt-2.5 flex h-2.5 overflow-hidden rounded-full bg-surface-3">
-          <div className="bg-accent" style={{ width: `${pctV}%` }} />
-          <div className="bg-gold-accent" style={{ width: `${pctP}%` }} />
+          <div className="bar-grow-x bg-accent" style={{ width: `${pctV}%` }} />
+          <div className="bar-grow-x bg-gold-accent" style={{ width: `${pctP}%` }} />
         </div>
         <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5 text-[12.5px] text-ink-600">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-accent" /><b className="text-ink-900">{fmtH(round1(v))}h</b> verified</span>
@@ -145,7 +146,7 @@ export function WeeklyModal({ weeks, progress, onClose }: { weeks: Week[]; progr
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="stagger grid grid-cols-3 gap-2.5">
           {stats.map((s) => (
             <div key={s.k} className="rounded-[14px] bg-surface-2 px-3.5 py-3">
               <p className="text-[12px] text-ink-500">{s.k}</p>
@@ -167,8 +168,8 @@ export function WeeklyModal({ weeks, progress, onClose }: { weeks: Week[]; progr
                   title={`Week of ${shortDay(w.monday)}: ${fmtDur(w.v)} verified, ${fmtDur(w.p)} waiting`}>
                   {w.total > 0 && <span className="mb-1 text-[11.5px] font-bold text-ink-700">{fmtH(round1(w.total))}h</span>}
                   <div className="flex w-full max-w-[46px] flex-col overflow-hidden rounded-[8px_8px_3px_3px]">
-                    {w.p > 0 && <div className="bg-gold-accent" style={{ height: `${(w.p / max) * 180}px` }} />}
-                    {w.v > 0 && <div className={target > 0 && w.v < target ? 'bg-accent-bright' : 'bg-accent'} style={{ height: `${(w.v / max) * 180}px` }} />}
+                    {w.p > 0 && <div className="bar-grow-y bg-gold-accent" style={{ height: `${(w.p / max) * 180}px` }} />}
+                    {w.v > 0 && <div className={`bar-grow-y ${target > 0 && w.v < target ? 'bg-accent-bright' : 'bg-accent'}`} style={{ height: `${(w.v / max) * 180}px` }} />}
                   </div>
                 </div>
               ))}

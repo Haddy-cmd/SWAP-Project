@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { analyticsApi } from '@/lib/api/analytics.api'
 import type { ReportDrill } from '@/lib/utils/reportQuery'
 
@@ -32,15 +32,23 @@ export interface TabProps {
 
 /** The term's overview and insights, shared (and cached once) by every tab. */
 export function useAnalytics(academicYear: string, semester: string) {
+  // A term change keeps the previous term's numbers on screen (dimmed) until the new ones
+  // arrive, so the numbers glide instead of the page flashing back to skeletons.
   const overview = useQuery({
     queryKey: ['admin-overview', academicYear, semester],
     queryFn: () => analyticsApi.getAdminOverview(academicYear, semester),
+    placeholderData: keepPreviousData,
   })
   const insights = useQuery({
     queryKey: ['admin-insights', academicYear, semester],
     queryFn: () => analyticsApi.getInsights(academicYear, semester),
+    placeholderData: keepPreviousData,
   })
-  return { overview: overview.data, insights: insights.data, loading: overview.isLoading || insights.isLoading }
+  return {
+    overview: overview.data, insights: insights.data,
+    loading: overview.isLoading || insights.isLoading,
+    refreshing: overview.isPlaceholderData || insights.isPlaceholderData,
+  }
 }
 
 export function Card({ title, hint, right, children, className = '' }: {

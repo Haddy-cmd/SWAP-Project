@@ -16,7 +16,7 @@ const initials = (name: string) =>
  * at most once a day each.
  */
 export function SupervisorsTab({ academicYear, semester, allTerms }: TabProps) {
-  const { insights, loading } = useAnalytics(academicYear, semester)
+  const { insights, loading, refreshing } = useAnalytics(academicYear, semester)
   const { notify, notifyError, confirm } = useFeedback()
   const [show, setShow] = useState<'all' | 'busy' | 'ok'>('all')
   const [sort, setSort] = useState<'most' | 'least'>('most')
@@ -50,7 +50,7 @@ export function SupervisorsTab({ academicYear, semester, allTerms }: TabProps) {
   }
 
   return (
-    <Card title="Hour logs waiting for supervisors"
+    <Card className={`transition-opacity ${refreshing ? 'opacity-60' : ''}`} title="Hour logs waiting for supervisors"
       hint={total ? `${plural(total, 'log', 'logs')} in total${oldest ? ` · the oldest has waited ${plural(oldest, 'day', 'days')}` : ''}` : 'No hour logs are waiting for verification.'}
       // Reminders are per term (RemindSupervisorsRequest); not offered for all semesters.
       right={allTerms ? undefined : (
@@ -75,7 +75,7 @@ export function SupervisorsTab({ academicYear, semester, allTerms }: TabProps) {
             </Labeled>
             <span className="text-xs text-ink-500">Busy = {BUSY_PENDING}+ logs waiting, or one waiting {BUSY_DAYS}+ days</span>
           </div>
-          <div className="mt-5 flex flex-col gap-3">
+          <div className="stagger mt-5 flex flex-col gap-3">
             {rows.length === 0 && <p className="py-4 text-center text-[13px] text-ink-500">No supervisor in this group.</p>}
             {rows.map((s) => {
               const b = isBusy(s.pending, s.oldest_pending_days)
@@ -90,7 +90,7 @@ export function SupervisorsTab({ academicYear, semester, allTerms }: TabProps) {
                   </div>
                   <div className="order-3 col-span-2 flex items-center gap-2.5 sm:order-none sm:col-span-1">
                     <div className="h-3 flex-1 rounded-md bg-surface-3">
-                      <div className="h-full rounded-md" style={{ width: `${(s.pending / max) * 100}%`, background: b ? GOLD : GREEN }} />
+                      <div className="bar-grow-x h-full rounded-md" style={{ width: `${(s.pending / max) * 100}%`, background: b ? GOLD : GREEN }} />
                     </div>
                     <strong className="w-8 text-[13.5px]">{s.pending}</strong>
                   </div>

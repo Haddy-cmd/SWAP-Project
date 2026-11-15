@@ -36,6 +36,16 @@ export function UserPanel({ user, isYou, busy, onClose, onHistory, onToggle, onD
     ...(user.profile?.college ? [{ Icon: GraduationCap, k: 'College', v: collegeDisplay(user.profile.college) }] : []),
     ...(user.profile?.program ? [{ Icon: GraduationCap, k: 'Program', v: `${user.profile.program}${user.profile.year_level ? ` · Year ${user.profile.year_level}` : ''}` }] : []),
     ...(user.role === 'supervisor' ? [{ Icon: Building2, k: 'Office', v: user.office_name ?? 'Not assigned' }] : []),
+    // Where a recipient serves now. Skipped when the list didn't send it (e.g. right after an update).
+    ...(user.role === 'recipient' && user.assignment !== undefined
+      ? user.assignment
+        ? [
+            { Icon: Building2, k: 'Assigned to', v: user.assignment.office ?? 'Office not set' },
+            { Icon: UserCheck, k: 'Supervisor', v: user.assignment.supervisor ?? 'Unassigned' },
+            { Icon: CalendarDays, k: 'Term', v: `${user.assignment.semester} ${user.assignment.academic_year}` },
+          ]
+        : [{ Icon: Building2, k: 'Assigned to', v: 'Not assigned to an office yet' }]
+      : []),
     { Icon: CalendarDays, k: 'Joined', v: formatDate(user.created_at) },
   ]
 

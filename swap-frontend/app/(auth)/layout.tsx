@@ -4,11 +4,12 @@ import type { ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { CountUp } from '@/components/ui/CountUp'
 
 const STATS = [
-  { label: 'Recipients', value: '500+' },
-  { label: 'Offices', value: '20+' },
-  { label: 'Years', value: '10+' },
+  { label: 'Recipients', value: 500 },
+  { label: 'Offices', value: 20 },
+  { label: 'Years', value: 10 },
 ]
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
@@ -52,7 +53,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <div className="mt-12 grid grid-cols-3 gap-10 border-t border-gold-300/25 pt-8">
             {STATS.map((s) => (
               <div key={s.label}>
-                <p className="font-serif text-3xl font-semibold text-gold-300">{s.value}</p>
+                <CountUp value={s.value} format={(n) => `${Math.round(n)}+`} className="block font-serif text-3xl font-semibold text-gold-300" />
                 <p className="mt-1.5 text-[11px] uppercase tracking-[0.12em] text-cream/70">{s.label}</p>
               </div>
             ))}

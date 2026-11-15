@@ -19,7 +19,7 @@ export function SideColumn({ onDuty, students }: { onDuty: TimeLog[]; students: 
     <div className="flex min-h-0 flex-col gap-4">
       <section className={`${CARD} flex-none px-4 py-3.5`}>
         <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${onDuty.length ? 'animate-pulse bg-success-600' : 'bg-ink-300'}`} />
+          <span className={`h-2 w-2 rounded-full ${onDuty.length ? 'animate-live bg-success-600' : 'bg-ink-300'}`} />
           <span className="flex-1 text-[14px] font-bold text-ink-950">On duty now</span>
           <span className="text-[12px] font-bold text-ink-600">{onDuty.length}</span>
         </div>

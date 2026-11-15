@@ -15,6 +15,7 @@ import type { StipendRecord } from '@/types/analytics.types'
 import type { PromissoryStatus } from '@/types/promissory.types'
 import type { RecipientProgress } from '@/types/attendance.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { CountUp } from '@/components/ui/CountUp'
 
 const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 const peso = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -93,7 +94,7 @@ export default function StipendPage() {
           <p className="mt-1 text-[13.5px] text-ink-500">See where your stipend is and download your signed stubs.</p>
         </div>
         <div className="flex gap-6">
-          {[['Received so far', peso(totalReceived)], ['Stubs', String(live.length)]].map(([k, v]) => (
+          {([['Received so far', <CountUp key="r" value={totalReceived} format={peso} />], ['Stubs', <CountUp key="s" value={live.length} />]] as const).map(([k, v]) => (
             <div key={k} className="text-right">
               <p className="text-xs text-ink-500">{k}</p>
               <p className="text-[20px] font-extrabold text-ink-950">{v}</p>

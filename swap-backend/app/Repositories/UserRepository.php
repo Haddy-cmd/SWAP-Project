@@ -20,7 +20,8 @@ class UserRepository implements UserRepositoryInterface
 
     public function paginate(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = User::with(['profile', 'office:id,name']);
+        // A recipient's current office and supervisor show in Admin → Users.
+        $query = User::with(['profile', 'office:id,name', 'currentAssignment.office:id,name', 'currentAssignment.supervisor:id,name']);
         // Newest first by default; Oldest first; Name A–Z.
         match ($filters['sort'] ?? 'new') {
             'old' => $query->orderBy('created_at')->orderBy('id'),

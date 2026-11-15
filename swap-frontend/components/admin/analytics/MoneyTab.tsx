@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowRight, Wallet } from 'lucide-react'
+import { CountUp } from '@/components/ui/CountUp'
 import { GOLD, GREEN, READY, Card, Skeleton, plural, useAnalytics, type TabProps } from './shared'
 
 const peso = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
@@ -11,7 +12,7 @@ const peso = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDig
  * the stipends, and the term's results. Term-result tiles open the Term Results report.
  */
 export function MoneyTab({ academicYear, semester, allTerms, onDrill }: TabProps) {
-  const { insights, loading } = useAnalytics(academicYear, semester)
+  const { insights, loading, refreshing } = useAnalytics(academicYear, semester)
   if (loading && !insights) return <div className="grid gap-5 lg:grid-cols-2"><Skeleton h="h-80" /><Skeleton h="h-80" /></div>
   if (!insights) return null
 
@@ -24,16 +25,16 @@ export function MoneyTab({ academicYear, semester, allTerms, onDrill }: TabProps
   const nothingPaid = st.released === 0 && st.ready_to_release === 0 && st.missing_requirements === 0
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-2">
+    <div className={`grid items-start gap-5 transition-opacity lg:grid-cols-2 ${refreshing ? 'opacity-60' : ''}`}>
       <Card title="Renewals"
         hint={r.submitted ? `${plural(r.submitted, 'returning student applied', 'returning students applied')} · ${r.approved} approved${r.rejected ? ` · ${r.rejected} rejected` : ''}` : allTerms ? 'No renewals yet.' : 'No renewals this semester yet.'}>
         {r.submitted > 0 && (
           <>
             <div className="mt-[18px] flex h-7 gap-[3px] overflow-hidden rounded-lg bg-surface-3">
-              {r.approved > 0 && <div style={{ flex: r.approved, background: GREEN }} title={`Approved: ${r.approved}`} />}
-              {ready > 0 && <div style={{ flex: ready, background: 'var(--color-success-300)' }} title={`Ready to approve: ${ready}`} />}
-              {blocked > 0 && <div style={{ flex: blocked, background: GOLD }} title={`Blocked: ${blocked}`} />}
-              {r.rejected > 0 && <div style={{ flex: r.rejected, background: 'var(--color-ink-200)' }} title={`Rejected: ${r.rejected}`} />}
+              {r.approved > 0 && <div className="bar-grow-x" style={{ flex: r.approved, background: GREEN }} title={`Approved: ${r.approved}`} />}
+              {ready > 0 && <div className="bar-grow-x" style={{ flex: ready, background: 'var(--color-success-300)' }} title={`Ready to approve: ${ready}`} />}
+              {blocked > 0 && <div className="bar-grow-x" style={{ flex: blocked, background: GOLD }} title={`Blocked: ${blocked}`} />}
+              {r.rejected > 0 && <div className="bar-grow-x" style={{ flex: r.rejected, background: 'var(--color-ink-200)' }} title={`Rejected: ${r.rejected}`} />}
             </div>
             <div className="mt-3.5 flex flex-col text-[13.5px]">
               {[
@@ -98,7 +99,7 @@ export function MoneyTab({ academicYear, semester, allTerms, onDrill }: TabProps
                 className="rounded-xl px-3.5 py-3 text-left transition-shadow hover:shadow-[0_4px_12px_rgba(19,36,26,0.08)]"
                 style={{ background: n ? bg : 'var(--color-surface-2)' }} title={`See the ${label.toLowerCase()} recipients`}>
                 <p className="text-xs font-semibold" style={{ color: n ? fg : 'var(--text-ink-600)' }}>{label}</p>
-                <p className="mt-0.5 text-[22px] font-extrabold">{n}</p>
+                <CountUp value={Number(n)} className="mt-0.5 block text-[22px] font-extrabold" />
               </button>
             ))}
           </div>
@@ -119,7 +120,7 @@ function Tile({ label, value, sub, bg, fg }: { label: string; value: number; sub
   return (
     <div className="rounded-xl px-3.5 py-3" style={{ background: bg }}>
       <p className="text-xs font-semibold" style={{ color: fg }}>{label}</p>
-      <p className="mt-0.5 text-[22px] font-extrabold">{value}</p>
+      <CountUp value={value} className="mt-0.5 block text-[22px] font-extrabold" />
       <p className="text-[11px] text-ink-500">{sub}</p>
     </div>
   )

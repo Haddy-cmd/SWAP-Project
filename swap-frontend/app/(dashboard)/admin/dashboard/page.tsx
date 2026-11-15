@@ -13,6 +13,7 @@ import { semestersApi } from '@/lib/api/semesters.api'
 import { settingsApi } from '@/lib/api/settings.api'
 import { useAuthStore } from '@/lib/store/authStore'
 import { formatDay } from '@/lib/utils/semester'
+import { CountUp } from '@/components/ui/CountUp'
 import { TopbarSlot } from '@/components/layout/TopbarSlot'
 
 const FALLBACK_YEAR = '2024-2025'
@@ -113,7 +114,7 @@ export default function AdminDashboard() {
       </section>
 
       {/* Action cards */}
-      <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr_0.85fr]">
+      <div className="stagger grid gap-4 lg:grid-cols-[1.15fr_1fr_0.85fr]">
         <div className={`${CARD} flex flex-col gap-4 p-[22px]`}>
           <CardHead icon={<FileText className="h-[22px] w-[22px]" />} iconBg="var(--color-gold-100)" iconFg="var(--color-gold-700)"
             title="Applications to review" sub={`${overview?.total_applicants ?? 0} received this semester`} />
@@ -121,7 +122,7 @@ export default function AdminDashboard() {
           <div>
             <div className="flex h-2.5 gap-[2px] overflow-hidden rounded-md bg-ink-100">
               {[[overview?.approved ?? 0, GREEN], [overview?.pending ?? 0, GOLD], [overview?.rejected ?? 0, RED]].map(([n, c], i) =>
-                Number(n) > 0 && <div key={i} style={{ flex: Number(n), background: String(c) }} />)}
+                Number(n) > 0 && <div key={i} className="bar-grow-x" style={{ flex: Number(n), background: String(c) }} />)}
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-600">
               <Dot color={GREEN}>{overview?.approved ?? 0} approved</Dot>
@@ -166,10 +167,10 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Kpi href="/admin/assignments" Icon={Users} bg="var(--color-accent-soft)" fg="var(--color-accent-strong)" value={overview?.active_recipients ?? '—'} label="Active recipients" hint="currently serving" />
-        <Kpi href="/admin/analytics" Icon={BadgeCheck} bg="var(--color-info-100)" fg="var(--color-info-700)" value={overview ? `${Math.round(overview.total_verified_hours)}h` : '—'} label="Verified hours" hint="logged this semester" />
-        <Kpi href="/admin/analytics" Icon={Timer} bg="var(--color-danger-100)" fg="var(--color-red-strong)" value={overview ? `${overview.avg_completion_rate}%` : '—'} label="Avg. completion" hint="of required hours" />
+      <div className="stagger grid gap-4 sm:grid-cols-3">
+        <Kpi href="/admin/assignments" Icon={Users} bg="var(--color-accent-soft)" fg="var(--color-accent-strong)" value={overview ? <CountUp value={overview.active_recipients} /> : '—'} label="Active recipients" hint="currently serving" />
+        <Kpi href="/admin/analytics" Icon={BadgeCheck} bg="var(--color-info-100)" fg="var(--color-info-700)" value={overview ? <CountUp value={overview.total_verified_hours} format={(n) => `${Math.round(n)}h`} /> : '—'} label="Verified hours" hint="logged this semester" />
+        <Kpi href="/admin/analytics" Icon={Timer} bg="var(--color-danger-100)" fg="var(--color-red-strong)" value={overview ? <CountUp value={overview.avg_completion_rate} format={(n) => `${Math.round(n * 10) / 10}%`} /> : '—'} label="Avg. completion" hint="of required hours" />
       </div>
 
       {/* The graphs live in Analytics & Reports. */}
@@ -201,7 +202,7 @@ function SemesterProgress({ calendar }: { calendar?: Awaited<ReturnType<typeof s
     <div className="mt-5 flex max-w-[440px] items-center gap-3.5">
       <div className="flex-1">
         <div className="h-2 rounded-md bg-white/[.16]">
-          <div className="h-full rounded-md" style={{ width: `${(day / total) * 100}%`, background: 'linear-gradient(90deg,#F0D468,#DDBB38)' }} />
+          <div className="bar-grow-x h-full rounded-md" style={{ width: `${(day / total) * 100}%`, background: 'linear-gradient(90deg,#F0D468,#DDBB38)' }} />
         </div>
         <div className="mt-1.5 flex justify-between text-[11.5px] text-white/65">
           <span>{formatDay(term.start_date)}</span><span>Day {day} of {total}</span><span>{formatDay(term.end_date)}</span>
@@ -272,7 +273,7 @@ function CardHead({ icon, iconBg, iconFg, title, sub }: { icon: ReactNode; iconB
 function BigNumber({ value, text }: { value: number; text: string }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="text-[38px] font-extrabold leading-none">{value}</span>
+      <CountUp value={value} className="text-[38px] font-extrabold leading-none" />
       <span className="text-[13.5px] text-ink-600">{text}</span>
     </div>
   )

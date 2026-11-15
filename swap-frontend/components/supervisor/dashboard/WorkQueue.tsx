@@ -134,7 +134,7 @@ export function WorkQueue({ logs, reports, loading }: { logs: TimeLog[]; reports
                   </button>
                 )}
               </div>
-              <div className="px-2 pb-2">
+              <div className="stagger px-2 pb-2">
                 {normal.map((l) => (
                   <div key={l.id} className="flex items-center gap-2.5 rounded-[10px] px-2 py-[7px] hover:bg-ink-50">
                     <Initials name={l.user?.name ?? '?'} avatarUrl={(l.user as { avatar_url?: string | null })?.avatar_url} />

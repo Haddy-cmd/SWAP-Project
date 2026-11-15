@@ -72,6 +72,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(Assignment::class);
     }
 
+    /** The current placement (active, newest), as Assignment::scopeCurrent picks it; eager-loadable. */
+    public function currentAssignment(): HasOne
+    {
+        return $this->hasOne(Assignment::class)->ofMany(['id' => 'max'], fn ($q) => $q->where('assignments.status', 'active'));
+    }
+
     /**
      * Streamed profile-photo URL (the client appends the auth token). The ?v=
      * hash busts the browser cache whenever a new photo is uploaded. Reusable

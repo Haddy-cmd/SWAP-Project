@@ -13,6 +13,7 @@ import { COLLEGES, collegeDisplay } from '@/lib/constants/colleges'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { StipendRecord, EligibleStipend, StipendStatus, StipendTerm } from '@/types/analytics.types'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
+import { CountUp } from '@/components/ui/CountUp'
 import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
 import { ExportButtons } from '@/components/reports/ExportButtons'
 
@@ -508,11 +509,11 @@ function HistoryTab({ params, unlockToken, onDone, onMoneyError }: {
 
   return (
     <div className="flex flex-col gap-3.5">
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+      <div className="stagger grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         {[
-          { label: 'Paid out', value: s ? peso(s.paid_out) : '—', hint: 'every stub not voided', color: 'var(--color-accent)' },
-          { label: 'Released', value: s?.released ?? '—', hint: s ? `${s.received} received · ${s.not_received} not yet opened` : 'final; the recipient was notified', color: 'var(--color-gold-accent)' },
-          { label: 'Voided', value: s?.void ?? '—', hint: 'cancelled stubs', color: 'var(--color-red-accent)' },
+          { label: 'Paid out', value: s ? <CountUp value={Number(s.paid_out)} format={peso} /> : '—', hint: 'every stub not voided', color: 'var(--color-accent)' },
+          { label: 'Released', value: s ? <CountUp value={s.released} /> : '—', hint: s ? `${s.received} received · ${s.not_received} not yet opened` : 'final; the recipient was notified', color: 'var(--color-gold-accent)' },
+          { label: 'Voided', value: s ? <CountUp value={s.void} /> : '—', hint: 'cancelled stubs', color: 'var(--color-red-accent)' },
         ].map((k) => (
           <div key={k.label} className={`${CARD} px-[18px] py-4`}>
             <p className="flex items-center gap-2 text-[12.5px] font-semibold text-ink-600"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: k.color }} />{k.label}</p>

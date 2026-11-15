@@ -5,6 +5,7 @@ import { BarChart3, ChevronDown, MousePointerClick } from 'lucide-react'
 import type { ReportColumn, ReportGroup } from '@/types/report.types'
 import { formatCell, SERIES } from './format'
 import { ChartTypeToggle, useChartType } from '@/components/charts/ChartTypeToggle'
+import { reducedMotion } from '@/components/ui/CountUp'
 
 /** More bars than this stop being readable; the rest are summed into "Others". */
 const MAX_BARS = 12
@@ -53,6 +54,9 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
   const fillFor = (g: Datum, i: number) => (g.others ? 'var(--color-ink-300)' : SERIES[i % SERIES.length])
   const dim = (g: Datum) => selected.length > 0 && !selected.includes(g.label)
   const tilted = data.length > 6
+  // Bars and lines grow in (off under reduced motion). The pie stays still: Recharts hides
+  // its percentage labels until an animation finishes.
+  const motion = { isAnimationActive: !reducedMotion(), animationDuration: 700, animationEasing: 'ease-out' as const }
   const tooltip = (
     <Tooltip cursor={type === 'line' ? { stroke: 'var(--color-ink-300)' } : { fill: 'var(--color-ink-50)' }}
       contentStyle={{ borderRadius: '0.5rem', border: '1px solid var(--color-ink-200)', fontSize: '0.75rem', background: 'var(--color-surface)', color: 'var(--color-ink-900)' }}
@@ -100,6 +104,7 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
           No records to chart with these filters.
         </div>
       ) : (
+        <div key={type} className="animate-content-in">
         <ResponsiveContainer width="100%" height={height}>
           {type === 'pie' ? (
             <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
@@ -121,7 +126,7 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
                 angle={tilted ? -25 : 0} textAnchor={tilted ? 'end' : 'middle'} height={tilted ? 70 : 30} />
               <YAxis tick={{ fontSize: 11.5, fill: 'var(--color-ink-500)' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
               {tooltip}
-              <Line type="monotone" dataKey="value" stroke={SERIES[0]} strokeWidth={2} cursor="pointer"
+              <Line type="monotone" dataKey="value" stroke={SERIES[0]} strokeWidth={2} cursor="pointer" {...motion}
                 dot={{ r: 4, fill: SERIES[0] }} activeDot={{ r: 6 }} />
             </LineChart>
           ) : type === 'column' ? (
@@ -131,7 +136,7 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
                 angle={tilted ? -25 : 0} textAnchor={tilted ? 'end' : 'middle'} height={tilted ? 70 : 30} />
               <YAxis tick={{ fontSize: 11.5, fill: 'var(--color-ink-500)' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
               {tooltip}
-              <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={44} cursor="pointer"
+              <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={44} cursor="pointer" {...motion}
                 label={{ position: 'top', fontSize: 11, fill: 'var(--color-ink-700)', formatter: fmt }}
                 onClick={(d: Datum) => pick(d)}>
                 {data.map((g, i) => <Cell key={g.label} fill={fillFor(g, i)} fillOpacity={dim(g) ? 0.3 : 1} />)}
@@ -143,7 +148,7 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
               <XAxis type="number" tick={{ fontSize: 11.5, fill: 'var(--color-ink-500)' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
               <YAxis type="category" dataKey="label" width={170} tick={{ fontSize: 11.5, fill: 'var(--color-ink-700)' }} axisLine={false} tickLine={false} />
               {tooltip}
-              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} cursor="pointer"
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} cursor="pointer" {...motion}
                 label={{ position: 'right', fontSize: 11, fill: 'var(--color-ink-700)', formatter: fmt }}
                 onClick={(d: Datum) => pick(d)}>
                 {data.map((g, i) => <Cell key={g.label} fill={fillFor(g, i)} fillOpacity={dim(g) ? 0.3 : 1} />)}
@@ -151,6 +156,7 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
             </BarChart>
           )}
         </ResponsiveContainer>
+        </div>
       )}
     </div>
   )

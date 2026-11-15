@@ -31,6 +31,13 @@ class UserResource extends JsonResource
             // profile page; auto-applied to this user's stipend signatures).
             'signature_url' => $this->resource->signatureUrl(),
             'profile' => $this->whenLoaded('profile', fn () => new StudentProfileResource($this->profile)),
+            // Where a recipient serves now (Admin → Users); null when not placed.
+            'assignment' => $this->whenLoaded('currentAssignment', fn () => $this->currentAssignment ? [
+                'office' => $this->currentAssignment->office?->name,
+                'supervisor' => $this->currentAssignment->supervisor?->name,
+                'academic_year' => $this->currentAssignment->academic_year,
+                'semester' => $this->currentAssignment->semester,
+            ] : null),
         ];
     }
 }

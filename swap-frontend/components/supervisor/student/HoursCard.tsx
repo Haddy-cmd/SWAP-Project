@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, Clock, Flag, TrendingUp } from 'lucide-rea
 import type { LucideIcon } from 'lucide-react'
 import { PACE_META, paceDetail, type Pace, type PaceStatus } from '@/lib/utils/pace'
 import { formatDay } from '@/lib/utils/semester'
+import { CountUp } from '@/components/ui/CountUp'
 
 export const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 export const fmtHrs = (h: number) => (Number.isInteger(h) ? String(h) : h.toFixed(1))
@@ -38,7 +39,7 @@ export function HoursCard({ verified, pending, required, bonus, pace, startDate,
     <section className={`${CARD} px-6 py-[22px]`}>
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <span className="text-[34px] font-extrabold text-ink-950">{fmtHrs(verified)}h</span>
+          <CountUp value={verified} format={(n) => `${fmtHrs(Math.round(n * 10) / 10)}h`} className="text-[34px] font-extrabold text-ink-950" />
           <span className="ml-1.5 text-[14px] text-ink-500">of {fmtHrs(required)}h verified</span>
         </div>
         <span className={`flex items-center gap-1.5 text-[12.5px] font-bold ${PACE_TONE[pace.status].text}`} title={paceDetail(pace)}>
@@ -47,8 +48,8 @@ export function HoursCard({ verified, pending, required, bonus, pace, startDate,
       </div>
 
       <div className="relative mt-3.5 h-3 rounded-lg bg-ink-100">
-        <div className="absolute inset-y-0 left-0 rounded-lg bg-accent" style={{ width: `${vW}%` }} />
-        {pW > 0 && <div className="absolute inset-y-0 rounded-r-lg bg-gold-accent" style={{ left: `${vW}%`, width: `${pW}%` }} />}
+        <div className="bar-grow-x absolute inset-y-0 left-0 rounded-lg bg-accent" style={{ width: `${vW}%` }} />
+        {pW > 0 && <div className="bar-grow-x absolute inset-y-0 rounded-r-lg bg-gold-accent" style={{ left: `${vW}%`, width: `${pW}%` }} />}
         {expected != null && expected > 0 && required > 0 && (
           <div title={`Where they should be today: ${fmtHrs(expected)}h`}
             className="absolute -bottom-[5px] -top-[5px] w-0.5 rounded bg-ink-950" style={{ left: `${pct(expected)}%` }} />

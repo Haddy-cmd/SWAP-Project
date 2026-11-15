@@ -605,7 +605,7 @@ function OfficePanel({ office, offices, allSupervisors, nextLeft, onNext, onClos
                 <p className="text-[15px] font-bold text-ink-950">Student slots</p>
                 <div className="mt-1.5 flex items-center gap-2.5">
                   <div className="h-1.5 max-w-[220px] flex-1 overflow-hidden rounded-full bg-ink-100">
-                    <div className="h-full rounded-full bg-accent" style={{ width: `${fillPct}%` }} />
+                    <div className="bar-grow-x h-full rounded-full bg-accent" style={{ width: `${fillPct}%` }} />
                   </div>
                   <span className="text-[12.5px] text-ink-500">{filled} placed · {Math.max(0, cap - filled)} open</span>
                 </div>
@@ -845,7 +845,7 @@ export default function AdminOfficesPage() {
           <h1 className="text-[28px] font-extrabold tracking-[-.02em] text-ink-950">Offices</h1>
           <div className="mt-2 flex items-center gap-2.5">
             <div className="h-1.5 w-[180px] overflow-hidden rounded-full bg-ink-200">
-              <div className="h-full rounded-full bg-accent" style={{ width: `${readyPct}%` }} />
+              <div className="bar-grow-x h-full rounded-full bg-accent" style={{ width: `${readyPct}%` }} />
             </div>
             <span className="text-[13px] text-ink-600"><b className="text-ink-950">{counts.ready} of {counts.all}</b> ready for students</span>
           </div>

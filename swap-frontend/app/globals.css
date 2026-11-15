@@ -239,18 +239,6 @@ body {
   color: var(--color-ink-900);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  animation: pageEnter 0.5s ease-out forwards;
-}
-
-@keyframes pageEnter {
-  from {
-    opacity: 0.95;
-    filter: blur(2px);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-  }
 }
 
 /* ─── Landing-page animations ─────────────────────────────────────────────── */
@@ -295,11 +283,83 @@ body {
 }
 .reveal.is-visible { opacity: 1; transform: none; }
 
+/* ─── Motion system: page fade, shimmer skeletons, stagger, growing bars, filling rings ───
+   Only transform / opacity / registered custom properties animate. Fill-mode `both` ends on
+   `transform: none`, so a finished page never becomes the containing block of a fixed modal. */
+:root { --ease-out-swift: cubic-bezier(0.16, 1, 0.3, 1); --shimmer: rgba(255, 255, 255, 0.55); }
+:root[data-theme=dark] { --shimmer: rgba(255, 255, 255, 0.07); }
+
+/* Each page (app/(dashboard)/template.tsx, app/(auth)/template.tsx) fades in on navigation. */
+@keyframes swapPageIn { from { opacity: 0; transform: translateY(8px); } }
+.animate-page-in { animation: swapPageIn 0.28s var(--ease-out-swift) both; }
+
+/* Content replacing its skeleton, and a chart switching type. */
+@keyframes swapContentIn { from { opacity: 0; transform: translateY(6px); } }
+.animate-content-in { animation: swapContentIn 0.32s var(--ease-out-swift) both; }
+
+/* Cards and rows arrive one after another (capped so long lists don't drag). */
+.stagger > * { animation: swapContentIn 0.4s var(--ease-out-swift) both; }
+.stagger > :nth-child(2) { animation-delay: 40ms; }
+.stagger > :nth-child(3) { animation-delay: 80ms; }
+.stagger > :nth-child(4) { animation-delay: 120ms; }
+.stagger > :nth-child(5) { animation-delay: 160ms; }
+.stagger > :nth-child(6) { animation-delay: 200ms; }
+.stagger > :nth-child(7) { animation-delay: 240ms; }
+.stagger > :nth-child(8) { animation-delay: 280ms; }
+.stagger > :nth-child(9) { animation-delay: 320ms; }
+.stagger > :nth-child(10) { animation-delay: 360ms; }
+.stagger > :nth-child(11) { animation-delay: 400ms; }
+.stagger > :nth-child(n+12) { animation-delay: 440ms; }
+
+/* Modals and dialogs: every `sheet-overlay` backdrop fades in and its panel pops in
+   (on phones, where the panel is a bottom sheet, it slides up instead). */
+@keyframes swapPopIn { from { opacity: 0; transform: translateY(6px) scale(0.97); } }
+@keyframes swapSheetUp { from { transform: translateY(100%); } }
+.animate-pop-in { animation: swapPopIn 0.18s var(--ease-out-swift) both; }
+.sheet-overlay { animation: swapFadeIn 0.18s ease both; }
+.sheet-overlay > * { animation: swapPopIn 0.2s var(--ease-out-swift) both; }
+@media (max-width: 639px) {
+  .sheet-overlay > *:not(.no-sheet) { animation: swapSheetUp 0.28s var(--ease-out-swift) both; }
+}
+
+/* Loading placeholders: every `animate-pulse` block becomes a soft shimmer over its own colour
+   (unlayered, so it beats Tailwind's utility). A live status dot uses `animate-live` instead. */
+@keyframes swapShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.animate-pulse {
+  animation: swapShimmer 1.6s ease-in-out infinite;
+  background-image: linear-gradient(90deg, transparent 25%, var(--shimmer) 50%, transparent 75%);
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+}
+@keyframes swapLive { 50% { opacity: 0.45; } }
+.animate-live { animation: swapLive 2s ease-in-out infinite; }
+
+/* Bars fill from their start: any inline width / height / flex bar, no extra state. */
+@keyframes swapGrowX { from { transform: scaleX(0); } }
+@keyframes swapGrowY { from { transform: scaleY(0); } }
+.bar-grow-x { transform-origin: left center; animation: swapGrowX 0.7s var(--ease-out-swift) both; transition: width 0.6s var(--ease-out-swift), flex-grow 0.6s var(--ease-out-swift); }
+.bar-grow-y { transform-origin: center bottom; animation: swapGrowY 0.7s var(--ease-out-swift) both; transition: height 0.6s var(--ease-out-swift); }
+
+/* Conic rings: the gradient reads --p (0–100) or --a/--b, so the sweep animates. */
+@property --p { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --a { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --b { syntax: '<number>'; inherits: false; initial-value: 0; }
+@keyframes swapRingFill { from { --p: 0; --a: 0; --b: 0; } }
+.ring-fill { animation: swapRingFill 0.9s var(--ease-out-swift) both; transition: --p 0.6s var(--ease-out-swift), --a 0.6s var(--ease-out-swift), --b 0.6s var(--ease-out-swift); }
+
+/* Line / area charts drawn left to right (a clip, so it works with non-scaling strokes too). */
+@keyframes swapRevealX { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.reveal-x { animation: swapRevealX 0.9s var(--ease-out-swift) both; }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up, .animate-fade-in, .animate-float, .animate-panel-in { animation: none; opacity: 1; }
   .reveal { opacity: 1; transform: none; transition: none; }
   .hero-kenburns { animation: none; }
   .hero-drift { animation: none !important; }
+  .animate-page-in, .animate-content-in, .stagger > *, .animate-pop-in, .animate-live,
+  .bar-grow-x, .bar-grow-y, .ring-fill, .reveal-x,
+  .sheet-overlay, .sheet-overlay > *, .sheet-overlay > *:not(.no-sheet) { animation: none; transition: none; }
+  .animate-pulse { animation: none; background-image: none; }
 }
 
 /* Gold call-to-action buttons and pills: always dark text on the gold (the dark theme's

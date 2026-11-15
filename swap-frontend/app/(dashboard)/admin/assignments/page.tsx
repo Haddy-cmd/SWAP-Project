@@ -591,7 +591,7 @@ function OfficeCard({ office: o, on, onPick }: { office: Office; on: boolean; on
           <Building2 className="h-3.5 w-3.5 flex-none text-ink-400" /><span className="truncate">{o.name}</span>
         </span>
         <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-ink-100">
-          <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: left <= 0 ? RED : GREEN }} />
+          <span className="bar-grow-x block h-full rounded-full" style={{ width: `${pct}%`, background: left <= 0 ? RED : GREEN }} />
         </span>
         <span className="mt-1 flex justify-between gap-2 text-[11.5px]">
           <span className="text-ink-500">{active} of {cap} spots</span>
@@ -649,7 +649,7 @@ function HoursBar({ a }: { a: Assignment }) {
         <span className="text-ink-400">{Math.round(pct)}%</span>
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-ink-100">
-        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: GREEN }} />
+        <div className="bar-grow-x h-full rounded-full" style={{ width: `${pct}%`, background: GREEN }} />
       </div>
       {extras.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{extras}</div>}
     </div>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Flag, ChevronRight } from 'lucide-react'
 import { useChartType } from '@/components/charts/ChartTypeToggle'
 import { formatHours } from '@/lib/utils/formatHours'
+import { CountUp } from '@/components/ui/CountUp'
 import { GREEN, Card, Labeled, Seg, Skeleton, plural, useAnalytics, type TabProps } from './shared'
 
 // Seal-derived office colours (same order as elsewhere in the admin pages).
@@ -14,7 +15,7 @@ const OFFICE_COLORS = ['var(--color-brand-700)', 'var(--color-gold-500)', 'var(-
  * students, verified hours and flagged attendance logs. An office opens its recipients.
  */
 export function HoursTab({ academicYear, semester, allTerms, onDrill }: TabProps) {
-  const { overview, insights, loading } = useAnalytics(academicYear, semester)
+  const { overview, insights, loading, refreshing } = useAnalytics(academicYear, semester)
   const [view, setView] = useChartType('analytics-hours-week', ['column', 'line'] as const, 'column')
   const [sort, setSort] = useState<'hours' | 'flag' | 'name'>('hours')
   const [onlyFlagged, setOnlyFlagged] = useState(false)
@@ -40,23 +41,23 @@ export function HoursTab({ academicYear, semester, allTerms, onDrill }: TabProps
   const area = pts.length ? `${pts[0][0].toFixed(1)},180 ${line} ${pts[pts.length - 1][0].toFixed(1)},180` : ''
 
   return (
-    <div className="grid items-start gap-5 lg:grid-cols-2">
+    <div className={`grid items-start gap-5 transition-opacity lg:grid-cols-2 ${refreshing ? 'opacity-60' : ''}`}>
       <Card title={monthly ? 'Service hours per month' : 'Service hours per week'} hint={`Verified and waiting hours, by the ${monthly ? 'month' : 'week'} they were served`}
         right={<Seg label="Hours chart" value={view} onChange={setView} options={[['column', 'Bars'], ['line', 'Line']] as const} />}>
         <div className="mt-4 flex items-baseline gap-2">
-          <span className="text-[30px] font-extrabold">{formatHours(total)}</span>
+          <CountUp value={total} format={formatHours} className="text-[30px] font-extrabold" />
           <span className="text-[13px] text-ink-500">logged {monthly ? `over ${plural(weeks.length, 'month', 'months')}` : `in the last ${plural(weeks.length, 'week', 'weeks')}`}</span>
         </div>
         {weeks.length === 0 ? (
           <p className="mt-4 rounded-xl border border-dashed border-ink-300 bg-ink-50 px-4 py-6 text-center text-[13px] text-ink-500">{allTerms ? 'No hours logged yet.' : 'No hours logged this semester yet.'}</p>
         ) : view === 'column' ? (
           <>
-            <div className="mt-[18px] flex h-[180px] items-end gap-3 border-b border-ink-900/[.08] px-2.5 sm:gap-6">
+            <div className="animate-content-in mt-[18px] flex h-[180px] items-end gap-3 border-b border-ink-900/[.08] px-2.5 sm:gap-6">
               {weeks.map((w) => (
                 <div key={w.label} className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
                   title={`${w.label}: ${formatHours(w.verified)} verified, ${formatHours(w.pending)} waiting`}>
                   <span className="text-xs font-bold">{Math.round(w.n)}h</span>
-                  <div className="w-full max-w-16 rounded-t-lg" style={{ height: `${Math.max(3, (w.n / max) * 88)}%`, background: 'linear-gradient(180deg,#2FA57C,#17815F)' }} />
+                  <div className="bar-grow-y w-full max-w-16 rounded-t-lg" style={{ height: `${Math.max(3, (w.n / max) * 88)}%`, background: 'linear-gradient(180deg,#2FA57C,#17815F)' }} />
                 </div>
               ))}
             </div>
@@ -66,9 +67,9 @@ export function HoursTab({ academicYear, semester, allTerms, onDrill }: TabProps
           </>
         ) : (
           <>
-            <div className="relative mt-[18px] h-[180px] border-b border-ink-900/[.08]"
+            <div className="animate-content-in relative mt-[18px] h-[180px] border-b border-ink-900/[.08]"
               style={{ backgroundImage: 'linear-gradient(var(--color-surface-3) 1px, transparent 1px)', backgroundSize: '100% 25%' }}>
-              <svg viewBox="0 0 300 180" preserveAspectRatio="none" className="absolute inset-0 h-full w-full" aria-hidden>
+              <svg viewBox="0 0 300 180" preserveAspectRatio="none" className="reveal-x absolute inset-0 h-full w-full" aria-hidden>
                 <polygon points={area} fill="rgba(23,129,95,.12)" />
                 <polyline points={line} fill="none" stroke={GREEN} strokeWidth={3} vectorEffect="non-scaling-stroke" />
               </svg>
@@ -77,8 +78,8 @@ export function HoursTab({ academicYear, semester, allTerms, onDrill }: TabProps
                 const bottom = `${(w.n / max) * 80}%`
                 return (
                   <span key={w.label} title={`${w.label}: ${formatHours(w.n)}`}>
-                    <span className="absolute -mb-1.5 -ml-1.5 h-3 w-3 rounded-full border-[3px] border-accent bg-surface" style={{ left, bottom }} />
-                    <span className="absolute mb-2.5 -translate-x-1/2 text-xs font-bold" style={{ left, bottom }}>{Math.round(w.n)}h</span>
+                    <span className="animate-pop-in absolute -mb-1.5 -ml-1.5 h-3 w-3 rounded-full border-[3px] border-accent bg-surface" style={{ left, bottom, animationDelay: `${200 + i * 70}ms` }} />
+                    <span className="animate-fade-in absolute mb-2.5 -translate-x-1/2 text-xs font-bold" style={{ left, bottom, animationDelay: `${300 + i * 70}ms` }}>{Math.round(w.n)}h</span>
                   </span>
                 )
               })}

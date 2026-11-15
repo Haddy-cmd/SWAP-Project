@@ -935,6 +935,7 @@ Admin → System Testing (always in the admin sidebar) lets the admin pick exist
 | TC-NFR-028 | P1 | [H] Supported browsers | Current Chrome, Edge, Firefox, Safari (macOS and iOS 16.4+), Samsung Internet, Opera | Sign in and walk the main pages in each | — | Same layout and behaviour in all of them, light and dark mode; printing a duty slip still gives an A4 page |  |  |
 | TC-NFR-029 | P2 | [N] Old browser notice | A browser older than the list above (or any browser with `?browsercheck=fail`) | Open any page | — | Only a plain "Please update your browser" page shows (no broken layout), naming the browsers to use and iOS 16.4+ |  |  |
 | TC-NFR-030 | P3 | [H] Copy works over plain http | The supervisor QR page opened on a LAN `http://` address | Copy the QR value | — | It copies (fallback when the clipboard API isn't available) and shows "Copied"; the camera features explain that they need https |  |  |
+| TC-NFR-031 | P3 | [H] Smooth loading and animations | Any signed-in role; light and dark theme | Move between pages; load a dashboard on a slow network (DevTools → Slow 4G); open Analytics and change the term; open a dialog; then turn on "reduce motion" (Windows: Settings → Accessibility → Visual effects → Animation effects off) and repeat | — | Each page fades in while the sidebar stays still; loading blocks shimmer; big numbers count up; bars, rings and the hours line chart fill or draw in; cards and lists appear one after another; changing the term dims the old numbers, then they glide to the new ones (no skeleton flash); dialogs pop in (slide up on phones). With reduce motion, everything appears at once with no movement. Nothing jumps in place (no layout shift) |  |  |
 
 ---
 
@@ -988,8 +989,8 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | End-of-term report review | TC-RPTREV-001..011 | 11 | Renewal prerequisite | TermReportReviewTest, RenewalTest, PaceReminderTest |
 | System Testing | TC-TEST-001..026 | 26 | Test tooling, bypasses, restore, file storage, email switch, off on live | TestingToolsTest, StorageCheckTest, TestingEmailSwitchTest, TestToolsAvailabilityTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
-| Non-Functional | TC-NFR-001..030 | 30 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
-| **TOTAL** | — | **632** | — | — |
+| Non-Functional | TC-NFR-001..031 | 31 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers, motion | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
+| **TOTAL** | — | **633** | — | — |
 
 ---
 

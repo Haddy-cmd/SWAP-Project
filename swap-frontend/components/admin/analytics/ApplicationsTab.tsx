@@ -5,6 +5,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { ArrowRight, Filter, X } from 'lucide-react'
 import { reportsApi } from '@/lib/api/reports.api'
 import { termParams } from '@/lib/utils/term'
+import { CountUp } from '@/components/ui/CountUp'
 import { REPORT_BLANK } from '@/types/report.types'
 import { BLUE, CARD, GOLD, GREEN, RED, Card, Labeled, SELECT, Seg, Skeleton, pct, type TabProps } from './shared'
 
@@ -102,7 +103,7 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
       </div>
 
       {/* Totals */}
-      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+      <div className="stagger grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         {[
           { label: 'Applicants', value: tot.n, hint: college === 'all' ? 'all colleges, new and renewals' : `${collegeName} only`, color: BLUE },
           { label: 'Approved', value: tot.a, hint: `${pct(tot.a, tot.n)}% of applicants`, color: GREEN },
@@ -111,7 +112,7 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
         ].map((k) => (
           <div key={k.label} className={`${CARD} px-[18px] py-4`}>
             <p className="flex items-center gap-2 text-[12.5px] font-semibold text-ink-600"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ background: k.color }} />{k.label}</p>
-            <p className="mt-2 text-[28px] font-extrabold leading-none">{k.value}</p>
+            <CountUp value={k.value} className="mt-2 block text-[28px] font-extrabold leading-none" />
             <p className="mt-1.5 text-xs text-ink-500">{k.hint}</p>
           </div>
         ))}
@@ -164,9 +165,9 @@ export function ApplicationsTab({ academicYear, semester, onDrill }: TabProps) {
                     {clickable && <Filter className="h-3.5 w-3.5 flex-none text-ink-400" />}
                   </span>
                   <div className="order-3 flex h-3 w-full overflow-hidden rounded-md bg-surface-3 sm:order-none sm:w-auto">
-                    <div style={{ width: w(g.a, status === 'all' || status === 'approved'), background: GREEN }} />
-                    <div style={{ width: w(g.r, status === 'all' || status === 'rejected'), background: RED }} />
-                    <div style={{ width: w(g.w, status === 'all' || status === 'waiting'), background: GOLD }} />
+                    <div className="bar-grow-x" style={{ width: w(g.a, status === 'all' || status === 'approved'), background: GREEN }} />
+                    <div className="bar-grow-x" style={{ width: w(g.r, status === 'all' || status === 'rejected'), background: RED }} />
+                    <div className="bar-grow-x" style={{ width: w(g.w, status === 'all' || status === 'waiting'), background: GOLD }} />
                   </div>
                   <span className="order-4 w-full text-[12px] text-ink-500 sm:hidden">{g.n} applicants · {g.a} approved · {g.r} rejected · {g.w} waiting</span>
                   <strong className="hidden text-right sm:block">{g.n}</strong>

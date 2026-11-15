@@ -114,7 +114,7 @@ export function NotificationList() {
       ) : groups.map((g) => (
         <section key={g.label} className="flex flex-col gap-2">
           <h2 className="px-1 pt-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-ink-400">{g.label}</h2>
-          <div className={`${CARD} overflow-hidden`}>
+          <div className={`stagger ${CARD} overflow-hidden`}>
             {g.items.map((n) => {
               const k = kindOf(n)
               const Icon = iconFor(n, k)

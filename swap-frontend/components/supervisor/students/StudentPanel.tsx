@@ -136,7 +136,7 @@ export function StudentPanel({ row, onClose, onReport, onRequired, onDocs }: {
             <span className={`text-[12.5px] font-bold ${paceTone}`}>{pace}</span>
           </div>
           <div className="mt-2 h-2 rounded-md bg-ink-100">
-            <div className={`h-full rounded-md ${barColor(row)}`} style={{ width: `${pct}%` }} />
+            <div className={`bar-grow-x h-full rounded-md ${barColor(row)}`} style={{ width: `${pct}%` }} />
           </div>
           <div className="mt-1 text-[11.5px] text-ink-500">{row.office}{row.studentNo ? ` · ${row.studentNo}` : ''}</div>
         </div>

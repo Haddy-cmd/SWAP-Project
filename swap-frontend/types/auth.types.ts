@@ -20,6 +20,8 @@ export interface User {
   /** Supervisors and admins: their employee ID (digits). */
   employee_id?: string | null
   profile?: StudentProfile
+  /** Admin → Users list only: a recipient's current placement; null when not placed. */
+  assignment?: { office: string | null; supervisor: string | null; academic_year: string; semester: string } | null
 }
 
 export interface StudentProfile {
