@@ -615,8 +615,10 @@ function Who({ a, i }: { a: Assignment; i: number }) {
     <div className="flex min-w-0 items-center gap-2.5">
       <UserAvatar name={a.user?.name} avatarUrl={a.user?.avatar_url} className="h-8 w-8 rounded-full text-[12px] font-bold" style={{ background: bg, color: fg }} />
       <div className="min-w-0 leading-tight">
-        <p className="truncate font-semibold text-ink-950">{a.user?.name ?? '—'}</p>
-        {a.user?.profile?.student_id_number && <p className="font-mono text-[11px] text-ink-500">ID {a.user.profile.student_id_number}</p>}
+        <p className="truncate font-semibold text-ink-950">{a.user?.name ?? 'Deleted account'}</p>
+        {a.user_deleted || !a.user
+          ? <span className="mt-0.5 inline-block rounded-full bg-ink-100 px-1.5 py-px text-[10.5px] font-semibold text-ink-500" title="The DSA deleted this account. Its placement and hours stay on record.">Deleted account</span>
+          : a.user.profile?.student_id_number && <p className="font-mono text-[11px] text-ink-500">ID {a.user.profile.student_id_number}</p>}
       </div>
     </div>
   )
@@ -672,6 +674,10 @@ function Actions({ a, onBonus, onHours, onMove }: {
   a: Assignment; onBonus: (a: Assignment) => void; onHours: (a: Assignment) => void; onMove: (a: Assignment) => void
 }) {
   const btn = 'inline-flex h-8 items-center gap-1 rounded-lg border border-ink-900/[.08] bg-surface px-2.5 text-[12px] font-semibold transition-colors hover:bg-ink-50'
+  // A deleted account's placement is kept for the record only.
+  if (a.user_deleted || !a.user) {
+    return <p className="text-[12px] text-ink-400 md:text-right">Record only</p>
+  }
   return (
     <div className="flex gap-1.5 md:justify-end">
       <button onClick={() => onBonus(a)} className={`${btn} text-gold-700`} title="Add bonus hours (the supervisor verifies them)"><Sparkles className="h-3.5 w-3.5" /> Bonus</button>

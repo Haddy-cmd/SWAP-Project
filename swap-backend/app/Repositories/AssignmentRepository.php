@@ -34,7 +34,13 @@ class AssignmentRepository implements AssignmentRepositoryInterface
     {
         // Hour sums and the office's supervisors (for the selfie rule) are loaded
         // once for the page instead of ~4 queries per row in AssignmentResource.
-        $query = Assignment::with(['user.profile', 'office.supervisors', 'supervisor'])
+        // A deleted account's placement stays on record (UserRepository::softDelete), so its
+        // person is loaded too and shown as a deleted account instead of a blank row.
+        $query = Assignment::with([
+            'user' => fn ($q) => $q->withTrashed(),
+            'user.profile' => fn ($q) => $q->withTrashed(),
+            'office.supervisors', 'supervisor',
+        ])
             ->withSum(['timeLogs as rendered_sum' => fn ($q) => $q->whereNotNull('time_out')], 'duration_hours')
             ->withSum(['timeLogs as verified_sum' => fn ($q) => $q->where('status', 'verified')], 'duration_hours')
             ->withSum(['timeLogs as pending_sum' => fn ($q) => $q->where('status', 'pending_verification')], 'duration_hours')

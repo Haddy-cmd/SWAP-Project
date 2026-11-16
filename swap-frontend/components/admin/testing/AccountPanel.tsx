@@ -89,6 +89,54 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
   const required = t?.required_hours ?? 0
   const pct = (h: number) => (required > 0 ? Math.min(100, (h / required) * 100) : 0)
 
+  // Their applications, each with the step buttons (applicants, and recipients not placed yet).
+  const hasApproved = a.applications.some((app) => app.status === 'approved' && app.type !== 'renewal')
+  const applicationsCard = (
+        <div className={`${CARD} px-5 py-[18px]`}>
+          <p className="text-[14.5px] font-bold">Applications</p>
+          {a.applications.length === 0 ? (
+            <p className="mt-2 text-[13px] text-ink-500">No application yet. They can apply from the applicant portal while applications are open.</p>
+          ) : (
+            <ul className="mt-2.5 space-y-2">
+              {a.applications.map((app) => (
+                <li key={app.id} className="rounded-[10px] bg-surface-2 px-3 py-2.5 text-[12.5px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span><b>#{app.id}</b> · {app.term} · {app.type === 'renewal' ? 'Renewal' : 'New'}</span>
+                    <Pill fg="var(--color-info-700)" bg="var(--color-info-100)">{cap(app.status)}</Pill>
+                  </div>
+                  {/* Jump to any step (no emails; Approved makes a new applicant a recipient). */}
+                  <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={`Set application #${app.id} step`}>
+                    {APP_STEPS.map(([value, label]) => (
+                      <button key={value} onClick={() => appStep.mutate({ id: app.id, status: value })}
+                        disabled={busy || app.status === value}
+                        className={`h-7 rounded-lg border px-2.5 text-[11.5px] font-semibold disabled:cursor-default ${app.status === value ? 'border-accent bg-accent-tint text-accent-strong' : 'border-ink-200 bg-surface text-ink-700 hover:bg-ink-50 disabled:opacity-45'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <button onClick={() => ask({
+              title: `Start ${a.name}'s application over?`,
+              body: 'Every application of this account is deleted with its uploaded documents and interview, so they can apply again from the start. Their profile photo stays. Undo all changes brings the applications back, but not the deleted files.',
+              confirmLabel: 'Start over',
+              tone: 'danger',
+            }, () => startOver.mutate())}
+              disabled={busy || a.applications.length === 0}
+              className="flex h-8 items-center gap-1.5 rounded-[10px] border border-danger-200 bg-surface px-3 text-[12.5px] font-semibold text-danger-700 hover:bg-danger-50 disabled:opacity-45">
+              <RotateCcw className="h-3.5 w-3.5" /> Start over
+            </button>
+            <p className="text-xs text-ink-500">While testing is on, their interview can be set at any time.</p>
+            <Link href="/admin/applications" className="flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline">
+              Review in Applications <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+  )
+
   return (
     <div className="flex min-w-0 flex-col gap-4">
       {/* Header + tracker */}
@@ -141,7 +189,13 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
 
       {isRecipient ? (
         !t ? (
-          <p className={`${CARD} px-5 py-6 text-center text-[13px] text-ink-500`}>No placement yet: assign this recipient an office first (Admin → Assignments).</p>
+          <>
+            <p className={`${CARD} px-5 py-5 text-center text-[13px] text-ink-500`}>
+              No placement yet. Assignments → Needs an office lists students with an <b>approved</b> application
+              {hasApproved ? ', so assign this one an office there.' : '. This account has none: set an application to Approved below, and they appear there.'}
+            </p>
+            {applicationsCard}
+          </>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-4">
             <StepCard n={1} title="Service hours" right={<span className="text-[12.5px] text-ink-600"><strong className="text-ink-950">{verified}h</strong> of {required}h</span>}>
@@ -270,51 +324,7 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
             </StepCard>
           </div>
         )
-      ) : (
-        <div className={`${CARD} px-5 py-[18px]`}>
-          <p className="text-[14.5px] font-bold">Applications</p>
-          {a.applications.length === 0 ? (
-            <p className="mt-2 text-[13px] text-ink-500">No application yet. They can apply from the applicant portal while applications are open.</p>
-          ) : (
-            <ul className="mt-2.5 space-y-2">
-              {a.applications.map((app) => (
-                <li key={app.id} className="rounded-[10px] bg-surface-2 px-3 py-2.5 text-[12.5px]">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span><b>#{app.id}</b> · {app.term} · {app.type === 'renewal' ? 'Renewal' : 'New'}</span>
-                    <Pill fg="var(--color-info-700)" bg="var(--color-info-100)">{cap(app.status)}</Pill>
-                  </div>
-                  {/* Jump to any step (no emails; Approved makes a new applicant a recipient). */}
-                  <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={`Set application #${app.id} step`}>
-                    {APP_STEPS.map(([value, label]) => (
-                      <button key={value} onClick={() => appStep.mutate({ id: app.id, status: value })}
-                        disabled={busy || app.status === value}
-                        className={`h-7 rounded-lg border px-2.5 text-[11.5px] font-semibold disabled:cursor-default ${app.status === value ? 'border-accent bg-accent-tint text-accent-strong' : 'border-ink-200 bg-surface text-ink-700 hover:bg-ink-50 disabled:opacity-45'}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <button onClick={() => ask({
-              title: `Start ${a.name}'s application over?`,
-              body: 'Every application of this account is deleted with its uploaded documents and interview, so they can apply again from the start. Their profile photo stays. Undo all changes brings the applications back, but not the deleted files.',
-              confirmLabel: 'Start over',
-              tone: 'danger',
-            }, () => startOver.mutate())}
-              disabled={busy || a.applications.length === 0}
-              className="flex h-8 items-center gap-1.5 rounded-[10px] border border-danger-200 bg-surface px-3 text-[12.5px] font-semibold text-danger-700 hover:bg-danger-50 disabled:opacity-45">
-              <RotateCcw className="h-3.5 w-3.5" /> Start over
-            </button>
-            <p className="text-xs text-ink-500">While testing is on, their interview can be set at any time.</p>
-            <Link href="/admin/applications" className="flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline">
-              Review in Applications <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-        </div>
-      )}
+      ) : applicationsCard}
 
       {/* Activity + controls */}
       <div className={`${CARD} overflow-hidden`}>
@@ -326,7 +336,7 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
         <div className="flex flex-wrap items-center gap-2 border-t border-ink-900/[.05] bg-surface-2 px-5 py-3.5">
           <button onClick={() => ask({
             title: `Make ${a.name} ${isRecipient ? 'an applicant' : 'a recipient'}?`,
-            body: `Only the role changes: applications and placements aren't touched. They see the ${isRecipient ? 'applicant' : 'recipient'} portal right away. Undo all changes puts the original role back.`,
+            body: `Only the role changes: applications and placements aren't touched. They see the ${isRecipient ? 'applicant' : 'recipient'} portal right away. Undo all changes puts the original role back.${isRecipient ? '' : ' To have them appear in Assignments → Needs an office, set their application to Approved instead.'}`,
             confirmLabel: isRecipient ? 'Make applicant' : 'Make recipient',
           }, () => role.mutate(isRecipient ? 'applicant' : 'recipient'))}
             disabled={busy} title="Change the role only"

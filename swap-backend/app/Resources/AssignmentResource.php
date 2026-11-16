@@ -61,6 +61,8 @@ class AssignmentResource extends JsonResource
                 fn () => (bool) $this->resource->getAttribute('pace_reminded_today')),
             'created_at' => $this->created_at->toISOString(),
             'user' => $this->whenLoaded('user', fn () => new UserResource($this->user)),
+            // The student's account was deleted by the DSA (the placement is kept on record).
+            'user_deleted' => $this->relationLoaded('user') && (bool) $this->user?->trashed(),
             'office' => $this->whenLoaded('office', fn () => [
                 'id' => $this->office->id,
                 'name' => $this->office->name,

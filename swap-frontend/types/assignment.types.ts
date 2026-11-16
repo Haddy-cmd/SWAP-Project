@@ -22,6 +22,8 @@ export interface Assignment {
   pace: import('@/lib/utils/pace').Pace
   created_at: string
   user?: import('./auth.types').User
+  /** The student's account was deleted (the placement stays on record; nothing can be changed). */
+  user_deleted?: boolean
   office?: Office
   supervisor?: import('./auth.types').User
   /** Whether this recipient's supervisor requires a selfie at clock-in. */

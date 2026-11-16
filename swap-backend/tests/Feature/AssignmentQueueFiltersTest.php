@@ -76,4 +76,18 @@ class AssignmentQueueFiltersTest extends TestCase
             ->assertJsonPath('data.0.supervisors.0.name', 'Ana')
             ->assertJsonPath('data.0.supervisors.1.name', 'Zed');
     }
+
+    public function test_a_deleted_accounts_placement_shows_who_it_was(): void
+    {
+        $recipient = $this->makeUser('recipient', ['name' => 'Gone Student']);
+        $this->makeAssignment($recipient, $this->makeUser('supervisor'));
+        Sanctum::actingAs($this->makeUser('admin'));
+        $this->deleteJson("/api/admin/users/{$recipient->id}")->assertOk();
+
+        // The placement stays on record (completed) with the person, marked as a deleted account.
+        $this->getJson('/api/admin/assignments')->assertOk()
+            ->assertJsonPath('data.0.user.name', 'Gone Student')
+            ->assertJsonPath('data.0.user_deleted', true)
+            ->assertJsonPath('data.0.status', 'completed');
+    }
 }
