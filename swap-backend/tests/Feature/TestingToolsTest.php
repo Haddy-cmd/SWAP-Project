@@ -21,6 +21,7 @@ use App\Support\TestTools;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\Concerns\MakesSwapData;
@@ -309,6 +310,23 @@ class TestingToolsTest extends TestCase
         $this->assertNull($student->fresh()->testing_added_at);
         $this->assertSame(0, TestingSnapshot::count());
         $this->assertDatabaseHas('audit_logs', ['action' => 'testing_account_removed', 'auditable_id' => $student->id]);
+    }
+
+    public function test_a_restore_never_brings_back_a_second_active_placement(): void
+    {
+        // A snapshot taken while an old duplicate placement was still active (before the
+        // one-active-placement cleanup), then the cleanup closed it while the student was picked.
+        [$student, $current] = $this->realRecipient();
+        $old = $this->makeAssignment($student, $current->supervisor, null, ['academic_year' => '2026-2027', 'semester' => '2nd Semester']);
+        $this->pick($student)->assertOk();
+        DB::table('assignments')->where('id', $current->id)->update(['status' => 'completed']);
+
+        $this->release($student)->assertOk();
+
+        $this->assertSame(1, Assignment::where('user_id', $student->id)->where('status', 'active')->count());
+        $this->assertSame('active', $old->fresh()->status, 'the newest placement is kept');
+        $this->assertSame('completed', $current->fresh()->status);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'placement_closed_duplicate', 'auditable_id' => $current->id]);
     }
 
     public function test_the_original_record_comes_back_with_the_same_ids_after_resets(): void

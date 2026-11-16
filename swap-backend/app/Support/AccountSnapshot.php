@@ -83,7 +83,7 @@ class AccountSnapshot
             }
         }
 
-        DB::transaction(function () use ($current, $saved) {
+        DB::transaction(function () use ($current, $saved, $user) {
             // Children first out, parents first back in, each table in id order (a
             // placement's carried_from_assignment_id points at an older one).
             foreach (array_reverse(array_keys(self::TABLES)) as $table) {
@@ -99,6 +99,8 @@ class AccountSnapshot
                     DB::table($table)->insert($chunk);
                 }
             }
+            // A snapshot can predate the one-active-placement cleanup; never bring back a second one.
+            self::closeDuplicatePlacements($user->id);
         });
 
         $files = $this->deleteFiles($new, $saved, $current);
@@ -110,6 +112,31 @@ class AccountSnapshot
             'files' => $files,
             'notifications' => $notifications,
         ];
+    }
+
+    /**
+     * Keep the newest active placement and complete any other (its logs and hours stay with it),
+     * as the 2026_10_12 cleanup migration does; recorded in the audit log.
+     */
+    private static function closeDuplicatePlacements(int $userId): void
+    {
+        $active = DB::table('assignments')->where('user_id', $userId)->where('status', 'active')
+            ->orderByDesc('id')->pluck('id');
+
+        foreach ($active->slice(1) as $oldId) {
+            DB::table('assignments')->where('id', $oldId)->update(['status' => 'completed', 'updated_at' => now()]);
+            DB::table('audit_logs')->insert([
+                'user_id' => null,
+                'subject_user_id' => $userId,
+                'action' => 'placement_closed_duplicate',
+                'auditable_type' => 'App\\Models\\Assignment',
+                'auditable_id' => $oldId,
+                'old_values' => json_encode(['status' => 'active']),
+                'new_values' => json_encode(['status' => 'completed', 'kept_assignment_id' => $active->first()]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     /**
