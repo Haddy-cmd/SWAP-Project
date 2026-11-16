@@ -828,4 +828,20 @@ class TestingToolsTest extends TestCase
         $this->postJson("/api/admin/testing/accounts/{$applicant->id}/restore")->assertOk();
         $this->assertNotNull(Application::find($application->id));
     }
+
+    public function test_make_recipient_approves_the_application_so_they_can_be_placed(): void
+    {
+        [$applicant, $application] = $this->pickedApplicant();
+        $application->update(['status' => 'rejected']);
+
+        $this->putJson("/api/admin/testing/accounts/{$applicant->id}/role", ['role' => 'recipient'])->assertOk()
+            ->assertJsonPath('message', "{$applicant->name} is now a recipient. Application #{$application->id} was set to Approved, so they're in Assignments → Needs an office. Restore puts the original role back.");
+        $this->assertSame('approved', $application->fresh()->status);
+        $this->getJson('/api/admin/applications?unassigned=1')->assertOk()->assertJsonPath('data.0.id', $application->id);
+
+        // Restore puts the role and the application back.
+        $this->postJson("/api/admin/testing/accounts/{$applicant->id}/restore")->assertOk();
+        $this->assertSame('applicant', $applicant->fresh()->role);
+        $this->assertSame('submitted', $application->fresh()->status);
+    }
 }

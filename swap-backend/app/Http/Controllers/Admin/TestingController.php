@@ -78,11 +78,13 @@ class TestingController extends Controller
     public function accountRole(Request $request, int $id): JsonResponse
     {
         $data = $request->validate(['role' => ['required', Rule::in(['applicant', 'recipient'])]]);
-        $user = $this->testing->setRole($request->user(), $id, $data['role']);
+        [$user, $approved] = $this->testing->setRole($request->user(), $id, $data['role']);
 
         return response()->json([
             'data' => $this->testing->status(),
-            'message' => "{$user->name} is now {$this->article($data['role'])} {$data['role']}. Restore puts the original role back.",
+            'message' => "{$user->name} is now {$this->article($data['role'])} {$data['role']}."
+                . ($approved ? " Application #{$approved->id} was set to Approved, so they're in Assignments → Needs an office." : '')
+                . ' Restore puts the original role back.',
         ]);
     }
 

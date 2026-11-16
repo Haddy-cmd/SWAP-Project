@@ -93,20 +93,66 @@ class TestingService
     }
 
     /**
-     * Flip a picked account between applicant and recipient — the role only: applications and
-     * placements are not touched. Restore (or switching testing off) puts the original role back.
+     * Flip a picked account between applicant and recipient. Making an applicant a recipient also
+     * does what a real approval does, so they can be given an office: with no placement and no
+     * approved application, their latest new application is set to Approved (or, with none, one is
+     * created for the current application term) and they appear in Assignments → Needs an office.
+     * Making a recipient an applicant changes the role only. No emails. Restore (or switching
+     * testing off) puts everything back.
+     *
+     * @return array{0: User, 1: ?Application} the account, and the application approved for them
      */
-    public function setRole(User $admin, int $id, string $role): User
+    public function setRole(User $admin, int $id, string $role): array
     {
         $user = $this->picked($id);
         if ($user->role === $role) {
             throw new UnprocessableEntityHttpException(self::msgSameRole($role));
         }
-        $old = $user->role;
-        $user->forceFill(['role' => $role])->save();
-        AuditLog::record('testing_role_changed', $user, ['role' => $old], ['role' => $role], $admin->id);
 
-        return $user;
+        return DB::transaction(function () use ($admin, $user, $role) {
+            $old = $user->role;
+            $user->forceFill(['role' => $role])->save();
+            $approved = $role === 'recipient' ? $this->approveForPlacement($user, $admin) : null;
+            AuditLog::record('testing_role_changed', $user, ['role' => $old],
+                ['role' => $role] + ($approved ? ['approved_application_id' => $approved->id] : []), $admin->id);
+
+            return [$user, $approved];
+        });
+    }
+
+    /** A new recipient needs an approved application to be placed (Assignments → Needs an office). */
+    private function approveForPlacement(User $user, User $admin): ?Application
+    {
+        $placed = Assignment::where('user_id', $user->id)->where('status', 'active')->exists();
+        $waiting = Application::where('user_id', $user->id)->where('status', 'approved')
+            ->where(fn ($q) => $q->where('type', '!=', 'renewal')->orWhereNull('type'))->exists();
+        if ($placed || $waiting) {
+            return null;
+        }
+
+        $application = Application::where('user_id', $user->id)
+            ->where(fn ($q) => $q->where('type', '!=', 'renewal')->orWhereNull('type'))
+            ->latest('id')->first();
+        if (!$application) {
+            $term = app(\App\Services\SemesterPeriodService::class)->applicationTerm();
+            if (!$term) {
+                return null;
+            }
+            $application = Application::create([
+                'user_id' => $user->id, 'academic_year' => $term->academic_year, 'semester' => $term->semester,
+                'status' => 'submitted', 'type' => 'new',
+            ]);
+        }
+
+        $old = $application->status;
+        $application->forceFill([
+            'status' => 'approved', 'reviewed_by' => $admin->id, 'reviewed_at' => now(),
+            'rejection_reason' => null, 'remarks' => null,
+        ])->save();
+        // Keeps the applicant's timeline in step.
+        AuditLog::record('updated', $application, ['status' => $old], ['status' => 'approved'], $admin->id);
+
+        return $application;
     }
 
     // ── Applicant shortcuts ─────────────────────────────────────────────────

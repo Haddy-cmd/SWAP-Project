@@ -336,7 +336,7 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
         <div className="flex flex-wrap items-center gap-2 border-t border-ink-900/[.05] bg-surface-2 px-5 py-3.5">
           <button onClick={() => ask({
             title: `Make ${a.name} ${isRecipient ? 'an applicant' : 'a recipient'}?`,
-            body: `Only the role changes: applications and placements aren't touched. They see the ${isRecipient ? 'applicant' : 'recipient'} portal right away. Undo all changes puts the original role back.${isRecipient ? '' : ' To have them appear in Assignments → Needs an office, set their application to Approved instead.'}`,
+            body: `${isRecipient ? 'Only the role changes: applications and placements aren’t touched. ' : ''}They see the ${isRecipient ? 'applicant' : 'recipient'} portal right away. Undo all changes puts the original role back.${isRecipient ? '' : ' Their latest application is also set to Approved (one is created if they have none), so they appear in Assignments → Needs an office.'}`,
             confirmLabel: isRecipient ? 'Make applicant' : 'Make recipient',
           }, () => role.mutate(isRecipient ? 'applicant' : 'recipient'))}
             disabled={busy} title="Change the role only"
