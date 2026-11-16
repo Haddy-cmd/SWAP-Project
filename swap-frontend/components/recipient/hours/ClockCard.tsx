@@ -13,10 +13,8 @@ import { formatDateTime } from '@/lib/utils/formatDate'
 import { getCurrentPosition, getBestPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
 import type { Assignment, Office } from '@/types/assignment.types'
 import type { HoursSummary } from '@/types/attendance.types'
+import { awayText, useAwayCountdown } from '@/components/recipient/PremisesWatch'
 import { CARD, fmtClock, pad } from './ui'
-
-const GRACE_MS = 10 * 60 * 1000 // auto clock-out after 10 min outside the geofence
-const POLL_MS = 15_000
 
 type LocState =
   | { kind: 'checking' }
@@ -61,14 +59,12 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   const { notify, notifyError } = useFeedback()
   const [openLogId, setOpenLogId] = useState<number | null>(null)
   const [qrToken, setQrToken] = useState('')
-  const [geoWarning, setGeoWarning] = useState<string | null>(null)
   const [narrativeOpen, setNarrativeOpen] = useState(false)
   const [selfieOpen, setSelfieOpen] = useState(false)
   // "Enter the code instead" shown; the in-page scanner for clocking out.
   const [showCode, setShowCode] = useState(false)
   const [scanOut, setScanOut] = useState(false)
   const [now, setNow] = useState(() => Date.now())
-  const outsideSinceRef = useRef<number | null>(null)
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id) }, [])
 
@@ -117,25 +113,13 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
       return attendanceApi.timeOut(openLogId, token ?? qrToken, coords)
     },
     onSuccess: (res) => {
-      setOpenLogId(null); setGeoWarning(null); outsideSinceRef.current = null
+      setOpenLogId(null)
       const hours = Number(res.data.duration_hours) || 0
       notify({ title: 'Clocked out', detail: `${hours ? `${hours.toFixed(2)}h logged · ` : ''}out at ${formatDateTime(res.data.time_out!)}\nYour supervisor will verify the hours.` })
       invalidate()
       setQrToken(''); setShowCode(false)
     },
     onError: (err: { message?: string }) => notifyError(err, 'Could not clock you out'),
-  })
-
-  const autoClockOut = useMutation({
-    mutationFn: (coords?: { latitude: number; longitude: number; accuracy?: number }) => {
-      if (!openLogId) throw new Error('No open log')
-      return attendanceApi.autoClockOut(openLogId, coords)
-    },
-    onSuccess: () => {
-      setOpenLogId(null); setGeoWarning(null); outsideSinceRef.current = null
-      notify({ tone: 'info', title: 'Clocked out automatically', detail: 'You left the office premises. Add your task description under Time logs below.' })
-      invalidate()
-    },
   })
 
   // Clock out: straight out when the Task Description is in, otherwise ask for it first.
@@ -154,31 +138,8 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   // Offices can switch auto clock-out off (errands off the premises); then nothing is watched.
   const monitoring = clockedIn && !!office?.geofence_enabled && office.auto_clock_out !== false && office.latitude != null && office.longitude != null
 
-  // Background geofence watch → auto clock-out after the grace period (set up once per session).
-  const checkLocationRef = useRef<() => void>(() => {})
-  checkLocationRef.current = async () => {
-    if (!office || office.latitude == null || office.longitude == null) return
-    try {
-      const pos = await getCurrentPosition()
-      const dist = distanceMeters(pos.latitude, pos.longitude, Number(office.latitude), Number(office.longitude))
-      const inside = dist <= (office.radius_meters ?? 100) + Math.min(pos.accuracy ?? 0, 100)
-      if (inside) { outsideSinceRef.current = null; setGeoWarning(null); return }
-      if (outsideSinceRef.current == null) outsideSinceRef.current = Date.now()
-      const elapsed = Date.now() - outsideSinceRef.current
-      if (elapsed >= GRACE_MS) {
-        autoClockOut.mutate({ latitude: pos.latitude, longitude: pos.longitude, accuracy: pos.accuracy })
-      } else {
-        const mins = Math.ceil((GRACE_MS - elapsed) / 60_000)
-        setGeoWarning(`You appear to have left ${office.name}. You'll be clocked out automatically in ~${mins} min if you don't return.`)
-      }
-    } catch { /* transient GPS error: keep the prior state */ }
-  }
-  useEffect(() => {
-    if (!monitoring) return
-    checkLocationRef.current()
-    const id = setInterval(() => checkLocationRef.current(), POLL_MS)
-    return () => clearInterval(id)
-  }, [monitoring])
+  // Away from the office: the server's countdown (PremisesWatch reports the location on every page).
+  const away = useAwayCountdown(currentLog)
 
   // Before clocking in: where am I? (never blocks the button)
   const { state: loc, check: recheck } = useLocationStatus(assignment?.office, !clockedIn && !!assignment && !completed)
@@ -190,8 +151,8 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   })()
 
   const location = clockedIn
-    ? geoWarning
-      ? { tone: 'warn', Icon: AlertTriangle, title: 'You appear to have left the premises', text: geoWarning }
+    ? away
+      ? { tone: 'warn', Icon: AlertTriangle, title: 'You appear to have left the premises', text: awayText(officeName, away) }
       : { tone: 'ok', Icon: MapPin, title: `On duty at ${officeName}`, text: monitoring ? 'Location is checked while you’re clocked in' : 'This office doesn’t watch your location' }
     : loc.kind === 'checking' ? { tone: 'muted', Icon: Navigation, title: 'Checking your location…', text: 'Allow location if your browser asks.' }
     : loc.kind === 'inside' ? { tone: 'ok', Icon: MapPin, title: `You’re at ${officeName}`, text: 'Location on · inside the office area' }

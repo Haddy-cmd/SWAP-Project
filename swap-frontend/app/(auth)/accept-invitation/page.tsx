@@ -94,7 +94,7 @@ function AcceptInvitationForm() {
   }
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm sm:p-8">
       <div className="mb-6 text-center">
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-100">
           <ShieldCheck className="h-6 w-6 text-brand-700" />
@@ -113,7 +113,7 @@ function AcceptInvitationForm() {
       </div>
 
       <div className="mb-4 flex flex-col gap-1.5 rounded-xl bg-ink-50 px-4 py-3 text-[13px] text-ink-600">
-        <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-ink-400" /> {invite.email}</span>
+        <span className="flex min-w-0 items-center gap-2 break-all"><Mail className="h-4 w-4 flex-none text-ink-400" /> {invite.email}</span>
         {invite.office && (
           <span className="flex items-center gap-2"><Building2 className="h-4 w-4 text-ink-400" /> {invite.office}</span>
         )}

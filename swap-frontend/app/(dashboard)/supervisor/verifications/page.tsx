@@ -182,12 +182,12 @@ export default function VerificationsPage() {
               className="h-[42px] w-full rounded-[11px] border border-ink-200 bg-surface pl-10 pr-3.5 text-[13.5px] text-ink-900 focus:border-brand-700 focus:outline-none"
             />
           </div>
-          <div className="inline-flex gap-[3px] rounded-[10px] bg-ink-100 p-1">
+          <div className="no-scrollbar flex w-full gap-[3px] overflow-x-auto rounded-[10px] bg-ink-100 p-1 sm:inline-flex sm:w-auto">
             {([['pending', `Pending (${pendingAll.length})`], ['flagged', `Needs review (${flaggedAll.length})`], ['reviewed', `Reviewed (${reviewedAll.length})`]] as const).map(([key, label]) => {
               const on = tab === key
               return (
                 <button key={key} onClick={() => { setTab(key); setSel({}) }}
-                  className="rounded-[7px] px-4 py-2 text-[12.5px] transition-colors"
+                  className="rounded-[7px] px-3 py-2 text-[12.5px] transition-colors sm:px-4"
                   style={on ? { background: 'var(--color-surface)', color: 'var(--text-brand-700)', fontWeight: 700, boxShadow: '0 1px 3px rgba(19,36,26,.1)' } : { color: 'var(--text-ink-500)', fontWeight: 500 }}>
                   {label}
                 </button>
@@ -427,9 +427,9 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
           </div>
         </div>
         {/* facts */}
-        <div className="grid grid-cols-3 border-b border-ink-200">
+        <div className="grid grid-cols-2 border-b border-ink-200 sm:grid-cols-3">
           {[['Date', fmtDate(log.date)], ['Time', timeRange(log)], ['Hours', `${hoursOf(log)} hrs`]].map(([k, v], i) => (
-            <div key={k} className={`px-5 py-3.5 ${i < 2 ? 'border-r border-ink-200' : ''}`}>
+            <div key={k} className={`px-3.5 py-3 sm:px-5 sm:py-3.5 ${k === 'Time' ? 'col-span-2 border-t border-ink-200 sm:col-span-1 sm:border-t-0' : ''} ${i === 0 ? 'border-r border-ink-200' : i === 1 ? 'sm:border-r sm:border-ink-200' : ''} ${i === 1 ? 'order-last sm:order-none' : ''}`}>
               <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ink-400">{k}</div>
               <div className={`text-[13.5px] font-semibold tabular-nums ${k === 'Hours' ? 'text-brand-700' : 'text-ink-950'}`}>{v}</div>
             </div>
@@ -484,10 +484,10 @@ function NarrativeModal({ log, posLabel, canPrev, canNext, onPrev, onNext, onClo
           )}
         </div>
         {/* footer */}
-        <div className="flex items-center justify-between gap-2.5 px-6 pb-[22px] pt-[18px]">
+        <div className="flex flex-col-reverse gap-2.5 px-4 pb-[22px] pt-[18px] sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <span className="text-[12px] text-ink-400">{log.narrative_report?.submitted_at ? `Submitted ${fmtDate(log.narrative_report.submitted_at)}` : ''}</span>
           {pending ? (
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2.5 [&>button]:flex-1 [&>button]:justify-center sm:[&>button]:flex-none">
               <button onClick={onReject} disabled={busy}
                 className="flex h-[42px] items-center gap-1.5 rounded-[11px] border border-danger-200 bg-danger-50 px-[18px] text-[13px] font-semibold text-danger-700 disabled:opacity-50">
                 <X className="h-[17px] w-[17px]" /> Reject

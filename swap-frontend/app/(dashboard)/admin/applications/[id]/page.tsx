@@ -172,9 +172,9 @@ export default function AdminApplicationDetailPage() {
           {/* Info */}
           <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm">
             <h2 className="mb-4 font-semibold text-ink-900">Applicant Details</h2>
-            <dl className="grid grid-cols-2 gap-3 text-sm">
+            <dl className="grid grid-cols-1 gap-3 text-sm xs:grid-cols-2">
               <div><dt className="text-ink-500">Name</dt><dd className="font-medium text-ink-900">{application.user?.name ?? '—'}</dd></div>
-              <div><dt className="text-ink-500">Email</dt><dd className="font-medium text-ink-900">{application.user?.email ?? '—'}</dd></div>
+              <div><dt className="text-ink-500">Email</dt><dd className="break-all font-medium text-ink-900">{application.user?.email ?? '—'}</dd></div>
               <div><dt className="text-ink-500">Academic Year</dt><dd className="font-medium text-ink-900">{application.academic_year}</dd></div>
               <div><dt className="text-ink-500">Semester</dt><dd className="font-medium text-ink-900">{application.semester}</dd></div>
               <div><dt className="text-ink-500">Submitted</dt><dd className="font-medium text-ink-900">{formatDateTime(application.created_at)}</dd></div>

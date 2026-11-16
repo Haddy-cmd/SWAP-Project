@@ -101,21 +101,21 @@ export function HoursTab({ academicYear, semester, allTerms, onDrill }: TabProps
             <Flag className="h-4 w-4" /> Only flagged
           </button>
         </div>
-        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_70px_64px_58px_16px] gap-2.5 border-b border-ink-900/[.06] pb-2 text-[11.5px] font-bold text-ink-500">
-          <span>Office</span><span className="text-right">Students</span><span className="text-right">Hours</span><span className="text-right">Flagged</span><span />
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_52px_52px] sm:grid-cols-[minmax(0,1fr)_70px_64px_58px_16px] gap-2.5 border-b border-ink-900/[.06] pb-2 text-[11.5px] font-bold text-ink-500">
+          <span>Office</span><span className="hidden text-right sm:block">Students</span><span className="text-right">Hours</span><span className="text-right">Flagged</span><span className="hidden sm:block" />
         </div>
         {offices.length === 0 ? (
           <p className="py-6 text-center text-[13px] text-ink-500">{onlyFlagged ? 'No office has flagged logs.' : 'No offices yet.'}</p>
         ) : offices.map((o) => (
           <button key={o.office} onClick={() => onDrill({ tab: 'recipients', filters: { office: [o.office] } })}
-            className="grid w-full grid-cols-[minmax(0,1fr)_70px_64px_58px_16px] items-center gap-2.5 border-b border-ink-900/[.04] py-[11px] text-left text-[13px] hover:bg-surface-2">
+            className="grid w-full grid-cols-[minmax(0,1fr)_52px_52px] sm:grid-cols-[minmax(0,1fr)_70px_64px_58px_16px] items-center gap-2.5 border-b border-ink-900/[.04] py-[11px] text-left text-[13px] hover:bg-surface-2">
             <span className="flex min-w-0 items-center gap-2"><span className="h-[9px] w-[9px] flex-none rounded-full" style={{ background: o.color }} /><span className="truncate">{o.office}</span></span>
-            <span className={`text-right ${o.filled > o.capacity ? 'font-semibold text-red-strong' : ''}`} title={o.filled > o.capacity ? 'Over the office limit' : undefined}>{o.filled}/{o.capacity}</span>
+            <span className={`hidden text-right sm:block ${o.filled > o.capacity ? 'font-semibold text-red-strong' : ''}`} title={o.filled > o.capacity ? 'Over the office limit' : undefined}>{o.filled}/{o.capacity}</span>
             <strong className="text-right">{Math.round(o.verified_hours)}h</strong>
             <span className="text-right">
               <span className="rounded-full px-2 py-0.5 text-xs font-bold" style={o.flagged ? { color: 'var(--text-red-strong)', background: 'var(--color-danger-100)' } : { color: 'var(--text-ink-500)', background: 'var(--color-surface-3)' }}>{o.flagged}</span>
             </span>
-            <ChevronRight className="h-4 w-4 text-ink-300" />
+            <ChevronRight className="hidden h-4 w-4 text-ink-300 sm:block" />
           </button>
         ))}
       </Card>

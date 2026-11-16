@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import Link, { useLinkStatus } from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils/cn'
@@ -12,22 +12,28 @@ import { Bell, LogOut, X } from 'lucide-react'
 import { ROLE_NAV, type NavLink } from '@/lib/constants/navigation'
 
 function RailItem({ item, active, onNavigate }: { item: NavLink; active: boolean; onNavigate?: () => void }) {
+  return (
+    <Link href={item.href} onClick={onNavigate} title={item.label} className="block">
+      <RailContent item={item} active={active} />
+    </Link>
+  )
+}
+
+/** Inside the Link, so a clicked item lights up (with a soft pulse) before its page arrives. */
+function RailContent({ item, active }: { item: NavLink; active: boolean }) {
+  const { pending } = useLinkStatus()
+  const on = active || pending
   const Icon = item.icon
   return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      title={item.label}
-      className={cn(
-        'group relative flex flex-col items-center gap-[5px] rounded-xl px-1 pb-2.5 pt-[11px] text-center transition-colors',
-        active ? 'bg-white/10 text-white' : 'text-white/65 hover:bg-white/[0.08] hover:text-white',
-      )}
-    >
+    <span className={cn(
+      'group relative flex flex-col items-center gap-[5px] rounded-xl px-1 pb-2.5 pt-[11px] text-center transition-colors',
+      on ? 'bg-white/10 text-white' : 'text-white/65 hover:bg-white/[0.08] hover:text-white',
+    )}>
       {/* Gold marker for the current page, echoing the seal's lettering. */}
-      {active && <span aria-hidden className="absolute inset-y-2.5 -left-2 w-[3px] rounded-r-full bg-gold-400" />}
-      <Icon className={cn('h-[23px] w-[23px] flex-shrink-0', active && 'text-gold-400')} />
-      <span className={cn('line-clamp-2 text-[10.5px] leading-[1.15]', active ? 'font-bold' : 'font-medium')}>{item.label}</span>
-    </Link>
+      {on && <span aria-hidden className="absolute inset-y-2.5 -left-2 w-[3px] rounded-r-full bg-gold-400" />}
+      <Icon className={cn('h-[23px] w-[23px] flex-shrink-0', on && 'text-gold-400', pending && 'animate-live')} />
+      <span className={cn('line-clamp-2 text-[10.5px] leading-[1.15]', on ? 'font-bold' : 'font-medium')}>{item.label}</span>
+    </span>
   )
 }
 

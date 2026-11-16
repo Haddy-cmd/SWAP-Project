@@ -322,9 +322,9 @@ export default function RegisterPage() {
         </div>
 
         {/* Form panel */}
-        <div className="flex min-w-0 flex-1 flex-col bg-ink-50 p-7 sm:p-12">
+        <div className="flex min-w-0 flex-1 flex-col bg-ink-50 p-5 sm:p-12">
           <div className="text-[11.5px] font-bold uppercase tracking-[0.18em] text-gold-600">Step {step} of 3</div>
-          <h2 className="mt-2 font-serif text-[29px] font-medium leading-tight text-ink-950">{heading}</h2>
+          <h2 className="mt-2 font-serif text-[24px] sm:text-[29px] font-medium leading-tight text-ink-950">{heading}</h2>
           <p className="mt-1.5 text-sm text-ink-500">{subhead}</p>
 
           {serverError && (
@@ -459,7 +459,7 @@ export default function RegisterPage() {
                     ].map(([label, value], i, arr) => (
                       <div key={label} className={`flex items-center justify-between gap-4 px-5 py-[15px] ${i < arr.length - 1 ? 'border-b border-ink-100' : ''}`}>
                         <span className="flex-none text-[13px] text-ink-500">{label}</span>
-                        <span className="truncate text-right text-sm font-semibold text-ink-900">{value || '—'}</span>
+                        <span className="min-w-0 break-all text-right text-sm font-semibold text-ink-900">{value || '—'}</span>
                       </div>
                     ))}
                   </div>
@@ -480,7 +480,7 @@ export default function RegisterPage() {
             </div>
 
             {/* Footer nav */}
-            <div className="mt-6 flex items-center justify-between gap-3 border-t border-ink-200 pt-5">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-ink-200 pt-5 [&>button:last-child]:flex-1 [&>button:last-child]:justify-center sm:[&>button:last-child]:flex-none">
               {step === 1 ? (
                 <span className="text-[13.5px] text-ink-500">
                   Already have an account?{' '}

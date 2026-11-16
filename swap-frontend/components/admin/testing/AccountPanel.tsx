@@ -95,7 +95,7 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
               <span className="text-[19px] font-extrabold">{a.name}</span>
               <span className="rounded-md px-2 py-[3px] text-[11.5px] font-bold" style={{ color: ROLE[a.role].fg, background: ROLE[a.role].bg }}>{ROLE[a.role].label}</span>
             </div>
-            <p className="mt-0.5 text-[12.5px] text-ink-500">
+            <p className="mt-0.5 break-all text-[12.5px] text-ink-500">
               {a.email}{a.student_id_number ? ` · ID ${a.student_id_number}` : ''}
               {t ? ` · ${t.term}${t.end_date ? `, ends ${formatDay(t.end_date)}` : ''}` : ''}
             </p>
@@ -138,7 +138,7 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
         !t ? (
           <p className={`${CARD} px-5 py-6 text-center text-[13px] text-ink-500`}>No placement yet: assign this recipient an office first (Admin → Assignments).</p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-4">
             <StepCard n={1} title="Service hours" right={<span className="text-[12.5px] text-ink-600"><strong className="text-ink-950">{verified}h</strong> of {required}h</span>}>
               <div>
                 <div className="flex h-2 overflow-hidden rounded-md bg-surface-3">

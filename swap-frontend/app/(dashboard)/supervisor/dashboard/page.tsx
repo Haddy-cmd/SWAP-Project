@@ -59,7 +59,7 @@ export default function SupervisorDashboard() {
           <h1 className="text-[22px] font-extrabold tracking-[-0.01em] text-ink-950">Good day, {firstName(user?.name)}</h1>
           <p className="mt-0.5 text-[13px] text-ink-500">{summary}</p>
         </div>
-        <div className="stagger flex flex-wrap gap-2.5">
+        <div className="stagger grid w-full grid-cols-2 gap-2.5 sm:flex sm:w-auto sm:flex-wrap">
           {KPIS.map(({ Icon, value, format, label, tint, href }) => (
             <Link key={label} href={href}
               className="flex items-center gap-2.5 rounded-[14px] border border-ink-900/[.08] bg-surface py-2 pl-2.5 pr-3.5 transition-colors hover:border-accent/40">
@@ -73,15 +73,16 @@ export default function SupervisorDashboard() {
         </div>
       </div>
 
-      {/* Wide: three columns that each scroll inside the screen. Narrower: the queue on top, the rest below. */}
+      {/* Wide: three columns that each scroll inside the screen. Narrower: the queue on top, the rest below;
+          phones: each panel only as tall as its content, up to most of the screen. */}
       <div className="grid gap-4 md:grid-cols-2 xl:h-[calc(100dvh-210px)] xl:min-h-[560px] xl:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)_minmax(260px,.85fr)]">
-        <div className="flex h-[520px] min-h-0 flex-col md:col-span-2 xl:col-span-1 xl:h-auto">
+        <div className="flex max-h-[75dvh] min-h-0 flex-col md:col-span-2 md:h-[520px] md:max-h-none xl:col-span-1 xl:h-auto">
           <WorkQueue logs={pendingLogs} reports={reports} loading={logsLoading} />
         </div>
-        <div className="flex h-[440px] min-h-0 flex-col xl:h-auto">
+        <div className="flex max-h-[70dvh] min-h-0 flex-col md:h-[440px] md:max-h-none xl:h-auto">
           <BehindList students={behind} />
         </div>
-        <div className="flex h-[440px] min-h-0 flex-col xl:h-auto">
+        <div className="flex max-h-[70dvh] min-h-0 flex-col md:h-[440px] md:max-h-none xl:h-auto">
           <SideColumn onDuty={clockedIn} students={students} />
         </div>
       </div>

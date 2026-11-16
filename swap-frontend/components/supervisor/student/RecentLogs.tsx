@@ -74,12 +74,12 @@ export function RecentLogs({ studentId, studentName }: { studentId: number; stud
                 : { text: l.office?.name ?? '', red: false }
         const busy = verify.isPending && verify.variables?.id === l.id
         return (
-          <div key={l.id} className="flex flex-wrap items-center gap-3.5 border-b border-ink-900/[.05] px-5 py-[11px] last:border-0">
+          <div key={l.id} className="flex items-center gap-3 border-b border-ink-900/[.05] px-4 py-[11px] last:border-0 sm:gap-3.5 sm:px-5">
             <div className="w-10 flex-none text-center leading-tight">
               <div className="text-[10.5px] font-bold uppercase text-ink-500">{d.toLocaleDateString('en-PH', { month: 'short' })}</div>
               <div className="text-[18px] font-extrabold text-ink-950">{d.getDate()}</div>
             </div>
-            <div className="min-w-[150px] flex-1">
+            <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-ink-900">
                 {l.is_manual ? `Bonus · ${l.manual_reason ?? 'added by a supervisor'}` : `${time(l.time_in)} – ${l.time_out ? time(l.time_out) : 'now'}`}
               </div>

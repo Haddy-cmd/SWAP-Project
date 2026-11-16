@@ -51,7 +51,7 @@ export default function HoursAttendancePage() {
     <div className="flex flex-col gap-[18px]">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-[-.02em] text-ink-950">Hours &amp; Attendance</h1>
+          <h1 className="text-[22px] font-extrabold tracking-[-.02em] sm:text-[28px] text-ink-950">Hours &amp; Attendance</h1>
           {termLine && <p className="mt-1 text-[14px] text-ink-500">{termLine}</p>}
         </div>
         <div className="flex items-center gap-3.5">

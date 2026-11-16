@@ -147,7 +147,7 @@ export default async function LandingPage() {
               Student Welfare Assistantship Program
             </div>
             <h1
-              className="mb-[26px] font-serif text-[clamp(46px,6.4vw,92px)] font-light leading-[.98] tracking-[-0.02em] text-cream text-balance animate-fade-up"
+              className="mb-[26px] font-serif text-[clamp(36px,6.4vw,92px)] font-light leading-[.98] tracking-[-0.02em] text-cream text-balance animate-fade-up"
               style={{ animationDelay: '80ms' }}
             >
               Serve the university.

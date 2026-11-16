@@ -86,7 +86,7 @@ function ResetPasswordForm() {
   const invalidLink = !emailOk || code.length !== 6
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-5 shadow-sm sm:p-8">
       <Link href="/login" className="mb-6 flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-700 transition-colors">
         <ArrowLeft className="h-4 w-4" />
         Back to sign in

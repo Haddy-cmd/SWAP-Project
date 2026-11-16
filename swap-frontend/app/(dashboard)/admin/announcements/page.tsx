@@ -466,8 +466,8 @@ export default function AdminAnnouncementsPage() {
                             const k = fileKind(f.name)
                             return (
                               <a key={f.id} href={announcementFileUrl(f.url, token)} target="_blank" rel="noreferrer"
-                                className="flex h-8 items-center gap-1.5 rounded-[9px] bg-surface-2 px-2.5 text-[12.5px] font-semibold hover:bg-ink-100">
-                                <k.Icon className="h-4 w-4" style={{ color: k.fg }} /> {f.name} <span className="font-normal text-ink-500">{fileSize(f.size)}</span>
+                                className="flex h-8 min-w-0 max-w-full items-center gap-1.5 rounded-[9px] bg-surface-2 px-2.5 text-[12.5px] font-semibold hover:bg-ink-100">
+                                <k.Icon className="h-4 w-4 flex-none" style={{ color: k.fg }} /> <span className="truncate">{f.name}</span> <span className="flex-none font-normal text-ink-500">{fileSize(f.size)}</span>
                               </a>
                             )
                           })}

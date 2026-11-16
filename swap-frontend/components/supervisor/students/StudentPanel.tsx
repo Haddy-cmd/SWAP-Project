@@ -111,7 +111,7 @@ export function StudentPanel({ row, onClose, onReport, onRequired, onDocs }: {
   ]
 
   return (
-    <aside className={`${CARD} overflow-hidden`}>
+    <aside className={`${CARD} phone-sheet overflow-hidden`}>
       <div className="flex items-center gap-3 px-[18px] py-4" style={{ background: 'var(--hero-gradient-plain)' }}>
         <UserAvatar name={row.name} avatarUrl={row.avatarUrl} className="h-11 w-11 rounded-full bg-white" />
         <div className="min-w-0 flex-1">
@@ -224,7 +224,7 @@ export function StudentPanel({ row, onClose, onReport, onRequired, onDocs }: {
 
 export function EmptyPanel() {
   return (
-    <aside className={`${CARD} flex flex-col items-center gap-2 px-6 py-12 text-center`}>
+    <aside className={`${CARD} hidden flex-col items-center gap-2 px-6 py-12 text-center lg:flex`}>
       <ClipboardCheck className="h-8 w-8 text-ink-350" />
       <p className="text-[13px] text-ink-500">Pick a student to see their hours and what they need.</p>
     </aside>

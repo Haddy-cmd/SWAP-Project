@@ -43,7 +43,17 @@ export function ChatbotWidget() {
         /* fall through to default */
       }
     }
-    setPos({ x: window.innerWidth - FAB - 24, y: window.innerHeight - FAB - 24 })
+    // The landing page starts it higher, clear of the slideshow's buttons.
+    setPos({ x: window.innerWidth - FAB - 24, y: window.innerHeight - FAB - (window.location.pathname === '/' ? 96 : 24) })
+  }, [])
+
+  // Turning the phone (or resizing the window) keeps the robot on screen and re-lays the panel out.
+  const [, setViewport] = useState(0)
+  useEffect(() => {
+    const onResize = () => { setPos((p) => clampToViewport(p.x, p.y)); setViewport((n) => n + 1) }
+    window.addEventListener('resize', onResize)
+    window.visualViewport?.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); window.visualViewport?.removeEventListener('resize', onResize) }
   }, [])
 
   // A short hello beside the robot, once per visit (this tab's session), then it fades on its own.
@@ -98,6 +108,9 @@ export function ChatbotWidget() {
 
   if (!mounted || HIDDEN_ON.includes(pathname)) return null
 
+  // Phones: the chat is a full-screen sheet and the robot steps aside (it sat on the Send button).
+  const phone = window.innerWidth < 640
+
   // Anchor the panel near the robot, clamped to stay on screen.
   const panelW = Math.min(PANEL_W, window.innerWidth - 16)
   const panelH = Math.min(PANEL_H, window.innerHeight - 16)
@@ -132,20 +145,20 @@ export function ChatbotWidget() {
 
       {chatOpen && (
         <div
-          className="fixed z-[60] animate-in fade-in"
-          style={{ left: panelLeft, top: panelTop, width: panelW, height: panelH }}
+          className={phone ? 'fixed inset-x-0 top-0 z-[60] h-app pb-safe' : 'fixed z-[60] animate-in fade-in'}
+          style={phone ? undefined : { left: panelLeft, top: panelTop, width: panelW, height: panelH }}
         >
           <ChatWindow onClose={() => setChatOpen(false)} />
         </div>
       )}
 
-      <button
+      {!(phone && chatOpen) && <button
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerCancel}
         style={{ left: pos.x, top: pos.y, width: FAB, height: FAB }}
-        className="fixed z-[60] flex touch-none select-none items-center justify-center rounded-full text-white shadow-lg ring-4 ring-brand-700/15 transition-transform hover:scale-105 active:scale-95"
+        className="chat-fab fixed z-[60] flex touch-none select-none items-center justify-center rounded-full text-white shadow-lg ring-4 ring-brand-700/15 transition-transform hover:scale-105 active:scale-95"
         aria-label={chatOpen ? 'Close SWAP Assistant' : 'Open SWAP Assistant'}
         title="SWAP Assistant — ask me about the system"
       >
@@ -158,7 +171,7 @@ export function ChatbotWidget() {
             <span className="absolute right-0 top-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-success-600" />
           )}
         </span>
-      </button>
+      </button>}
     </>
   )
 }

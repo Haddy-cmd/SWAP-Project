@@ -47,6 +47,11 @@ export const attendanceApi = {
       log_id: logId, qr_token: qrToken, ...coords,
     }).then((r) => r.data),
 
+  /** The location while clocked in (every recipient page); the server keeps when the student left. */
+  reportPremises: (coords: { latitude: number; longitude: number; accuracy?: number }) =>
+    apiClient.post<{ data: TimeLog; inside: boolean; clocked_out: boolean }>('/recipient/attendance/premises', coords)
+      .then((r) => r.data),
+
   autoClockOut: (logId: number, coords?: { latitude: number; longitude: number; accuracy?: number }) =>
     apiClient.post<ApiResponse<TimeLog>>('/recipient/attendance/auto-clock-out', {
       log_id: logId, ...coords,

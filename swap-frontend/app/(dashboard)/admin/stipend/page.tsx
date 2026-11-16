@@ -337,7 +337,7 @@ function ReleaseTab({ ready, blocked, loading, unlockToken, onDone, onMoneyError
               className={`flex cursor-pointer flex-wrap items-center gap-3.5 border-b border-ink-900/[.04] px-5 py-[13px] last:border-0 ${on ? 'bg-accent-tint' : 'hover:bg-surface-2'}`}>
               <CheckBox state={on ? 'on' : 'off'} label={`Select ${e.name}`} />
               <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-accent-deep">{initials(e.name)}</span>
-              <div className="min-w-[180px] flex-1">
+              <div className="min-w-0 flex-1 basis-[180px]">
                 <p className="flex flex-wrap items-center gap-2">
                   <span className="text-[14px] font-semibold text-ink-950">{e.name}</span>
                   {e.student_id_number && <span className="text-[11.5px] text-ink-400">ID {e.student_id_number}</span>}
@@ -663,7 +663,7 @@ function FilterBar({ filters, onChange, terms }: { filters: Filters; onChange: (
           })}
         </select>
       </label>
-      <select value={filters.college} onChange={(e) => set({ college: e.target.value })} aria-label="College" className={`${SELECT} w-[230px]`}>
+      <select value={filters.college} onChange={(e) => set({ college: e.target.value })} aria-label="College" className={`${SELECT} w-full sm:w-[230px]`}>
         <option value="">All colleges</option>
         {COLLEGES.map((c) => <option key={c.value} value={c.value}>{collegeDisplay(c.value)}</option>)}
       </select>
@@ -671,7 +671,7 @@ function FilterBar({ filters, onChange, terms }: { filters: Filters; onChange: (
         className={`flex h-[34px] items-center gap-1.5 rounded-full border px-3.5 text-[12.5px] font-semibold ${filters.promissory ? 'border-gold-accent bg-gold-100 text-gold-700' : 'border-ink-200 bg-surface text-ink-700'}`}>
         <NotebookPen className="h-4 w-4" /> Promissory only
       </button>
-      <div className="flex h-[38px] w-[260px] max-w-full items-center gap-2 rounded-[10px] bg-surface-2 px-3 sm:ml-auto">
+      <div className="flex h-[38px] w-full items-center gap-2 rounded-[10px] bg-surface-2 px-3 sm:ml-auto sm:w-[260px]">
         <Search className="h-[18px] w-[18px] flex-none text-ink-400" />
         <input value={filters.search} onChange={(e) => set({ search: e.target.value })} placeholder="Name, ID or control no." aria-label="Search stipends"
           className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-ink-950 focus:outline-none" />

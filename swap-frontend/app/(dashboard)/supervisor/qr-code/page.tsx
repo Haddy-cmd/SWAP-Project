@@ -56,7 +56,7 @@ function SelfieSettingCard() {
   const enabled = data?.require_clock_in_selfie ?? true
 
   return (
-    <div className="rounded-2xl border border-ink-200 bg-surface p-6 shadow-sm print:hidden">
+    <div className="rounded-2xl border border-ink-200 bg-surface p-4 sm:p-6 shadow-sm print:hidden">
       <div className="flex items-start gap-3">
         <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-brand-50 text-brand-700">
           <Camera className="h-[18px] w-[18px]" />
@@ -123,7 +123,7 @@ export default function SupervisorQrPage() {
       {isLoading ? (
         <div className="h-80 animate-pulse rounded-2xl bg-ink-200/50" />
       ) : noOffice || (error && !data) ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-6">
+        <div className="flex items-start gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-4 sm:p-6">
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-warning-600" />
           <div>
             <p className="font-semibold text-warning-800">No office assigned</p>
@@ -135,7 +135,7 @@ export default function SupervisorQrPage() {
       ) : data ? (
         <>
           {/* Printable QR card */}
-          <div className="rounded-2xl border border-ink-200 bg-surface p-8 shadow-sm print:border-0 print:shadow-none">
+          <div className="rounded-2xl border border-ink-200 bg-surface p-5 sm:p-8 shadow-sm print:border-0 print:shadow-none">
             <div className="flex flex-col items-center text-center">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
                 <QrCode className="h-6 w-6" />

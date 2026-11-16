@@ -307,7 +307,7 @@ export default function AdminAssignmentsPage() {
 
           {/* Assign panel: opens only once a student is clicked */}
           {selected && (
-          <div className={`${CARD} animate-panel-in overflow-hidden lg:sticky lg:top-[88px]`}>
+          <div className={`${CARD} phone-sheet animate-panel-in overflow-hidden lg:sticky lg:top-[88px]`}>
             <div className="px-6 py-4 text-white"
               style={{ background: 'var(--hero-gradient)' }}>
               <div className="flex items-center justify-between gap-3">

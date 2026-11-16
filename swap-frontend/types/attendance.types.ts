@@ -15,6 +15,9 @@ export interface TimeLog {
   verifier?: { id: number; name: string; avatar_url?: string | null } | null
   rejection_reason: string | null
   clocked_out_reason?: 'manual' | 'auto' | 'auto_stale' | null
+  /** Open shift, away from the office: when they left and when the automatic clock-out happens. */
+  left_premises_at?: string | null
+  auto_clock_out_deadline?: string | null
   location_flagged?: boolean
   location_flag_reason?: string | null
   time_in_photo_url?: string | null

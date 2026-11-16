@@ -103,7 +103,7 @@ export default function NarrativePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
         <BackLink href="/recipient/attendance" label="Back to Hours & attendance" />
         <div>
           <h1 className="text-2xl font-bold text-ink-900">Task Description</h1>

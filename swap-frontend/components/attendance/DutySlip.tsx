@@ -306,7 +306,7 @@ function WeeklyDutySlip({ weekStart, logs, identity }: { weekStart: string; logs
   })
 
   return (
-    <div data-theme="light" className="duty-slip mx-auto w-full max-w-[1000px] rounded-lg border border-ink-200 bg-white p-6 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
+    <div data-theme="light" className="duty-slip mx-auto w-full max-w-[1000px] rounded-lg border border-ink-200 bg-white p-4 sm:p-6 text-black shadow-sm print:rounded-none print:border-0 print:shadow-none overflow-x-auto">
       <div className="min-w-[640px]">
         {/* Header table */}
         <table className="w-full border-collapse text-[11px]">

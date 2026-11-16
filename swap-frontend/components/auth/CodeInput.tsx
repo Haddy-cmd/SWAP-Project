@@ -16,6 +16,7 @@ export function CodeInput({ value, onChange, autoFocus = true, disabled, invalid
       value={value}
       onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 6))}
       inputMode="numeric"
+      data-keep-size
       autoComplete="one-time-code"
       pattern="[0-9]*"
       maxLength={6}

@@ -35,7 +35,7 @@ export function StudentDocumentsModal({ student, onClose }: { student: Selected;
 
   return (
     <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-surface p-4 sm:p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="font-semibold text-ink-900">Documents</h2>

@@ -95,7 +95,7 @@ function AdminAnalyticsReports() {
       {tab === 'money' && <MoneyTab {...props} />}
       {tab === 'reports' && report && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Report">
+          <div className="no-scrollbar -mx-3 flex items-center gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Report">
             <ClipboardList className="mr-0.5 h-4 w-4 text-ink-400" />
             {REPORTS.map((r) => {
               const on = r.key === report

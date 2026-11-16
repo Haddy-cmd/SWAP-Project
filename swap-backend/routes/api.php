@@ -136,6 +136,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/attendance/time-in-geofence', [AttendanceController::class, 'timeInGeofence']);
         Route::post('/attendance/time-out', [AttendanceController::class, 'timeOut']);
         Route::post('/attendance/auto-clock-out', [AttendanceController::class, 'autoClockOut']);
+        // Location while clocked in, from every recipient page (the leave-the-premises countdown).
+        Route::post('/attendance/premises', [AttendanceController::class, 'premises'])->middleware('throttle:12,1');
         Route::post('/narratives', [NarrativeController::class, 'store'])->withoutMiddleware('role:recipient');
         Route::get('/narratives/{logId}', [NarrativeController::class, 'show']);
         Route::get('/hours/summary', [HoursController::class, 'summary']);

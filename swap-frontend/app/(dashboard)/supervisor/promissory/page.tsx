@@ -78,10 +78,10 @@ export default function SupervisorPromissoryPage() {
         <p className="mt-1 text-sm text-ink-500">Review promissory notes from students short on hours. Approving records the lacking hours they must render ASAP (deadline: 1 week after semester end).</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
         {TABS.map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${tab === t.key ? 'bg-brand-700 text-white' : 'border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50'}`}>
+            className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors sm:py-1.5 ${tab === t.key ? 'bg-brand-700 text-white' : 'border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50'}`}>
             {t.label}
           </button>
         ))}

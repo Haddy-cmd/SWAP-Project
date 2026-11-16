@@ -57,6 +57,9 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
   // Bars and lines grow in (off under reduced motion). The pie stays still: Recharts hides
   // its percentage labels until an animation finishes.
   const motion = { isAnimationActive: !reducedMotion(), animationDuration: 700, animationEasing: 'ease-out' as const }
+  // Phones: shorter category labels so the bars keep room, and the pie legend goes underneath.
+  const narrow = typeof window !== 'undefined' && window.innerWidth < 640
+  const shortLabel = (v: string) => (narrow && v.length > 14 ? `${v.slice(0, 13)}…` : v)
   const tooltip = (
     <Tooltip cursor={type === 'line' ? { stroke: 'var(--color-ink-300)' } : { fill: 'var(--color-ink-50)' }}
       contentStyle={{ borderRadius: '0.5rem', border: '1px solid var(--color-ink-200)', fontSize: '0.75rem', background: 'var(--color-surface)', color: 'var(--color-ink-900)' }}
@@ -115,8 +118,8 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
                 onClick={(d: { payload?: Datum }) => pick(d?.payload)}>
                 {data.map((g, i) => <Cell key={g.label} fill={fillFor(g, i)} fillOpacity={dim(g) ? 0.3 : 1} />)}
               </Pie>
-              <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" iconSize={9}
-                wrapperStyle={{ fontSize: '0.75rem', color: 'var(--text-ink-700)', maxWidth: '45%' }} />
+              <Legend layout={narrow ? 'horizontal' : 'vertical'} align={narrow ? 'center' : 'right'} verticalAlign={narrow ? 'bottom' : 'middle'} iconType="circle" iconSize={9}
+                wrapperStyle={{ fontSize: '0.75rem', color: 'var(--text-ink-700)', maxWidth: narrow ? '100%' : '45%' }} />
             </PieChart>
           ) : type === 'line' ? (
             <LineChart data={data} margin={{ top: 12, right: 24, left: 4, bottom: 4 }}
@@ -146,7 +149,7 @@ export function GroupChart({ columns, groups, groupBy, metric, selected, onGroup
             <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, left: 4, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-ink-100)" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11.5, fill: 'var(--color-ink-500)' }} axisLine={false} tickLine={false} tickFormatter={fmt} allowDecimals={!!metricCol} />
-              <YAxis type="category" dataKey="label" width={170} tick={{ fontSize: 11.5, fill: 'var(--color-ink-700)' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="label" width={narrow ? 96 : 170} tickFormatter={shortLabel} tick={{ fontSize: 11.5, fill: 'var(--color-ink-700)' }} axisLine={false} tickLine={false} />
               {tooltip}
               <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20} cursor="pointer" {...motion}
                 label={{ position: 'right', fontSize: 11, fill: 'var(--color-ink-700)', formatter: fmt }}

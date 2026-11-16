@@ -64,7 +64,7 @@ export function WorkQueue({ logs, reports, loading }: { logs: TimeLog[]; reports
 
   return (
     <section className={`${CARD} flex min-h-0 flex-col overflow-hidden`}>
-      <div className="flex flex-none items-center gap-1 overflow-x-auto border-b border-ink-900/[.06] px-4">
+      <div className="no-scrollbar flex flex-none items-center gap-1 overflow-x-auto border-b border-ink-900/[.06] px-4">
         {TABS.map((t) => {
           const on = tab === t.id
           return (

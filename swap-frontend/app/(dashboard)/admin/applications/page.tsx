@@ -305,7 +305,7 @@ export default function AdminApplicationsPage() {
       </div>
 
       {/* Status tabs */}
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Application status">
+      <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0" role="tablist" aria-label="Application status">
         {STATUS_TABS.map((t, i) => {
           const active = statusFilter === t.status
           const count = countQueries[i]?.data
@@ -368,7 +368,7 @@ export default function AdminApplicationsPage() {
           {calendar ? (
             <InterviewCalendar type={typeFilter === 'all' ? undefined : typeFilter} search={search} activeId={activeId} onSelect={setSelectedId} />
           ) : (<>
-          <div className="max-h-[600px] overflow-auto">
+          <div className="lg:max-h-[600px] lg:overflow-auto">
             {isLoading ? (
               <div className="space-y-2 p-3.5">
                 {[1, 2, 3, 4, 5].map((n) => <div key={n} className="h-[54px] animate-pulse rounded-xl bg-ink-200/50" />)}
@@ -441,7 +441,7 @@ export default function AdminApplicationsPage() {
 
         {/* ── detail ─────────────────────────────────────────────────────── */}
         {activeId && (
-        <div className={`${CARD} animate-panel-in overflow-hidden lg:sticky lg:top-[88px]`}>
+        <div className={`${CARD} phone-sheet animate-panel-in overflow-hidden lg:sticky lg:top-[88px]`}>
           {detailLoading || !selected ? (
             <div className="space-y-4 p-6">
               <div className="h-14 animate-pulse rounded-xl bg-ink-200/60" />
@@ -451,7 +451,7 @@ export default function AdminApplicationsPage() {
           ) : (
             <div>
               {/* header */}
-              <div className="flex items-center gap-3.5 border-b border-ink-900/[.06] px-6 py-5">
+              <div className="flex flex-wrap items-center gap-3.5 border-b border-ink-900/[.06] px-4 py-4 sm:flex-nowrap sm:px-6 sm:py-5">
                 {(() => { const [bg, fg] = avatar(selected.id); return (
                   <UserAvatar name={selected.user?.name} avatarUrl={selected.user?.avatar_url}
                     className="h-[52px] w-[52px] rounded-full text-[17px] font-bold" style={{ background: bg, color: fg }} />

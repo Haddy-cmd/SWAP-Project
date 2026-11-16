@@ -159,13 +159,13 @@ export default function StudentLogsPage() {
 
       {/* header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-4">
           <UserAvatar name={name} avatarUrl={student?.avatar_url}
             className="h-[54px] w-[54px] rounded-[14px] font-serif text-[22px] font-semibold text-gold-300"
             style={{ background: 'linear-gradient(160deg,#2A7148,#10331F)' }} />
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Attendance Logs</p>
-            <h1 className="font-serif text-[30px] font-medium leading-none text-ink-950">{name}</h1>
+            <h1 className="break-words font-serif text-[24px] font-medium leading-none text-ink-950 sm:text-[30px]">{name}</h1>
             {meta && <p className="mt-1.5 text-[13px] text-ink-500">{meta}</p>}
           </div>
         </div>
@@ -211,8 +211,8 @@ export default function StudentLogsPage() {
               {onTrack ? 'On track' : 'Behind pace'}
             </button>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-serif text-[40px] font-semibold leading-none tabular-nums text-ink-950">{fmtHrs(verified)}</span>
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="font-serif text-[32px] sm:text-[40px] font-semibold leading-none tabular-nums text-ink-950">{fmtHrs(verified)}</span>
             <span className="text-[15px] text-ink-500">of {required} hrs verified</span>
             <span className="ml-auto font-serif text-[22px] font-semibold tabular-nums text-brand-700">{Math.round(pct)}%</span>
           </div>
@@ -221,7 +221,7 @@ export default function StudentLogsPage() {
           </div>
           <p className="text-[12.5px] text-ink-500">{fmtHrs(remaining)} hrs remaining to complete the requirement</p>
         </div>
-        <div className="grid flex-[1_1_260px] grid-cols-3 border-l border-ink-200">
+        <div className="grid flex-[1_1_260px] grid-cols-3 border-t border-ink-200 sm:border-l sm:border-t-0">
           {([['Verified', counts.verified, 'var(--color-success-800)'], ['Pending', counts.pending, 'var(--color-warning-700)'], ['Rejected', counts.rejected, 'var(--color-danger-700)']] as const).map(([label, n, c], i) => (
             <div key={label} className={`px-3.5 py-5 text-center ${i < 2 ? 'border-r border-ink-200' : ''}`}>
               <div className="font-serif text-[24px] font-semibold" style={{ color: c }}>{n}</div>
@@ -273,13 +273,13 @@ export default function StudentLogsPage() {
               const showNoNarrative = !narrative && !l.is_manual && l.status !== 'open'
               return (
                 <div key={l.id} className="overflow-hidden rounded-[14px] border border-ink-200 bg-surface shadow-[0_2px_7px_rgba(19,36,26,.05)]">
-                  <div className="flex items-center gap-4 px-[18px] py-4">
-                    <span className="flex h-11 w-11 flex-none items-center justify-center rounded-full text-white shadow-[0_3px_8px_rgba(19,36,26,.16)]" style={{ background: m.accent }}>
+                  <div className="flex items-start gap-3 px-3.5 py-3.5 sm:items-center sm:gap-4 sm:px-[18px] sm:py-4">
+                    <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full text-white sm:h-11 sm:w-11 shadow-[0_3px_8px_rgba(19,36,26,.16)]" style={{ background: m.accent }}>
                       {l.is_manual ? <Sparkles className="h-[22px] w-[22px]" /> : <m.Group className="h-[22px] w-[22px]" />}
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[15.5px] font-bold tabular-nums text-ink-950">{timeRange(l)}</span>
+                        <span className="text-[14.5px] font-bold tabular-nums text-ink-950 sm:text-[15.5px]">{timeRange(l)}</span>
                         {l.is_manual && <span className="rounded-md bg-gold-50 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-warning-700">Bonus</span>}
                         {l.location_flagged && (
                           <span title="Weak/untrusted GPS at clock-in — review before verifying" className="inline-flex items-center gap-1 rounded-md bg-warning-50 px-2 py-0.5 text-[10.5px] font-bold text-warning-800">
@@ -291,7 +291,7 @@ export default function StudentLogsPage() {
                         <Clock className="h-3.5 w-3.5 text-ink-400" /> {fmtDur(Number(l.duration_hours) || 0)}
                       </span>
                     </div>
-                    <span className="flex flex-none items-center gap-1.5 rounded-full px-3 py-1.5 text-[11.5px] font-bold" style={{ color: m.color, background: m.bg }}>
+                    <span className="flex flex-none items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-bold sm:px-3 sm:py-1.5" style={{ color: m.color, background: m.bg }}>
                       <m.Icon className="h-[15px] w-[15px]" /> {m.label}
                     </span>
                   </div>

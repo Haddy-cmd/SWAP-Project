@@ -77,7 +77,7 @@ export function ReportExplorer({ role, type, term, state, onChange, chart = true
           {data.stats.map((s) => (
             <div key={s.label} className="rounded-[13px] border border-ink-200 bg-surface px-4 py-3 shadow-[0_2px_8px_rgba(19,36,26,0.04)]">
               <div className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-ink-400">{s.label}</div>
-              <div className="mt-1 font-serif text-[26px] font-semibold leading-none tabular-nums text-ink-950">{s.value}</div>
+              <div className="mt-1 break-words font-serif text-[20px] font-semibold leading-none tabular-nums text-ink-950 sm:text-[26px]">{s.value}</div>
             </div>
           ))}
         </div>

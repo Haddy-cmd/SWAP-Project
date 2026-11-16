@@ -66,7 +66,11 @@ export function FloatingShiftTimer() {
       if (v && typeof v.x === 'number' && typeof v.y === 'number') saved = v
     } catch { /* storage blocked: use the default */ }
     const w = ref.current?.offsetWidth ?? 190
-    setPos(clamp(saved?.x ?? window.innerWidth - w - DEFAULT_RIGHT, saved?.y ?? DEFAULT_TOP))
+    const h = ref.current?.offsetHeight ?? 44
+    // Phones: bottom-left (top-right covered the page heading; the chatbot is bottom-right).
+    const phone = window.innerWidth < 640
+    const fallback = phone ? { x: 16, y: window.innerHeight - h - 24 } : { x: window.innerWidth - w - DEFAULT_RIGHT, y: DEFAULT_TOP }
+    setPos(clamp(saved?.x ?? fallback.x, saved?.y ?? fallback.y))
     const onResize = () => setPos((p) => (p ? clamp(p.x, p.y) : p))
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
@@ -113,7 +117,7 @@ export function FloatingShiftTimer() {
       onPointerUp={onPointerUp}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); router.push('/recipient/attendance') } }}
       style={pos ? { left: pos.x, top: pos.y } : { right: DEFAULT_RIGHT, top: DEFAULT_TOP }}
-      className="fixed z-[55] flex touch-none select-none items-center gap-2 rounded-full border border-success-200 bg-surface/95 py-1.5 pl-1.5 pr-3.5 shadow-lg backdrop-blur print:hidden"
+      className="shift-fab fixed z-[55] flex touch-none select-none items-center gap-2 rounded-full border border-success-200 bg-surface/95 py-1.5 pl-1.5 pr-3.5 shadow-lg backdrop-blur print:hidden"
     >
       <GripVertical className="h-4 w-4 flex-none text-ink-300" aria-hidden="true" />
       <span className="relative flex h-2.5 w-2.5 flex-none" aria-hidden="true">

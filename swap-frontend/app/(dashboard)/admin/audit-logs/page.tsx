@@ -185,7 +185,7 @@ function FiltersPanel({ filters, options, set, onClose }: {
   return (
     <div ref={ref} role="dialog" aria-label="Filters"
       className="absolute right-0 top-[calc(100%+6px)] z-30 w-full space-y-4 rounded-2xl border border-ink-200 bg-surface p-4 shadow-xl sm:w-[380px]">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 xs:grid-cols-2">
         <label className="text-[12px] font-semibold text-ink-600">
           Area
           <div className="relative mt-1">

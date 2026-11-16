@@ -27,6 +27,11 @@ class TimeLogResource extends JsonResource
             ] : null),
             'rejection_reason' => $this->rejection_reason,
             'clocked_out_reason' => $this->clocked_out_reason,
+            // An open shift away from the office: when they left and when they'll be clocked out.
+            'left_premises_at' => $this->status === 'open' ? $this->left_premises_at?->toISOString() : null,
+            'auto_clock_out_deadline' => $this->status === 'open' && $this->left_premises_at
+                ? \App\Services\AttendanceService::deadlineOf($this->resource)->toISOString()
+                : null,
             'location_flagged' => (bool) $this->location_flagged,
             'location_flag_reason' => $this->location_flag_reason,
             'time_in_photo_url' => $this->time_in_photo_path

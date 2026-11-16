@@ -28,7 +28,7 @@ function RecipientReports() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600">Service Record</p>
-          <h1 className="font-serif text-[34px] font-medium tracking-tight text-ink-950">My Reports</h1>
+          <h1 className="font-serif text-[26px] sm:text-[34px] font-medium tracking-tight text-ink-950">My Reports</h1>
           <p className="mt-1 text-sm text-ink-500">Your hours, pace and terms in one place — filter them and download a copy for your records.</p>
         </div>
         <Link href="/recipient/reports/duty-slip"

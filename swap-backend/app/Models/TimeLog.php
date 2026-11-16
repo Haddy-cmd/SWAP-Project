@@ -36,6 +36,10 @@ class TimeLog extends Model
         'location_flag_reason',
         'time_in_photo_path',
         'selfie_required',
+        'left_premises_at',
+        'outside_lat',
+        'outside_lng',
+        'outside_accuracy',
         'is_manual',
         'manual_reason',
         'recorded_by',
@@ -57,6 +61,7 @@ class TimeLog extends Model
             'time_out_accuracy' => 'decimal:2',
             'location_flagged' => 'boolean',
             'selfie_required' => 'boolean',
+            'left_premises_at' => 'datetime',
             'is_manual' => 'boolean',
         ];
     }

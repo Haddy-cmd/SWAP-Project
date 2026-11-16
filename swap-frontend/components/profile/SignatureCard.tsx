@@ -50,7 +50,7 @@ export function SignatureCard({ user }: { user: User }) {
   const saved = !!user.signature_url && !unusable
 
   return (
-    <section id="field-signature" className={`${CARD} p-6`}>
+    <section id="field-signature" className={`${CARD} p-4 sm:p-6`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-[16px] font-bold text-ink-950">Signature</h2>

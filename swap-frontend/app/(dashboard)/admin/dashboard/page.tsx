@@ -88,13 +88,13 @@ export default function AdminDashboard() {
       </TopbarSlot>
 
       {/* Welcome banner */}
-      <section className="relative grid gap-8 overflow-hidden rounded-[20px] px-7 py-7 lg:grid-cols-[1fr_auto] lg:items-center"
+      <section className="relative grid gap-5 overflow-hidden rounded-[20px] p-5 sm:gap-8 sm:p-7 lg:grid-cols-[1fr_auto] lg:items-center"
         style={{ background: 'var(--hero-gradient)' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/dsa-logo.png" alt="" aria-hidden className="pointer-events-none absolute right-[14%] top-1/2 hidden h-[200%] -translate-y-1/2 opacity-[.11] lg:block" style={{ filter: 'grayscale(1) brightness(2.4)' }} />
         <div className="relative">
           <p className="text-[11.5px] font-extrabold tracking-[0.16em] text-gold-accent">{greeting().toUpperCase()}</p>
-          <p className="mb-1.5 mt-1 text-[28px] font-extrabold text-white">Welcome back, {user?.name ?? 'Admin'}</p>
+          <p className="mb-1.5 mt-1 text-[22px] font-extrabold sm:text-[28px] text-white">Welcome back, {user?.name ?? 'Admin'}</p>
           <TodayTasks tasks={overview?.tasks} loading={isLoading} />
           <SemesterProgress calendar={calendar} />
         </div>

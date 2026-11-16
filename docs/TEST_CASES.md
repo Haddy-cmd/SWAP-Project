@@ -428,7 +428,7 @@ Entry points that must behave identically: **(a)** `/scan` (phone camera deep li
 | TC-OUT-004 | P2 | [S] Clock-out with tampered QR | Open log | Clock-out | altered QR | HTTP 422, "Invalid or tampered QR code." |  |  |
 | TC-OUT-005 | P1 | [N] Clock-out with no open log | No open log | Clock-out | valid QR + random logId | HTTP 422, "No open attendance log found with this ID." |  |  |
 | TC-OUT-006 | P1 | [S] Cannot clock out another user's log | Log belongs to another recipient | Clock-out that log id | other user's logId | HTTP 422, same message (ownership enforced) |  |  |
-| TC-OUT-007 | P1 | [H] Auto clock-out after leaving the premises | Open log; recipient ≥ 10 min outside the fence | Page calls POST `/recipient/attendance/auto-clock-out` | GPS ~1.1 km away, accuracy 10 m | HTTP 200, "You left the office premises and were automatically clocked out.", reason `auto`, no QR scan needed |  |  |
+| TC-OUT-007 | P1 | [H] Auto clock-out after leaving the premises | Clocked in at a geofenced office with automatic clock-out on | Leave the area (or fake the location outside in DevTools → Sensors) and stay away | GPS ~1.1 km away, accuracy 10 m | Within ~15 s the countdown "You left {office} at {time}. Return within mm:ss…" shows on Hours & Attendance and above every other recipient page (dashboard included); a bell notification and an email ("You left the office premises") arrive once; after 10 minutes the shift is clocked out with reason `auto` and time out = left + 10 min, plus a "Clocked out automatically" notification and email |  |  |
 | TC-OUT-008 | P1 | [B] Stale log auto-closed & capped at 12 h | Open log older than 12 h | Run `attendance:close-stale` (hourly scheduler) | log open 20 h | Closed with reason `auto_stale`, duration capped at 12 h; audit `clocked_out` with no user (system) |  |  |
 | TC-OUT-009 | P2 | [H] Duplicate open logs voided | User somehow has 2 open logs | Run the dedup routine | 2 open logs | Earliest kept; extras set `rejected` / `auto_dedup`, zero duration |  |  |
 | TC-OUT-010 | P2 | [B] Poor time-out GPS accuracy flags log | Clock-out accuracy > 100 m | Clock-out | accuracy 150 m | Existing flag preserved and the poor time-out fix also flags the log |  |  |
@@ -438,6 +438,8 @@ Entry points that must behave identically: **(a)** `/scan` (phone camera deep li
 | TC-OUT-014 | P2 | [N] Stale sweep survives a deleted recipient | Recipient soft-deleted with an open log > 12 h | Run `attendance:close-stale` | — | Log closed and capped; no crash |  |  |
 | TC-OUT-015 | P1 | [N] Auto clock-out turned off for the office | Office has Automatic clock-out off; open log | Leave the premises; also POST auto-clock-out directly | GPS ~1.1 km away | The Attendance page does not watch the fence; the endpoint answers HTTP 422, "Automatic clock-out is turned off for this office."; the log stays open until the QR clock-out |  |  |
 | TC-OUT-016 | P2 | [H] Admin toggles auto clock-out | Geofenced office | Admin → Offices → edit → untick "Automatic clock-out when a student leaves the premises" | — | Saved (`auto_clock_out=false`); office card shows "Auto clock-out off"; new offices default to on |  |  |
+| TC-OUT-017 | P1 | [H] Countdown survives a reload and other pages | Away from the office, countdown running | Reload Hours & Attendance; open the dashboard; come back | — | The remaining time keeps going from the server's "left at" time (it does not restart at 10:00); returning inside the area clears it everywhere |  |  |
+| TC-OUT-018 | P1 | [H] Server clocks out with the app closed | Away from the office | Close the tab after leaving; wait over 10 minutes (or run `attendance:auto-clock-out`); reopen the app | — | The shift is closed at the deadline (left + 10 min), not when the app was reopened; the clocked-out notification and email were sent; opening the app on an overdue shift closes it immediately even if the scheduler was asleep |  |  |
 
 ---
 
@@ -970,7 +972,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | Profile & Account | TC-PROF-001..022 | 22 | Account mgmt, devices, activity | AuditTrailTest, SignatureTest, EmployeeIdTest, ProfileSessionsTest, ProfileActivityTest |
 | Signature Specimen | TC-SIG-001..012 | 12 | Payout signature, receipts, lost files | SignatureTest, StipendClaimTest, AttendanceTest |
 | Attendance / Clock-In | TC-ATT-001..025 | 25 | Integrity, geofence | AttendanceTest, AuditTrailTest; axiosInterceptors (Vitest) |
-| Clock-Out / Auto | TC-OUT-001..016 | 16 | Integrity | AttendanceTest, AuditTrailTest |
+| Clock-Out / Auto | TC-OUT-001..018 | 18 | Integrity | AttendanceTest, AuditTrailTest, PremisesTest |
 | Session Notes & Term Report | TC-NARR-001..022 | 22 | Workflow, payout prerequisite, reminders | AttendanceTest, TermReportTest, TermReportReminderTest, WordUploadTest |
 | Hours | TC-HRS-001..014 | 14 | Hours, per-term history, pace & checklist | AttendanceTest, TermHistoryTest, RecipientProgressTest |
 | Promissory Notes | TC-PROM-001..018 | 18 | Money eligibility | PromissoryNoteTest, RenewalTest, WordUploadTest |
@@ -990,7 +992,7 @@ Resolved on 2026-10-03: the promissory makeup deadline was removed — lacking h
 | System Testing | TC-TEST-001..026 | 26 | Test tooling, bypasses, restore, file storage, email switch, off on live | TestingToolsTest, StorageCheckTest, TestingEmailSwitchTest, TestToolsAvailabilityTest |
 | RBAC & Security | TC-SEC-001..019 | 19 | Security | RbacTest, ResourceAccessTest, AccountStatusTest |
 | Non-Functional | TC-NFR-001..031 | 31 | Quality attributes, feedback & confirmations, dark mode, responsive & browsers, motion | CI workflow (TC-NFR-013); FeedbackProvider, verifications, theme (Vitest) |
-| **TOTAL** | — | **633** | — | — |
+| **TOTAL** | — | **635** | — | — |
 
 ---
 

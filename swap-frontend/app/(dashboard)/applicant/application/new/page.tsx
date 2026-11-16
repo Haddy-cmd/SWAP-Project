@@ -95,7 +95,7 @@ export default function NewApplicationPage() {
               being processed. Please wait for it to be reviewed before submitting a new one. You&apos;ll be
               notified of any updates.
             </p>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href={`/applicant/application/${inProgress.id}`}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-warning-600 px-4 py-2 text-xs font-semibold text-white hover:bg-warning-700 transition-colors"

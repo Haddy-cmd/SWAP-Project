@@ -103,9 +103,9 @@ export default function StudentDetailPage() {
 
       <div className="flex flex-wrap items-center gap-4">
         <UserAvatar name={name} avatarUrl={student?.avatar_url} className="h-[60px] w-[60px] rounded-full bg-accent-soft" />
-        <div className="min-w-[240px] flex-1">
+        <div className="min-w-0 flex-1 basis-[200px]">
           <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="text-[26px] font-extrabold tracking-[-0.01em] text-ink-950">{name}</h1>
+            <h1 className="break-words text-[22px] font-extrabold tracking-[-0.01em] text-ink-950 sm:text-[26px]">{name}</h1>
             {closed ? (
               <TermBadge badge={term?.badge} deficientHours={term?.deficient_hours} className="px-3 py-1 text-[12px]" />
             ) : (

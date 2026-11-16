@@ -18,7 +18,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   // Login and register render their own self-contained layouts, so they opt out
   // of the shared brand-left shell used by forgot-password / verify-email.
   // The theme button sits in the corner of every sign-in page.
-  const theme = <div className="fixed right-4 top-4 z-40 print:hidden"><ThemeToggle /></div>
+  const theme = <div className="fixed right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-40 print:hidden"><ThemeToggle /></div>
   if (pathname === '/login' || pathname === '/register') return <>{children}{theme}</>
 
   return (
@@ -66,7 +66,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Right panel — form */}
-      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-10 sm:px-6 sm:py-12">
         <div className="w-full max-w-md">{children}</div>
       </div>
     </div>

@@ -171,7 +171,7 @@ export default function ScanPage() {
 
   return (
     <div className="flex min-h-app items-center justify-center bg-gradient-to-b from-brand-800 to-brand-950 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-surface p-8 text-center shadow-xl">
+      <div className="w-full max-w-sm rounded-2xl bg-surface p-5 text-center sm:p-8 shadow-xl">
         {phase === 'working' && (
           <>
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">

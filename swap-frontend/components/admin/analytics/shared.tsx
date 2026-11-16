@@ -55,7 +55,7 @@ export function Card({ title, hint, right, children, className = '' }: {
   title?: ReactNode; hint?: ReactNode; right?: ReactNode; children: ReactNode; className?: string
 }) {
   return (
-    <section className={`${CARD} px-6 py-5 ${className}`}>
+    <section className={`${CARD} px-4 py-4 sm:px-6 sm:py-5 ${className}`}>
       {(title || right) && (
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -75,7 +75,7 @@ export function Seg<T extends string>({ value, options, onChange, label }: {
   value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void; label: string
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex flex-none gap-0.5 rounded-[10px] bg-ink-100/70 p-[3px]">
+    <div role="group" aria-label={label} className="no-scrollbar inline-flex max-w-full flex-none gap-0.5 overflow-x-auto rounded-[10px] bg-ink-100/70 p-[3px]">
       {options.map(([v, name]) => (
         <button key={v} type="button" aria-pressed={v === value} onClick={() => onChange(v)}
           className={`h-7 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition-colors ${

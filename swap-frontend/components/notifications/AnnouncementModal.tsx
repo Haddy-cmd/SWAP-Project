@@ -63,7 +63,7 @@ export function AnnouncementModal({ notification, onClose }: { notification: Not
   return createPortal(
     <div className="sheet-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="announcement-title"
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-6 text-left shadow-xl" onClick={(e) => e.stopPropagation()}>
+        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-surface p-4 sm:p-6 text-left shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-brand-50 text-brand-700">

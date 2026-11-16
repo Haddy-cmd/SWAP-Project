@@ -31,7 +31,7 @@ export function ActivityTab() {
   const items = q.data?.pages.flatMap((p) => p.data) ?? []
 
   return (
-    <section className={`${CARD} p-6`}>
+    <section className={`${CARD} p-4 sm:p-6`}>
       <h2 className="text-[16px] font-bold text-ink-950">Recent activity</h2>
       <p className="mt-0.5 text-[12.5px] text-ink-500">Things you did in the portal. Only you see this list.</p>
 

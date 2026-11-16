@@ -146,7 +146,7 @@ export function WeeklyModal({ weeks, progress, onClose }: { weeks: Week[]; progr
           </button>
         </div>
 
-        <div className="stagger grid grid-cols-3 gap-2.5">
+        <div className="stagger grid grid-cols-3 gap-1.5 sm:gap-2.5">
           {stats.map((s) => (
             <div key={s.k} className="rounded-[14px] bg-surface-2 px-3.5 py-3">
               <p className="text-[12px] text-ink-500">{s.k}</p>
@@ -176,7 +176,7 @@ export function WeeklyModal({ weeks, progress, onClose }: { weeks: Week[]; progr
             </div>
             <div className="mt-2 flex gap-2 px-1 sm:gap-2.5">
               {weeks.map((w) => (
-                <span key={w.key} className={`flex-1 truncate text-center text-[11.5px] ${w.current ? 'font-extrabold text-ink-950' : 'text-ink-500'}`}>
+                <span key={w.key} className={`flex-1 truncate text-center text-[11.5px] max-sm:[&:nth-child(even)]:invisible ${w.current ? 'font-extrabold text-ink-950' : 'text-ink-500'}`}>
                   {w.current ? 'This week' : shortDay(w.monday)}
                 </span>
               ))}
@@ -261,11 +261,12 @@ export function TimeLogList({ logs, loading, hasMore, onMore, loadingMore }: {
             const task = l.narrative_report?.content?.trim()
             const needsTask = !l.has_narrative && !l.is_manual && l.status !== 'rejected'
             return (
-              <div key={l.id} className="flex flex-wrap items-center gap-3.5 border-b border-ink-900/[.04] px-[22px] py-3.5 last:border-0">
+              // Phones: two lines (time · task on the left, hours and status stacked on the right).
+              <div key={l.id} className="flex items-start gap-3 border-b border-ink-900/[.04] px-4 py-3.5 last:border-0 sm:items-center sm:gap-3.5 sm:px-[22px]">
                 <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[11px]" style={{ background: meta.bg, color: meta.fg }}>
                   <Icon className="h-[19px] w-[19px]" />
                 </span>
-                <div className="min-w-[180px] flex-1">
+                <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 text-[14px] font-bold tabular-nums text-ink-950">
                     {l.is_manual ? 'Bonus hours' : `${fmtClock(l.time_in)} – ${fmtClock(l.time_out)}`}
                     {l.is_manual && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-bold text-violet-700">Bonus</span>}
@@ -277,15 +278,23 @@ export function TimeLogList({ logs, loading, hasMore, onMore, loadingMore }: {
                     {l.is_manual ? (l.manual_reason || 'Added by your supervisor') : task || 'No task description yet'}
                   </p>
                   {l.status === 'rejected' && <p className="mt-0.5 text-xs text-red-strong">{l.rejection_reason || 'Rejected by your supervisor'}</p>}
+                  {needsTask && (
+                    <button type="button" onClick={() => setTaskFor(l.id)}
+                      className="mt-2 flex h-9 items-center gap-1.5 rounded-[10px] border border-dashed border-accent/40 bg-accent-tint px-3 text-[12.5px] font-semibold text-accent-strong hover:border-accent sm:hidden">
+                      <FilePen className="h-4 w-4" /> Add what you did
+                    </button>
+                  )}
                 </div>
                 {needsTask && (
                   <button type="button" onClick={() => setTaskFor(l.id)}
-                    className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-dashed border-accent/40 bg-accent-tint px-3 text-[12.5px] font-semibold text-accent-strong hover:border-accent">
+                    className="hidden h-[34px] items-center gap-1.5 rounded-[10px] border border-dashed border-accent/40 bg-accent-tint px-3 text-[12.5px] font-semibold text-accent-strong hover:border-accent sm:flex">
                     <FilePen className="h-4 w-4" /> Add what you did
                   </button>
                 )}
-                <span className="min-w-[52px] text-right text-[14px] font-extrabold text-ink-950">{fmtDur(l.duration_hours)}</span>
-                <span className="min-w-[78px] rounded-full px-2.5 py-1 text-center text-[11.5px] font-bold" style={{ color: meta.fg, background: meta.bg }}>{meta.label}</span>
+                <div className="flex flex-none flex-col items-end gap-1.5 sm:flex-row sm:items-center sm:gap-3.5">
+                  <span className="text-right text-[14px] font-extrabold text-ink-950 sm:min-w-[52px]">{fmtDur(l.duration_hours)}</span>
+                  <span className="rounded-full px-2.5 py-1 text-center text-[11.5px] font-bold sm:min-w-[78px]" style={{ color: meta.fg, background: meta.bg }}>{meta.label}</span>
+                </div>
               </div>
             )
           })}

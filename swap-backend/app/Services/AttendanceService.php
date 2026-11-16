@@ -8,6 +8,8 @@ use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\TimeLog;
 use App\Models\User;
+use App\Notifications\AutoClockedOutNotification;
+use App\Notifications\LeftPremisesNotification;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -32,6 +34,8 @@ class AttendanceService
     public const MAX_SESSION_HOURS = 12;
 
     public const MSG_AUTO_CLOCK_OUT_OFF = 'Automatic clock-out is turned off for this office.';
+    /** Minutes a recipient may be away from the office before the automatic clock-out (mirrored on the page). */
+    public const AUTO_CLOCK_OUT_GRACE_MINUTES = 10;
     public const MSG_TASK_REQUIRED = 'Write your task description before clocking out.';
 
     /** Clock-in is only allowed Monday–Saturday, 6:00 AM to 5:30 PM (Asia/Manila). */
@@ -207,6 +211,124 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('No open attendance log found with this ID.');
         }
 
+        $office = $this->monitoredOffice($log);
+
+        // Same tolerance the page uses to decide the recipient has left.
+        if ($this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
+            throw new UnprocessableEntityHttpException(
+                'You are still within the office premises. Scan your office QR to clock out.'
+            );
+        }
+
+        $log->forceFill(['outside_lat' => $latitude, 'outside_lng' => $longitude, 'outside_accuracy' => $accuracy]);
+
+        return $this->clockOutLeftPremises($log, $user);
+    }
+
+    /**
+     * The page's location report while clocked in (every recipient page). The server keeps
+     * when the recipient left (`left_premises_at`), so the countdown survives reloads and
+     * shows everywhere: first time outside → bell + email; back inside → cleared; outside
+     * past the grace period → clocked out at the deadline.
+     *
+     * @return array{log: TimeLog, inside: bool, clocked_out: bool}
+     */
+    public function reportPremises(User $user, float $latitude, float $longitude, ?float $accuracy = null): array
+    {
+        $log = $this->timeLogRepository->findOpenLogForToday($user->id);
+        if (!$log) {
+            throw new UnprocessableEntityHttpException('You are not clocked in.');
+        }
+        $office = $this->monitoredOffice($log);
+
+        if ($this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
+            if ($log->left_premises_at) {
+                $log->forceFill(['left_premises_at' => null, 'outside_lat' => null, 'outside_lng' => null, 'outside_accuracy' => null])->save();
+                AuditLog::record('returned_to_premises', $log, null, null, $user->id);
+            }
+
+            return ['log' => $log, 'inside' => true, 'clocked_out' => false];
+        }
+
+        $first = $log->left_premises_at === null;
+        $log->forceFill([
+            'left_premises_at' => $log->left_premises_at ?? now(),
+            'outside_lat' => $latitude, 'outside_lng' => $longitude, 'outside_accuracy' => $accuracy,
+        ])->save();
+
+        if (self::deadlineOf($log)->isPast()) {
+            return ['log' => $this->clockOutLeftPremises($log, $user), 'inside' => false, 'clocked_out' => true];
+        }
+
+        if ($first) {
+            AuditLog::record('left_premises', $log, null, ['left_premises_at' => $log->left_premises_at->toISOString()], $user->id);
+            $user->notify(new LeftPremisesNotification([
+                'log_id' => $log->id,
+                'office' => $office->name,
+                'left_at' => $log->left_premises_at->toISOString(),
+                'deadline' => self::deadlineOf($log)->toISOString(),
+            ]));
+        }
+
+        return ['log' => $log, 'inside' => false, 'clocked_out' => false];
+    }
+
+    /** When an absence ends in an automatic clock-out. */
+    public static function deadlineOf(TimeLog $log): Carbon
+    {
+        return Carbon::parse($log->left_premises_at)->addMinutes(self::AUTO_CLOCK_OUT_GRACE_MINUTES);
+    }
+
+    /**
+     * Close the recipient's open log if they have been away past the grace period — the
+     * server's own check (scheduler, and on read so a sleeping scheduler can't miss it).
+     * Returns the closed log, or null when nothing was due.
+     */
+    public function closeOverdueAbsence(TimeLog $log): ?TimeLog
+    {
+        if ($log->status !== 'open' || !$log->left_premises_at || self::deadlineOf($log)->isFuture()) {
+            return null;
+        }
+        // Rules changed meanwhile (auto clock-out switched off, fence removed): stop counting.
+        $office = $log->assignment?->office;
+        if (!$office || !$office->geofence_enabled || !$office->auto_clock_out) {
+            $log->forceFill(['left_premises_at' => null])->save();
+
+            return null;
+        }
+        $user = $log->user()->withTrashed()->first();
+
+        return $user ? $this->clockOutLeftPremises($log, $user) : null;
+    }
+
+    /**
+     * Clock out after leaving the premises. Time out is the deadline (left + grace), never later,
+     * so time away isn't credited past the grace period even when the server catches it late; an
+     * absence not recorded yet (an older page) clocks out now. Bell + email to the recipient.
+     */
+    private function clockOutLeftPremises(TimeLog $log, User $user): TimeLog
+    {
+        $timeOut = $log->left_premises_at ? Carbon::parse(min(now(), self::deadlineOf($log))) : now();
+        $office = $log->assignment?->office;
+        $lat = $log->outside_lat !== null ? (float) $log->outside_lat : null;
+        $lng = $log->outside_lng !== null ? (float) $log->outside_lng : null;
+        $acc = $log->outside_accuracy !== null ? (float) $log->outside_accuracy : null;
+
+        $closed = $this->finalizeClockOut($log, $user, 'auto', $lat, $lng, $timeOut, $acc);
+
+        $user->notify(new AutoClockedOutNotification([
+            'log_id' => $closed->id,
+            'office' => $office?->name,
+            'time_out' => $closed->time_out?->toISOString(),
+            'minutes' => self::AUTO_CLOCK_OUT_GRACE_MINUTES,
+        ]));
+
+        return $closed;
+    }
+
+    /** The open log's office, when it is watched for leaving (geofenced, auto clock-out on). */
+    private function monitoredOffice(TimeLog $log): \App\Models\Office
+    {
         $office = $log->assignment?->office;
 
         if (!$office || !$office->geofence_enabled || $office->latitude === null || $office->longitude === null) {
@@ -219,19 +341,16 @@ class AttendanceService
             throw new UnprocessableEntityHttpException(self::MSG_AUTO_CLOCK_OUT_OFF);
         }
 
-        // Same tolerance the page uses to decide the recipient has left.
-        if ($this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
-            throw new UnprocessableEntityHttpException(
-                'You are still within the office premises. Scan your office QR to clock out.'
-            );
-        }
-
-        return $this->finalizeClockOut($log, $user, 'auto', $latitude, $longitude, null, $accuracy);
+        return $office;
     }
 
     public function getOpenLog(User $user): ?TimeLog
     {
         $log = $this->timeLogRepository->findOpenLogForToday($user->id);
+        // Away past the grace period while nothing was watching (app closed, scheduler asleep): close it now.
+        if ($log && $this->closeOverdueAbsence($log)) {
+            return null;
+        }
 
         return $log?->load(['assignment.office', 'narrativeReport']);
     }

@@ -127,7 +127,7 @@ export function TermReportReviewModal({ studentId, studentName, onClose }: { stu
 
   return (
     <div className="sheet-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-surface p-4 sm:p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-1 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-brand-700" />

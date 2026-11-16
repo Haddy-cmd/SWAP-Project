@@ -127,8 +127,8 @@ function StudentsPage() {
   const clearFilters = () => { setFilters(new Set()); setPage(0) }
   const closeFilters = useCallback(() => setFiltersOpen(false), [])
   const pick = (r: Row) => {
+    // Below 1024px the panel opens as a bottom sheet over the list (StudentPanel's phone-sheet).
     setSelId(r.userId)
-    if (!window.matchMedia('(min-width: 1024px)').matches) setTimeout(() => document.getElementById('student-panel')?.scrollIntoView({ behavior: 'smooth' }), 0)
   }
 
   const setRequired = useMutation({
@@ -155,7 +155,7 @@ function StudentsPage() {
           <TermSelect term={term} periods={periods} onChange={(t) => report.setTerm(t.academic_year, t.semester)} />
         ) : (
           <div className="flex flex-wrap items-center gap-2.5">
-            <label className="flex h-[42px] w-[300px] max-w-full items-center gap-2 rounded-xl border border-ink-900/[.12] bg-surface px-3 focus-within:border-accent">
+            <label className="flex h-[42px] w-full items-center sm:w-[300px] gap-2 rounded-xl border border-ink-900/[.12] bg-surface px-3 focus-within:border-accent">
               <Search className="h-[18px] w-[18px] text-ink-400" />
               <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0) }} placeholder="Name, email or ID" aria-label="Search students"
                 className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-ink-900 placeholder-ink-400 focus:outline-none" />

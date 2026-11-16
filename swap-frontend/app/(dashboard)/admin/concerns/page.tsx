@@ -254,7 +254,7 @@ export default function AdminConcernsPage() {
               </div>
             </div>
 
-            <div className="flex max-h-[460px] min-h-[300px] flex-col gap-3.5 overflow-auto bg-surface-2 p-[22px]">
+            <div className="flex max-h-[60dvh] min-h-[240px] flex-col gap-3.5 overflow-auto bg-surface-2 p-3.5 sm:max-h-[460px] sm:min-h-[300px] sm:p-[22px]">
               {thread.map((m) => (
                 <div key={m.id} className={`flex flex-col gap-1 ${m.from_staff ? 'items-end' : 'items-start'}`}>
                   <span className="text-[11.5px] text-ink-500">
@@ -285,10 +285,10 @@ export default function AdminConcernsPage() {
                   onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) send() }}
                   placeholder={`Write a reply to ${first}…`} aria-label="Reply"
                   className="min-w-0 flex-1 resize-none border-none bg-transparent py-1.5 text-[14px] leading-normal text-ink-950 focus:outline-none" />
-                <button onClick={send} disabled={!reply.trim() || save.isPending}
-                  className="flex h-10 flex-none items-center gap-1.5 rounded-[10px] px-4 text-[13.5px] font-bold text-white disabled:cursor-not-allowed"
+                <button onClick={send} disabled={!reply.trim() || save.isPending} aria-label="Send reply"
+                  className="flex h-10 flex-none items-center gap-1.5 rounded-[10px] px-3 text-[13.5px] font-bold text-white disabled:cursor-not-allowed sm:px-4"
                   style={{ background: reply.trim() && !save.isPending ? GREEN : 'var(--color-accent-muted)' }}>
-                  {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send reply
+                  {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} <span className="hidden sm:inline">Send reply</span>
                 </button>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2">

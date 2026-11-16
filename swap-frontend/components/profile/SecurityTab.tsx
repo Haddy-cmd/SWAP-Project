@@ -75,7 +75,7 @@ export function SecurityTab() {
   return (
     <div className="space-y-5">
       {/* Change password */}
-      <section className={`${CARD} p-6`}>
+      <section className={`${CARD} p-4 sm:p-6`}>
         <div className="mb-5 flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-[16px] font-bold text-ink-950">Change password</h2>
@@ -123,7 +123,7 @@ export function SecurityTab() {
       </section>
 
       {/* Devices */}
-      <section className={`${CARD} p-6`}>
+      <section className={`${CARD} p-4 sm:p-6`}>
         <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-[16px] font-bold text-ink-950">Where you&apos;re signed in</h2>

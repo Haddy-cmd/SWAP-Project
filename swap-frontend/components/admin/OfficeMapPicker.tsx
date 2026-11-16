@@ -53,6 +53,7 @@ function ClickHandler({ onPick }: { onPick: (lat: number, lng: number) => void }
  * away: it shows a faded pin and asks first (Move / Keep current, Escape cancels).
  */
 export default function OfficeMapPicker({ latitude, longitude, radius, onChange, onRadiusChange, height = 320 }: OfficeMapPickerProps) {
+  const phone = typeof window !== 'undefined' && window.innerWidth < 640
   const hasPos = latitude != null && longitude != null
   const center: [number, number] = hasPos ? [latitude as number, longitude as number] : DEFAULT_CENTER
   const [pending, setPending] = useState<[number, number] | null>(null)
@@ -141,7 +142,8 @@ export default function OfficeMapPicker({ latitude, longitude, radius, onChange,
       </div>
 
       <div className="relative overflow-hidden rounded-xl border border-ink-300">
-        <MapContainer center={center} zoom={hasPos ? 17 : 15} style={{ height, width: '100%' }} scrollWheelZoom>
+        {/* Phones: a shorter map, leaving room to scroll the page around it. */}
+        <MapContainer center={center} zoom={hasPos ? 17 : 15} style={{ height: phone ? Math.min(height, 240) : height, width: '100%' }} scrollWheelZoom>
           <FlyTo to={fly} />
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

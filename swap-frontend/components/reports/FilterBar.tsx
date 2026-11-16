@@ -99,7 +99,7 @@ function FacetDropdown({ column, values, selected, onToggle, onClear }: {
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-[42px] z-30 w-64 rounded-xl border border-ink-200 bg-surface p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
+          <div className="fixed inset-x-3 top-auto z-30 mt-1 rounded-xl sm:absolute sm:inset-x-auto sm:left-0 sm:top-[42px] sm:mt-0 sm:w-64 border border-ink-200 bg-surface p-1.5 shadow-[0_18px_40px_rgba(19,36,26,.18)]">
             {values.length > 8 && (
               <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Find ${column.label.toLowerCase()}…`}
                 className="mb-1 h-8 w-full rounded-lg border border-ink-200 px-2.5 text-[12.5px] focus:border-brand-700 focus:outline-none" />

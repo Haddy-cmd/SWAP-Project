@@ -466,8 +466,9 @@ function OfficePanel({ office, offices, allSupervisors, nextLeft, onNext, onClos
       {ok ? <Check className="h-[18px] w-[18px]" strokeWidth={3} /> : n}
     </span>
   )
-  const SEG = 'flex gap-0.5 rounded-[11px] bg-ink-100 p-[3px]'
-  const segBtn = (on: boolean) => `h-[34px] rounded-[9px] px-3.5 text-[13px] font-bold ${on ? 'bg-surface text-accent-strong shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-600 hover:text-ink-900'}`
+  // Phones: the options share the row evenly (5 sizes overflowed the card).
+  const SEG = 'grid w-full auto-cols-fr grid-flow-col gap-0.5 rounded-[11px] bg-ink-100 p-[3px] sm:flex sm:w-auto'
+  const segBtn = (on: boolean) => `h-[34px] min-w-0 rounded-[9px] px-1.5 text-[12.5px] sm:px-3.5 sm:text-[13px] font-bold ${on ? 'bg-surface text-accent-strong shadow-[0_1px_3px_rgba(20,40,30,.15)]' : 'text-ink-600 hover:text-ink-900'}`
 
   return (
     <div aria-label={shown.name} className={`${CARD} overflow-hidden rounded-[20px]`}>
@@ -475,7 +476,7 @@ function OfficePanel({ office, offices, allSupervisors, nextLeft, onNext, onClos
       <div className="flex flex-wrap items-center gap-3.5 bg-accent-deep px-6 py-5 text-white"
         style={{ backgroundImage: 'radial-gradient(120% 160% at 100% 0%, rgba(221,187,56,.25), transparent 50%)' }}>
         <OfficeLogo office={shown} size={48} square bg="rgba(255,255,255,.14)" fg="#FFFFFF" />
-        <div className="min-w-[200px] flex-1">
+        <div className="min-w-0 flex-1 basis-[160px]">
           <p className="break-words text-[19px] font-extrabold leading-tight">{shown.name}</p>
           <p className="mt-0.5 text-[12.5px] text-white/75">{isNew ? 'Name the office, then set it up below.' : headline}</p>
         </div>

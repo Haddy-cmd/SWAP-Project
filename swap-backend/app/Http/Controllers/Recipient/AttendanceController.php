@@ -119,6 +119,29 @@ class AttendanceController extends Controller
         ]);
     }
 
+    /** Every recipient page reports the location while clocked in at a watched office. */
+    public function premises(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'latitude' => ['required', 'numeric', 'between:-90,90'],
+            'longitude' => ['required', 'numeric', 'between:-180,180'],
+            'accuracy' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $result = $this->attendanceService->reportPremises(
+            $request->user(),
+            (float) $validated['latitude'],
+            (float) $validated['longitude'],
+            isset($validated['accuracy']) ? (float) $validated['accuracy'] : null,
+        );
+
+        return response()->json([
+            'data' => new TimeLogResource($result['log']),
+            'inside' => $result['inside'],
+            'clocked_out' => $result['clocked_out'],
+        ]);
+    }
+
     public function autoClockOut(Request $request): JsonResponse
     {
         // The location is the evidence that they left — it is required, not optional.

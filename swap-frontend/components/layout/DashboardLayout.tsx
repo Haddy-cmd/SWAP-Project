@@ -146,7 +146,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <Topbar />
         <main className="flex-1 overflow-y-auto print:overflow-visible">
-          <div className="mx-auto w-full max-w-[1680px] px-3 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 md:px-5 md:pt-6 md:pb-[max(1.5rem,env(safe-area-inset-bottom))] print:max-w-none print:p-0">
+          <div className="mx-auto w-full max-w-[1680px] px-3 pt-4 pb-[max(6rem,env(safe-area-inset-bottom))] sm:px-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))] md:px-5 md:pt-6 md:pb-[max(1.5rem,env(safe-area-inset-bottom))] print:max-w-none print:p-0">
             {menuPage && home && <BackLink href={home} label="Back" history className="mb-3" />}
             {children}
           </div>

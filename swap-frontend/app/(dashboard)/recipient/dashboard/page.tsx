@@ -17,7 +17,7 @@ import type { RecipientProgress, TimeLog } from '@/types/attendance.types'
 
 const TZ = 'Asia/Manila'
 const HERO_BG = 'var(--hero-gradient)'
-const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface px-6 py-[22px] shadow-[0_1px_3px_rgba(20,40,30,.05)]'
+const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface px-4 py-[18px] sm:px-6 sm:py-[22px] shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 const LINK = 'text-[13px] font-semibold text-accent hover:text-accent-hover'
 
 /** "GOOD MORNING/AFTERNOON/EVENING" by the Manila clock. */
@@ -50,7 +50,7 @@ export default function RecipientDashboard() {
   return (
     <div className="space-y-5 text-ink-950">
       {/* Hero: placement + clock panel */}
-      <section className="relative grid items-center gap-5 overflow-hidden rounded-[20px] px-7 py-5 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]" style={{ background: HERO_BG }}>
+      <section className="relative grid items-center gap-5 overflow-hidden rounded-[20px] px-4 py-5 sm:px-7 lg:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]" style={{ background: HERO_BG }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/dsa-logo.png" alt="" aria-hidden className="pointer-events-none absolute right-[23%] top-1/2 hidden h-[170%] -translate-y-1/2 opacity-[.14] lg:block" style={{ filter: 'grayscale(1) brightness(2.4)' }} />
         <div className="relative min-w-0">
@@ -93,7 +93,7 @@ export default function RecipientDashboard() {
           {isLoading ? (
             <div className="h-[156px] animate-pulse rounded-xl bg-ink-100" />
           ) : summary ? (
-            <div className="flex flex-wrap items-center gap-7">
+            <div className="flex flex-wrap items-center justify-center gap-7 sm:justify-start">
               <Ring verified={summary.verified} pending={summary.pending} required={summary.required} />
               <div className="flex min-w-[180px] flex-1 flex-col">
                 <HoursRow color="var(--color-accent)" label="Verified" value={summary.verified} />

@@ -17,6 +17,10 @@ Schedule::useCache('database');
 // Safety net: force-close attendance logs left open past the max session length.
 Schedule::command('attendance:close-stale')->hourly()->withoutOverlapping()->onOneServer();
 
+// Clock out recipients away from their office past the 10-minute grace, even with the app closed
+// (also checked when they next load the page, in case the scheduler was asleep).
+Schedule::command('attendance:auto-clock-out')->everyMinute()->withoutOverlapping()->onOneServer();
+
 // Weekly nudge to recipients without a signature specimen (banner covers the
 // daily reminder; this is the email + in-app ping). Self-dedupes via unread check.
 Schedule::command('remind:missing-signatures')->weekly()->withoutOverlapping()->onOneServer();

@@ -40,9 +40,9 @@ export default function ApplicationDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <BackLink href="/applicant/dashboard" label="Back to dashboard" />
-        <div className="flex-1">
+        <div className="min-w-0 flex-1 basis-[12rem]">
           <h1 className="text-xl font-bold text-ink-900">
             {application.type === 'renewal' ? 'My Renewal Application' : 'My SWAP Application'}
           </h1>
@@ -158,13 +158,13 @@ export default function ApplicationDetailPage() {
                 {application.documents.map((doc) => (
                   <li
                     key={doc.id}
-                    className="flex items-center justify-between rounded-lg border border-ink-200 px-4 py-3"
+                    className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 px-4 py-3"
                   >
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-ink-900 capitalize">
                         {doc.document_type.replace(/_/g, ' ')}
                       </p>
-                      <p className="text-xs text-ink-500">{doc.file_name}</p>
+                      <p className="break-all text-xs text-ink-500">{doc.file_name}</p>
                     </div>
                     <button
                       onClick={() => setViewDoc(doc)}

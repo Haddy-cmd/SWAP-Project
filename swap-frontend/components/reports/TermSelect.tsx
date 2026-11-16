@@ -43,19 +43,19 @@ export function TermSelect({ term, periods, onChange, allowAll = false }: {
   )
 
   return (
-    <div className="flex gap-2.5">
-      <div className="relative">
+    <div className="grid w-full grid-cols-2 gap-2.5 sm:flex sm:w-auto">
+      <div className={`relative min-w-0 ${all ? 'col-span-2' : ''}`}>
         <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gold-600" />
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-        <select aria-label="School year" value={term.academic_year} onChange={(e) => pickYear(e.target.value)} className={`${SELECT} pl-10 pr-9`}>
+        <select aria-label="School year" value={term.academic_year} onChange={(e) => pickYear(e.target.value)} className={`${SELECT} w-full pl-10 pr-9 sm:w-auto`}>
           {allowAll && <option value={ALL_TERMS}>All semesters</option>}
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
       {!all && (
-        <div className="relative">
+        <div className="relative min-w-0">
           <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-          <select aria-label="Semester" value={term.semester} onChange={(e) => onChange({ ...term, semester: e.target.value })} className={`${SELECT} pl-4 pr-9`}>
+          <select aria-label="Semester" value={term.semester} onChange={(e) => onChange({ ...term, semester: e.target.value })} className={`${SELECT} w-full pl-4 pr-9 sm:w-auto`}>
             {SEMESTERS.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>

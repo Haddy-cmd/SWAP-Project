@@ -124,7 +124,7 @@ export function ApplicationForm() {
             </div>
             {s < 2 && (
               <div
-                className={`h-0.5 w-16 rounded ${s < step ? 'bg-success-600' : 'bg-ink-200'}`}
+                className={`h-0.5 w-8 rounded sm:w-16 ${s < step ? 'bg-success-600' : 'bg-ink-200'}`}
               />
             )}
           </div>

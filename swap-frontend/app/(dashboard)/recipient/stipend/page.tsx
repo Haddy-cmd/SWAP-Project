@@ -90,12 +90,12 @@ export default function StipendPage() {
     <div className="flex flex-col gap-[18px]">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-[30px] font-medium leading-tight text-ink-950">My Stipend</h1>
+          <h1 className="font-serif text-[24px] sm:text-[30px] font-medium leading-tight text-ink-950">My Stipend</h1>
           <p className="mt-1 text-[13.5px] text-ink-500">See where your stipend is and download your signed stubs.</p>
         </div>
         <div className="flex gap-6">
           {([['Received so far', <CountUp key="r" value={totalReceived} format={peso} />], ['Stubs', <CountUp key="s" value={live.length} />]] as const).map(([k, v]) => (
-            <div key={k} className="text-right">
+            <div key={k} className="text-left sm:text-right">
               <p className="text-xs text-ink-500">{k}</p>
               <p className="text-[20px] font-extrabold text-ink-950">{v}</p>
             </div>
@@ -217,13 +217,13 @@ function Hero({ progress, hours, hasPlacement, stub, term, onOpenStub }: {
     : { title: 'Ready: waiting for the DSA to release it', text: 'Everything is in. You’ll be notified when your stipend is released.' }
 
   return (
-    <div className="relative flex flex-col gap-[22px] overflow-hidden rounded-[20px] px-7 py-[26px] text-white" style={{ background: 'var(--hero-gradient)' }}>
+    <div className="relative flex flex-col gap-[22px] overflow-hidden rounded-[20px] px-4 py-5 text-white sm:px-7 sm:py-[26px]" style={{ background: 'var(--hero-gradient)' }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/dsa-logo.png" alt="" aria-hidden className="pointer-events-none absolute right-6 top-1/2 hidden h-[80%] -translate-y-1/2 opacity-[.12] sm:block" style={{ filter: 'grayscale(1) brightness(2.4)' }} />
       <div className="relative flex flex-wrap items-start justify-between gap-5">
         <div className="max-w-[560px]">
           <p className="text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#DDBB38]">This semester{term ? ` · ${term}` : ''}</p>
-          <p className="mt-1 text-[28px] font-extrabold leading-tight">{state.title}</p>
+          <p className="mt-1 text-[22px] font-extrabold sm:text-[28px] leading-tight">{state.title}</p>
           <p className="mt-1.5 text-[13.5px] text-white/80">{state.text}</p>
         </div>
         {state.cta && (state.cta.href ? (

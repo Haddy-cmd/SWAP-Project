@@ -4,6 +4,8 @@ import { QueryProvider } from '@/lib/providers/QueryProvider'
 import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget'
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider'
 import { LoginSplash } from '@/components/layout/LoginSplash'
+import { NavigationProgress } from '@/components/layout/NavigationProgress'
+import { Suspense } from 'react'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { BROWSER_CHECK_SCRIPT } from '@/lib/browserSupport'
 import { BrowserNotice } from '@/components/layout/BrowserNotice'
@@ -20,9 +22,12 @@ export const metadata: Metadata = {
 
 // Browser UI tint (mobile address bar): the seal's deep green, darker in dark mode.
 export const viewport: Viewport = {
-  // Phones render at their own width (zoom stays allowed); viewport-fit lets the safe-area insets apply.
+  // Phones render at their own width, app-like: pinch and double-tap zoom are off (Chrome's
+  // "Force enable zoom" accessibility setting still overrides it). viewport-fit lets the safe-area insets apply.
   width: 'device-width',
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#10331F' },
@@ -40,6 +45,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${jakarta.variable} ${newsreader.variable} font-sans`} suppressHydrationWarning>
         <BrowserNotice />
+        {/* Gold bar at the top while the next page loads (reads the URL, so it needs a Suspense boundary). */}
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <QueryProvider>
           {/* Action pop-outs and "Are you sure?" dialogs for every page (useFeedback). */}
           <FeedbackProvider>
