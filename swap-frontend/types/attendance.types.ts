@@ -18,6 +18,8 @@ export interface TimeLog {
   /** Open shift, away from the office: when they left and when the automatic clock-out happens. */
   left_premises_at?: string | null
   auto_clock_out_deadline?: string | null
+  /** Seconds away from the office earlier in the shift (not counted in duration_hours). */
+  away_seconds?: number
   location_flagged?: boolean
   location_flag_reason?: string | null
   time_in_photo_url?: string | null

@@ -98,6 +98,9 @@ export function ProfileAside({ user }: { user: User }) {
           </button>
         )}
         {photoMsg && <p className="mt-1 text-xs text-danger-700">{photoMsg}</p>}
+        {role === 'applicant' && user.avatar_url && !photoMsg && (
+          <p className="mt-1 max-w-[220px] text-[11.5px] text-ink-400">Your 2×2 photo from your application. Use the camera to replace it.</p>
+        )}
 
         <h1 className="mt-2.5 break-words font-serif text-[20px] sm:mt-3 sm:text-[22px] font-semibold leading-tight text-ink-950">{user.name}</h1>
         <div className="mt-2 flex flex-wrap justify-center gap-1.5">

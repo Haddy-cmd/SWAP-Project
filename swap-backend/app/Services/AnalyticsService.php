@@ -134,6 +134,23 @@ class AnalyticsService
             ])
             ->toArray();
 
+        // Why applications were not approved (the admin's reason category), period-scoped.
+        // Rejections from before the categories existed count as "Not recorded".
+        $reasonCounts = Application::whereHas('user')
+            ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester))
+            ->where('status', 'rejected')
+            ->selectRaw('rejection_reason, COUNT(*) as total')
+            ->groupBy('rejection_reason')
+            ->pluck('total', 'rejection_reason');
+        $rejectionReasons = collect(\App\Support\RejectionReasons::LABELS)
+            ->map(fn ($label, $key) => ['reason' => $key, 'label' => $label, 'count' => (int) ($reasonCounts[$key] ?? 0)])
+            ->values()
+            ->when((int) ($reasonCounts[''] ?? 0) > 0, fn ($c) => $c->push(['reason' => null, 'label' => 'Not recorded', 'count' => (int) $reasonCounts['']]))
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->sortByDesc('count')
+            ->values()
+            ->toArray();
+
         // Active recipients grouped by their college (from the student profile), period-scoped.
         $recipientsByCollege = Assignment::whereHas('user')
             ->tap(fn ($q) => TermScope::apply($q, $academicYear, $semester, 'assignments'))
@@ -232,6 +249,7 @@ class AnalyticsService
             'office_distribution_all' => $officeDistributionAll,
             'monthly_stats' => $monthlyStats,
             'applicants_by_college' => $applicantsByCollege,
+            'rejection_reasons' => $rejectionReasons,
             'recipients_by_college' => $recipientsByCollege,
             'weekly_hours' => $weeklyHours,
             'hours_interval' => $allTerms ? 'month' : 'week',

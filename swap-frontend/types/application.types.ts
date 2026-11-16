@@ -24,6 +24,9 @@ export interface Application {
   // Admins only: what approving the renewal still needs (RenewalReadinessService).
   renewal_readiness?: RenewalReadiness | null
   remarks: string | null
+  /** Why it was not approved (lib/utils/rejection.ts), with its label. */
+  rejection_reason?: string | null
+  rejection_reason_label?: string | null
   reviewed_at: string | null
   /** When each status was reached (the applicant's own applications and single applications only). */
   status_history?: { status: string; at: string }[]
@@ -38,7 +41,10 @@ export interface ApplicationDocument {
   id: number
   application_id: number
   document_type: string
-  file_url: string
+  /** Null once the file was removed (a rejected application, after the next semester started). */
+  file_url: string | null
+  /** When the file was removed after the retention period. */
+  purged_at?: string | null
   file_name: string
   file_size: number | null
   mime_type: string | null
@@ -74,6 +80,7 @@ export interface ScheduleInterviewData {
 export interface DecideApplicationData {
   decision: 'approved' | 'rejected'
   remarks?: string
+  rejection_reason?: string
 }
 
 /** Hand-mirrored from RenewalReadinessService::check. */

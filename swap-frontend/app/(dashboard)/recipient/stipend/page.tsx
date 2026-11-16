@@ -211,8 +211,8 @@ function Hero({ progress, hours, hasPlacement, stub, term, onOpenStub }: {
         text: hoursItem?.label && hoursItem.state !== 'todo' ? `${hoursItem.label}.` : `Finish your ${hours?.required ?? ''} verified hours and submit your end-of-term report. Then the DSA can release your stipend.`,
         cta: { label: hoursItem?.link === '/recipient/stipend' ? 'File a promissory note' : 'See my hours', href: hoursItem?.link === '/recipient/stipend' ? '#promissory' : '/recipient/attendance' } }
     : !sigDone ? { title: 'Save your signature to get paid', text: 'Your stub is signed with your saved signature. Draw it once on your Profile.', cta: { label: 'Open Profile', href: '/profile' } }
-    // The report item carries a link only once it can be submitted (after the semester ends).
-    : !repIn && !rep?.link ? { title: 'Your report opens after the semester ends', text: 'Then submit your end-of-term report so the DSA can release your stipend.' }
+    // The report item carries a link only once it can be submitted (hours done, or the semester ended).
+    : !repIn && !rep?.link ? { title: 'Your report opens once your hours are complete', text: 'Then submit your end-of-term report so the DSA can release your stipend.' }
     : !repIn ? { title: 'Submit your end-of-term report', text: 'The DSA can’t release your stipend until your report is in.', cta: { label: 'Write my report', href: '/recipient/attendance#report' } }
     : { title: 'Ready: waiting for the DSA to release it', text: 'Everything is in. You’ll be notified when your stipend is released.' }
 

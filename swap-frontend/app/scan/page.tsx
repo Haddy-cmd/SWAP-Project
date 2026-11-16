@@ -9,18 +9,20 @@ import { attendanceApi } from '@/lib/api/attendance.api'
 import { authApi } from '@/lib/api/auth.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import { SelfieCapture } from '@/components/attendance/SelfieCapture'
+import { ClockConfirmSheet, type ClockChoice } from '@/components/attendance/ClockConfirmSheet'
 import { useAuthStore } from '@/lib/store/authStore'
 import { getBestPosition } from '@/lib/utils/geolocation'
 import { formatDateTime } from '@/lib/utils/formatDate'
 
-type Phase = 'working' | 'selfie' | 'narrative' | 'success' | 'error'
+type Phase = 'working' | 'confirm' | 'cancelled' | 'selfie' | 'narrative' | 'success' | 'error'
 
 /**
  * Deep-link target encoded into the office QR code. A recipient scans the posted
  * QR with their phone's native camera and lands here directly — no need to open
- * the portal and navigate first. The scan toggles their attendance:
- *   • Not clocked in  → grab location and clock in.
- *   • Already clocked in → offer an optional session note, then clock out.
+ * the portal and navigate first. A small pop-out (ClockConfirmSheet) then confirms the action,
+ * offering only the one that fits:
+ *   • Not clocked in  → Clock in (selfie when required), with the location.
+ *   • Already clocked in → Clock out (Task Description first when missing).
  *
  * Auth note: the camera opens this in a fresh browser tab where the in-memory
  * (sessionStorage) auth store is empty. We fall back to the `swap_token` cookie
@@ -124,50 +126,31 @@ export default function ScanPage() {
         }
       }
 
-      // Decide: clock in, or clock out an already-open session.
-      let current
-      try {
-        current = await attendanceApi.getCurrentLog()
-      } catch {
-        current = null
-      }
-
-      if (current?.id) {
-        // Already clocked in → this scan clocks them out.
-        if (current.has_narrative) {
-          await clockOut(current.id)
-        } else {
-          // The Task Description is required before clocking out.
-          setKind('out')
-          setOpenLogId(current.id)
-          setNarrativeOpen(true)
-          setPhase('narrative')
-        }
-      } else {
-        setKind('in')
-
-        // The supervisor decides whether a proof-of-presence selfie is needed.
-        let needsSelfie = true
-        try {
-          const assignment = await attendanceApi.getMyAssignment()
-          needsSelfie = assignment?.selfie_required ?? true
-        } catch {
-          needsSelfie = true // couldn't ask — take the safe path
-        }
-
-        setSelfieRequired(needsSelfie)
-
-        if (needsSelfie) {
-          setPhase('selfie')
-        } else {
-          // Nothing else to collect: clock straight in.
-          await clockIn()
-        }
-      }
+      // Nothing happens until they confirm in the pop-out (it reads their shift fresh).
+      setPhase('confirm')
     })()
   }, [router])
 
   const office = kind === 'out'
+
+  function choose(choice: ClockChoice) {
+    if (choice.action === 'in') {
+      setKind('in')
+      setSelfieRequired(choice.selfieRequired)
+      if (choice.selfieRequired) setPhase('selfie')
+      else void clockIn()
+      return
+    }
+    setKind('out')
+    setOpenLogId(choice.log.id)
+    if (choice.log.has_narrative) {
+      void clockOut(choice.log.id)
+    } else {
+      // The Task Description is required before clocking out.
+      setNarrativeOpen(true)
+      setPhase('narrative')
+    }
+  }
 
   return (
     <div className="flex min-h-app items-center justify-center bg-gradient-to-b from-brand-800 to-brand-950 p-4">
@@ -183,6 +166,30 @@ export default function ScanPage() {
             <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-ink-500">
               <MapPin className="h-4 w-4" /> {message}
             </p>
+          </>
+        )}
+
+        {phase === 'confirm' && (
+          <>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-brand-50">
+              <Loader2 className="h-8 w-8 animate-spin text-brand-700" />
+            </div>
+            <h1 className="mt-5 text-lg font-bold text-ink-900">Office QR scanned</h1>
+            <p className="mt-2 text-sm text-ink-500">Confirm whether you&apos;re clocking in or out.</p>
+          </>
+        )}
+
+        {phase === 'cancelled' && (
+          <>
+            <h1 className="text-lg font-bold text-ink-900">Nothing was recorded</h1>
+            <p className="mt-2 text-sm text-ink-500">You cancelled. Scan the office QR again when you&apos;re ready.</p>
+            <div className="mt-6 flex flex-col items-center gap-2">
+              <button onClick={() => setPhase('confirm')}
+                className="rounded-xl bg-brand-700 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-600 transition-colors">
+                Choose again
+              </button>
+              <Link href="/recipient/dashboard" className="text-sm font-semibold text-brand-700 hover:underline">Go to Dashboard</Link>
+            </div>
           </>
         )}
 
@@ -264,6 +271,8 @@ export default function ScanPage() {
           </>
         )}
       </div>
+
+      {phase === 'confirm' && <ClockConfirmSheet onChoose={choose} onCancel={() => setPhase('cancelled')} />}
 
       {/* The Task Description is required before clocking out an open session. */}
       {narrativeOpen && openLogId && (

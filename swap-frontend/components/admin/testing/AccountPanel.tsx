@@ -31,6 +31,9 @@ const SMALL = 'h-9 rounded-[9px] border border-ink-200 bg-surface px-2.5 text-[1
  * it since it was added (from the audit log), and its controls — email switch, role switch,
  * Undo all changes (restore) and Stop testing, keep changes (remove).
  */
+
+/** System Testing: the steps an application can be put at directly. */
+const APP_STEPS: [string, string][] = [['submitted', 'Submitted'], ['under_review', 'Under review'], ['interview_scheduled', 'Interview'], ['approved', 'Approved'], ['rejected', 'Rejected']]
 export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
   account: TestingAccount
   /** Calls that return the refreshed status (email, role, restore, remove). */
@@ -60,7 +63,9 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
   const role = useMutation({ mutationFn: (next: 'applicant' | 'recipient') => testingApi.setAccountRole(a.id, next), onSuccess: done, onError: (e: ApiRequestError) => notifyError(e, 'Could not change the role') })
   const restore = useMutation({ mutationFn: () => testingApi.restoreExisting(a.id), onSuccess: done, onError: (e: ApiRequestError) => notifyError(e, 'Could not restore this account') })
   const remove = useMutation({ mutationFn: () => testingApi.removeExisting(a.id), onSuccess: (res) => { onStatus(res); notify({ title: res.message, detail: null }) }, onError: (e: ApiRequestError) => notifyError(e, 'Could not remove this account from testing') })
-  const busy = email.isPending || role.isPending || restore.isPending || remove.isPending
+  const appStep = useMutation({ mutationFn: (v: { id: number; status: string }) => testingApi.setApplicationStatus(v.id, v.status), onSuccess: done, onError: (e: ApiRequestError) => notifyError(e, 'Could not change the application') })
+  const startOver = useMutation({ mutationFn: () => testingApi.resetApplications(a.id), onSuccess: done, onError: (e: ApiRequestError) => notifyError(e, 'Could not start over') })
+  const busy = email.isPending || role.isPending || restore.isPending || remove.isPending || appStep.isPending || startOver.isPending
 
   const ask = async (opts: Parameters<typeof confirm>[0], then: () => void) => { if (await confirm(opts)) then() }
 
@@ -273,14 +278,36 @@ export function AccountPanel({ account: a, onStatus, onShortcutDone }: {
           ) : (
             <ul className="mt-2.5 space-y-2">
               {a.applications.map((app) => (
-                <li key={app.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] bg-surface-2 px-3 py-2.5 text-[12.5px]">
-                  <span><b>#{app.id}</b> · {app.term} · {app.type === 'renewal' ? 'Renewal' : 'New'}</span>
-                  <Pill fg="var(--color-info-700)" bg="var(--color-info-100)">{cap(app.status)}</Pill>
+                <li key={app.id} className="rounded-[10px] bg-surface-2 px-3 py-2.5 text-[12.5px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span><b>#{app.id}</b> · {app.term} · {app.type === 'renewal' ? 'Renewal' : 'New'}</span>
+                    <Pill fg="var(--color-info-700)" bg="var(--color-info-100)">{cap(app.status)}</Pill>
+                  </div>
+                  {/* Jump to any step (no emails; Approved makes a new applicant a recipient). */}
+                  <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={`Set application #${app.id} step`}>
+                    {APP_STEPS.map(([value, label]) => (
+                      <button key={value} onClick={() => appStep.mutate({ id: app.id, status: value })}
+                        disabled={busy || app.status === value}
+                        className={`h-7 rounded-lg border px-2.5 text-[11.5px] font-semibold disabled:cursor-default ${app.status === value ? 'border-accent bg-accent-tint text-accent-strong' : 'border-ink-200 bg-surface text-ink-700 hover:bg-ink-50 disabled:opacity-45'}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </li>
               ))}
             </ul>
           )}
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <button onClick={() => ask({
+              title: `Start ${a.name}'s application over?`,
+              body: 'Every application of this account is deleted with its uploaded documents and interview, so they can apply again from the start. Their profile photo stays. Undo all changes brings the applications back, but not the deleted files.',
+              confirmLabel: 'Start over',
+              tone: 'danger',
+            }, () => startOver.mutate())}
+              disabled={busy || a.applications.length === 0}
+              className="flex h-8 items-center gap-1.5 rounded-[10px] border border-danger-200 bg-surface px-3 text-[12.5px] font-semibold text-danger-700 hover:bg-danger-50 disabled:opacity-45">
+              <RotateCcw className="h-3.5 w-3.5" /> Start over
+            </button>
             <p className="text-xs text-ink-500">While testing is on, their interview can be set at any time.</p>
             <Link href="/admin/applications" className="flex items-center gap-1 text-[13px] font-semibold text-accent hover:underline">
               Review in Applications <ArrowRight className="h-4 w-4" />

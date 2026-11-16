@@ -16,8 +16,9 @@ use Tests\TestCase;
 
 /**
  * Leaving the office while clocked in: the server keeps when the recipient left, so the 10-minute
- * countdown survives reloads and shows on every page, notifies them, and clocks them out at the
- * deadline — also with the app closed (scheduler, or the next page load).
+ * countdown survives reloads and shows on every page, and notifies them. Time away never counts:
+ * coming back subtracts it from the shift, and not coming back clocks them out as of the moment
+ * they left — also with the app closed (scheduler, or the next page load).
  */
 class PremisesTest extends TestCase
 {
@@ -66,26 +67,33 @@ class PremisesTest extends TestCase
         $this->report(self::OUTSIDE)->assertOk()->assertJsonPath('data.left_premises_at', $left);
         Notification::assertSentToTimes($recipient, LeftPremisesNotification::class, 1);
 
-        // Back inside: the countdown is cleared.
-        $this->report(self::INSIDE)->assertOk()->assertJsonPath('inside', true)->assertJsonPath('data.left_premises_at', null);
+        // Back inside after 4 minutes: the countdown is cleared and those minutes don't count.
+        $this->report(self::INSIDE)->assertOk()->assertJsonPath('inside', true)->assertJsonPath('data.left_premises_at', null)
+            ->assertJsonPath('data.away_seconds', 240);
         $this->assertNull($log->fresh()->left_premises_at);
         Notification::assertNotSentTo($recipient, AutoClockedOutNotification::class);
+
+        // In 2 h before leaving, 4 min away, 26 min more: 2 h 26 min credited, not 2 h 30 min.
+        $this->travel(26)->minutes();
+        $log->update(['time_out' => now(), 'status' => 'pending_verification']);
+        $this->assertSame('2.43', (string) $log->fresh()->duration_hours);
     }
 
-    public function test_still_away_after_ten_minutes_is_clocked_out_at_the_deadline(): void
+    public function test_still_away_after_ten_minutes_is_clocked_out_as_of_leaving(): void
     {
         [$recipient, $log] = $this->clockedIn();
         Sanctum::actingAs($recipient);
         $this->report(self::OUTSIDE)->assertOk();
-        $deadline = now()->addMinutes(AttendanceService::AUTO_CLOCK_OUT_GRACE_MINUTES);
+        $leftAt = now();
 
         $this->travel(13)->minutes();
         $this->report(self::OUTSIDE)->assertOk()->assertJsonPath('clocked_out', true)
             ->assertJsonPath('data.status', 'pending_verification')
             ->assertJsonPath('data.clocked_out_reason', 'auto');
 
-        // Time away past the grace period isn't credited.
-        $this->assertTrue($log->fresh()->time_out->eq($deadline));
+        // No time away is credited: the shift ends when they left (2 h in).
+        $this->assertTrue($log->fresh()->time_out->eq($leftAt));
+        $this->assertSame('2.00', (string) $log->fresh()->duration_hours);
         Notification::assertSentTo($recipient, AutoClockedOutNotification::class);
     }
 
@@ -112,11 +120,11 @@ class PremisesTest extends TestCase
         [$recipient, $log] = $this->clockedIn();
         Sanctum::actingAs($recipient);
         $this->report(self::OUTSIDE)->assertOk();
-        $deadline = now()->addMinutes(10);
+        $leftAt = now();
 
         $this->travel(40)->minutes();
         $this->getJson('/api/recipient/attendance/current')->assertOk()->assertJsonPath('data', null);
-        $this->assertTrue($log->fresh()->time_out->eq($deadline));
+        $this->assertTrue($log->fresh()->time_out->eq($leftAt));
     }
 
     public function test_offices_without_auto_clock_out_are_not_watched(): void

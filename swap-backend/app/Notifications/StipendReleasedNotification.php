@@ -38,6 +38,14 @@ class StipendReleasedNotification extends Notification implements ShouldQueue
             $mail->line("Control Number: {$this->data['control_number']}");
         }
 
+        // No longer a recipient (renewal not approved): the Stipend page is closed, so the stub is attached.
+        if (($notifiable->role ?? 'recipient') !== 'recipient'
+            && \App\Support\ClaimStubAttachment::attach($mail, $this->data['stipend_id'] ?? null)) {
+            return $mail
+                ->line('Your claim stub, signed with your saved signature, is attached to this email for your records.')
+                ->line('Thank you for your dedicated service.');
+        }
+
         return $mail
             ->line('Your stub, signed with your saved signature, is on your Stipend page for your records.')
             ->action('View My Stipend', \App\Support\Frontend::url('/recipient/stipend'))

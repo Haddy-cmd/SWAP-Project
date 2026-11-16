@@ -74,6 +74,8 @@ class ProfileController extends Controller
     {
         $request->validate([
             'photo' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ], [
+            'photo.max' => 'The photo must be 4 MB or smaller.',
         ]);
 
         $user = $request->user();
@@ -140,6 +142,8 @@ class ProfileController extends Controller
     {
         $request->validate([
             'signature' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'signature.max' => 'The signature image must be 2 MB or smaller.',
         ]);
 
         $user = $request->user();

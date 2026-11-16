@@ -109,6 +109,101 @@ class TestingService
         return $user;
     }
 
+    // ── Applicant shortcuts ─────────────────────────────────────────────────
+
+    public const APPLICATION_STATUSES = ['submitted', 'under_review', 'interview_scheduled', 'approved', 'rejected'];
+    public const MSG_APP_NOT_PICKED = 'That application does not belong to an account in System Testing.';
+    public const MSG_HAS_PLACEMENT = 'This account has an active placement. Close it first with Reset term.';
+    public const MSG_SAME_STATUS = 'The application is already at that step.';
+
+    /**
+     * Put a picked account's application at any step, skipping the normal order and sending no
+     * emails or bell notifications. An interview is created for "Interview scheduled"; approving a
+     * new application makes the student a recipient (as a real approval does), and moving it back
+     * makes them an applicant again — refused while they hold an active placement.
+     */
+    public function setApplicationStatus(User $admin, int $applicationId, string $status): Application
+    {
+        $application = Application::with('interview')->find($applicationId);
+        $user = $application ? User::whereNotNull('testing_added_at')->find($application->user_id) : null;
+        if (!$application || !$user) {
+            throw new NotFoundHttpException(self::MSG_APP_NOT_PICKED);
+        }
+        if ($application->status === $status) {
+            throw new UnprocessableEntityHttpException(self::MSG_SAME_STATUS);
+        }
+        $isNew = ($application->type ?? 'new') !== 'renewal';
+        $leavingApproval = $isNew && $application->status === 'approved';
+        if ($leavingApproval && Assignment::where('user_id', $user->id)->where('status', 'active')->exists()) {
+            throw new UnprocessableEntityHttpException(self::MSG_HAS_PLACEMENT);
+        }
+
+        return DB::transaction(function () use ($admin, $application, $user, $status, $isNew, $leavingApproval) {
+            $old = $application->status;
+            $decided = in_array($status, ['approved', 'rejected'], true);
+            $application->forceFill([
+                'status' => $status,
+                'reviewed_by' => $decided ? $admin->id : null,
+                'reviewed_at' => $decided ? now() : null,
+                'rejection_reason' => $status === 'rejected' ? 'other' : null,
+                'remarks' => $status === 'rejected' ? 'Set by System Testing.' : null,
+            ])->save();
+
+            if ($status === 'interview_scheduled' && !$application->interview) {
+                $application->interview()->create([
+                    'scheduled_at' => Carbon::tomorrow('Asia/Manila')->setTime(9, 0)->utc(),
+                    'location' => 'Division of Student Affairs (DSA)',
+                    'mode' => 'in_person',
+                    'duration_minutes' => 30,
+                    'status' => 'scheduled',
+                ]);
+            }
+
+            // The role follows a new application's approval, as in the real flow.
+            if ($isNew && $status === 'approved' && $user->role === 'applicant') {
+                $user->forceFill(['role' => 'recipient'])->save();
+            } elseif ($leavingApproval && $user->role === 'recipient') {
+                $user->forceFill(['role' => 'applicant'])->save();
+            }
+
+            // 'updated' keeps the applicant's timeline in step; the testing entry says who did it.
+            AuditLog::record('updated', $application, ['status' => $old], ['status' => $status], $admin->id);
+            AuditLog::record('testing_application_status', $user, ['status' => $old, 'application_id' => $application->id],
+                ['status' => $status, 'application_id' => $application->id, 'role' => $user->role], $admin->id);
+
+            return $application->fresh();
+        });
+    }
+
+    /**
+     * Start the application process over: every application of the picked account goes, with
+     * its documents, interview and uploaded files, so they can apply again from scratch. The
+     * profile photo stays. Refused while they hold an active placement. Restore brings the rows
+     * back (the deleted files are not restored).
+     *
+     * @return int how many applications were removed
+     */
+    public function resetApplications(User $admin, int $id): int
+    {
+        $user = $this->picked($id);
+        if (Assignment::where('user_id', $user->id)->where('status', 'active')->exists()) {
+            throw new UnprocessableEntityHttpException(self::MSG_HAS_PLACEMENT);
+        }
+
+        $all = $this->snapshots->current($user->id);
+        $selected = AccountSnapshot::withChildren(['applications' => $all['applications'] ?? []], $all);
+        $count = count($selected['applications']);
+        $this->snapshots->deleteRows($user->id, $selected);
+
+        $oldRole = $user->role;
+        if ($user->role === 'recipient') {
+            $user->forceFill(['role' => 'applicant'])->save();
+        }
+        AuditLog::record('testing_applications_reset', $user, ['applications' => $count, 'role' => $oldRole], ['applications' => 0, 'role' => $user->role], $admin->id);
+
+        return $count;
+    }
+
     private function picked(int $id): User
     {
         $user = User::whereNotNull('testing_added_at')->find($id);

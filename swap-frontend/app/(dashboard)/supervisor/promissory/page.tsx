@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { FileText, CheckCircle, XCircle, Clock, Download, Loader2 } from 'lucide-react'
+import { FileText, CheckCircle, XCircle, Clock, Download, Loader2, Eye } from 'lucide-react'
+import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { promissoryApi } from '@/lib/api/promissory.api'
 import { formatDate } from '@/lib/utils/formatDate'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
@@ -30,6 +31,9 @@ export default function SupervisorPromissoryPage() {
   const [remarks, setRemarks] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  // View in the page instead of downloading: the file is fetched with the session as an object URL.
+  const [viewing, setViewing] = useState<ViewableDocument | null>(null)
+  const [openingId, setOpeningId] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['supervisor-promissory', tab],
@@ -37,7 +41,7 @@ export default function SupervisorPromissoryPage() {
   })
   const notes = data?.data ?? []
 
-  const { notify } = useFeedback()
+  const { notify, notifyError } = useFeedback()
   const review = useMutation({
     mutationFn: () => promissoryApi.review(reviewing!.id, {
       action,
@@ -60,6 +64,23 @@ export default function SupervisorPromissoryPage() {
     setReviewing(n); setAction(a); setError(null)
     setLacking(n.lacking_hours != null ? String(n.lacking_hours) : '')
     setRemarks('')
+  }
+
+  async function view(n: PromissoryNote) {
+    setOpeningId(n.id)
+    try {
+      const url = await promissoryApi.openSupervisorFile(n.id)
+      setViewing({ file_url: url, file_name: n.file_name, mime_type: n.mime_type, document_type: 'Promissory note' })
+    } catch (e) {
+      notifyError(e, "Couldn't open the document")
+    } finally {
+      setOpeningId(null)
+    }
+  }
+
+  function closeViewer() {
+    if (viewing) URL.revokeObjectURL(viewing.file_url)
+    setViewing(null)
   }
 
   async function download(n: PromissoryNote) {
@@ -115,10 +136,14 @@ export default function SupervisorPromissoryPage() {
                     {n.review_remarks && <p className="mt-1 text-xs italic text-ink-500">“{n.review_remarks}”</p>}
                   </div>
                   <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
-                    <button onClick={() => download(n)} disabled={downloadingId === n.id}
+                    <button onClick={() => view(n)} disabled={openingId === n.id}
+                      className="flex items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-50">
+                      {openingId === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />}
+                      View
+                    </button>
+                    <button onClick={() => download(n)} disabled={downloadingId === n.id} aria-label="Download document" title="Download"
                       className="flex items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-50">
                       {downloadingId === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                      Document
                     </button>
                     {n.status === 'pending' && (
                       <>
@@ -162,6 +187,7 @@ export default function SupervisorPromissoryPage() {
           })}
         </div>
       )}
+      {viewing && <DocumentViewerModal doc={viewing} onClose={closeViewer} />}
     </div>
   )
 }

@@ -19,6 +19,7 @@ class Application extends Model
         'status',
         'type',
         'remarks',
+        'rejection_reason',
         'reviewed_by',
         'reviewed_at',
     ];

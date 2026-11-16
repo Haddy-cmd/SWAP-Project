@@ -13,6 +13,11 @@ export interface ViewableDocument {
   document_type?: string | null
 }
 
+/** Documents that can still be opened: a rejected applicant's files are removed after the retention period (file_url null). */
+export function viewable<T extends { file_url: string | null }>(docs: T[] | undefined): (T & { file_url: string })[] {
+  return (docs ?? []).filter((d): d is T & { file_url: string } => !!d.file_url)
+}
+
 const MIN_ZOOM = 0.5
 const MAX_ZOOM = 5
 const ZOOM_STEP = 0.25

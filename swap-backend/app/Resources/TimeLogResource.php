@@ -32,6 +32,8 @@ class TimeLogResource extends JsonResource
             'auto_clock_out_deadline' => $this->status === 'open' && $this->left_premises_at
                 ? \App\Services\AttendanceService::deadlineOf($this->resource)->toISOString()
                 : null,
+            // Time spent away from the office during the shift (not counted in duration_hours).
+            'away_seconds' => (int) $this->away_seconds,
             'location_flagged' => (bool) $this->location_flagged,
             'location_flag_reason' => $this->location_flag_reason,
             'time_in_photo_url' => $this->time_in_photo_path

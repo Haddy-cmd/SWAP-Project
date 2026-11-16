@@ -48,6 +48,9 @@ class RenewalController extends Controller
     {
         $request->validate([
             'cor' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
+        ], [
+            'cor.max' => 'The COR must be 5 MB or smaller.',
+            'cor.uploaded' => 'The COR must be 5 MB or smaller.',
         ]);
 
         $application = $this->applicationService->submitRenewal($request->user(), $request->file('cor'));

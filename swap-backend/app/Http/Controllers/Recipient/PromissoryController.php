@@ -55,6 +55,6 @@ class PromissoryController extends Controller
 
         $disk = config('filesystems.documents_disk', 'public');
 
-        return Storage::disk($disk)->download($note->file_path, $note->file_name);
+        return Storage::disk($disk)->response($note->file_path, $note->file_name, [], 'inline'); // inline: the viewer shows it; Download still saves it
     }
 }

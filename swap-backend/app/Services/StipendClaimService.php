@@ -38,8 +38,9 @@ class StipendClaimService
     public const MSG_NO_POSITION_TITLE = 'Set your position title on your Profile page before releasing stipends.';
     public const MSG_ALREADY_LIVE = 'This recipient already has a live stipend for this period.';
     public const MSG_NOT_ELIGIBLE = 'This recipient is not eligible for a stipend for this period.';
-    public const MSG_NO_SIGNATURE = 'This recipient has not saved a digital signature yet.';
-    public const MSG_SIGNATURE_LOST = "This recipient's saved signature can't be found in storage. Ask them to draw it again on their Profile.";
+    // Kept short on purpose: the admin only needs to know the stub can't be signed yet.
+    public const MSG_NO_SIGNATURE = 'Recipient has no signature.';
+    public const MSG_SIGNATURE_LOST = self::MSG_NO_SIGNATURE;
     public const MSG_NO_TERM_REPORT = 'This recipient has not submitted their end-of-term narrative report yet.';
 
     /**

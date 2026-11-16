@@ -14,6 +14,8 @@ export interface AdminOverview {
   office_distribution_all: OfficeDistribution[]
   monthly_stats: MonthlyStats[]
   applicants_by_college: ApplicantsByCollege[]
+  /** Why applications were not approved (AnalyticsService; reason null = from before categories). */
+  rejection_reasons?: { reason: string | null; label: string; count: number }[]
   recipients_by_college: RecipientsByCollege[]
   weekly_hours: WeeklyHours[]
   /** weekly_hours buckets: weeks for one term, months for all semesters. */

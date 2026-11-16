@@ -62,6 +62,8 @@ class ApplicationResource extends JsonResource
                     ->values(),
             ),
             'remarks' => $this->remarks,
+            'rejection_reason' => $this->rejection_reason,
+            'rejection_reason_label' => \App\Support\RejectionReasons::label($this->rejection_reason),
             'reviewed_at' => $this->reviewed_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
             'updated_at' => $this->updated_at->toISOString(),
@@ -76,7 +78,9 @@ class ApplicationResource extends JsonResource
                     return [
                         'id' => $doc->id,
                         'document_type' => $doc->document_type,
-                        'file_url' => $url,
+                        // Removed after the retention period (rejected applicants): nothing left to open.
+                        'file_url' => $doc->purged_at ? null : $url,
+                        'purged_at' => $doc->purged_at?->toISOString(),
                         'file_name' => $doc->file_name,
                         'file_size' => $doc->file_size,
                         'mime_type' => $doc->mime_type,

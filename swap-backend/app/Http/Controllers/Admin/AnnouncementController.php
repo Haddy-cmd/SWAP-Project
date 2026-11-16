@@ -43,6 +43,7 @@ class AnnouncementController extends Controller
         $who = match ($audience) {
             'everyone' => 'active recipient(s) and supervisor(s)',
             'supervisors' => 'supervisor(s)',
+            'new_recipients' => 'new recipient(s)',
             'office' => 'student(s) and supervisor(s) at ' . $announcement->office?->name,
             default => 'active recipient(s)',
         };

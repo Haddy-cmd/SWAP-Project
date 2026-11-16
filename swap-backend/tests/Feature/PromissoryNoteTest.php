@@ -112,7 +112,14 @@ class PromissoryNoteTest extends TestCase
         $payload = $this->submitPayload($assignment->id);
         unset($payload['reason']);
         $this->post('/api/recipient/promissory', $payload, ['Accept' => 'application/json'])->assertStatus(201);
-        $this->assertNull(PromissoryNote::where('assignment_id', $assignment->id)->firstOrFail()->reason);
+        $note = PromissoryNote::where('assignment_id', $assignment->id)->firstOrFail();
+        $this->assertNull($note->reason);
+
+        // The supervisor opens it in the page viewer: served inline, not as a download.
+        Sanctum::actingAs($supervisor);
+        $disposition = $this->get("/api/supervisor/promissory/{$note->id}/file")->assertOk()->headers->get('Content-Disposition');
+        $this->assertStringStartsWith('inline', (string) $disposition);
+        Sanctum::actingAs($recipient);
 
         // Hours already met: the form and the API both say why there's nothing to file.
         $done = $this->pastAssignment($this->makeUser('recipient'), $supervisor, ['required_hours' => 4]);

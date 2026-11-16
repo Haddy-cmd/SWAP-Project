@@ -121,7 +121,8 @@ class StipendService
     {
         return [
             'assignment_id' => $a->id,
-            'has_signature' => !empty($a->user->signature_image_path),
+            // A saved path whose image is gone from storage can't sign the stub either.
+            'has_signature' => !empty($a->user->signature_image_path) && !$a->user->signatureFileMissing(),
             'narrative_submitted' => $a->termReport?->submitted_at !== null,
         ];
     }

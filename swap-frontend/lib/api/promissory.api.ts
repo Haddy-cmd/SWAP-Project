@@ -30,12 +30,20 @@ export const promissoryApi = {
   downloadSupervisorFile: (id: number, fileName: string) =>
     downloadBlob(`/supervisor/promissory/${id}/file`, fileName),
 
+  // The same document as a temporary object URL for the in-page viewer (revoke it on close).
+  openSupervisorFile: (id: number) => openBlob(`/supervisor/promissory/${id}/file`),
+
   // DSA visibility over everything supervisors decided.
   getAdminList: (status?: string) =>
     apiClient.get<PaginatedResponse<PromissoryNote>>('/admin/promissory', { params: status ? { status } : undefined }).then((r) => r.data),
 
   downloadAdminFile: (id: number, fileName: string) =>
     downloadBlob(`/admin/promissory/${id}/file`, fileName),
+}
+
+/** Fetch a protected file with the session as an object URL (for DocumentViewerModal). */
+export function openBlob(path: string) {
+  return apiClient.get<Blob>(path, { responseType: 'blob' }).then((r) => URL.createObjectURL(r.data))
 }
 
 /** Fetch a protected file with the session and save it under its original name. */

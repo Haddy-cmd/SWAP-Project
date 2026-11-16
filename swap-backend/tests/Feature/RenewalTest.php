@@ -119,7 +119,7 @@ class RenewalTest extends TestCase
     private function decide(Application $application, string $decision)
     {
         return $this->putJson("/api/admin/applications/{$application->id}/decide", [
-            'decision' => $decision, 'remarks' => 'Reviewed.',
+            'decision' => $decision, 'remarks' => 'Reviewed.', 'rejection_reason' => $decision === 'rejected' ? 'no_slots' : null,
         ]);
     }
 
@@ -356,12 +356,11 @@ class RenewalTest extends TestCase
 
         $this->decide($renewal, 'rejected')->assertOk()->assertJsonPath('data.status', 'rejected');
         $this->assertSame('applicant', $recipient->fresh()->role);
-        $this->assertFalse($recipient->fresh()->is_active, 'and the account is deactivated');
+        $this->assertTrue($recipient->fresh()->is_active, 'the account stays active');
         $this->assertSame('completed', $previous->fresh()->status);
         Sanctum::actingAs($recipient->fresh());
         $this->getJson('/api/recipient/hours/summary')->assertForbidden();
-        $this->getJson('/api/applicant/applications')->assertForbidden()
-            ->assertJsonPath('message', \App\Http\Middleware\EnsureActive::MESSAGE);
+        $this->getJson('/api/applicant/applications')->assertOk();
     }
 
     public function test_a_renewal_without_its_cor_or_an_earlier_placement_is_not_approved(): void
@@ -444,36 +443,62 @@ class RenewalTest extends TestCase
         $this->decide($renewal, 'rejected')->assertOk()->assertJsonPath('data.status', 'rejected');
 
         $this->assertSame('applicant', $recipient->fresh()->role);
-        $this->assertFalse($recipient->fresh()->is_active, 'a rejected renewal also deactivates the account');
-        $this->assertSame(0, $recipient->tokens()->count(), 'signed out everywhere');
+        $this->assertTrue($recipient->fresh()->is_active, 'the account stays active: they sign in to the applicant dashboard');
+        $this->assertSame(0, $recipient->tokens()->count(), 'signed out everywhere, so the next sign-in opens the applicant portal');
         $this->assertSame('completed', $previous->fresh()->status, 'the placement is closed, and stays payable');
         $this->assertDatabaseHas('audit_logs', ['action' => 'returned_to_applicant', 'auditable_id' => $recipient->id, 'user_id' => $admin->id]);
         Notification::assertSentTo($recipient, ApplicationRejectedNotification::class, fn ($n) =>
             $n->toArray($recipient)['message'] === 'Your SWAP renewal for 2nd Semester 2024-2025 was not approved. ' . ApplicationRejectedNotification::MSG_BACK_TO_APPLICANT
             && in_array(ApplicationRejectedNotification::MSG_BACK_TO_APPLICANT, $n->toMail($recipient)->introLines, true));
 
-        // Deactivated: refused everywhere until the DSA reactivates the account.
-        Sanctum::actingAs($recipient->fresh());
-        $this->getJson('/api/applicant/applications')->assertForbidden()
-            ->assertJsonPath('message', \App\Http\Middleware\EnsureActive::MESSAGE);
-        Sanctum::actingAs($admin);
-        $this->putJson("/api/admin/users/{$recipient->id}", ['is_active' => true])->assertOk();
-
-        // Reactivated: recipient features stay closed; the applicant ones are open.
+        // Recipient features are closed; the applicant ones are open right away.
         Sanctum::actingAs($recipient->fresh());
         $this->getJson('/api/recipient/hours/summary')->assertForbidden();
-        $this->getJson('/api/applicant/applications')->assertOk()->assertJsonCount(2, 'data');
+        $wait = \App\Services\ApplicationService::msgAfterRenewal('2nd Semester 2024-2025');
+        $this->getJson('/api/applicant/applications')->assertOk()->assertJsonCount(2, 'data')
+            ->assertJsonPath('meta.apply_block', $wait);
 
-        // Applying waits for the application period…
-        \App\Models\Setting::put('applications_open', '0');
-        $this->postJson('/api/applicant/applications')->assertForbidden();
-
-        // …then works — for the same semester the renewal was for — once, as usual.
+        // Like a rejected applicant, they apply again next semester, not for the renewal's term.
         \App\Models\Setting::put('applications_open', '1');
+        $this->postJson('/api/applicant/applications')->assertStatus(409)->assertJsonPath('message', $wait);
+
+        // The next semester: applying works, once, as usual.
+        $today = Carbon::now('Asia/Manila');
+        SemesterPeriod::where('id', '!=', $this->next->id)->delete();
+        $this->next->update(['start_date' => $today->copy()->subMonths(5)->toDateString(), 'end_date' => $today->copy()->subDays(2)->toDateString()]);
+        SemesterPeriod::create([
+            'academic_year' => '2025-2026', 'semester' => '1st Semester',
+            'start_date' => $today->copy()->subDay()->toDateString(), 'end_date' => $today->copy()->addMonths(4)->toDateString(),
+        ]);
+        app(\App\Services\SemesterPeriodService::class)->flush();
+        $this->getJson('/api/applicant/applications')->assertJsonPath('meta.apply_block', null);
         $this->postJson('/api/applicant/applications')->assertCreated()
             ->assertJsonPath('data.type', 'new')
-            ->assertJsonPath('data.semester', '2nd Semester');
+            ->assertJsonPath('data.academic_year', '2025-2026');
         $this->postJson('/api/applicant/applications')->assertStatus(409);
+    }
+
+    public function test_a_rejected_renewal_email_carries_the_last_claim_stub(): void
+    {
+        Notification::fake();
+        [$recipient, $previous] = $this->recipientWithTerm(metHours: true);
+        $stub = \App\Models\StipendHistory::create([
+            'user_id' => $recipient->id, 'amount' => 3000, 'academic_year' => '2024-2025', 'semester' => '1st Semester',
+            'status' => 'released', 'control_number' => 'SWAP-TEST-1', 'released_at' => now(),
+        ]);
+        $renewal = $this->renewalFor($recipient);
+        Sanctum::actingAs($this->makeUser('admin'));
+
+        $this->decide($renewal, 'rejected')->assertOk();
+
+        Notification::assertSentTo($recipient, ApplicationRejectedNotification::class, function ($n) use ($recipient) {
+            $mail = $n->toMail($recipient->fresh());
+
+            return count($mail->rawAttachments) === 1
+                && $mail->rawAttachments[0]['name'] === 'claim-stub-SWAP-TEST-1.pdf'
+                && $mail->actionUrl !== null;
+        });
+        $this->assertNotNull($stub->id);
     }
 
     public function test_submitting_a_renewal_follows_the_window_and_one_per_term(): void

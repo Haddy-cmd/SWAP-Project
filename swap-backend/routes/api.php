@@ -198,6 +198,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/applications/{id}/interview', [AdminApplicationController::class, 'rescheduleInterview']);
         Route::post('/applications/{id}/interview/no-show', [AdminApplicationController::class, 'markInterviewNoShow']);
         Route::put('/applications/{id}/decide', [AdminApplicationController::class, 'decide']);
+        Route::put('/applications/{id}/reopen', [AdminApplicationController::class, 'reopen']);
 
         Route::get('/assignments', [AssignmentController::class, 'index']);
         Route::post('/assignments', [AssignmentController::class, 'store']);
@@ -260,6 +261,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
             Route::post('/testing/accounts/{id}/restore', [TestingController::class, 'restoreAccount'])->whereNumber('id');
             Route::put('/testing/accounts/{id}/email', [TestingController::class, 'accountEmail'])->whereNumber('id');
             Route::put('/testing/accounts/{id}/role', [TestingController::class, 'accountRole'])->whereNumber('id');
+            Route::post('/testing/accounts/{id}/reset-applications', [TestingController::class, 'resetApplications'])->whereNumber('id');
+            Route::put('/testing/applications/{id}/status', [TestingController::class, 'applicationStatus'])->whereNumber('id');
             Route::get('/testing/earlier', [TestingController::class, 'earlierTests']);
             Route::post('/testing/earlier/{id}', [TestingController::class, 'cleanUpEarlierTest'])->whereNumber('id');
             Route::post('/testing/recipients/{id}/{action}', [TestingController::class, 'action']);

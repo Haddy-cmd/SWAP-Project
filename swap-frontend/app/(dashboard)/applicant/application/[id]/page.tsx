@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Eye, Calendar, MapPin, Video } from 'lucide-react'
 import { BackLink } from '@/components/shared/BackLink'
 import { applicationsApi } from '@/lib/api/applications.api'
+import { settingsApi } from '@/lib/api/settings.api'
+import { RejectedNotice } from '@/components/application/RejectedNotice'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
 import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
@@ -20,6 +22,9 @@ export default function ApplicationDetailPage() {
     queryFn: () => applicationsApi.getApplication(Number(id)),
     enabled: !!id,
   })
+  const { data: period } = useQuery({ queryKey: ['application-status'], queryFn: () => settingsApi.getApplicationStatus() })
+  // Files removed after the retention period can't be opened.
+  const viewable = (application?.documents ?? []).filter((d): d is typeof d & { file_url: string } => !!d.file_url)
 
   if (isLoading) {
     return (
@@ -53,6 +58,10 @@ export default function ApplicationDetailPage() {
         <StatusBadge status={application.status} />
       </div>
 
+      {application.status === 'rejected' && application.type !== 'renewal' && (
+        <RejectedNotice application={application} period={period} />
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Timeline */}
         <div className="lg:col-span-1">
@@ -83,6 +92,12 @@ export default function ApplicationDetailPage() {
                 <div className="flex justify-between">
                   <dt className="text-ink-500">Reviewed</dt>
                   <dd className="font-medium text-ink-900">{formatDateTime(application.reviewed_at)}</dd>
+                </div>
+              )}
+              {application.rejection_reason_label && (
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-500">Reason</dt>
+                  <dd className="text-right font-medium text-ink-900">{application.rejection_reason_label}</dd>
                 </div>
               )}
               {application.remarks && (
@@ -166,13 +181,17 @@ export default function ApplicationDetailPage() {
                       </p>
                       <p className="break-all text-xs text-ink-500">{doc.file_name}</p>
                     </div>
-                    <button
-                      onClick={() => setViewDoc(doc)}
-                      className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-600 transition-colors"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </button>
+                    {doc.file_url ? (
+                      <button
+                        onClick={() => setViewDoc({ ...doc, file_url: doc.file_url! })}
+                        className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-600 transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </button>
+                    ) : (
+                      <span className="text-xs text-ink-400">Removed</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -180,7 +199,7 @@ export default function ApplicationDetailPage() {
           )}
         </div>
       </div>
-      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={application.documents ?? []} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={viewable} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

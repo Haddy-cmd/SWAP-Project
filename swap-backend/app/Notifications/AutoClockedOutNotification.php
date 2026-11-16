@@ -27,8 +27,8 @@ class AutoClockedOutNotification extends Notification implements ShouldQueue
             : 'just now';
         $office = $this->data['office'] ?? 'your office';
 
-        return "You were clocked out automatically at {$at} because you were away from {$office} "
-            . "for {$this->data['minutes']} minutes. Your hours up to then were saved for your supervisor to verify.";
+        return "You were clocked out automatically as of {$at}, when you left {$office}, because you didn't return "
+            . "within {$this->data['minutes']} minutes. Your hours up to then were saved for your supervisor to verify.";
     }
 
     public function toMail(object $notifiable): MailMessage

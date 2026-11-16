@@ -84,6 +84,11 @@ export default function PrivacyPage() {
           <p>
             For as long as you take part in the program, and afterwards as long as university records rules require.
           </p>
+          <p className="mt-2">
+            If your application is not approved, the files you uploaded with it (such as your COR and grades) are deleted
+            when the next semester starts, or five months after the decision, whichever comes first. We keep only the
+            record that you applied and the decision.
+          </p>
         </Section>
 
         <Section title="Your rights">

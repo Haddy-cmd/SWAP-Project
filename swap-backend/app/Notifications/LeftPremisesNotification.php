@@ -27,8 +27,8 @@ class LeftPremisesNotification extends Notification implements ShouldQueue
 
     private function message(): string
     {
-        return "You left {$this->data['office']} at {$this->time('left_at')} while clocked in. "
-            . "Return by {$this->time('deadline')} or you'll be clocked out automatically.";
+        return "You left {$this->data['office']} at {$this->time('left_at')} while clocked in. Your shift timer is paused "
+            . "and the time away doesn't count. Return by {$this->time('deadline')} or you'll be clocked out as of {$this->time('left_at')}.";
     }
 
     public function toMail(object $notifiable): MailMessage

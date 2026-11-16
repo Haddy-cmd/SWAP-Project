@@ -12,7 +12,7 @@ export interface AnnouncementAttachment {
 }
 
 /** Who it reaches (AnnouncementService): everyone = recipients + supervisors; office = its students + supervisors. */
-export type AnnouncementAudience = 'everyone' | 'office' | 'recipients' | 'supervisors'
+export type AnnouncementAudience = 'everyone' | 'office' | 'recipients' | 'new_recipients' | 'supervisors'
 
 export interface Announcement {
   id: number
@@ -36,7 +36,7 @@ export interface AnnouncementListMeta {
   total: number
   // Who a new announcement would reach right now.
   active_recipients: number
-  audiences: { everyone: number; recipients: number; supervisors: number }
+  audiences: { everyone: number; recipients: number; new_recipients?: number; supervisors: number }
   /** Each office: its placed students + its supervisors. */
   offices: { id: number; name: string; count: number }[]
 }

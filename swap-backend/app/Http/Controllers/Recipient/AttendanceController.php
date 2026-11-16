@@ -77,6 +77,8 @@ class AttendanceController extends Controller
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy' => ['nullable', 'numeric', 'min:0'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ], [
+            'photo.max' => 'The selfie must be 4 MB or smaller.',
         ]);
 
         $log = $this->attendanceService->timeInGeofence(

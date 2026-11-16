@@ -7,6 +7,10 @@ export const applicationsApi = {
   getMyApplications: () =>
     apiClient.get<ApiResponse<Application[]>>('/applicant/applications').then((r) => r.data.data),
 
+  /** Why a new application can't start yet (after a rejected renewal: next semester), or null. */
+  getApplyBlock: () =>
+    apiClient.get<{ meta?: { apply_block?: string | null } }>('/applicant/applications').then((r) => r.data.meta?.apply_block ?? null),
+
   // Always for the current semester: the server sets the term.
   submitApplication: () =>
     apiClient.post<ApiResponse<Application>>('/applicant/applications').then((r) => r.data.data),
@@ -56,4 +60,8 @@ export const applicationsApi = {
 
   adminDecideApplication: (id: number, data: DecideApplicationData) =>
     apiClient.put<ApiResponse<Application>>(`/admin/applications/${id}/decide`, data).then((r) => r.data.data),
+
+  /** Undo a mistaken rejection (current semester, new applications only). */
+  adminReopenApplication: (id: number, reason: string) =>
+    apiClient.put<ApiResponse<Application>>(`/admin/applications/${id}/reopen`, { reason }).then((r) => r.data.data),
 }

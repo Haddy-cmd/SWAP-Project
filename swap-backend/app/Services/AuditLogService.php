@@ -37,7 +37,7 @@ class AuditLogService
         'stipend' => ['Stipend', ['released', 'voided', 'claimed', 'stipend_signature_restored', 'stipend_reminder_sent', 'stipend_received'], [StipendHistory::class]],
         'hours' => ['Hours & attendance', ['verified', 'rejected', 'clocked_in', 'clocked_out', 'manual_hours_added',
             'required_hours_requested', 'required_hours_approved', 'required_hours_rejected', 'verification_reminder_sent', 'pace_reminder_sent'], [TimeLog::class, NarrativeReport::class]],
-        'applications' => ['Applications & renewals', ['renewal_hours_carried', 'rescheduled', 'promoted_to_recipient', 'returned_to_applicant'],
+        'applications' => ['Applications & renewals', ['renewal_hours_carried', 'rescheduled', 'promoted_to_recipient', 'returned_to_applicant', 'application_reopened', 'documents_purged'],
             [Application::class, Interview::class]],
         'terms' => ['Terms, reports & notes', ['term_closed', 'term_marked_deficient', 'term_requalified', 'term_report_submitted',
             'term_report_updated', 'term_report_reviewed', 'term_report_reminder', 'term_evaluated', 'reviewed', 'submitted'],
@@ -54,7 +54,7 @@ class AuditLogService
     ];
 
     /** Entries an admin should be able to find fast: money undone, roles, removals, exports, settings. */
-    public const SENSITIVE_ACTIONS = ['login_code_switched', 'voided', 'returned_to_applicant', 'promoted_to_recipient', 'password_changed', 'deleted',
+    public const SENSITIVE_ACTIONS = ['login_code_switched', 'voided', 'returned_to_applicant', 'application_reopened', 'promoted_to_recipient', 'password_changed', 'deleted',
         'report_exported', 'semester_period_deleted', 'testing_role_changed', 'required_hours_approved', 'qr_regenerated'];
 
     /** Short names for one record's history (`record=type:id`). */
@@ -358,6 +358,8 @@ class AuditLogService
             'stipend_received' => "{$who} received {$entity} (" . (($new['via'] ?? 'download') === 'view' ? 'viewed' : 'downloaded') . ' the stub)',
             'stipend_reminder_sent' => "Reminded {$who} to " . Str::lcfirst(implode(' and ', array_map('lcfirst', (array) ($new['missing'] ?? ['finish their requirements'])))) . ' before their stipend can be released',
             'promoted_to_recipient' => "Made {$who} a recipient (application approved)" . (!empty($new['migrated']) ? ' — automatically, by the approval rule' : ''),
+            'application_reopened' => "Reopened {$who}'s rejected application" . (!empty($new['reason']) ? " — {$new['reason']}" : ''),
+            'documents_purged' => "Removed {$who}'s " . ($n = (int) ($new['count'] ?? 0)) . ' uploaded ' . Str::plural('file', $n) . ' (application not approved; retention period ended)',
             'returned_to_applicant' => "Returned {$who} to an applicant account" . (($new['is_active'] ?? true) === false ? ' and deactivated it' : '') . ' (renewal rejected)',
             'report_exported' => 'Exported the ' . Str::headline((string) ($new['type'] ?? 'report')) . ' report (' . strtoupper((string) ($new['format'] ?? '')) . (isset($new['rows']) ? ", {$new['rows']} rows" : '') . ')',
             'password_changed' => "Changed {$who}'s password",

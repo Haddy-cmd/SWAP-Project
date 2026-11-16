@@ -26,12 +26,14 @@ class ApplicationDocument extends Model
         'file_name',
         'file_size',
         'mime_type',
+        'purged_at',
     ];
 
     protected function casts(): array
     {
         return [
             'file_size' => 'integer',
+            'purged_at' => 'datetime',
         ];
     }
 

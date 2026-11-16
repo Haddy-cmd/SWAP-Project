@@ -83,6 +83,16 @@ class SignatureTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors('signature');
     }
 
+    public function test_specimen_too_large_states_the_limit_in_mb(): void
+    {
+        Sanctum::actingAs($this->makeUser('supervisor'));
+
+        $this->postJson('/api/profile/signature', [
+            'signature' => UploadedFile::fake()->image('sig.png')->size(3000),
+        ])->assertStatus(422)
+            ->assertJsonValidationErrors(['signature' => 'The signature image must be 2 MB or smaller.']);
+    }
+
     public function test_release_applies_drawn_specimens_and_renders_ink_on_the_stub(): void
     {
         $supervisor = $this->makeUser('supervisor');
@@ -336,7 +346,7 @@ class SignatureTest extends TestCase
         Sanctum::actingAs($this->makeUser('admin'));
         $this->postJson('/api/admin/stipend/release', $this->releasePayload($recipient->id))
             ->assertStatus(422)
-            ->assertJsonPath('message', StipendClaimService::MSG_SIGNATURE_LOST);
+            ->assertJsonPath('message', 'Recipient has no signature.');
 
         $token = $this->postJson('/api/admin/stipend/unlock', ['password' => self::PW])->json('data.unlock_token');
         $this->postJson('/api/admin/stipend/release-bulk', [

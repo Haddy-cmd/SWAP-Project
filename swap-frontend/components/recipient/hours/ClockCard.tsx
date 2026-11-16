@@ -3,17 +3,18 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogOut, CheckCircle2, AlertTriangle, MapPin, MapPinOff, ScanLine, FileText, Loader2, LocateFixed, Navigation, Building2, X } from 'lucide-react'
+import { LogOut, CheckCircle2, AlertTriangle, MapPin, MapPinOff, ScanLine, FileText, Loader2, LocateFixed, Navigation, Building2 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import { SelfieCapture } from '@/components/attendance/SelfieCapture'
-import { QrScanner } from '@/components/attendance/QrScanner'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { getCurrentPosition, getBestPosition, distanceMeters, type Coords } from '@/lib/utils/geolocation'
 import type { Assignment, Office } from '@/types/assignment.types'
 import type { HoursSummary } from '@/types/attendance.types'
 import { awayText, useAwayCountdown } from '@/components/recipient/PremisesWatch'
+import { clockLabel, shiftSeconds } from '@/lib/utils/shift'
+import { qrTokenFrom } from '@/lib/utils/qr'
 import { CARD, fmtClock, pad } from './ui'
 
 type LocState =
@@ -63,7 +64,6 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   const [selfieOpen, setSelfieOpen] = useState(false)
   // "Enter the code instead" shown; the in-page scanner for clocking out.
   const [showCode, setShowCode] = useState(false)
-  const [scanOut, setScanOut] = useState(false)
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id) }, [])
@@ -91,7 +91,7 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
     mutationFn: async (photo?: Blob) => {
       let coords: Coords | undefined
       try { coords = await getBestPosition() } catch { coords = undefined }
-      return attendanceApi.timeInGeofence(qrToken, coords, photo)
+      return attendanceApi.timeInGeofence(qrTokenFrom(qrToken), coords, photo)
     },
     onSuccess: (res) => {
       setOpenLogId(res.data.id)
@@ -105,12 +105,12 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   })
 
   const timeOut = useMutation({
-    // A scanned token is passed straight in; otherwise the typed one is used.
+    // The typed (or pasted) office code; scanning happens on the scan page.
     mutationFn: async (token?: string) => {
       if (!openLogId) throw new Error('No open log')
       let coords: Coords | undefined
       try { coords = await getBestPosition() } catch { coords = undefined }
-      return attendanceApi.timeOut(openLogId, token ?? qrToken, coords)
+      return attendanceApi.timeOut(openLogId, qrTokenFrom(token ?? qrToken), coords)
     },
     onSuccess: (res) => {
       setOpenLogId(null)
@@ -124,12 +124,6 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
 
   // Clock out: straight out when the Task Description is in, otherwise ask for it first.
   const handleClockOut = (token?: string) => (currentLog?.has_narrative ? timeOut.mutate(token) : setNarrativeOpen(true))
-  // A scanned office QR: keep it (the task description may come first), then clock out.
-  const onScanOut = (token: string) => {
-    setScanOut(false)
-    setQrToken(token)
-    handleClockOut(token)
-  }
 
   const clockedIn = !!openLogId
   const completed = !!summary && summary.required > 0 && summary.remaining <= 0
@@ -146,8 +140,8 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
 
   const elapsed = (() => {
     if (!clockedIn || !currentLog?.time_in) return '00:00:00'
-    const s = Math.max(0, Math.floor((now - new Date(currentLog.time_in).getTime()) / 1000))
-    return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`
+    // Paused while away from the office; minutes away earlier in the shift don't count.
+    return clockLabel(shiftSeconds(currentLog, now))
   })()
 
   const location = clockedIn
@@ -193,7 +187,7 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
       <div className="flex items-center justify-between gap-2.5">
         <span className={`inline-flex flex-none items-center gap-[7px] whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-bold ${clockedIn ? 'bg-accent-soft text-accent-strong' : 'bg-surface-3 text-ink-600'}`}>
           <span className={`h-2 w-2 rounded-full ${clockedIn ? 'animate-live bg-accent-bright' : 'bg-ink-350'}`} />
-          {clockedIn ? 'On duty' : completed ? 'All hours done' : 'Not clocked in'}
+          {clockedIn ? (away ? 'Paused · away' : 'On duty') : completed ? 'All hours done' : 'Not clocked in'}
         </span>
         <span className="flex min-w-0 items-center gap-1.5 text-right text-[12.5px] leading-snug text-ink-500">
           <Building2 className="h-4 w-4 flex-none" /><span className="truncate">{officeName}</span>
@@ -210,11 +204,11 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
             <FileText className="h-3.5 w-3.5 flex-none" />
             {currentLog?.has_narrative ? 'Task description saved, ready to clock out.' : 'You’ll write your task description when you clock out.'}
           </p>
-          {/* The office QR is needed to clock out as well as in. */}
-          <button type="button" onClick={() => setScanOut(true)} disabled={timeOut.isPending}
-            className="flex h-[54px] items-center justify-center gap-2 rounded-[14px] bg-danger-700 text-[15px] font-bold text-white hover:bg-danger-800 disabled:opacity-60">
+          {/* The office QR is needed to clock out as well as in: one scan page, then the confirm pop-out. */}
+          <Link href="/recipient/attendance/scan" aria-disabled={timeOut.isPending}
+            className="flex h-[54px] items-center justify-center gap-2 rounded-[14px] bg-danger-700 text-[15px] font-bold text-white hover:bg-danger-800 hover:text-white">
             <LogOut className="h-[21px] w-[21px]" /> {timeOut.isPending ? 'Recording…' : 'Scan QR to clock out'}
-          </button>
+          </Link>
           {showCode ? codeEntry : codeLink}
         </>
       ) : completed ? (
@@ -248,21 +242,6 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
               {loc.kind === 'checking' ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />} Check
             </button>
           )}
-        </div>
-      )}
-
-      {/* Clock-out scan: the camera reads the office QR, then the usual clock-out (task first if missing). */}
-      {scanOut && (
-        <div className="sheet-overlay fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setScanOut(false)}>
-          <div className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-[16px] font-bold text-ink-950">Scan the office QR to clock out</p>
-              <button type="button" onClick={() => setScanOut(false)} aria-label="Close" className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-500 hover:bg-ink-100">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <QrScanner onScan={onScanOut} onError={(e) => { setScanOut(false); setShowCode(true); notifyError({ message: e }, 'Camera unavailable') }} />
-          </div>
         </div>
       )}
 

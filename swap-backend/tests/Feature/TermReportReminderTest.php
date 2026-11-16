@@ -95,9 +95,9 @@ class TermReportReminderTest extends TestCase
         Notification::assertSentToTimes($recipient, TermReportDueNotification::class, 1);
     }
 
-    public function test_finishing_the_hours_mid_term_does_not_remind_yet(): void
+    public function test_finishing_the_hours_mid_term_reminds_right_away(): void
     {
-        // The report opens only after the semester ends, so there's nothing to act on yet.
+        // Met hours open the report even before the semester ends, so the student is told now.
         $supervisor = $this->makeUser('supervisor');
         $recipient = $this->makeUser('recipient');
         $assignment = $this->makeAssignment($recipient, $supervisor, null, ['required_hours' => 2, 'end_date' => Carbon::today()->addMonth()->toDateString()]);
@@ -106,8 +106,8 @@ class TermReportReminderTest extends TestCase
         Sanctum::actingAs($supervisor);
         $this->putJson("/api/supervisor/verifications/{$log->id}", ['action' => 'verified'])->assertOk();
 
-        Notification::assertNotSentTo($recipient, TermReportDueNotification::class);
-        $this->assertNull($assignment->fresh()->report_due_hours_at);
+        Notification::assertSentToTimes($recipient, TermReportDueNotification::class, 1);
+        $this->assertNotNull($assignment->fresh()->report_due_hours_at);
     }
 
     public function test_the_end_of_the_term_reminds_current_placements_without_a_report(): void

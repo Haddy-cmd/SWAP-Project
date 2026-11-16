@@ -760,4 +760,72 @@ class TestingToolsTest extends TestCase
         $this->assertSame('recipient', $student->fresh()->role);
         $this->assertNull($student->fresh()->testing_added_at);
     }
+
+    /** A picked applicant with a submitted application and one uploaded document. */
+    private function pickedApplicant(): array
+    {
+        $applicant = $this->makeUser('applicant');
+        $application = Application::create(['user_id' => $applicant->id, 'academic_year' => '2026-2027', 'semester' => '1st Semester', 'status' => 'submitted', 'type' => 'new']);
+        $path = "documents/{$application->id}/cor.pdf";
+        Storage::disk(config('filesystems.documents_disk', 'public'))->put($path, 'pdf');
+        $application->documents()->create(['document_type' => 'cor', 'file_path' => $path, 'file_url' => '/x', 'file_name' => 'cor.pdf', 'file_size' => 3, 'mime_type' => 'application/pdf']);
+        $this->pick($applicant)->assertOk();
+
+        return [$applicant, $application, $path];
+    }
+
+    public function test_an_applicants_application_can_be_put_at_any_step_without_emails(): void
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+        [$applicant, $application] = $this->pickedApplicant();
+        $url = "/api/admin/testing/applications/{$application->id}/status";
+
+        $this->putJson($url, ['status' => 'interview_scheduled'])->assertOk()
+            ->assertJsonPath('message', "Application #{$application->id} is now Interview scheduled. No emails were sent.");
+        $this->assertSame('interview_scheduled', $application->fresh()->status);
+        $this->assertNotNull($application->fresh()->interview, 'an interview is set up for the step');
+        $this->putJson($url, ['status' => 'interview_scheduled'])->assertStatus(422)->assertJsonPath('message', TestingService::MSG_SAME_STATUS);
+        $this->putJson($url, ['status' => 'cancelled'])->assertStatus(422);
+
+        // Approving a new application makes them a recipient, as the real approval does…
+        $this->putJson($url, ['status' => 'approved'])->assertOk();
+        $this->assertSame('recipient', $applicant->fresh()->role);
+        // …and moving it back makes them an applicant again.
+        $this->putJson($url, ['status' => 'rejected'])->assertOk();
+        $this->assertSame('applicant', $applicant->fresh()->role);
+        $this->assertSame('other', $application->fresh()->rejection_reason);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'testing_application_status', 'auditable_id' => $applicant->id]);
+        \Illuminate\Support\Facades\Notification::assertNothingSentTo($applicant);
+
+        // Only picked accounts' applications.
+        $other = Application::create(['user_id' => $this->makeUser('applicant')->id, 'academic_year' => '2026-2027', 'semester' => '1st Semester', 'status' => 'submitted', 'type' => 'new']);
+        $this->putJson("/api/admin/testing/applications/{$other->id}/status", ['status' => 'approved'])
+            ->assertNotFound()->assertJsonPath('message', TestingService::MSG_APP_NOT_PICKED);
+
+        // Restore puts the application back as it was.
+        $this->postJson("/api/admin/testing/accounts/{$applicant->id}/restore")->assertOk();
+        $this->assertSame('submitted', $application->fresh()->status);
+    }
+
+    public function test_start_over_removes_every_application_and_its_files(): void
+    {
+        [$applicant, $application, $path] = $this->pickedApplicant();
+
+        $this->postJson("/api/admin/testing/accounts/{$applicant->id}/reset-applications")->assertOk()
+            ->assertJsonPath('message', 'Removed 1 application(s) with their documents and interviews. They can apply again from the start.');
+        $this->assertNull(Application::find($application->id));
+        $this->assertSame(0, \App\Models\ApplicationDocument::where('application_id', $application->id)->count());
+        Storage::disk(config('filesystems.documents_disk', 'public'))->assertMissing($path);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'testing_applications_reset', 'auditable_id' => $applicant->id]);
+
+        // A recipient with an active placement must close it first.
+        [$student] = $this->realRecipient();
+        $this->pick($student)->assertOk();
+        $this->postJson("/api/admin/testing/accounts/{$student->id}/reset-applications")
+            ->assertStatus(422)->assertJsonPath('message', TestingService::MSG_HAS_PLACEMENT);
+
+        // Restore brings the rows back.
+        $this->postJson("/api/admin/testing/accounts/{$applicant->id}/restore")->assertOk();
+        $this->assertNotNull(Application::find($application->id));
+    }
 }

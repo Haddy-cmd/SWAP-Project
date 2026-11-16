@@ -11,6 +11,9 @@ const H = 180
  * the PNG sits naturally on the white claim stub. Pointer events cover mouse,
  * pen, and touch (touch-action:none keeps page scroll from hijacking strokes).
  */
+const SIGNATURE_MAX_BYTES = 2 * 1024 * 1024
+const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
 export function SignaturePad({
   onSave,
   busy,
@@ -21,6 +24,7 @@ export function SignaturePad({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const drawing = useRef(false)
   const [empty, setEmpty] = useState(true)
+  const [fileError, setFileError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
   // Scale the backing store for crisp strokes on high-DPI screens.
@@ -79,8 +83,12 @@ export function SignaturePad({
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) onSave(file)
     e.target.value = ''
+    if (!file) return
+    // Same limit as the server (ProfileController: max 2 MB).
+    if (file.size > SIGNATURE_MAX_BYTES) { setFileError(`That image is ${mb(file.size)}. The signature image must be 2 MB or smaller.`); return }
+    setFileError(null)
+    onSave(file)
   }
 
   return (
@@ -110,6 +118,9 @@ export function SignaturePad({
         </button>
         <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onFile} />
       </div>
+      {fileError
+        ? <p role="alert" className="mt-2 text-xs font-medium text-danger-700">{fileError}</p>
+        : <p className="mt-2 text-[11.5px] text-ink-400">Uploading instead? JPG, PNG or WEBP, up to 2 MB.</p>}
     </div>
   )
 }

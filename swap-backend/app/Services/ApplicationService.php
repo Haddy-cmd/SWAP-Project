@@ -32,6 +32,33 @@ class ApplicationService
 
     public const MSG_NO_TERM = 'Applications open once the DSA sets up the current semester. Please check back later.';
 
+    public static function msgAfterRenewal(string $term): string
+    {
+        return "Your renewal for {$term} was not approved. You can apply again as a new applicant next semester.";
+    }
+
+    /**
+     * After a rejected renewal for a term, a new application waits for a later semester (the
+     * same rule as a rejected new application). Null = no such wait. Shown to the applicant
+     * before they open the form (Applicant ApplicationController::index meta.apply_block).
+     */
+    public function renewalWaitBlock(User $user): ?string
+    {
+        $latest = $this->applicationRepository->findByUser($user->id)->first();
+        if (!$latest || $latest->type !== 'renewal' || $latest->status !== 'rejected') {
+            return null;
+        }
+
+        $periods = app(SemesterPeriodService::class);
+        $target = $periods->applicationTerm();
+        $renewalTerm = $periods->forTerm($latest->academic_year, $latest->semester);
+        $later = $target && ($renewalTerm
+            ? $target->start_date->gt($renewalTerm->start_date)
+            : !($target->academic_year === $latest->academic_year && $target->semester === $latest->semester));
+
+        return $later ? null : self::msgAfterRenewal("{$latest->semester} {$latest->academic_year}");
+    }
+
     /** A new application, always for the current semester (SemesterPeriodService::applicationTerm). */
     public function submitApplication(User $user): Application
     {
@@ -50,6 +77,10 @@ class ApplicationService
             throw new ConflictHttpException(
                 'Your application has already been approved. Please wait for the office assignment announcement.'
             );
+        }
+
+        if ($wait = $this->renewalWaitBlock($user)) {
+            throw new ConflictHttpException($wait);
         }
 
         // An applicant with an application still in progress (submitted, under review, or
@@ -298,7 +329,7 @@ class ApplicationService
         return $application->fresh('interview');
     }
 
-    public function decideApplication(Application $application, string $decision, ?string $remarks, User $admin): Application
+    public function decideApplication(Application $application, string $decision, ?string $remarks, User $admin, ?string $rejectionReason = null): Application
     {
         // A fresh application can only be approved once its interview was held
         // (scheduled, not a no-show). Renewals skip the interview — the recipient
@@ -314,17 +345,18 @@ class ApplicationService
 
         // The status, the promotion to recipient / renewal rollover / return to the
         // applicant portal, and the audit entries land together or not at all.
-        return DB::transaction(function () use ($application, $decision, $remarks, $admin) {
-            $old = $application->only(['status', 'remarks']);
+        return DB::transaction(function () use ($application, $decision, $remarks, $admin, $rejectionReason) {
+            $old = $application->only(['status', 'remarks', 'rejection_reason']);
 
             $updated = $this->applicationRepository->update($application, [
                 'status' => $decision,
                 'remarks' => $remarks,
+                'rejection_reason' => $decision === 'rejected' ? $rejectionReason : null,
                 'reviewed_by' => $admin->id,
                 'reviewed_at' => now(),
             ]);
 
-            AuditLog::record('updated', $updated, $old, $updated->only(['status', 'remarks']));
+            AuditLog::record('updated', $updated, $old, $updated->only(['status', 'remarks', 'rejection_reason']));
 
             if ($decision === 'approved') {
                 // Approving a renewal immediately rolls the assignment into the new
@@ -344,6 +376,85 @@ class ApplicationService
 
                 DB::afterCommit(fn () => AfterCommit::quietly(fn () => event(new ApplicationRejected($updated)), 'Application rejected notification', ['application_id' => $updated->id]));
             }
+
+            return $updated;
+        });
+    }
+
+    public const MSG_REOPEN_NOT_REJECTED = 'Only a rejected application can be reopened.';
+    public const MSG_REOPEN_RENEWAL = 'A rejected renewal cannot be reopened. The student can apply again as a new applicant next semester.';
+    public const MSG_REOPEN_PAST_TERM = 'Only an application for the current semester can be reopened.';
+    public const MSG_REOPEN_OTHER_APPLICATION = 'This applicant already has another application in progress or approved.';
+    public const MSG_REOPEN_PURGED = "This applicant's documents were already removed, so the application cannot be reopened.";
+
+    /**
+     * Undo a rejection made by mistake: the application goes back to the step it was
+     * rejected at (an interview stays scheduled), so the DSA can review it again. Only
+     * for a new application in the current application term, while no other one is open
+     * or approved, and before its documents were removed. Audit-logged with the reason.
+     */
+    public function reopenApplication(Application $application, string $reason, User $admin): Application
+    {
+        if ($application->status !== 'rejected') {
+            throw new ConflictHttpException(self::MSG_REOPEN_NOT_REJECTED);
+        }
+        if ($application->type === 'renewal') {
+            throw new ConflictHttpException(self::MSG_REOPEN_RENEWAL);
+        }
+
+        $term = app(SemesterPeriodService::class)->applicationTerm();
+        if (!$term || $term->academic_year !== $application->academic_year || $term->semester !== $application->semester) {
+            throw new ConflictHttpException(self::MSG_REOPEN_PAST_TERM);
+        }
+
+        $other = Application::where('user_id', $application->user_id)
+            ->where('id', '!=', $application->id)
+            ->where(fn ($q) => $q->whereIn('status', ['submitted', 'under_review', 'interview_scheduled'])
+                ->orWhere(fn ($q) => $q->where('status', 'approved')->where('type', '!=', 'renewal')
+                    ->where('academic_year', $application->academic_year)->where('semester', $application->semester)))
+            ->exists();
+        if ($other) {
+            throw new ConflictHttpException(self::MSG_REOPEN_OTHER_APPLICATION);
+        }
+
+        if ($application->documents()->whereNotNull('purged_at')->exists()) {
+            throw new ConflictHttpException(self::MSG_REOPEN_PURGED);
+        }
+
+        // The step it was rejected at, from the audit trail; a plain submission goes to review.
+        $before = AuditLog::where('auditable_type', Application::class)
+            ->where('auditable_id', $application->id)
+            ->where('action', 'updated')
+            ->orderByDesc('id')
+            ->get(['old_values', 'new_values'])
+            ->first(fn ($log) => ($log->new_values['status'] ?? null) === 'rejected')
+            ?->old_values['status'] ?? null;
+        $restored = in_array($before, ['under_review', 'interview_scheduled'], true) ? $before : 'under_review';
+        if ($restored === 'interview_scheduled' && !$application->interview) {
+            $restored = 'under_review';
+        }
+
+        return DB::transaction(function () use ($application, $reason, $admin, $restored) {
+            $old = $application->only(['status', 'remarks', 'rejection_reason']);
+
+            $updated = $this->applicationRepository->update($application, [
+                'status' => $restored,
+                'remarks' => null,
+                'rejection_reason' => null,
+                'reviewed_by' => null,
+                'reviewed_at' => null,
+            ]);
+
+            // 'updated' feeds the applicant's timeline; 'reopened' keeps the why.
+            AuditLog::record('updated', $updated, $old, $updated->only(['status', 'remarks', 'rejection_reason']), $admin->id);
+            AuditLog::record('application_reopened', $updated, ['status' => 'rejected'], ['status' => $restored, 'reason' => $reason], $admin->id);
+
+            DB::afterCommit(fn () => AfterCommit::quietly(fn () => $updated->loadMissing('user')->user?->notify(
+                new \App\Notifications\ApplicationReopenedNotification([
+                    'application_id' => $updated->id,
+                    'term' => "{$updated->semester} {$updated->academic_year}",
+                ])
+            ), 'Application reopened notification', ['application_id' => $updated->id]));
 
             return $updated;
         });
@@ -371,10 +482,10 @@ class ApplicationService
 
     /**
      * A rejected renewal ends the student's time as a recipient: their current placement
-     * is closed, the account goes back to an applicant account and is deactivated (signed
-     * out everywhere). To apply again they ask the DSA Office, which reactivates them in
-     * Users. Their past terms, stubs and hours stay on record (a completed placement can
-     * still be paid).
+     * is closed and the account goes back to an active applicant account (signed out
+     * everywhere, so the next sign-in opens the applicant dashboard). They can apply again
+     * as a new applicant next semester (renewalWaitBlock). Their past terms, stubs and hours
+     * stay on record (a completed placement can still be paid; the stub is emailed).
      */
     private function returnToApplicant(Application $renewal, User $admin): void
     {
@@ -387,14 +498,15 @@ class ApplicationService
         foreach ($closed as $assignment) {
             $assignment->update(['status' => 'completed']);
         }
-        $user->update(['role' => 'applicant', 'is_active' => false]);
-        // Open sessions end now (the next request would be refused anyway).
+        // Back to an applicant account, still active: they sign in to the applicant dashboard
+        // and can apply again next semester.
+        $user->update(['role' => 'applicant']);
+        // Open sessions end now, so the next sign-in lands on the applicant dashboard.
         $user->tokens()->delete();
         OneTimeCodeService::forgetDevices($user);
 
-        AuditLog::record('returned_to_applicant', $user, ['role' => 'recipient', 'is_active' => true], [
+        AuditLog::record('returned_to_applicant', $user, ['role' => 'recipient'], [
             'role' => 'applicant',
-            'is_active' => false,
             'renewal_application_id' => $renewal->id,
             'closed_assignment_ids' => $closed->pluck('id')->all(),
         ], $admin->id);

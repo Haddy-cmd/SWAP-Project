@@ -27,8 +27,27 @@ class QrCodeService
         return $token;
     }
 
+    /**
+     * The token inside whatever was scanned or pasted: the printed office QR holds the full
+     * "https://…/scan?t=<token>" link (it opens the phone-camera page), while the in-app scanner
+     * and the typed-code box may send that link or the bare token.
+     */
+    public static function tokenFrom(string $scanned): string
+    {
+        $text = trim($scanned);
+        if (preg_match('#^https?://#i', $text)) {
+            parse_str((string) parse_url($text, PHP_URL_QUERY), $query);
+            if (!empty($query['t']) && is_string($query['t'])) {
+                return trim($query['t']);
+            }
+        }
+
+        return $text;
+    }
+
     public function validateOffice(string $token): ?Office
     {
+        $token = self::tokenFrom($token);
         $lastDot = strrpos($token, '.');
         if ($lastDot === false) {
             return null;
@@ -79,6 +98,7 @@ class QrCodeService
 
     public function validate(string $token): ?Assignment
     {
+        $token = self::tokenFrom($token);
         $lastDot = strrpos($token, '.');
         if ($lastDot === false) {
             return null;

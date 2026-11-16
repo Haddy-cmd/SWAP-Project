@@ -63,7 +63,7 @@ export function TermReportCard({ bare = false }: { bare?: boolean }) {
 
   if (isLoading || !meta?.has_assignment) return null
 
-  // A first submission opens after the semester ends (with the hours done or a promissory note filed).
+  // A first submission opens once the hours are done (even mid-semester), or after the semester ends with a promissory note filed.
   const blocked = !report && !meta.can_submit ? meta.submit_block : null
   const showForm = meta.editable && !blocked && (!report || editing)
   const chars = form.content.trim().length

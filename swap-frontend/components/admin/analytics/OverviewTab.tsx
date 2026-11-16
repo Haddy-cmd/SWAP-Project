@@ -160,6 +160,28 @@ export function OverviewTab({ academicYear, semester, allTerms, onDrill, onTab }
             </div>
           </Card>
 
+          {(overview?.rejection_reasons?.length ?? 0) > 0 && (() => {
+            const rows = overview!.rejection_reasons!
+            const max = Math.max(...rows.map((r) => r.count))
+            return (
+              <Card title="Why applications were not approved" hint={allTerms ? 'All semesters' : 'This semester'}>
+                <div className="animate-content-in mt-4 space-y-2.5">
+                  {rows.map((r) => (
+                    <div key={r.label}>
+                      <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
+                        <span className="text-ink-600">{r.label}</span>
+                        <span className="font-bold text-ink-900">{r.count}</span>
+                      </div>
+                      <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface-2">
+                        <div className="bar-grow-x h-full rounded-full" style={{ width: `${pct(r.count, max)}%`, background: RED }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )
+          })()}
+
           <Card title="Ready-made reports" hint="One click, no setup">
             <ReadyReports academicYear={academicYear} semester={semester} allTerms={allTerms} recipients={overview?.active_recipients ?? 0} />
           </Card>

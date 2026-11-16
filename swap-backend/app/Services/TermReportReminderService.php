@@ -25,7 +25,7 @@ class TermReportReminderService
     public const MSG_SUBMITTED = 'The report is already in.';
     public const MSG_LOCKED = 'This term is closed for reports.';
     public const MSG_TODAY = 'Already reminded today.';
-    public const MSG_NOT_OPEN = "They can't submit it yet: the report opens after the semester ends, with the hours done or a promissory note filed.";
+    public const MSG_NOT_OPEN = "They can't submit it yet: the report opens once their required hours are done, or after the semester ends with a promissory note filed.";
 
     /** After the hours change: the requirement is met and the report isn't in. */
     public function hoursMet(Assignment $assignment): bool
@@ -34,7 +34,7 @@ class TermReportReminderService
             || $assignment->required_hours <= 0 || $assignment->remaining_hours > 0) {
             return false;
         }
-        // Mid-term the report can't be submitted yet; the term-ended reminder covers it.
+        // Met hours open the report even mid-term; this guards the other blocks (no semester period).
         if (TermReportService::submitBlock($assignment) !== null) {
             return false;
         }

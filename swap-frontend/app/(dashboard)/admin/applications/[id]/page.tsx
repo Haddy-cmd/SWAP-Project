@@ -8,7 +8,7 @@ import { CheckCircle, XCircle, Eye, Calendar } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
-import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
+import { DocumentViewerModal, viewable, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 import { formatDateTime } from '@/lib/utils/formatDate'
 import { RenewalReadinessPanel } from '@/components/admin/RenewalReadinessPanel'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
@@ -129,7 +129,7 @@ export default function AdminApplicationDetailPage() {
           ? { title: 'Renewal approved', detail: 'The new term\'s placement was created and the recipient has been notified.' }
           : { title: 'Application approved', detail: 'They are now a recipient (announcements reach them) and wait in the Assignments queue for an office. They have been notified.' }
         : { title: data.type === 'renewal' ? 'Renewal rejected' : 'Application rejected',
-            detail: data.type === 'renewal' ? 'They are back to an applicant account, deactivated (reactivate them in Users to let them apply again), and have been notified.' : 'The applicant has been notified with your remarks.' })
+            detail: data.type === 'renewal' ? 'They are back to an applicant account and can apply again next semester. They have been notified, with their last claim stub attached if one was released.' : 'The applicant has been notified with your remarks.' })
       queryClient.invalidateQueries({ queryKey: ['admin-application', id] })
       queryClient.invalidateQueries({ queryKey: ['admin-applications'] })
       router.push('/admin/applications')
@@ -189,10 +189,14 @@ export default function AdminApplicationDetailPage() {
                 {application.documents.map((doc) => (
                   <li key={doc.id} className="flex items-center justify-between rounded-lg border border-ink-200 px-4 py-3">
                     <p className="text-sm capitalize text-ink-900">{doc.document_type.replace(/_/g, ' ')}</p>
-                    <button onClick={() => setViewDoc(doc)} className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-600 transition-colors">
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </button>
+                    {doc.file_url ? (
+                      <button onClick={() => setViewDoc({ ...doc, file_url: doc.file_url! })} className="flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-600 transition-colors">
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </button>
+                    ) : (
+                      <span className="text-xs text-ink-400" title="Removed after the retention period (application not approved)">Removed</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -353,7 +357,7 @@ export default function AdminApplicationDetailPage() {
       </div>
       {/* Who moved this application, when, and what changed. */}
       <AuditHistory scope={{ record: `application:${application.id}` }} title="Application history" />
-      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={application.documents ?? []} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={viewable(application.documents)} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

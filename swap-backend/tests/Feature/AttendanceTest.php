@@ -45,6 +45,23 @@ class AttendanceTest extends TestCase
         ]);
     }
 
+    public function test_the_printed_qr_link_works_as_the_token_and_clock_out_needs_an_open_shift(): void
+    {
+        $this->travelToValidClockIn();
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        // What the printed QR holds (it opens the phone-camera page); the in-app scanner may send it whole.
+        $link = 'https://swap.example/scan?t=' . urlencode($this->qrForOffice($office));
+        Sanctum::actingAs($recipient);
+
+        $this->postJson('/api/recipient/attendance/time-out', ['log_id' => 999999, 'qr_token' => $link])
+            ->assertStatus(422)->assertJsonPath('message', AttendanceService::MSG_NOT_CLOCKED_IN);
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $link, 'latitude' => 8.0, 'longitude' => 124.0, 'accuracy' => 10,
+        ])->assertStatus(201)->assertJsonPath('data.status', 'open');
+    }
+
     public function test_second_time_in_same_day_conflicts(): void
     {
         $this->travelToValidClockIn();

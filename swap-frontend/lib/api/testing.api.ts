@@ -35,6 +35,14 @@ export const testingApi = {
   setAccountRole: (userId: number, role: 'applicant' | 'recipient') =>
     apiClient.put<WithStatus>(`/admin/testing/accounts/${userId}/role`, { role }).then((r) => r.data),
 
+  // An applicant's application at any step (no emails; approval makes them a recipient).
+  setApplicationStatus: (applicationId: number, status: string) =>
+    apiClient.put<WithStatus>(`/admin/testing/applications/${applicationId}/status`, { status }).then((r) => r.data),
+
+  // Start over: every application of the account, with documents, interviews and files, is removed.
+  resetApplications: (userId: number) =>
+    apiClient.post<WithStatus>(`/admin/testing/accounts/${userId}/reset-applications`).then((r) => r.data),
+
   // Every picked account is restored and leaves testing.
   releaseAll: () => apiClient.delete<WithStatus>('/admin/testing').then((r) => r.data),
 

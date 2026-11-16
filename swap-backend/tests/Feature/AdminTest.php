@@ -61,7 +61,7 @@ class AdminTest extends TestCase
 
         Sanctum::actingAs($this->makeUser('admin'));
         $this->putJson("/api/admin/applications/{$application->id}/decide", [
-            'decision' => 'rejected',
+            'decision' => 'rejected', 'rejection_reason' => 'grade_requirement',
             'remarks' => 'Did not meet the eligibility criteria.',
         ])->assertStatus(200)->assertJsonPath('data.status', 'rejected');
 
@@ -89,7 +89,7 @@ class AdminTest extends TestCase
 
         // Rejecting after approval would leave the recipient role + assignment behind.
         $this->putJson("/api/admin/applications/{$application->id}/decide", [
-            'decision' => 'rejected', 'remarks' => 'Changed our mind.',
+            'decision' => 'rejected', 'rejection_reason' => 'other', 'remarks' => 'Changed our mind.',
         ])->assertStatus(409)->assertJsonPath('message', ApplicationTransitions::MSG_DECIDED);
 
         $this->putJson("/api/admin/applications/{$application->id}/review")
@@ -119,7 +119,7 @@ class AdminTest extends TestCase
 
         // Rejection is still available.
         $this->putJson("/api/admin/applications/{$application->id}/decide", [
-            'decision' => 'rejected', 'remarks' => 'Did not attend the interview.',
+            'decision' => 'rejected', 'rejection_reason' => 'missed_interview', 'remarks' => 'Did not attend the interview.',
         ])->assertStatus(200);
     }
 

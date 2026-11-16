@@ -141,7 +141,7 @@ class ApprovalMakesRecipientTest extends TestCase
         $application = $this->application($rejected, 'under_review');
         Sanctum::actingAs($this->makeUser('admin'));
 
-        $this->putJson("/api/admin/applications/{$application->id}/decide", ['decision' => 'rejected', 'remarks' => 'Incomplete documents.'])
+        $this->putJson("/api/admin/applications/{$application->id}/decide", ['decision' => 'rejected', 'rejection_reason' => 'incomplete_documents', 'remarks' => 'Incomplete documents.'])
             ->assertOk();
 
         $this->assertSame('applicant', $rejected->fresh()->role);

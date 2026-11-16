@@ -32,5 +32,8 @@ Schedule::command('semester:close')->dailyAt('00:10')->timezone('Asia/Manila')->
 // Login tokens expire after 7 days (User::TOKEN_TTL_DAYS); clear the dead rows.
 Schedule::command('sanctum:prune-expired --hours=24')->daily()->onOneServer();
 
+// Rejected applicants' uploaded files go once a newer semester has started (or after 5 months).
+Schedule::command('applications:purge-rejected-documents')->dailyAt('00:30')->timezone('Asia/Manila')->withoutOverlapping()->onOneServer();
+
 // Sign-ups never confirmed with their code (held 30 minutes).
 Schedule::command('model:prune', ['--model' => [App\Models\PendingRegistration::class]])->daily()->onOneServer();

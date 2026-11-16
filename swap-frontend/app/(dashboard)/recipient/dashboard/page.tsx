@@ -10,6 +10,7 @@ import { useAuthStore } from '@/lib/store/authStore'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { formatHours } from '@/lib/utils/formatHours'
 import { formatDate } from '@/lib/utils/formatDate'
+import { clockLabel, shiftSeconds } from '@/lib/utils/shift'
 import { CountUp } from '@/components/ui/CountUp'
 import { TermEndedBanner } from '@/components/attendance/TermEndedBanner'
 import { TermReportDueBanner } from '@/components/attendance/TermReportDueBanner'
@@ -72,7 +73,7 @@ export default function RecipientDashboard() {
             <p className="text-[13px] text-white/75">No office assignment yet. The DSA will notify you once you&apos;re placed.</p>
           )}
         </div>
-        <ClockPanel timeIn={currentLog?.time_in ?? null} office={office} placed={!!assignment} />
+        <ClockPanel log={currentLog ?? null} office={office} placed={!!assignment} />
       </section>
 
       {/* The current term has ended: Qualified, or Deficient and what to do */}
@@ -137,7 +138,10 @@ function Chip({ Icon, children }: { Icon: typeof Clock; children: React.ReactNod
 }
 
 /** Status, today's date, a live shift timer while clocked in, and Clock in/out (done on Attendance). */
-function ClockPanel({ timeIn, office, placed }: { timeIn: string | null; office?: string; placed: boolean }) {
+function ClockPanel({ log, office, placed }: { log: TimeLog | null; office?: string; placed: boolean }) {
+  const timeIn = log?.time_in ?? null
+  // Paused while away from the office; earlier absences don't count.
+  const away = !!log?.left_premises_at
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     if (!timeIn) return
@@ -146,8 +150,7 @@ function ClockPanel({ timeIn, office, placed }: { timeIn: string | null; office?
     return () => clearInterval(id)
   }, [timeIn])
 
-  const secs = timeIn ? Math.max(0, Math.floor((now - new Date(timeIn).getTime()) / 1000)) : 0
-  const timer = `${pad(Math.floor(secs / 3600))}:${pad(Math.floor(secs / 60) % 60)}:${pad(secs % 60)}`
+  const timer = clockLabel(log?.time_in ? shiftSeconds(log, now) : 0)
   const today = new Date().toLocaleDateString('en-PH', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' })
 
   return (
@@ -155,7 +158,7 @@ function ClockPanel({ timeIn, office, placed }: { timeIn: string | null; office?
       <div className="flex items-center justify-between">
         <span className={`flex items-center gap-[7px] text-[12.5px] font-bold ${timeIn ? 'text-accent-strong' : 'text-ink-600'}`}>
           <span className={`h-2 w-2 rounded-full ${timeIn ? 'animate-live bg-accent-bright' : 'bg-ink-350'}`} />
-          {timeIn ? 'Clocked in' : 'Not clocked in'}
+          {timeIn ? (away ? 'Paused · away' : 'Clocked in') : 'Not clocked in'}
         </span>
         <span className="text-xs text-ink-500">{today}</span>
       </div>

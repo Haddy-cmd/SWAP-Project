@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DecideApplicationRequest;
+use App\Http\Requests\ReopenApplicationRequest;
 use App\Http\Requests\StoreInterviewRequest;
 use App\Resources\ApplicationResource;
 use App\Services\ApplicationService;
@@ -134,12 +135,30 @@ class ApplicationController extends Controller
             $application,
             $request->decision,
             $request->remarks,
-            $request->user()
+            $request->user(),
+            $request->decision === 'rejected' ? $request->rejection_reason : null,
         );
 
         return response()->json([
             'data' => new ApplicationResource($updated),
             'message' => "Application {$request->decision}. Applicant has been notified.",
+        ]);
+    }
+
+    /** Undo a rejection made by mistake (current semester, new applications only). */
+    public function reopen(ReopenApplicationRequest $request, int $id): JsonResponse
+    {
+        $application = $this->applicationService->getApplicationById($id);
+
+        if (!$application) {
+            return response()->json(['message' => 'Application not found.'], 404);
+        }
+
+        $updated = $this->applicationService->reopenApplication($application, $request->validated('reason'), $request->user());
+
+        return response()->json([
+            'data' => new ApplicationResource($updated),
+            'message' => 'Application reopened. Applicant has been notified.',
         ]);
     }
 }

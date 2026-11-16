@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Timer } from 'lucide-react'
 import { formatDateTime } from '@/lib/utils/formatDate'
+import { clockLabel, shiftSeconds } from '@/lib/utils/shift'
 
 /** Live HH:MM:SS chip counting up from a clock-in timestamp; ticks every second. */
-export function LiveTimerChip({ timeIn, state = 'live' }: { timeIn: string; state?: 'live' | 'away' }) {
+export function LiveTimerChip({ timeIn, state = 'live', leftAt = null, awaySeconds = 0 }: {
+  timeIn: string; state?: 'live' | 'away'
+  /** The open shift's absence from the office: the count pauses while away, earlier absences don't count. */
+  leftAt?: string | null; awaySeconds?: number
+}) {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -14,11 +19,9 @@ export function LiveTimerChip({ timeIn, state = 'live' }: { timeIn: string; stat
     return () => clearInterval(id)
   }, [])
 
-  const secs = Math.max(0, Math.floor((now - new Date(timeIn).getTime()) / 1000))
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const label = `${pad(Math.floor(secs / 3600))}:${pad(Math.floor((secs % 3600) / 60))}:${pad(secs % 60)}`
+  const label = clockLabel(shiftSeconds({ time_in: timeIn, left_premises_at: leftAt, away_seconds: awaySeconds }, now))
 
-  const away = state === 'away'
+  const away = state === 'away' || !!leftAt
 
   return (
     <div

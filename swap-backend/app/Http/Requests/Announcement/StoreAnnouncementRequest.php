@@ -33,12 +33,14 @@ class StoreAnnouncementRequest extends FormRequest
             'message.required' => 'Write the announcement message.',
             'message.min' => 'The message must be at least 10 characters.',
             'message.max' => 'The message must be 5,000 characters or fewer.',
-            'audience.in' => 'Choose who to send it to: everyone, one office, recipients only or supervisors only.',
+            'audience.in' => 'Choose who to send it to: everyone, one office, recipients only, new recipients only or supervisors only.',
             'office_id.required_if' => AnnouncementService::MSG_CHOOSE_OFFICE,
             'office_id.exists' => AnnouncementService::MSG_CHOOSE_OFFICE,
             'attachments.max' => AnnouncementService::MSG_TOO_MANY_FILES,
             'attachments.*.file' => AnnouncementService::MSG_FILE_TYPE,
             'attachments.*.mimes' => AnnouncementService::MSG_FILE_TYPE,
+            'attachments.*.max' => 'Each attachment must be 10 MB or smaller.',
+            'attachments.*.uploaded' => 'Each attachment must be 10 MB or smaller.',
         ];
     }
 

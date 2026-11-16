@@ -9,6 +9,7 @@ import { settingsApi } from '@/lib/api/settings.api'
 import { ApplicationCard } from '@/components/application/ApplicationCard'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { ApplicationTimeline } from '@/components/application/ApplicationTimeline'
+import { RejectedNotice, rejectedForCurrentTerm } from '@/components/application/RejectedNotice'
 import { formatDateTime } from '@/lib/utils/formatDate'
 
 export default function ApplicantDashboard() {
@@ -19,6 +20,9 @@ export default function ApplicantDashboard() {
     queryFn: () => applicationsApi.getMyApplications(),
   })
 
+  // After a rejected renewal a new application waits for the next semester (server rule).
+  const { data: applyBlock } = useQuery({ queryKey: ['applications', 'mine', 'apply-block'], queryFn: () => applicationsApi.getApplyBlock() })
+
   // Whether new applications are being accepted (the backend refuses them otherwise).
   const { data: period } = useQuery({ queryKey: ['application-status'], queryFn: () => settingsApi.getApplicationStatus() })
 
@@ -27,6 +31,10 @@ export default function ApplicantDashboard() {
   // recipient's old approval doesn't count once their renewal was rejected (same rule as the API).
   const hasApproved = !!latest && latest.status === 'approved' && latest.type !== 'renewal'
   const renewalRejected = !!latest && latest.type === 'renewal' && latest.status === 'rejected'
+  // Not approved: why, and when they can apply again. Rejected for the term being taken now
+  // means no new application until the next one (the API refuses a second one for the term).
+  const rejected = !!latest && latest.status === 'rejected'
+  const waitForNextTerm = rejectedForCurrentTerm(latest, period) || (renewalRejected && !!applyBlock)
 
   return (
     <div className="space-y-6">
@@ -75,16 +83,7 @@ export default function ApplicantDashboard() {
         </div>
       )}
 
-      {/* Back from a rejected renewal: what they can do now */}
-      {renewalRejected && (
-        <div className="flex items-start gap-3 rounded-2xl border border-ink-200 bg-ink-50 p-5">
-          <Info className="mt-0.5 h-5 w-5 flex-none text-brand-700" />
-          <p className="text-sm text-ink-700">
-            Your renewal for {latest!.semester} {latest!.academic_year} was not approved, so your account is now an applicant account.
-            Now that the DSA Office has reactivated it, you can apply again as a new applicant while the application period is open.
-          </p>
-        </div>
-      )}
+      {rejected && <RejectedNotice application={latest!} period={period} applyBlock={applyBlock} showLink />}
 
       {/* Approved — awaiting office assignment */}
       {hasApproved && (
@@ -105,7 +104,17 @@ export default function ApplicantDashboard() {
 
       {/* Actions */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {!hasApproved && (period?.open === false ? (
+        {!hasApproved && (waitForNextTerm ? (
+          <div className="flex items-center gap-3 rounded-2xl border border-dashed border-ink-300 bg-ink-50 p-5">
+            <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-ink-100">
+              <Lock className="h-5 w-5 text-ink-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-ink-600">New Application</p>
+              <p className="text-xs text-ink-500">You can apply again next semester.</p>
+            </div>
+          </div>
+        ) : period?.open === false ? (
           // Closed until the DSA opens the application period (the API refuses with the same message).
           <div className="flex items-center gap-3 rounded-2xl border border-dashed border-ink-300 bg-ink-50 p-5">
             <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-ink-100">

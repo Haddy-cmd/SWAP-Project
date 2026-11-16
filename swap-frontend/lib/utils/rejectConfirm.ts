@@ -45,14 +45,14 @@ export function rejectConfirm(application: Application | null | undefined): Conf
   return application?.type === 'renewal'
     ? {
         title: 'Reject this renewal?',
-        body: `${name} goes back to an applicant account and the account is deactivated right away: they're signed out and can't sign in, and their current placement is closed. To apply again they contact the DSA Office, and you reactivate them in Users.`,
+        body: `${name} goes back to an applicant account right away: they're signed out, their current placement is closed, and their next sign-in opens the applicant dashboard. They can apply again as a new applicant next semester. Their last claim stub is emailed to them.`,
         details: renewalRejectWarnings(application.renewal_readiness),
         confirmLabel: 'Yes, reject renewal',
         tone: 'danger',
       }
     : {
         title: 'Reject this application?',
-        body: `${name} is notified with your remarks. A decided application can't be reopened.`,
+        body: `${name} is notified with the reason. They can apply again next semester. If this was a mistake, you can reopen it during this semester.`,
         confirmLabel: 'Reject',
         tone: 'danger',
       }

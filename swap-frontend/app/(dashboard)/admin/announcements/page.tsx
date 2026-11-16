@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type DragEvent } from 'react'
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import {
   Users, Wallet, CalendarDays, Clock, CalendarX, ImagePlus, X, Trash2, Send, CheckCircle2, AlertTriangle, Info,
-  Bell, Mail, Search, Megaphone, ChevronDown, ChevronUp, Copy, Download, MailX, Building2, GraduationCap, UserCheck,
+  Bell, Mail, Search, Megaphone, ChevronDown, ChevronUp, Copy, Download, MailX, Building2, GraduationCap, UserCheck, Sparkles,
 } from 'lucide-react'
 import { announcementsApi, announcementFileUrl } from '@/lib/api/announcements.api'
 import { formatDateTime } from '@/lib/utils/formatDate'
@@ -40,10 +40,11 @@ const AUDIENCES: { value: AnnouncementAudience; label: string; Icon: typeof User
   { value: 'everyone', label: 'Everyone', Icon: Users, who: 'Active recipients and supervisors' },
   { value: 'office', label: 'One office', Icon: Building2, who: "Students placed there and the office's supervisors" },
   { value: 'recipients', label: 'Recipients only', Icon: GraduationCap, who: 'Active recipients + approved students waiting for an office' },
+  { value: 'new_recipients', label: 'New recipients only', Icon: Sparkles, who: 'Students newly accepted this semester (not renewals)' },
   { value: 'supervisors', label: 'Supervisors only', Icon: UserCheck, who: 'Active supervisors' },
 ]
 const noun = (to: AnnouncementAudience, n: number) =>
-  to === 'recipients' ? (n === 1 ? 'student' : 'students') : to === 'supervisors' ? (n === 1 ? 'supervisor' : 'supervisors') : n === 1 ? 'person' : 'people'
+  to === 'recipients' || to === 'new_recipients' ? (n === 1 ? 'student' : 'students') : to === 'supervisors' ? (n === 1 ? 'supervisor' : 'supervisors') : n === 1 ? 'person' : 'people'
 
 interface Draft { id: string; file: File; preview: string | null }
 

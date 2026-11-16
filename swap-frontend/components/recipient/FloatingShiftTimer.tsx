@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { GripVertical } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
+import { clockLabel, shiftSeconds } from '@/lib/utils/shift'
 
 const POS_KEY = 'swap-shift-timer-pos'
 const DRAG_THRESHOLD = 5 // px moved before a press counts as a drag (vs a tap)
@@ -79,8 +80,9 @@ export function FloatingShiftTimer() {
 
   if (hidden) return null
 
-  const secs = Math.max(0, Math.floor((now - new Date(log!.time_in).getTime()) / 1000))
-  const label = `${pad(Math.floor(secs / 3600))}:${pad(Math.floor((secs % 3600) / 60))}:${pad(secs % 60)}`
+  // Paused while away from the office (the server doesn't count that time).
+  const label = clockLabel(shiftSeconds(log!, now))
+  const away = !!log!.left_premises_at
   const office = log!.office?.name
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -127,7 +129,7 @@ export function FloatingShiftTimer() {
       <span className="text-left leading-tight">
         <span className="block font-mono text-[15px] font-bold tabular-nums text-ink-950">{label}</span>
         <span className="block max-w-[150px] truncate text-[10.5px] font-semibold uppercase tracking-wide text-success-700">
-          On duty{office ? ` · ${office}` : ''}
+          {away ? 'Paused · away' : 'On duty'}{office ? ` · ${office}` : ''}
         </span>
       </span>
     </button>

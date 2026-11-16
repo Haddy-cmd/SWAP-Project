@@ -48,7 +48,8 @@ class TermReportService
     }
 
     /**
-     * The report opens once the semester has ended, and then only with the required hours
+     * The report opens as soon as the required hours are verified (even mid-semester).
+     * Otherwise it opens once the semester has ended, and then only with the required hours
      * verified or a promissory note filed (pending is enough) for the shortfall. Null = allowed.
      * System Testing accounts follow it too (unlike the clock-in window), so a demo shows the real
      * flow; the "Complete hours" / "End term" / "Term report" shortcuts get them there.
@@ -59,12 +60,12 @@ class TermReportService
         if ($end === null) {
             return PromissoryService::msgNoPeriod($assignment);
         }
-        if (Carbon::now(self::TIMEZONE)->lt($end->copy()->endOfDay())) {
+        $required = (float) $assignment->required_hours;
+        $short = $required - (float) $assignment->verified_hours;
+        if ($short > 0 && Carbon::now(self::TIMEZONE)->lt($end->copy()->endOfDay())) {
             return self::msgNotEnded($end);
         }
 
-        $required = (float) $assignment->required_hours;
-        $short = $required - (float) $assignment->verified_hours;
         if ($short > 0 && !$assignment->promissoryNotes()
             ->whereIn('status', [PromissoryNote::STATUS_PENDING, PromissoryNote::STATUS_APPROVED])->exists()) {
             return self::msgShort($short, $required);

@@ -34,4 +34,12 @@ class ReleaseStipendRequest extends FormRequest
             'signature_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'signature_image.max' => 'The signature image must be 2 MB or smaller.',
+            'signature_image.uploaded' => 'The signature image must be 2 MB or smaller.',
+        ];
+    }
 }

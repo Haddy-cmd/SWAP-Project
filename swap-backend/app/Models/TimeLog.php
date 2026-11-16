@@ -40,6 +40,7 @@ class TimeLog extends Model
         'outside_lat',
         'outside_lng',
         'outside_accuracy',
+        'away_seconds',
         'is_manual',
         'manual_reason',
         'recorded_by',
@@ -62,6 +63,7 @@ class TimeLog extends Model
             'location_flagged' => 'boolean',
             'selfie_required' => 'boolean',
             'left_premises_at' => 'datetime',
+            'away_seconds' => 'integer',
             'is_manual' => 'boolean',
         ];
     }

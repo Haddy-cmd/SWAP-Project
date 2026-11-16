@@ -17,6 +17,7 @@ import { UserAvatar } from '@/components/shared/UserAvatar'
 import { formatDate, formatDateTime } from '@/lib/utils/formatDate'
 import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { rejectConfirm, notEligibleRemarks } from '@/lib/utils/rejectConfirm'
+import { REJECTION_REASONS, MSG_REOPEN_REASON, rejectionProblem } from '@/lib/utils/rejection'
 import type { ApplicationStatus, Interview } from '@/types/application.types'
 
 /**
@@ -99,6 +100,10 @@ export default function AdminApplicationsPage() {
   const [mode, setMode] = useState<'in_person' | 'online'>('in_person')
   const [location, setLocation] = useState(DSA_OFFICE)
   const [remarks, setRemarks] = useState('')
+  const [reason, setReason] = useState('')
+  // Undoing a mistaken rejection: the inline form under the decided summary.
+  const [reopening, setReopening] = useState(false)
+  const [reopenReason, setReopenReason] = useState('')
   const { notify, notifyError, confirm } = useFeedback()
   const [dialog, setDialog] = useState<'schedule' | 'reschedule' | null>(null)
   const [viewDoc, setViewDoc] = useState<ViewableDocument | null>(null)
@@ -151,6 +156,9 @@ export default function AdminApplicationsPage() {
     setMode('in_person')
     setLocation(DSA_OFFICE)
     setRemarks('')
+    setReason('')
+    setReopening(false)
+    setReopenReason('')
     setDialog(null)
   }, [activeId])
 
@@ -160,7 +168,10 @@ export default function AdminApplicationsPage() {
     ? notEligibleRemarks(selected?.renewal_readiness)
     : null
   useEffect(() => {
-    if (suggestedRemarks) setRemarks((current) => current || suggestedRemarks)
+    if (suggestedRemarks) {
+      setRemarks((current) => current || suggestedRemarks)
+      setReason((current) => current || 'other')
+    }
   }, [suggestedRemarks])
 
   const refresh = () => {
@@ -219,7 +230,7 @@ export default function AdminApplicationsPage() {
 
   const decide = useMutation({
     mutationFn: (decision: 'approved' | 'rejected') =>
-      applicationsApi.adminDecideApplication(activeId!, { decision, remarks }),
+      applicationsApi.adminDecideApplication(activeId!, decision === 'rejected' ? { decision, remarks, rejection_reason: reason } : { decision, remarks }),
     onSuccess: (data, decision) => {
       // Keep the decided applicant in view so the admin sees the confirmation.
       setSelectedId(activeId)
@@ -229,13 +240,25 @@ export default function AdminApplicationsPage() {
           ? { title: 'Renewal approved', detail: 'The new term\'s placement was created and the recipient has been notified.' }
           : { title: 'Application approved', detail: 'They are now a recipient (announcements reach them) and wait in the Assignments queue for an office. They have been notified.' }
         : data.type === 'renewal'
-          ? { title: 'Renewal rejected', detail: 'They are back to an applicant account, deactivated (reactivate them in Users to let them apply again), and have been notified.' }
-          : { title: 'Application rejected', detail: 'The applicant has been notified with your remarks.' })
+          ? { title: 'Renewal rejected', detail: 'They are back to an applicant account and can apply again next semester. They have been notified, with their last claim stub attached if one was released.' }
+          : { title: 'Application rejected', detail: 'The applicant has been notified with the reason. They can apply again next semester; their uploaded files are removed when it starts.' })
     },
     onError: showError,
   })
 
-  // Rejecting is final (a renewal also deactivates the recipient's account): ask first.
+  const reopen = useMutation({
+    mutationFn: () => applicationsApi.adminReopenApplication(activeId!, reopenReason.trim()),
+    onSuccess: () => {
+      refresh()
+      setReopening(false)
+      setReopenReason('')
+      notify({ title: 'Application reopened', detail: 'It is back in review and the applicant has been notified.' })
+    },
+    onError: showError,
+  })
+  const rejectBlocked = rejectionProblem(reason, remarks)
+
+  // Rejecting ends a renewal recipient's placement at once: ask first.
   const confirmAndReject = async () => {
     if (await confirm(rejectConfirm(selected))) decide.mutate('rejected')
   }
@@ -540,12 +563,18 @@ export default function AdminApplicationsPage() {
                   <div>
                     <p className="mb-2 text-[11.5px] font-bold uppercase tracking-[0.08em] text-ink-400">Documents</p>
                     <div className="flex flex-wrap gap-2">
-                      {documents.map((doc) => (
-                        <button key={doc.id} onClick={() => setViewDoc(doc)}
+                      {documents.map((doc) => doc.file_url ? (
+                        <button key={doc.id} onClick={() => setViewDoc({ ...doc, file_url: doc.file_url! })}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-ink-900/[.08] bg-surface px-3 py-2 text-[12.5px] font-semibold capitalize text-accent hover:border-accent/40 hover:bg-accent-tint">
                           <FileText className="h-3.5 w-3.5" />
                           {doc.document_type.replace(/_/g, ' ')}
                         </button>
+                      ) : (
+                        <span key={doc.id} title="Removed after the retention period (application not approved)"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-ink-200 px-3 py-2 text-[12.5px] font-semibold capitalize text-ink-400">
+                          <FileText className="h-3.5 w-3.5" />
+                          {doc.document_type.replace(/_/g, ' ')} · removed
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -567,8 +596,40 @@ export default function AdminApplicationsPage() {
                       <p className="text-[12.5px]" style={{ color: status === 'approved' ? 'var(--text-success-800)' : 'var(--text-danger-700)', opacity: 0.85 }}>
                         {status === 'approved'
                           ? isRenewal ? 'Their placement continues in the new term.' : 'This student is now in the Assignments queue.'
-                          : selected.remarks || 'This applicant was not accepted this cycle.'}
+                          : [selected.rejection_reason_label, selected.remarks].filter(Boolean).join(' — ') || 'This applicant was not accepted this cycle.'}
                       </p>
+                      {/* Undo a mistaken rejection (backend: current semester, new applications, files still there). */}
+                      {status === 'rejected' && !isRenewal && (reopening ? (
+                        <div className="mt-3 space-y-2">
+                          <textarea
+                            value={reopenReason}
+                            onChange={(e) => setReopenReason(e.target.value)}
+                            placeholder="Why are you reopening it? (saved in the audit log)"
+                            rows={2}
+                            className="w-full resize-none rounded-xl border border-ink-200 bg-surface px-3 py-2 text-sm text-ink-900 focus:border-accent focus:outline-none"
+                          />
+                          {reopenReason.trim().length > 0 && reopenReason.trim().length < 10 && (
+                            <p className="text-[12px] text-danger-700">{MSG_REOPEN_REASON}</p>
+                          )}
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => reopen.mutate()}
+                              disabled={reopen.isPending || reopenReason.trim().length < 10}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
+                              style={{ background: GREEN }}
+                            >
+                              <RefreshCw className="h-3.5 w-3.5" /> Reopen for review
+                            </button>
+                            <button onClick={() => { setReopening(false); setReopenReason('') }} className="h-9 rounded-xl px-3 text-[13px] font-semibold text-ink-600 hover:bg-ink-100">
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button onClick={() => setReopening(true)} className="mt-2 inline-flex items-center gap-1 text-[12.5px] font-semibold text-accent hover:underline">
+                          <RefreshCw className="h-3.5 w-3.5" /> Rejected by mistake? Reopen
+                        </button>
+                      ))}
                     </div>
                     {status === 'approved' && !isRenewal && (
                       <Link href="/admin/assignments" className="inline-flex flex-none items-center gap-1 text-[12.5px] font-semibold text-accent hover:underline">
@@ -582,10 +643,19 @@ export default function AdminApplicationsPage() {
               {/* decision footer */}
               {deciding && (
                 <div className="border-t border-ink-900/[.06] bg-ink-50/50 px-6 py-4">
+                  <select
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    aria-label="Reason if not approved"
+                    className="mb-2 h-10 w-full rounded-xl border border-ink-200 bg-surface px-3 text-sm text-ink-900 focus:border-accent focus:outline-none"
+                  >
+                    <option value="">Reason if you reject…</option>
+                    {Object.entries(REJECTION_REASONS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                  </select>
                   <textarea
                     value={remarks}
                     onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Remarks (needed if you reject)"
+                    placeholder={reason === 'other' ? 'Explain the reason (sent to the applicant)' : 'Note to the applicant (optional)'}
                     rows={2}
                     className="w-full resize-none rounded-xl border border-ink-200 bg-surface px-3 py-2.5 text-sm text-ink-900 focus:border-accent focus:outline-none"
                   />
@@ -593,8 +663,8 @@ export default function AdminApplicationsPage() {
                     <p className="min-w-0 flex-1 text-[12px] leading-snug text-ink-500">{hint}</p>
                     <button
                       onClick={confirmAndReject}
-                      disabled={decide.isPending || !remarks.trim()}
-                      title={!remarks.trim() ? 'Write remarks to reject' : undefined}
+                      disabled={decide.isPending || !!rejectBlocked}
+                      title={rejectBlocked ?? undefined}
                       className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-danger-200 bg-surface px-4 text-sm font-semibold text-red-accent hover:bg-danger-50 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       <XCircle className="h-4 w-4" /> Reject

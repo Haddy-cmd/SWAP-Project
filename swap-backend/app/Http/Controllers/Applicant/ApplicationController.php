@@ -20,6 +20,8 @@ class ApplicationController extends Controller
 
         return response()->json([
             'data' => ApplicationResource::collection($applications),
+            // Why a new application can't be started yet (after a rejected renewal), or null.
+            'meta' => ['apply_block' => $this->applicationService->renewalWaitBlock($request->user())],
         ]);
     }
 

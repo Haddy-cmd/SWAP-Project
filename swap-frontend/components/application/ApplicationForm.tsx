@@ -1,5 +1,7 @@
 'use client'
 
+import { authApi } from '@/lib/api/auth.api'
+import { useAuthStore } from '@/lib/store/authStore'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
@@ -66,6 +68,8 @@ export function ApplicationForm() {
       notify({ title: 'Application submitted', detail: "The DSA Office will review it. You'll be notified by email at each step." })
       queryClient.invalidateQueries({ queryKey: ['applications'] })
       queryClient.invalidateQueries({ queryKey: ['application-status'] })
+      // The 2x2 photo is now the profile photo: refresh the signed-in user so the header shows it.
+      authApi.getProfile().then((me) => useAuthStore.getState().setAuth(me, useAuthStore.getState().token ?? '')).catch(() => {})
       router.push(`/applicant/application/${res.id}`)
     },
     onError: (err: ApiError) => {

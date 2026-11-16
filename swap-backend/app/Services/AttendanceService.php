@@ -36,6 +36,8 @@ class AttendanceService
     public const MSG_AUTO_CLOCK_OUT_OFF = 'Automatic clock-out is turned off for this office.';
     /** Minutes a recipient may be away from the office before the automatic clock-out (mirrored on the page). */
     public const AUTO_CLOCK_OUT_GRACE_MINUTES = 10;
+    /** Clock out with no open shift (the scan pop-out only offers Clock in then; mirrored there). */
+    public const MSG_NOT_CLOCKED_IN = "You aren't clocked in, so there's nothing to clock out.";
     public const MSG_TASK_REQUIRED = 'Write your task description before clocking out.';
 
     /** Clock-in is only allowed Monday–Saturday, 6:00 AM to 5:30 PM (Asia/Manila). */
@@ -150,7 +152,7 @@ class AttendanceService
         $log = $this->timeLogRepository->findById($logId);
 
         if (!$log || $log->user_id !== $user->id || $log->status !== 'open') {
-            throw new UnprocessableEntityHttpException('No open attendance log found with this ID.');
+            throw new UnprocessableEntityHttpException(self::MSG_NOT_CLOCKED_IN);
         }
 
         // Accept either the office QR or the assignment QR — but it must be the recipient's OWN
@@ -243,8 +245,13 @@ class AttendanceService
 
         if ($this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
             if ($log->left_premises_at) {
-                $log->forceFill(['left_premises_at' => null, 'outside_lat' => null, 'outside_lng' => null, 'outside_accuracy' => null])->save();
-                AuditLog::record('returned_to_premises', $log, null, null, $user->id);
+                // Back in time: the minutes away don't count toward the shift (duration_hours subtracts them).
+                $away = max(0, (int) Carbon::parse($log->left_premises_at)->diffInSeconds(now()));
+                $log->forceFill([
+                    'away_seconds' => (int) $log->away_seconds + $away,
+                    'left_premises_at' => null, 'outside_lat' => null, 'outside_lng' => null, 'outside_accuracy' => null,
+                ])->save();
+                AuditLog::record('returned_to_premises', $log, null, ['away_seconds' => $away], $user->id);
             }
 
             return ['log' => $log, 'inside' => true, 'clocked_out' => false];
@@ -302,13 +309,13 @@ class AttendanceService
     }
 
     /**
-     * Clock out after leaving the premises. Time out is the deadline (left + grace), never later,
-     * so time away isn't credited past the grace period even when the server catches it late; an
-     * absence not recorded yet (an older page) clocks out now. Bell + email to the recipient.
+     * Clock out after leaving the premises without returning in time. Time out is the moment they
+     * left, so no time away is credited (however late the server catches it); an absence not
+     * recorded yet (an older page) clocks out now. Bell + email to the recipient.
      */
     private function clockOutLeftPremises(TimeLog $log, User $user): TimeLog
     {
-        $timeOut = $log->left_premises_at ? Carbon::parse(min(now(), self::deadlineOf($log))) : now();
+        $timeOut = $log->left_premises_at ? Carbon::parse($log->left_premises_at) : now();
         $office = $log->assignment?->office;
         $lat = $log->outside_lat !== null ? (float) $log->outside_lat : null;
         $lng = $log->outside_lng !== null ? (float) $log->outside_lng : null;
@@ -651,6 +658,10 @@ class AttendanceService
 
         $updated = $this->timeLogRepository->update($log, [
             'time_out' => $timeOut ?? now(),
+            // Clocked out while still marked away (came back but the page hadn't reported it yet):
+            // the time since they left doesn't count either.
+            'away_seconds' => (int) $log->away_seconds + ($log->left_premises_at && ($timeOut ?? now())->gt($log->left_premises_at)
+                ? (int) Carbon::parse($log->left_premises_at)->diffInSeconds($timeOut ?? now()) : 0),
             'status' => 'pending_verification',
             'clocked_out_reason' => $reason,
             'time_out_lat' => $lat,

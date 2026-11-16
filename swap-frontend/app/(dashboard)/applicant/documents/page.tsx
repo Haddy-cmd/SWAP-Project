@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Eye, FileText } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
-import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
+import { DocumentViewerModal, viewable, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
 
 export default function DocumentsPage() {
   const { data: applications, isLoading } = useQuery({
@@ -65,13 +65,17 @@ export default function DocumentsPage() {
                     {doc.application.academic_year} — {doc.application.semester}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setViewDoc(doc)}
-                      className="inline-flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 transition-colors"
-                    >
-                      <Eye className="h-3.5 w-3.5" />
-                      View
-                    </button>
+                    {doc.file_url ? (
+                      <button
+                        onClick={() => setViewDoc({ ...doc, file_url: doc.file_url! })}
+                        className="inline-flex items-center gap-1 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 transition-colors"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </button>
+                    ) : (
+                      <span className="text-xs text-ink-400">Removed after the retention period</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -79,7 +83,7 @@ export default function DocumentsPage() {
           </table></div>
         </div>
       )}
-      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={allDocs} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <DocumentViewerModal doc={viewDoc} docs={viewable(allDocs)} onClose={() => setViewDoc(null)} />}
     </div>
   )
 }

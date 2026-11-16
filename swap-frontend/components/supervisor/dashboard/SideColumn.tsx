@@ -40,7 +40,7 @@ export function SideColumn({ onDuty, students }: { onDuty: TimeLog[]; students: 
                     {log.location_flagged && <span className="font-medium text-warning-700"> · location unverified</span>}
                   </div>
                 </div>
-                {log.time_in && <LiveTimerChip timeIn={log.time_in} />}
+                {log.time_in && <LiveTimerChip timeIn={log.time_in} leftAt={log.left_premises_at} awaySeconds={log.away_seconds ?? 0} />}
               </Link>
             ))}
           </div>

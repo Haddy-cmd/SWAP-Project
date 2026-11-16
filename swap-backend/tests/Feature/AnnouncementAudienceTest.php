@@ -98,9 +98,30 @@ class AnnouncementAudienceTest extends TestCase
     {
         $meta = $this->getJson('/api/admin/announcements')->assertOk()->json('meta');
 
-        $this->assertSame(['everyone' => 5, 'recipients' => 3, 'supervisors' => 2], $meta['audiences']);
+        $this->assertSame(['everyone' => 5, 'recipients' => 3, 'new_recipients' => 0, 'supervisors' => 2], $meta['audiences']);
         $offices = collect($meta['offices'])->keyBy('name');
         $this->assertSame(2, $offices['Records Section']['count']);
         $this->assertSame(2, $offices['Reading Room']['count']);
+    }
+
+    public function test_new_recipients_are_only_this_terms_newly_accepted(): void
+    {
+        $this->send(['audience' => 'new_recipients'])->assertStatus(422)
+            ->assertJsonPath('message', AnnouncementService::MSG_NO_NEW_RECIPIENTS);
+
+        $today = \Illuminate\Support\Carbon::now('Asia/Manila');
+        \App\Models\SemesterPeriod::create(['academic_year' => '2026-2027', 'semester' => '1st Semester',
+            'start_date' => $today->copy()->subMonth()->toDateString(), 'end_date' => $today->copy()->addMonths(3)->toDateString()]);
+        $app = fn ($user, string $type, string $sem = '1st Semester') => \App\Models\Application::create([
+            'user_id' => $user->id, 'academic_year' => '2026-2027', 'semester' => $sem, 'status' => 'approved', 'type' => $type]);
+        $app($this->people['waiting'], 'new');            // newly accepted this semester
+        $app($this->people['atRegistrar'], 'renewal');   // renewing: not new
+        $app($this->people['atLibrary'], 'new', '2nd Semester'); // another term
+
+        $this->send(['audience' => 'new_recipients'])->assertStatus(201)
+            ->assertJsonPath('data.recipient_count', 1)
+            ->assertJsonPath('data.audience_label', 'New recipients')
+            ->assertJsonPath('message', 'Announcement sent to 1 new recipient(s) in the portal and by email.');
+        $this->reached(['waiting']);
     }
 }

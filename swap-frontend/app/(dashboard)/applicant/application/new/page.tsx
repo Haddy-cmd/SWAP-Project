@@ -6,6 +6,7 @@ import { CheckCircle, ArrowLeft, Clock, Lock } from 'lucide-react'
 import { applicationsApi } from '@/lib/api/applications.api'
 import { settingsApi } from '@/lib/api/settings.api'
 import { ApplicationForm } from '@/components/application/ApplicationForm'
+import { RejectedNotice, rejectedForCurrentTerm } from '@/components/application/RejectedNotice'
 
 const IN_PROGRESS_LABEL: Record<string, string> = {
   submitted: 'Submitted',
@@ -19,6 +20,8 @@ export default function NewApplicationPage() {
     queryFn: () => applicationsApi.getMyApplications(),
   })
 
+  const { data: applyBlock } = useQuery({ queryKey: ['applications', 'mine', 'apply-block'], queryFn: () => applicationsApi.getApplyBlock() })
+
   const { data: appStatus, isLoading: statusLoading } = useQuery({
     queryKey: ['application-status'],
     queryFn: () => settingsApi.getApplicationStatus(),
@@ -29,6 +32,9 @@ export default function NewApplicationPage() {
   const latest = applications?.[0]
   const hasApproved = !!latest && latest.status === 'approved' && latest.type !== 'renewal'
   const inProgress = applications?.find((a) => ['submitted', 'under_review', 'interview_scheduled'].includes(a.status))
+  // Already not approved for this term: one application per term (the API refuses a second).
+  const rejectedThisTerm = applications?.find((a) => rejectedForCurrentTerm(a, appStatus))
+    ?? (applyBlock && latest?.type === 'renewal' && latest.status === 'rejected' ? latest : undefined)
 
   return (
     <div className="space-y-6">
@@ -80,6 +86,13 @@ export default function NewApplicationPage() {
               Back to Dashboard
             </Link>
           </div>
+        </div>
+      ) : rejectedThisTerm ? (
+        <div className="space-y-3">
+          <RejectedNotice application={rejectedThisTerm} period={appStatus} applyBlock={applyBlock} showLink />
+          <Link href="/applicant/dashboard" className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:underline">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Dashboard
+          </Link>
         </div>
       ) : inProgress ? (
         <div className="flex items-start gap-3 rounded-2xl border border-warning-200 bg-warning-50 p-6 shadow-sm">

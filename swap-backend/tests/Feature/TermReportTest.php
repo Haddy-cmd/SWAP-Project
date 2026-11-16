@@ -28,12 +28,12 @@ class TermReportTest extends TestCase
         ], $overrides);
     }
 
-    public function test_the_report_opens_only_after_the_semester_ends(): void
+    public function test_mid_semester_the_report_opens_once_the_hours_are_done(): void
     {
         $recipient = $this->makeUser('recipient');
         $end = Carbon::today()->addWeeks(3);
         $assignment = $this->makeAssignment($recipient, $this->makeUser('supervisor'), null, ['required_hours' => 10, 'end_date' => $end->toDateString()]);
-        $this->makeClosedLog($assignment, 10); // hours done early: still locked
+        $this->makeClosedLog($assignment, 6); // hours still short mid-semester: locked
         Sanctum::actingAs($recipient);
 
         $msg = 'You can submit your end-of-term report after the semester ends on ' . $end->format('M j, Y') . '.';
@@ -42,8 +42,8 @@ class TermReportTest extends TestCase
         $this->putJson('/api/recipient/term-report', $this->report())->assertStatus(422)->assertJsonPath('message', $msg);
         $this->assertSame(0, $assignment->termReport()->count());
 
-        // Ended with the hours done: open.
-        $assignment->update(['end_date' => Carbon::yesterday()->toDateString()]);
+        // Hours completed before the semester ends: open right away.
+        $this->makeClosedLog($assignment, 4);
         $this->getJson('/api/recipient/term-report')->assertJsonPath('meta.can_submit', true)->assertJsonPath('meta.submit_block', null);
         $this->putJson('/api/recipient/term-report', $this->report())->assertOk();
     }

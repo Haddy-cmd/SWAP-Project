@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\AnnouncementMail;
 use App\Models\Announcement;
+use App\Models\Application;
 use App\Models\Assignment;
 use App\Models\AuditLog;
 use App\Models\Office;
@@ -35,11 +36,12 @@ class AnnouncementService
     /** Recipients per email; well under provider per-message limits. */
     public const EMAIL_BATCH = 50;
 
-    public const AUDIENCES = ['everyone', 'office', 'recipients', 'supervisors'];
+    public const AUDIENCES = ['everyone', 'office', 'recipients', 'new_recipients', 'supervisors'];
 
     public const MSG_NO_RECIPIENTS = 'There are no active recipients to send this announcement to.';
     public const MSG_NO_SUPERVISORS = 'There are no active supervisors to send this announcement to.';
     public const MSG_NO_ONE = 'There is no one active to send this announcement to.';
+    public const MSG_NO_NEW_RECIPIENTS = 'There are no new recipients this semester yet.';
     public const MSG_CHOOSE_OFFICE = 'Choose the office to send it to.';
 
     public static function msgEmptyOffice(string $office): string
@@ -60,12 +62,31 @@ class AnnouncementService
         return User::where('role', 'recipient')->where('is_active', true);
     }
 
+    /**
+     * Newly accepted recipients: active recipients whose new application (not a renewal) was
+     * approved for the term applications are taken for now (current semester, else the next).
+     */
+    public static function newRecipients(): Builder
+    {
+        $term = app(SemesterPeriodService::class)->applicationTerm();
+        if (!$term) {
+            return self::activeRecipients()->whereRaw('1 = 0');
+        }
+
+        return self::activeRecipients()->whereIn('id', Application::select('user_id')
+            ->where('status', 'approved')
+            ->where(fn ($q) => $q->where('type', '!=', 'renewal')->orWhereNull('type'))
+            ->where('academic_year', $term->academic_year)
+            ->where('semester', $term->semester));
+    }
+
     /** Who an announcement to this audience reaches (see the class doc). */
     public static function audienceQuery(string $audience, ?int $officeId = null): Builder
     {
         return match ($audience) {
             'everyone' => User::whereIn('role', ['recipient', 'supervisor'])->where('is_active', true),
             'supervisors' => User::where('role', 'supervisor')->where('is_active', true),
+            'new_recipients' => self::newRecipients(),
             'office' => User::where('is_active', true)->where(fn ($q) => $q
                 ->where(fn ($r) => $r->where('role', 'recipient')->whereIn('id', Assignment::select('user_id')
                     ->where('status', 'active')->where('office_id', $officeId)))
@@ -80,6 +101,7 @@ class AnnouncementService
         return match ($audience) {
             'everyone' => 'Everyone',
             'supervisors' => 'Supervisors',
+            'new_recipients' => 'New recipients',
             'office' => $officeName ?? 'One office',
             default => 'Recipients',
         };
@@ -98,6 +120,7 @@ class AnnouncementService
             'audiences' => [
                 'everyone' => self::audienceQuery('everyone')->count(),
                 'recipients' => self::activeRecipients()->count(),
+                'new_recipients' => self::newRecipients()->count(),
                 'supervisors' => self::audienceQuery('supervisors')->count(),
             ],
             'offices' => Office::orderBy('name')->get(['id', 'name'])->map(fn (Office $o) => [
@@ -141,6 +164,7 @@ class AnnouncementService
             throw new UnprocessableEntityHttpException(match ($audience) {
                 'office' => self::msgEmptyOffice($office->name),
                 'supervisors' => self::MSG_NO_SUPERVISORS,
+                'new_recipients' => self::MSG_NO_NEW_RECIPIENTS,
                 'everyone' => self::MSG_NO_ONE,
                 default => self::MSG_NO_RECIPIENTS,
             });

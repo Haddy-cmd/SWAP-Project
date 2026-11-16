@@ -86,6 +86,34 @@ class TestingController extends Controller
         ]);
     }
 
+    /** Put a picked applicant's application at any step (no emails). */
+    public function applicationStatus(Request $request, int $id): JsonResponse
+    {
+        $data = $request->validate(['status' => ['required', Rule::in(TestingService::APPLICATION_STATUSES)]], [
+            'status.in' => 'Choose a step: Submitted, Under review, Interview scheduled, Approved or Rejected.',
+        ]);
+        $application = $this->testing->setApplicationStatus($request->user(), $id, $data['status']);
+        $label = ['submitted' => 'Submitted', 'under_review' => 'Under review', 'interview_scheduled' => 'Interview scheduled', 'approved' => 'Approved', 'rejected' => 'Rejected'][$data['status']];
+
+        return response()->json([
+            'data' => $this->testing->status(),
+            'message' => "Application #{$application->id} is now {$label}. No emails were sent.",
+        ]);
+    }
+
+    /** Delete every application of a picked account so they can apply from scratch. */
+    public function resetApplications(Request $request, int $id): JsonResponse
+    {
+        $count = $this->testing->resetApplications($request->user(), $id);
+
+        return response()->json([
+            'data' => $this->testing->status(),
+            'message' => $count
+                ? "Removed {$count} application(s) with their documents and interviews. They can apply again from the start."
+                : 'This account has no applications. They can apply from the start.',
+        ]);
+    }
+
     private function article(string $role): string
     {
         return $role === 'applicant' ? 'an' : 'a';

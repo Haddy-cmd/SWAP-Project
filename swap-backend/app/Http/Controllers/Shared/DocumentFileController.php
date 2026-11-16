@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Storage;
  */
 class DocumentFileController extends Controller
 {
+    public const MSG_PURGED = 'This file was removed after the retention period for applications that were not approved.';
+
     public function show(Request $request, int $documentId)
     {
         $viewer = TokenAuth::userFromRequest($request);
@@ -40,6 +42,10 @@ class DocumentFileController extends Controller
 
         if (Gate::forUser($viewer)->denies('view', $doc)) {
             return response()->json(['message' => 'You are not authorized to view this document.'], 403);
+        }
+
+        if ($doc->purged_at) {
+            return response()->json(['message' => self::MSG_PURGED], 410);
         }
 
         $disk = config('filesystems.documents_disk', 'public');
