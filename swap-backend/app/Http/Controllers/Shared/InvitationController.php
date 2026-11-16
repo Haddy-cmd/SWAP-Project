@@ -109,7 +109,7 @@ class InvitationController extends Controller
         $authToken = $user->createToken('auth_token', $request)->plainTextToken;
 
         return response()->json([
-            'data' => new UserResource($user),
+            'data' => new UserResource($user->load('office:id,name')),
             'token' => $authToken,
             'message' => 'Account created. Welcome to the SWAP Portal!',
         ], 201);

@@ -9,7 +9,6 @@ use App\Models\PromissoryNote;
 use App\Models\StipendHistory;
 use App\Models\TermReport;
 use App\Models\User;
-use App\Support\TestTools;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -51,14 +50,11 @@ class TermReportService
     /**
      * The report opens once the semester has ended, and then only with the required hours
      * verified or a promissory note filed (pending is enough) for the shortfall. Null = allowed.
-     * System Testing accounts skip the rule, like the clock-in window.
+     * System Testing accounts follow it too (unlike the clock-in window), so a demo shows the real
+     * flow; the "Complete hours" / "End term" / "Term report" shortcuts get them there.
      */
     public static function submitBlock(Assignment $assignment): ?string
     {
-        if (TestTools::bypasses($assignment->user)) {
-            return null;
-        }
-
         $end = app(PromissoryService::class)->semesterEndFor($assignment);
         if ($end === null) {
             return PromissoryService::msgNoPeriod($assignment);

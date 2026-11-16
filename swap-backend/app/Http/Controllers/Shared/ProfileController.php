@@ -21,7 +21,7 @@ class ProfileController extends Controller
 {
     public function show(Request $request): JsonResponse
     {
-        $user = $request->user()->load('profile');
+        $user = $request->user()->load(['profile', 'office:id,name']);
 
         // Own profile only (one storage lookup): a specimen on record whose file was
         // lost, so the page asks for a new drawing instead of showing a broken image.
@@ -65,7 +65,7 @@ class ProfileController extends Controller
         AuditLog::record('profile_updated', $user, array_intersect_key($before, $validated), $validated);
 
         return response()->json([
-            'data' => new UserResource($user->fresh('profile')),
+            'data' => new UserResource($user->fresh(['profile', 'office:id,name'])),
             'message' => 'Profile updated.',
         ]);
     }
@@ -102,7 +102,7 @@ class ProfileController extends Controller
         AuditLog::record('photo_updated', $user, ['avatar_path' => $old], ['avatar_path' => $path]);
 
         return response()->json([
-            'data' => new UserResource($user->fresh('profile')),
+            'data' => new UserResource($user->fresh(['profile', 'office:id,name'])),
             'message' => 'Profile photo updated.',
         ]);
     }
@@ -125,7 +125,7 @@ class ProfileController extends Controller
         }
 
         return response()->json([
-            'data' => new UserResource($user->fresh('profile')),
+            'data' => new UserResource($user->fresh(['profile', 'office:id,name'])),
             'message' => 'Profile photo removed.',
         ]);
     }
@@ -171,7 +171,7 @@ class ProfileController extends Controller
         $restored = $claims->restoreLostInk($user);
 
         return response()->json([
-            'data' => new UserResource($user->fresh('profile')),
+            'data' => new UserResource($user->fresh(['profile', 'office:id,name'])),
             'message' => 'Digital signature saved. It will appear on newly released claim stubs.'
                 . match ($restored) {
                     0 => '',
@@ -197,7 +197,7 @@ class ProfileController extends Controller
         }
 
         return response()->json([
-            'data' => new UserResource($user->fresh('profile')),
+            'data' => new UserResource($user->fresh(['profile', 'office:id,name'])),
             'message' => 'Digital signature removed. New stubs will show your printed name instead.',
         ]);
     }

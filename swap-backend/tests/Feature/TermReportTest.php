@@ -69,7 +69,7 @@ class TermReportTest extends TestCase
         $this->putJson('/api/recipient/term-report', $this->report())->assertOk();
     }
 
-    public function test_a_submitted_report_stays_editable_and_system_testing_skips_the_lock(): void
+    public function test_a_submitted_report_stays_editable_and_system_testing_follows_the_lock(): void
     {
         // Already in (from before the rule): editing still works mid-term.
         $recipient = $this->makeUser('recipient');
@@ -78,14 +78,14 @@ class TermReportTest extends TestCase
         Sanctum::actingAs($recipient);
         $this->putJson('/api/recipient/term-report', $this->report(['challenges' => 'Slow printer.']))->assertOk();
 
-        // A System Testing account submits any time.
+        // A System Testing account follows the same rule (the demo shows the real flow): mid-term it is locked.
         config(['swap.test_tools' => true]);
         $tester = $this->makeUser('recipient');
         $tester->forceFill(['testing_added_at' => now()])->save();
         $this->makeAssignment($tester, $this->makeUser('supervisor'), null, ['end_date' => Carbon::today()->addMonth()->toDateString()]);
         Sanctum::actingAs($tester);
-        $this->getJson('/api/recipient/term-report')->assertJsonPath('meta.can_submit', true);
-        $this->putJson('/api/recipient/term-report', $this->report())->assertOk();
+        $this->getJson('/api/recipient/term-report')->assertJsonPath('meta.can_submit', false);
+        $this->putJson('/api/recipient/term-report', $this->report())->assertStatus(422);
     }
 
     public function test_recipient_writes_and_edits_their_report(): void

@@ -59,7 +59,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token', $request)->plainTextToken;
 
         return response()->json([
-            'data' => new UserResource($user->load('profile')),
+            'data' => new UserResource($user->load(['profile', 'office:id,name'])),
             'token' => $token,
             'message' => 'Welcome to SWAP! Your account is ready.',
         ], 201);
@@ -168,7 +168,7 @@ class AuthController extends Controller
         $token = $user->createToken('auth_token', $request)->plainTextToken;
 
         return response()->json(array_filter([
-            'data' => new UserResource($user->load('profile')),
+            'data' => new UserResource($user->load(['profile', 'office:id,name'])),
             'token' => $token,
             'device_token' => $deviceToken,
             'message' => 'Login successful.',
