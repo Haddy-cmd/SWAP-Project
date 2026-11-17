@@ -27,10 +27,13 @@ class PromissoryNoteResource extends JsonResource
             'review_remarks' => $this->review_remarks,
             'reviewed_at' => $this->reviewed_at?->toISOString(),
             'created_at' => $this->created_at->toISOString(),
-            'student' => $this->whenLoaded('student', fn () => [
+            // The student's own name even after their account was deleted or deactivated (loaded
+            // withTrashed), with the account state so the page can say so.
+            'student' => $this->whenLoaded('student', fn () => $this->student ? [
                 'id' => $this->student->id,
                 'name' => $this->student->name,
-            ]),
+                'account' => $this->student->trashed() ? 'deleted' : ($this->student->is_active ? 'active' : 'inactive'),
+            ] : null),
             'reviewer' => $this->whenLoaded('reviewer', fn () => $this->reviewer ? [
                 'id' => $this->reviewer->id,
                 'name' => $this->reviewer->name,

@@ -56,6 +56,19 @@ class PromissoryNote extends Model
         return $this->belongsTo(Assignment::class);
     }
 
+    /**
+     * The semesters these notes are for, newest first: [{academic_year, semester}].
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<self>  $query
+     */
+    public static function terms($query): array
+    {
+        return (clone $query)->select('academic_year', 'semester')->distinct()->get()
+            ->sortByDesc(fn ($n) => $n->academic_year . '|' . ($n->semester === '2nd Semester' ? 2 : ($n->semester === 'Summer' ? 3 : 1)))
+            ->map(fn ($n) => ['academic_year' => $n->academic_year, 'semester' => $n->semester])
+            ->values()->all();
+    }
+
     public function student(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');

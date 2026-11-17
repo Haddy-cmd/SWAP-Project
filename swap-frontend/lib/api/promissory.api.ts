@@ -1,5 +1,9 @@
 import apiClient from './axios'
 import type { ApiResponse, PaginatedResponse } from '@/types/api.types'
+
+/** A note list with the semesters that have notes (the semester filter). */
+type NoteList = PaginatedResponse<PromissoryNote> & { meta: { terms?: { academic_year: string; semester: string }[] } }
+type NoteFilter = { status?: string; academic_year?: string; semester?: string }
 import type { PromissoryNote, PromissorySubmission } from '@/types/promissory.types'
 
 export const promissoryApi = {
@@ -19,9 +23,9 @@ export const promissoryApi = {
   downloadFile: (id: number, fileName: string) =>
     downloadBlob(`/recipient/promissory/${id}/file`, fileName),
 
-  // Supervisor queue over their governed students (?status=pending|approved|rejected).
-  getSupervisorQueue: (status?: string) =>
-    apiClient.get<PaginatedResponse<PromissoryNote>>('/supervisor/promissory', { params: status ? { status } : undefined }).then((r) => r.data),
+  // Supervisor queue over their governed students (?status=pending|approved|rejected, one semester or all).
+  getSupervisorQueue: (filter: NoteFilter = {}) =>
+    apiClient.get<NoteList>('/supervisor/promissory', { params: filter }).then((r) => r.data),
 
   review: (id: number, data: { action: 'approve' | 'reject'; lacking_hours?: number; review_remarks?: string }) =>
     apiClient.post<ApiResponse<PromissoryNote>>(`/supervisor/promissory/${id}/review`, data).then((r) => r.data.data),
@@ -34,8 +38,8 @@ export const promissoryApi = {
   openSupervisorFile: (id: number) => openBlob(`/supervisor/promissory/${id}/file`),
 
   // DSA visibility over everything supervisors decided.
-  getAdminList: (status?: string) =>
-    apiClient.get<PaginatedResponse<PromissoryNote>>('/admin/promissory', { params: status ? { status } : undefined }).then((r) => r.data),
+  getAdminList: (filter: NoteFilter = {}) =>
+    apiClient.get<NoteList>('/admin/promissory', { params: filter }).then((r) => r.data),
 
   downloadAdminFile: (id: number, fileName: string) =>
     downloadBlob(`/admin/promissory/${id}/file`, fileName),

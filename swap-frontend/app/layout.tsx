@@ -5,6 +5,7 @@ import { ChatbotWidget } from '@/components/chatbot/ChatbotWidget'
 import { FeedbackProvider } from '@/components/feedback/FeedbackProvider'
 import { LoginSplash } from '@/components/layout/LoginSplash'
 import { NavigationProgress } from '@/components/layout/NavigationProgress'
+import { UploadProgress } from '@/components/feedback/UploadProgress'
 import { Suspense } from 'react'
 import { THEME_BOOT_SCRIPT } from '@/lib/theme'
 import { BROWSER_CHECK_SCRIPT } from '@/lib/browserSupport'
@@ -56,6 +57,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {/* The DSA-seal intro right after a sign-in (any role). */}
             <LoginSplash />
             <ChatbotWidget />
+            {/* "Uploading file.pdf… 42%" while any upload takes a moment. */}
+            <UploadProgress />
           </FeedbackProvider>
         </QueryProvider>
       </body>

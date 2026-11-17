@@ -19,9 +19,14 @@ class PromissoryController extends Controller
     /** Notes for this supervisor's students (direct + same-office), newest first. */
     public function index(Request $request): JsonResponse
     {
-        $notes = PromissoryNote::with(['student', 'reviewer'])
-            ->whereHas('assignment', fn ($q) => $q->visibleToSupervisor($request->user()))
+        $base = PromissoryNote::query()
+            ->whereHas('assignment', fn ($q) => $q->visibleToSupervisor($request->user()));
+        $notes = (clone $base)
+            ->with(['student' => fn ($q) => $q->withTrashed(), 'reviewer'])
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
+            // One semester, e.g. ?academic_year=2026-2027&semester=1st Semester (left out = all).
+            ->when($request->query('academic_year'), fn ($q, $year) => $q->where('academic_year', $year))
+            ->when($request->query('semester'), fn ($q, $semester) => $q->where('semester', $semester))
             ->orderByDesc('id')
             ->paginate(25);
 
@@ -32,6 +37,8 @@ class PromissoryController extends Controller
                 'last_page' => $notes->lastPage(),
                 'per_page' => $notes->perPage(),
                 'total' => $notes->total(),
+                // The semesters that have notes, newest first (the page's semester filter).
+                'terms' => PromissoryNote::terms($base),
             ],
         ]);
     }

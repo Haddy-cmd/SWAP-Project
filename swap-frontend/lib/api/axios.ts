@@ -2,6 +2,14 @@ import axios, { AxiosError } from 'axios'
 import Cookies from 'js-cookie'
 import { useAuthStore } from '@/lib/store/authStore'
 import type { ValidationError } from '@/types/api.types'
+import { endUpload, progressUpload, startUpload, uploadLabel } from '@/lib/uploads/progress'
+
+declare module 'axios' {
+  interface InternalAxiosRequestConfig {
+    /** Set on file uploads: their entry in the upload progress card (lib/uploads/progress.ts). */
+    uploadId?: number
+  }
+}
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -25,6 +33,14 @@ apiClient.interceptors.request.use((config) => {
   // file in it is lost (the API then answers "The file field is required.").
   if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
     config.headers.delete('Content-Type')
+    // Every upload reports its progress to the card at the bottom of the page (UploadProgress).
+    const id = startUpload(uploadLabel(config.data), 0)
+    config.uploadId = id
+    const own = config.onUploadProgress
+    config.onUploadProgress = (e) => {
+      progressUpload(id, e.loaded, e.total)
+      own?.(e)
+    }
   }
   return config
 })
@@ -46,8 +62,12 @@ function apiError(message: string, error: AxiosError<ValidationError>, errors?: 
 
 // Centralized response error handling
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    endUpload(response.config.uploadId)
+    return response
+  },
   (error: AxiosError<ValidationError>) => {
+    endUpload(error.config?.uploadId)
     if (error.response?.status === 401) {
       useAuthStore.getState().logout()
       // Already on the login page: clearing the session is enough, no reload loop.

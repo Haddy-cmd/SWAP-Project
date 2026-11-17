@@ -509,4 +509,39 @@ class PromissoryNoteTest extends TestCase
         $this->postJson('/api/recipient/promissory', $this->submitPayload($assignment->id))
             ->assertStatus(422)->assertJsonPath('message', $closed);
     }
+
+    public function test_the_list_keeps_names_of_inactive_and_deleted_accounts_and_filters_by_semester(): void
+    {
+        Storage::fake('public');
+        $supervisor = $this->makeUser('supervisor');
+        $note = function (string $name, string $semester) use ($supervisor) {
+            $student = $this->makeUser('recipient', ['name' => $name]);
+            $assignment = $this->pastAssignment($student, $supervisor, ['semester' => $semester]);
+
+            return [$student, PromissoryNote::create([
+                'assignment_id' => $assignment->id, 'user_id' => $student->id,
+                'academic_year' => '2024-2025', 'semester' => $semester,
+                'verified_hours_snapshot' => 5, 'file_path' => 'promissory/x.pdf', 'file_name' => 'x.pdf',
+                'mime_type' => 'application/pdf', 'status' => 'pending',
+            ])];
+        };
+        [$inactive] = $note('Ina Active', '1st Semester');
+        [$deleted, $deletedNote] = $note('Del Eted', '2nd Semester');
+        $inactive->update(['is_active' => false]);
+        $deleted->delete();
+
+        Sanctum::actingAs($supervisor);
+        $res = $this->getJson('/api/supervisor/promissory')->assertOk();
+        $students = collect($res->json('data'))->pluck('student', 'student.name');
+        $this->assertSame('inactive', $students['Ina Active']['account']);
+        $this->assertSame('deleted', $students['Del Eted']['account']);
+        $this->assertCount(2, $res->json('meta.terms'));
+
+        $this->getJson('/api/supervisor/promissory?academic_year=2024-2025&semester=2nd Semester')->assertOk()
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.student.name', 'Del Eted');
+
+        // A deleted account's note stays on record but can't be decided.
+        $this->postJson("/api/supervisor/promissory/{$deletedNote->id}/review", ['action' => 'reject', 'review_remarks' => 'Account was removed.'])
+            ->assertStatus(422)->assertJsonPath('message', \App\Services\PromissoryService::MSG_STUDENT_DELETED);
+    }
 }

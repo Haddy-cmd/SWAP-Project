@@ -25,6 +25,8 @@ const STATUS: Record<PromissoryStatus, { label: string; cls: string }> = {
 export default function SupervisorPromissoryPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState('')
+  // "" = every semester; otherwise "2026-2027|1st Semester".
+  const [term, setTerm] = useState('')
   const [reviewing, setReviewing] = useState<PromissoryNote | null>(null)
   const [action, setAction] = useState<'approve' | 'reject'>('approve')
   const [lacking, setLacking] = useState('')
@@ -36,10 +38,14 @@ export default function SupervisorPromissoryPage() {
   const [openingId, setOpeningId] = useState<number | null>(null)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['supervisor-promissory', tab],
-    queryFn: () => promissoryApi.getSupervisorQueue(tab || undefined),
+    queryKey: ['supervisor-promissory', tab, term],
+    queryFn: () => {
+      const [academic_year, semester] = term ? term.split('|') : []
+      return promissoryApi.getSupervisorQueue({ ...(tab && { status: tab }), ...(term && { academic_year, semester }) })
+    },
   })
   const notes = data?.data ?? []
+  const terms = data?.meta?.terms ?? []
 
   const { notify, notifyError } = useFeedback()
   const review = useMutation({
@@ -99,13 +105,23 @@ export default function SupervisorPromissoryPage() {
         <p className="mt-1 text-sm text-ink-500">Review promissory notes from students short on hours. Approving records the lacking hours they must render ASAP (deadline: 1 week after semester end).</p>
       </div>
 
-      <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
-        {TABS.map((t) => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors sm:py-1.5 ${tab === t.key ? 'bg-brand-700 text-white' : 'border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50'}`}>
-            {t.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
+          {TABS.map((t) => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition-colors sm:py-1.5 ${tab === t.key ? 'bg-brand-700 text-white' : 'border border-ink-200 bg-surface text-ink-500 hover:bg-ink-50'}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        {/* Semester filter: the semesters that have notes. */}
+        <select value={term} onChange={(e) => setTerm(e.target.value)} aria-label="Semester"
+          className="h-9 w-full rounded-xl border border-ink-200 bg-surface px-3 text-xs font-semibold text-ink-700 focus:border-brand-700 focus:outline-none sm:w-auto">
+          <option value="">All semesters</option>
+          {terms.map((t) => (
+            <option key={`${t.academic_year}|${t.semester}`} value={`${t.academic_year}|${t.semester}`}>{t.semester} {t.academic_year}</option>
+          ))}
+        </select>
       </div>
 
       {isLoading ? (
@@ -124,7 +140,13 @@ export default function SupervisorPromissoryPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-bold text-ink-900">{n.student?.name ?? `User #${n.user_id}`}</p>
+                      <p className="text-sm font-bold text-ink-900">{n.student?.name ?? 'Unknown student'}</p>
+                      {n.student?.account === 'deleted' && (
+                        <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[11px] font-semibold text-ink-500" title="The DSA deleted this account. The note stays on record.">Deleted account</span>
+                      )}
+                      {n.student?.account === 'inactive' && (
+                        <span className="rounded-full bg-warning-50 px-2 py-0.5 text-[11px] font-semibold text-warning-700" title="The DSA deactivated this account: the student can't sign in.">Inactive account</span>
+                      )}
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>{meta.label}</span>
                     </div>
                     <p className="mt-0.5 text-xs text-ink-500">{n.academic_year} · {n.semester} · submitted {formatDate(n.created_at)}</p>
@@ -145,7 +167,8 @@ export default function SupervisorPromissoryPage() {
                       className="flex items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-ink-50 disabled:opacity-50">
                       {downloadingId === n.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                     </button>
-                    {n.status === 'pending' && (
+                    {/* A deleted account's note stays on record but can't be decided. */}
+                    {n.status === 'pending' && n.student?.account !== 'deleted' && (
                       <>
                         <button onClick={() => openReview(n, 'approve')}
                           className="flex items-center gap-1.5 rounded-lg bg-success-600 px-3 py-2 text-xs font-semibold text-white hover:bg-success-700">

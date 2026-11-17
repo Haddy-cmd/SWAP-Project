@@ -118,10 +118,16 @@ class PromissoryService
         return $note->load(['student', 'assignment']);
     }
 
+    public const MSG_STUDENT_DELETED = "This student's account was deleted, so the note can't be reviewed.";
+
     public function review(User $supervisor, PromissoryNote $note, array $data): PromissoryNote
     {
         if (!$note->isPending()) {
             throw new UnprocessableEntityHttpException('This promissory note has already been reviewed.');
+        }
+        // A deleted account's note stays on record but is not decided (no one to notify or place).
+        if (!User::find($note->user_id)) {
+            throw new UnprocessableEntityHttpException(self::MSG_STUDENT_DELETED);
         }
 
         $assignment = $note->assignment;

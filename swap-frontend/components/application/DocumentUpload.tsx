@@ -1,7 +1,9 @@
 'use client'
 
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { Upload, X, FileText, CheckCircle } from 'lucide-react'
+import { Upload, X, FileText, CheckCircle, AlertTriangle } from 'lucide-react'
+
+const mb = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 interface DocumentUploadProps {
   label: string
@@ -22,13 +24,26 @@ export function DocumentUpload({
 }: DocumentUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  // Why the picked file wasn't taken (too big, or a type the field doesn't accept).
+  const [warning, setWarning] = useState<string | null>(null)
 
   function handleFile(file: File | undefined | null) {
     if (!file) return
-    if (file.size > maxSizeMb * 1024 * 1024) {
+    const allowed = accept.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
+    const ext = '.' + (file.name.split('.').pop() ?? '').toLowerCase()
+    // Dropped files skip the picker's filter, so the type is checked here too.
+    if (allowed.length && !allowed.includes(ext)) {
+      setWarning(`${file.name} can't be used here. ${label} must be ${allowed.join(', ')}.`)
       onChange(null)
       return
     }
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      setWarning(`That file is ${mb(file.size)}. ${label} must be ${maxSizeMb} MB or smaller.`)
+      onChange(null)
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
+    setWarning(null)
     onChange(file)
   }
 
@@ -69,13 +84,13 @@ export function DocumentUpload({
           className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-6 transition-colors ${
             dragging
               ? 'border-brand-700 bg-brand-50'
-              : error
+              : error || warning
               ? 'border-danger-600 bg-danger-50'
               : 'border-ink-300 bg-ink-50 hover:border-brand-700 hover:bg-brand-50'
           }`}
         >
           <Upload
-            className={`h-7 w-7 ${error ? 'text-danger-600' : 'text-ink-400'}`}
+            className={`h-7 w-7 ${error || warning ? 'text-danger-600' : 'text-ink-400'}`}
           />
           <div className="text-center">
             <p className="text-sm font-medium text-ink-900">
@@ -113,7 +128,12 @@ export function DocumentUpload({
         </div>
       )}
 
-      {error && <p className="text-xs text-danger-600">{error}</p>}
+      {warning && (
+        <p role="alert" className="flex items-start gap-1.5 text-xs font-medium text-danger-600">
+          <AlertTriangle className="mt-px h-3.5 w-3.5 flex-none" /> {warning}
+        </p>
+      )}
+      {error && !warning && <p className="text-xs text-danger-600">{error}</p>}
     </div>
   )
 }

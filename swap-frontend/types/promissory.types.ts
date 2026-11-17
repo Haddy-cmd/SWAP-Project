@@ -17,7 +17,8 @@ export interface PromissoryNote {
   review_remarks: string | null
   reviewed_at: string | null
   created_at: string
-  student?: { id: number; name: string }
+  /** The student's name is kept after their account is deactivated or deleted. */
+  student?: { id: number; name: string; account?: 'active' | 'inactive' | 'deleted' } | null
   reviewer?: { id: number; name: string } | null
 }
 
