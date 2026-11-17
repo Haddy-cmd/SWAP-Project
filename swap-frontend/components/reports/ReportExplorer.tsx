@@ -20,6 +20,13 @@ interface Props {
   onChange: (patch: Partial<ReportQueryState>) => void
   /** Show the chart builder (and offer the graph in the PDF). Off for a supervisor's Term results. */
   chart?: boolean
+  /**
+   * Show the filter dropdowns and search. Off for a recipient's My Terms (a handful of rows);
+   * then no filter or search is sent, so one left in the URL can't hide rows.
+   */
+  filters?: boolean
+  /** One line under the title saying what the report is. */
+  description?: string
 }
 
 /**
@@ -27,8 +34,9 @@ interface Props {
  * PDF/CSV downloads of exactly what is shown. Filtering, sorting and grouping run
  * on the server (GET /{role}/reports/{type}), so the files always match the screen.
  */
-export function ReportExplorer({ role, type, term, state, onChange, chart = true }: Props) {
-  const params: ReportParams = { ...state, ...(term ?? {}) }
+export function ReportExplorer({ role, type, term, state, onChange, chart = true, filters = true, description }: Props) {
+  const shown: ReportQueryState = filters ? state : { ...state, filters: {}, search: undefined }
+  const params: ReportParams = { ...shown, ...(term ?? {}) }
 
   const { data, isLoading, isFetching, error } = useQuery({
     queryKey: ['report', role, type, params],
@@ -56,6 +64,7 @@ export function ReportExplorer({ role, type, term, state, onChange, chart = true
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="font-serif text-[22px] font-semibold text-ink-950">{data.title}</h2>
+          {description && <p className="text-[13px] text-ink-600">{description}</p>}
           <p className="flex items-center gap-2 text-[12.5px] text-ink-500">
             {data.term && <span>{data.term} ·</span>}
             <span className={filtered ? 'font-semibold text-brand-700' : ''}>{summary}</span>
@@ -83,16 +92,19 @@ export function ReportExplorer({ role, type, term, state, onChange, chart = true
         </div>
       )}
 
-      <FilterBar columns={data.columns} facets={data.facets} filters={state.filters} search={state.search}
-        onFilters={(filters) => onChange({ filters })}
-        onSearch={(search) => onChange({ search })} />
+      {filters && (
+        <FilterBar columns={data.columns} facets={data.facets} filters={state.filters} search={state.search}
+          onFilters={(next) => onChange({ filters: next })}
+          onSearch={(search) => onChange({ search })} />
+      )}
 
       {chart && (
         <GroupChart columns={data.columns} groups={data.groups} groupBy={groupBy ?? null} metric={data.metric}
-          selected={groupBy ? state.filters[groupBy] ?? [] : []}
+          selected={groupBy ? shown.filters[groupBy] ?? [] : []}
           onGroupBy={(key) => onChange({ group_by: key })}
           onMetric={(metric) => onChange({ metric })}
-          onBarClick={(value) => groupBy && onChange({ filters: toggleFilter(state.filters, groupBy, value) })} />
+          // Without the filter bar there's no way to clear a bar filter, so bars don't filter then.
+          onBarClick={(value) => filters && groupBy && onChange({ filters: toggleFilter(state.filters, groupBy, value) })} />
       )}
 
       <ReportTable columns={data.columns} rows={data.rows} sort={state.sort} dir={state.dir}

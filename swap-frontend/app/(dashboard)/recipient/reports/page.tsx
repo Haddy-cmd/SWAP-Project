@@ -46,7 +46,12 @@ function RecipientReports() {
           <div className="lg:col-span-2"><HoursBreakdownCard /></div>
         </div>
       )}
-      {tab !== 'overview' && <ReportExplorer role="recipient" type={tab} state={state} onChange={update} />}
+      {tab === 'time-logs' && <ReportExplorer role="recipient" type="time-logs" state={state} onChange={update} />}
+      {/* A handful of rows: the cards, the table and the downloads, without the chart or filters. */}
+      {tab === 'terms' && (
+        <ReportExplorer role="recipient" type="terms" state={state} onChange={update} chart={false} filters={false}
+          description="Every semester you’ve served: hours, result and stipend. Download a copy for your records." />
+      )}
     </div>
   )
 }
