@@ -180,13 +180,66 @@ class StipendClaimTest extends TestCase
         $stipend = StipendHistory::firstWhere('user_id', $recipient->id);
 
         $this->assertSame(['1x1'], array_keys($this->pdfImages($disk->get($stipend->slip_path))));
-        $this->assertSame(2, $this->pdfImages($disk->get($stipend->slip_path))['1x1']['draws'], 'Return Slip + Receiving Slip');
+        // The archived stub is the student's copy: the Receiving Slip alone.
+        $this->assertStringEndsWith('/student-copy.pdf', $stipend->slip_path);
+        $this->assertSame(1, $this->pdfImages($disk->get($stipend->slip_path))['1x1']['draws'], 'Receiving Slip only');
 
         $html = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
         $this->assertStringNotContainsString('Releasing Officer', $html);
         $this->assertStringNotContainsString('/claim/', $html);
         $this->assertStringNotContainsString('Banking Office', $html);
         $this->assertStringContainsString('DSA COPY', $html);
+        $this->assertStringContainsString('Acknowledgment Receipt', $html);
+        $this->assertStringNotContainsString('STUDENT COPY', $html);
+
+        $student = view('stipend.slip', ['stipend' => $stipend->fresh(), 'copy' => 'student'])->render();
+        $this->assertStringContainsString('STUDENT COPY', $student);
+        $this->assertStringContainsString('Receiving Slip', $student);
+        $this->assertStringContainsString('Mindanao State University', $student);
+        $this->assertStringNotContainsString('DSA COPY', $student);
+        $this->assertStringNotContainsString('Acknowledgment Receipt', $student);
+        $this->assertStringNotContainsString('Return Slip', $student);
+    }
+
+    public function test_an_old_three_part_stub_is_replaced_by_the_student_copy_when_opened(): void
+    {
+        $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
+        [$recipient] = $this->recipientWithSupervisor();
+        [$stipend] = $this->releaseAs($recipient);
+
+        // Archived before the split: the whole 3-part PDF.
+        $legacy = "stipend-slips/{$stipend->id}/claim-stub.pdf";
+        $disk->put($legacy, '%PDF-1.4 old three-part stub');
+        $stipend->update(['slip_path' => $legacy]);
+
+        $pdf = $this->get("/api/recipient/stipend/{$stipend->id}/slip")->assertOk()->streamedContent();
+        $this->assertStringNotContainsString('old three-part stub', $pdf);
+        $this->assertSame("stipend-slips/{$stipend->id}/student-copy.pdf", $stipend->fresh()->slip_path);
+        $this->assertFalse($disk->exists($legacy), 'the old 3-part file is removed');
+    }
+
+    public function test_the_admin_opens_the_dsa_copy_from_history(): void
+    {
+        [$recipient] = $this->recipientWithSupervisor();
+        [$stipend] = $this->releaseAs($recipient);
+        $admin = $this->makeUser('admin');
+
+        Sanctum::actingAs($admin);
+        $res = $this->get("/api/admin/stipend/{$stipend->id}/stub")->assertOk();
+        $this->assertSame('application/pdf', $res->headers->get('content-type'));
+        $this->assertStringStartsWith('inline', (string) $res->headers->get('content-disposition'));
+        $this->assertSame(1, $this->pdfImages($res->getContent())['1x1']['draws'], 'the Return Slip carries the beneficiary ink');
+
+        // Not the student receiving it; recorded on the stub's history.
+        $this->assertNull($stipend->fresh()->received_at);
+        $this->assertTrue(\App\Models\AuditLog::where('action', 'stipend_stub_viewed')->where('auditable_id', $stipend->id)->where('user_id', $admin->id)->exists());
+
+        // Recipients can't reach it; a pending stub has no copy.
+        Sanctum::actingAs($recipient);
+        $this->get("/api/admin/stipend/{$stipend->id}/stub")->assertForbidden();
+        $pending = StipendHistory::create(['user_id' => $recipient->id, 'amount' => 5000, 'academic_year' => '2025-2026', 'semester' => '2nd Semester', 'status' => StipendHistory::STATUS_PENDING]);
+        Sanctum::actingAs($admin);
+        $this->get("/api/admin/stipend/{$pending->id}/stub")->assertNotFound();
     }
 
     /**
@@ -243,7 +296,7 @@ class StipendClaimTest extends TestCase
         $images = $this->pdfImages($pdf);
         $this->assertArrayHasKey('300x113', $images, 'beneficiary ink missing from the archived stub');
         $this->assertTrue($images['300x113']['smask'], 'transparency must be kept as an alpha mask');
-        $this->assertSame(2, $images['300x113']['draws'], 'ink belongs on the Return Slip and the Receiving Slip');
+        $this->assertSame(1, $images['300x113']['draws'], 'the student copy is the Receiving Slip alone');
         $this->assertGreaterThan(0, $images['300x113']['visible_px'], 'strokes must be visible on white paper');
     }
 
@@ -252,7 +305,7 @@ class StipendClaimTest extends TestCase
         Log::spy();
         // The production failure: DomPDF throws when the GD extension is missing.
         $this->mock(StipendSlipService::class, fn ($mock) => $mock
-            ->shouldReceive('render')
+            ->shouldReceive('render', 'studentCopyPath')
             ->andThrow(new \Exception('The PHP GD extension is required, but is not installed.')));
 
         [$recipient] = $this->recipientWithSupervisor();
@@ -606,10 +659,16 @@ class StipendClaimTest extends TestCase
         // …and the archived PDF is gone, so the download re-renders from the rows.
         Storage::disk(config('filesystems.documents_disk', 'public'))->delete($stipend->slip_path);
 
+        // The student copy carries the beneficiary's ink…
         Sanctum::actingAs($recipient);
         $pdf = $this->get("/api/recipient/stipend/{$stipend->id}/slip")->assertStatus(200)->streamedContent();
         $images = $this->pdfImages($pdf);
+        $this->assertArrayHasKey('300x113', $images, 'beneficiary ink must be the one signed with');
+        $this->assertArrayNotHasKey('211x66', $images);
 
+        // …and the DSA copy the mentor's too, both as signed.
+        Sanctum::actingAs($this->makeUser('admin'));
+        $images = $this->pdfImages($this->get("/api/admin/stipend/{$stipend->id}/stub")->assertOk()->getContent());
         $this->assertArrayHasKey('320x121', $images, 'supervisor ink must be the one signed with');
         $this->assertArrayHasKey('300x113', $images, 'beneficiary ink must be the one signed with');
         $this->assertArrayNotHasKey('222x77', $images);

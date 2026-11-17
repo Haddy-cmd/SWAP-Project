@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
-import { CheckCircle, AlertTriangle, Loader2, MapPin, LogOut, FileText } from 'lucide-react'
+import { CheckCircle, AlertTriangle, Clock, Loader2, MapPin, LogOut, FileText } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { authApi } from '@/lib/api/auth.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
@@ -14,7 +14,10 @@ import { useAuthStore } from '@/lib/store/authStore'
 import { getBestPosition } from '@/lib/utils/geolocation'
 import { formatDateTime } from '@/lib/utils/formatDate'
 
-type Phase = 'working' | 'confirm' | 'cancelled' | 'selfie' | 'narrative' | 'success' | 'error'
+/** Same text as AttendanceService::MSG_OUTSIDE_PREMISES. */
+const MSG_OUTSIDE_PREMISES = 'You must be inside the office premises to clock in.'
+
+type Phase ='working' | 'confirm' | 'cancelled' | 'selfie' | 'narrative' | 'success' | 'error'
 
 /**
  * Deep-link target encoded into the office QR code. A recipient scans the posted
@@ -132,6 +135,8 @@ export default function ScanPage() {
   }, [router])
 
   const office = kind === 'out'
+  // The server's messages for these two (AttendanceService::MSG_OUTSIDE_PREMISES / MSG_CLOSED_*).
+  const warning = message === MSG_OUTSIDE_PREMISES ? 'premises' : message.startsWith('Clock-in is only available') ? 'hours' : null
 
   function choose(choice: ClockChoice) {
     if (choice.action === 'in') {
@@ -257,11 +262,14 @@ export default function ScanPage() {
 
         {phase === 'error' && (
           <>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-danger-50">
-              <AlertTriangle className="h-8 w-8 text-danger-600" />
+            {/* Outside the premises or off hours is a warning, not a failure. */}
+            <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full ${warning ? 'bg-warning-50' : 'bg-danger-50'}`}>
+              {warning === 'premises' ? <MapPin className="h-8 w-8 text-gold-600" />
+                : warning === 'hours' ? <Clock className="h-8 w-8 text-gold-600" />
+                : <AlertTriangle className="h-8 w-8 text-danger-600" />}
             </div>
-            <h1 className="mt-5 text-lg font-bold text-ink-900">Something went wrong</h1>
-            <p className="mt-2 text-sm text-danger-600">{message}</p>
+            <h1 className="mt-5 text-lg font-bold text-ink-900">{office ? 'Couldn’t clock you out' : 'Couldn’t clock you in'}</h1>
+            <p className={`mt-2 text-sm ${warning ? 'font-medium text-warning-800' : 'text-danger-600'}`}>{message}</p>
             <Link
               href="/recipient/attendance"
               className="mt-6 inline-block rounded-xl border border-ink-300 px-6 py-3 text-sm font-semibold text-brand-700 hover:bg-ink-50 transition-colors"

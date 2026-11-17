@@ -82,6 +82,12 @@ class AssignmentResource extends JsonResource
                 $request->user()?->id === $this->user_id,
                 fn () => app(\App\Services\AttendanceService::class)->selfieRequiredFor($this->resource),
             ),
+            // Why clock-in is closed right now (Sunday / outside 6:00 AM–5:30 PM), or null.
+            // Null for a System Testing account. The scan pop-out shows it before asking for a location.
+            'clock_in_closed' => $this->when(
+                $request->user()?->id === $this->user_id,
+                fn () => app(\App\Services\AttendanceService::class)->clockInClosedReason($request->user()),
+            ),
         ];
     }
 }

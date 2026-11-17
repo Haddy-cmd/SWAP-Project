@@ -39,12 +39,8 @@ final class ClaimStubAttachment
 
         try {
             $disk = Storage::disk(config('filesystems.documents_disk', 'public'));
-            $path = $stipend->slip_path && $disk->exists($stipend->slip_path)
-                ? $stipend->slip_path
-                : app(StipendSlipService::class)->render($stipend);
-            if (!$path) {
-                return false;
-            }
+            // The student copy only (an old 3-part stub is re-rendered first).
+            $path = app(StipendSlipService::class)->studentCopyPath($stipend);
             $name = 'claim-stub' . ($stipend->control_number ? '-' . preg_replace('/[^A-Za-z0-9-]/', '', $stipend->control_number) : '') . '.pdf';
             $mail->attachData($disk->get($path), $name, ['mime' => 'application/pdf']);
 

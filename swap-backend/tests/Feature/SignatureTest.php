@@ -122,9 +122,12 @@ class SignatureTest extends TestCase
         ]);
 
         // The rendered stub embeds every specimen as ink, not typed lines: mentor and
-        // director on the certificate, the student on the Return and Receiving Slips.
+        // director on the certificate, the student on the Return Slip (DSA copy) and on
+        // the Receiving Slip (student copy).
         $html = view('stipend.slip', ['stipend' => $stipend->load(['recipient.profile', 'signatures', 'certifiedBy'])])->render();
-        $this->assertEquals(4, substr_count($html, 'data:image/png;base64,'));
+        $this->assertEquals(3, substr_count($html, 'data:image/png;base64,'));
+        $student = view('stipend.slip', ['stipend' => $stipend, 'copy' => 'student'])->render();
+        $this->assertEquals(1, substr_count($student, 'data:image/png;base64,'));
     }
 
     public function test_release_without_staff_specimens_types_their_lines(): void
@@ -145,9 +148,9 @@ class SignatureTest extends TestCase
             'stipend_history_id' => $stipend->id, 'signatory_role' => 'supervisor', 'method' => 'authenticated',
         ]);
 
-        // Only the student's ink (release requires their specimen), on the two slips.
+        // Only the student's ink (release requires their specimen), on the DSA copy's Return Slip.
         $html = view('stipend.slip', ['stipend' => $stipend->load(['recipient.profile', 'signatures', 'certifiedBy'])])->render();
-        $this->assertEquals(2, substr_count($html, 'data:image'));
+        $this->assertEquals(1, substr_count($html, 'data:image'));
     }
 
     public function test_signature_serve_policy(): void
@@ -245,9 +248,9 @@ class SignatureTest extends TestCase
 
         $admin->update(['position_title' => null]);
         $plain = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
-        // Mentor + both pre-printed beneficiary blocks keep titles; only the
+        // Mentor + the Return Slip's beneficiary block keep titles; only the
         // director line is gone.
-        $this->assertEquals(3, substr_count($plain, '<span class="sigtitle">'));
+        $this->assertEquals(2, substr_count($plain, '<span class="sigtitle">'));
         $this->assertStringContainsString('SWAP Mentor', $plain);
         $this->assertStringContainsString('SWAP BENEFICIARY', $plain);
     }
@@ -295,7 +298,9 @@ class SignatureTest extends TestCase
         $this->assertStringContainsString($recipient->name, $html);
         $this->assertStringContainsString('SWAP BENEFICIARY', $html);
         $this->assertStringNotContainsString('(not yet signed)', $html);
-        $this->assertSame(4, substr_count($html, 'signed '.now('Asia/Manila')->format('M j, Y')), 'mentor, director, beneficiary ×2');
+        $this->assertSame(3, substr_count($html, 'signed '.now('Asia/Manila')->format('M j, Y')), 'mentor, director, beneficiary (DSA copy)');
+        $student = view('stipend.slip', ['stipend' => $stipend, 'copy' => 'student'])->render();
+        $this->assertSame(1, substr_count($student, 'signed '.now('Asia/Manila')->format('M j, Y')), 'beneficiary (student copy)');
     }
 
     public function test_reminder_command_nudges_only_specimen_less_recipients_once(): void

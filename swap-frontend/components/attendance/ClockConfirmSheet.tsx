@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { CheckCircle2, LogIn, LogOut, Loader2, AlertTriangle, Building2 } from 'lucide-react'
+import { CheckCircle2, Clock, LogIn, LogOut, Loader2, AlertTriangle, Building2 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { clockLabel, shiftSeconds } from '@/lib/utils/shift'
 import type { TimeLog } from '@/types/attendance.types'
@@ -26,6 +26,8 @@ export function ClockConfirmSheet({ onChoose, onCancel }: {
   const [log, setLog] = useState<TimeLog | null>(null)
   const [office, setOffice] = useState<string | null>(null)
   const [selfieRequired, setSelfieRequired] = useState(true)
+  // Why clock-in is closed right now (from the server, null for a System Testing account).
+  const [closed, setClosed] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
   const load = useCallback(async () => {
@@ -39,6 +41,7 @@ export function ClockConfirmSheet({ onChoose, onCancel }: {
       setOffice(current?.office?.name ?? assignment?.office?.name ?? null)
       // Default to the selfie until the assignment says otherwise (the server enforces it too).
       setSelfieRequired(assignment?.selfie_required ?? true)
+      setClosed(assignment?.clock_in_closed ?? null)
       setState('ready')
     } catch {
       setState('error')
@@ -91,6 +94,9 @@ export function ClockConfirmSheet({ onChoose, onCancel }: {
               Clocked in since <b>{timeOf(log!.time_in)}</b> · <span className="tabular-nums">{clockLabel(shiftSeconds(log!, now))}</span>
               {log!.left_premises_at && <span className="ml-1 font-semibold text-gold-700">· Paused · away</span>}
             </p>
+          ) : closed ? (
+            // Off hours: said before any location is asked for.
+            <p className="flex items-start gap-2 font-medium text-warning-800"><Clock className="mt-0.5 h-4 w-4 flex-none" /> {closed}</p>
           ) : (
             <p className="text-ink-700">You&apos;re not clocked in.</p>
           ))}
@@ -101,12 +107,13 @@ export function ClockConfirmSheet({ onChoose, onCancel }: {
           <div>
             <button
               onClick={() => onChoose({ action: 'in', selfieRequired })}
-              disabled={!ready || clockedIn}
+              disabled={!ready || clockedIn || !!closed}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:bg-ink-100 disabled:text-ink-400"
             >
               {state === 'loading' ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Clock in
             </button>
             {ready && clockedIn && <p className="mt-1 text-center text-[11.5px] text-ink-400">You&apos;re already clocked in.</p>}
+            {ready && !clockedIn && closed && <p className="mt-1 text-center text-[11.5px] text-ink-400">Closed right now.</p>}
           </div>
           <div>
             <button

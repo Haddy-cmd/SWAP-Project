@@ -13,6 +13,7 @@ use App\Notifications\LeftPremisesNotification;
 use App\Repositories\Contracts\TimeLogRepositoryInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -39,6 +40,10 @@ class AttendanceService
     /** Clock out with no open shift (the scan pop-out only offers Clock in then; mirrored there). */
     public const MSG_NOT_CLOCKED_IN = "You aren't clocked in, so there's nothing to clock out.";
     public const MSG_TASK_REQUIRED = 'Write your task description before clocking out.';
+    /** Clock-in outside the office's radius (the reading itself goes to the log). Mirrored on the scan page. */
+    public const MSG_OUTSIDE_PREMISES = 'You must be inside the office premises to clock in.';
+    public const MSG_CLOSED_SUNDAY = 'Clock-in is only available Monday to Saturday.';
+    public const MSG_CLOSED_HOURS = 'Clock-in is only available between 6:00 AM and 5:30 PM.';
 
     /** Clock-in is only allowed Monday–Saturday, 6:00 AM to 5:30 PM (Asia/Manila). */
     private const CLOCK_IN_TIMEZONE = 'Asia/Manila';
@@ -77,8 +82,13 @@ class AttendanceService
             throw new UnprocessableEntityHttpException('This QR code belongs to a different office than your assignment.');
         }
 
-        // System Testing: picked accounts may clock in from anywhere.
+        // System Testing: picked accounts may clock in from anywhere, any day, any hour.
         $testing = TestTools::bypasses($user);
+
+        // The schedule comes before the location: off hours, the student hears that first.
+        if (!$testing) {
+            $this->assertWithinClockInWindow($user);
+        }
 
         // Geofencing is required for every office: it must have a configured location.
         if (!$testing && (!$office->geofence_enabled || $office->latitude === null || $office->longitude === null)) {
@@ -92,17 +102,18 @@ class AttendanceService
         }
 
         if (!$testing && !$this->geofenceService->isWithin($office, $latitude, $longitude, $accuracy)) {
-            // Say exactly how far off the reading was, so a mis-placed office pin,
-            // a too-tight radius, and a bad GPS fix are distinguishable at a glance.
-            $distance = round($this->geofenceService->distanceMeters(
-                (float) $office->latitude, (float) $office->longitude, $latitude, $longitude
-            ));
-            $acc = $accuracy !== null ? '±' . round($accuracy) . 'm' : 'unknown';
-            throw new UnprocessableEntityHttpException(
-                "You must be on the office premises to clock in. Your phone's location reads ~{$distance}m from {$office->name} "
-                . "(allowed radius {$office->radius_meters}m, GPS accuracy {$acc}). "
-                . 'If you are inside, try again near a window — or ask the DSA to check the office map pin and radius.'
-            );
+            // The student gets one plain line; the reading goes to the log, so a mis-placed
+            // office pin, a too-tight radius and a bad GPS fix can still be told apart.
+            Log::info('clock-in outside premises', [
+                'user_id' => $user->id,
+                'office_id' => $office->id,
+                'distance_m' => round($this->geofenceService->distanceMeters(
+                    (float) $office->latitude, (float) $office->longitude, $latitude, $longitude
+                )),
+                'radius_m' => $office->radius_meters,
+                'accuracy_m' => $accuracy !== null ? round($accuracy) : null,
+            ]);
+            throw new UnprocessableEntityHttpException(self::MSG_OUTSIDE_PREMISES);
         }
 
         $this->guardClockIn($assignment, $user);
@@ -474,13 +485,9 @@ class AttendanceService
         return $this->timeLogRepository->paginateForUser($user->id, $filters, $perPage);
     }
 
+    /** The checks after the location (the schedule is checked before it, in timeInGeofence). */
     private function guardClockIn(Assignment $assignment, User $user): void
     {
-        // System Testing: picked accounts may clock in any day, any hour.
-        if (!TestTools::bypasses($user)) {
-            $this->assertWithinClockInWindow();
-        }
-
         if ($assignment->required_hours > 0 && $assignment->verified_hours >= $assignment->required_hours) {
             throw new ConflictHttpException('You have already completed your required service hours.');
         }
@@ -493,18 +500,34 @@ class AttendanceService
     }
 
     /** Enforce the allowed clock-in schedule: Monday–Saturday, 6:00 AM–5:30 PM (PHT). */
-    private function assertWithinClockInWindow(): void
+    private function assertWithinClockInWindow(User $user): void
     {
-        $now = now()->timezone(self::CLOCK_IN_TIMEZONE);
+        if ($reason = $this->clockInClosedReason($user)) {
+            throw new UnprocessableEntityHttpException($reason);
+        }
+    }
 
+    /**
+     * Why clock-in is closed right now, or null when it's open. Null for a System
+     * Testing account (any day, any hour). The scan pop-out shows this before asking
+     * for a location, so an off-hours student never gets the premises warning.
+     */
+    public function clockInClosedReason(?User $user): ?string
+    {
+        if (TestTools::bypasses($user)) {
+            return null;
+        }
+
+        $now = now()->timezone(self::CLOCK_IN_TIMEZONE);
         if ($now->isSunday()) {
-            throw new UnprocessableEntityHttpException('Clock-in is only available Monday to Saturday.');
+            return self::MSG_CLOSED_SUNDAY;
         }
 
         $minutes = $now->hour * 60 + $now->minute;
-        if ($minutes < self::CLOCK_IN_START_MINUTE || $minutes > self::CLOCK_IN_END_MINUTE) {
-            throw new UnprocessableEntityHttpException('Clock-in is only available between 6:00 AM and 5:30 PM.');
-        }
+
+        return $minutes < self::CLOCK_IN_START_MINUTE || $minutes > self::CLOCK_IN_END_MINUTE
+            ? self::MSG_CLOSED_HOURS
+            : null;
     }
 
     /**

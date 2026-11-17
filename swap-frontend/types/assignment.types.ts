@@ -28,6 +28,8 @@ export interface Assignment {
   supervisor?: import('./auth.types').User
   /** Whether this recipient's supervisor requires a selfie at clock-in. */
   selfie_required?: boolean
+  /** Why clock-in is closed right now (Sunday / outside 6:00 AM–5:30 PM), or null. Null for a System Testing account. */
+  clock_in_closed?: string | null
   /** The term's last day: its own end date, else its semester period's (YYYY-MM-DD). */
   effective_end_date?: string | null
   /** Persisted end-of-term verdict; null while the term is in progress. */

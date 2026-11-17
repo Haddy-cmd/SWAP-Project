@@ -14,10 +14,13 @@ use App\Resources\StipendResource;
 use App\Services\StipendClaimService;
 use App\Services\StipendReminderService;
 use App\Services\StipendService;
+use App\Services\StipendSlipService;
 use App\Support\CsvDownload;
 use App\Support\StipendUnlock;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class StipendController extends Controller
@@ -25,6 +28,7 @@ class StipendController extends Controller
     public function __construct(
         private readonly StipendService $stipendService,
         private readonly StipendClaimService $claimService,
+        private readonly StipendSlipService $slipService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -156,6 +160,33 @@ class StipendController extends Controller
         return response()->json([
             'data' => new StipendResource($stipend),
             'message' => 'Stipend voided. The recipient can be released a new stub.',
+        ]);
+    }
+
+    /**
+     * The DSA copy of a stub (Acknowledgment Receipt + Return Slip), opened from History.
+     * Rendered now, so it shows the signatures on record (and VOID). The student's copy is
+     * the Receiving Slip alone. Opening it here doesn't count as the student receiving it.
+     */
+    public function stub(Request $request, int $id): Response|JsonResponse
+    {
+        $stipend = StipendHistory::findOrFail($id);
+        abort_if($stipend->status === StipendHistory::STATUS_PENDING, 404, 'This stub has no copy yet.');
+
+        try {
+            $pdf = $this->slipService->dsaCopy($stipend);
+        } catch (\Throwable $e) {
+            Log::error('Stipend DSA copy render failed', ['stipend_id' => $stipend->id, 'error' => $e->getMessage()]);
+
+            return response()->json(['message' => 'The DSA copy could not be generated right now. Please try again in a few minutes.'], 503);
+        }
+
+        AuditLog::record('stipend_stub_viewed', $stipend, null, ['copy' => 'dsa'], $request->user()->id);
+        $name = 'swap-dsa-copy-' . preg_replace('/[^A-Za-z0-9-]/', '', $stipend->control_number ?? (string) $stipend->id) . '.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $name . '"',
         ]);
     }
 

@@ -367,8 +367,11 @@ class PromissoryNoteTest extends TestCase
         $this->assertStringContainsString('has rendered <b>5</b> of the <b>200</b>', $html);
         $this->assertStringContainsString('with a deficiency of <b>195 hours</b>', $html);
         $this->assertStringContainsString("covered by approved promissory note #{$id}", $html);
-        $this->assertSame(2, substr_count($html, 'Deficiency: <b>195 hrs</b>'));
+        $this->assertSame(1, substr_count($html, 'Deficiency: <b>195 hrs</b>'), 'DSA copy: the Return Slip');
         $this->assertStringNotContainsString('has completed the duty hours', $html);
+        // The student copy (Receiving Slip) states it too.
+        $student = view('stipend.slip', ['stipend' => $stub->fresh(), 'copy' => 'student'])->render();
+        $this->assertStringContainsString('Deficiency: <b>195 hrs</b>', $student);
 
         $this->getJson("/api/admin/stipend")->assertOk()
             ->assertJsonFragment(['via_promissory' => true, 'deficient_hours' => 195]);

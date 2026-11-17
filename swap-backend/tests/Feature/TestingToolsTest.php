@@ -235,6 +235,8 @@ class TestingToolsTest extends TestCase
 
         // Far from anywhere, no selfie: allowed for the picked account.
         Sanctum::actingAs($student->fresh());
+        // The scan pop-out doesn't block it either.
+        $this->getJson('/api/recipient/assignment')->assertOk()->assertJsonPath('data.clock_in_closed', null);
         $this->postJson('/api/recipient/attendance/time-in-geofence', [
             'qr_token' => $this->qrForOffice($assignment->office), 'latitude' => 14.6, 'longitude' => 121.0, 'accuracy' => 20,
         ])->assertStatus(201);

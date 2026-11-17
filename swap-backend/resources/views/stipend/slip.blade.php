@@ -1,5 +1,8 @@
 @php
     /** @var \App\Models\StipendHistory $stipend */
+    // Which copy: 'dsa' (Acknowledgment Receipt + Return Slip, viewed by the admin) or
+    // 'student' (the Receiving Slip alone, what the recipient opens and is emailed).
+    $copy = ($copy ?? 'dsa') === 'student' ? 'student' : 'dsa';
     $recipient = $stipend->recipient;
     $name = $recipient?->profile?->full_name ?? $recipient?->name ?? '________________________';
     $sid = $recipient?->profile?->student_id_number;
@@ -88,6 +91,7 @@
     <p class="void">VOID — {{ $stipend->void_reason }}</p>
 @endif
 
+@if ($copy === 'dsa')
 {{-- ── PART 1 · ACKNOWLEDGMENT RECEIPT (→ DSA) ── --}}
 <div class="part">
     <span class="copytag">DSA COPY</span>
@@ -158,15 +162,21 @@
         </tr>
     </table>
 </div>
-
-<div class="cut">— — — — — — — — — —  cut here  — — — — — — — — — —</div>
-
-{{-- ── PART 3 · RECEIVING SLIP (→ kept by student) ── --}}
+@else
+{{-- ── RECEIVING SLIP (→ kept by the student): their copy, on its own ── --}}
 <div class="part">
     <span class="copytag">STUDENT COPY</span>
-    <div class="title">SWAP — Receiving Slip</div>
+    <div class="hdr">
+        Republic of the Philippines<br>
+        <span class="u">Mindanao State University</span><br>
+        Marawi City<br>
+        <b>Division of Student Affairs</b>
+    </div>
+    <div class="title">STUDENT WELFARE ASSISTANTSHIP PROGRAM</div>
+    <div class="sub">Receiving Slip</div>
     <table width="100%" class="meta">
-        <tr><td>Control Number: <b>{{ $control }}</b></td><td align="right">Amount: <b>₱{{ $amount }}</b></td></tr>
+        <tr><td>Control Number: <b>{{ $control }}</b></td><td align="right">Date: {{ $date }}</td></tr>
+        <tr><td></td><td align="right">Amount: <b>₱{{ $amount }}</b></td></tr>
     </table>
     <div class="body">
         Mr./Ms. <b>{{ $name }}</b>@if ($sid) (Student ID <b>{{ $sid }}</b>)@endif has received the amount of <b>₱{{ $amount }}</b> as payment for
@@ -182,6 +192,7 @@
         </tr>
     </table>
 </div>
+@endif
 
 </body>
 </html>

@@ -17,7 +17,7 @@ class StipendClaimController extends Controller
 {
     public function __construct(private readonly StipendSlipService $slipService) {}
 
-    /** Stream the beneficiary's claim-stub PDF (their Receiving Slip copy). */
+    /** Stream the beneficiary's claim stub: the student copy (Receiving Slip) only. */
     public function slip(Request $request, int $id): StreamedResponse|JsonResponse
     {
         $stipend = StipendHistory::with(['recipient.profile', 'signatures', 'certifiedBy'])->findOrFail($id);
@@ -27,20 +27,17 @@ class StipendClaimController extends Controller
 
         $disk = config('filesystems.documents_disk', 'public');
 
-        // Regenerate on demand if the archived copy is missing (e.g. ephemeral disk wiped it,
-        // or the render at release/confirm failed). A render failure must reach the student as
-        // a readable message, not a bare 500 — and the real error must reach the logs.
-        if (!$stipend->slip_path || !Storage::disk($disk)->exists($stipend->slip_path)) {
-            try {
-                $path = $this->slipService->render($stipend);
-            } catch (\Throwable $e) {
-                Log::error('Stipend slip render failed', ['stipend_id' => $stipend->id, 'error' => $e->getMessage()]);
+        // Regenerated on demand when the archived copy is missing (ephemeral disk wiped it, the
+        // render at release failed) or is an old 3-part stub. A render failure must reach the
+        // student as a readable message, not a bare 500, and the real error the logs.
+        try {
+            $this->slipService->studentCopyPath($stipend);
+        } catch (\Throwable $e) {
+            Log::error('Stipend slip render failed', ['stipend_id' => $stipend->id, 'error' => $e->getMessage()]);
 
-                return response()->json([
-                    'message' => 'Your claim stub could not be generated right now. Please try again in a few minutes or contact the DSA office.',
-                ], 503);
-            }
-            $stipend->update(['slip_path' => $path]);
+            return response()->json([
+                'message' => 'Your claim stub could not be generated right now. Please try again in a few minutes or contact the DSA office.',
+            ], 503);
         }
 
         // Opening the stub (view or download) is the recipient receiving it: record it once.

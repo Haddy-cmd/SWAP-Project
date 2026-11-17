@@ -34,7 +34,7 @@ class AuditLogService
 
     /** Areas: label, the actions that belong there, and the models whose plain created/updated/deleted do. */
     public const AREAS = [
-        'stipend' => ['Stipend', ['released', 'voided', 'claimed', 'stipend_signature_restored', 'stipend_reminder_sent', 'stipend_received'], [StipendHistory::class]],
+        'stipend' => ['Stipend', ['released', 'voided', 'claimed', 'stipend_signature_restored', 'stipend_reminder_sent', 'stipend_received', 'stipend_stub_viewed'], [StipendHistory::class]],
         'hours' => ['Hours & attendance', ['verified', 'rejected', 'clocked_in', 'clocked_out', 'manual_hours_added',
             'required_hours_requested', 'required_hours_approved', 'required_hours_rejected', 'verification_reminder_sent', 'pace_reminder_sent'], [TimeLog::class, NarrativeReport::class]],
         'applications' => ['Applications & renewals', ['renewal_hours_carried', 'rescheduled', 'promoted_to_recipient', 'returned_to_applicant', 'application_reopened', 'documents_purged'],
@@ -355,6 +355,7 @@ class AuditLogService
             'voided' => "Voided {$entity}" . (!empty($new['void_reason']) ? " — {$new['void_reason']}" : ''),
             'claimed' => "Recorded the Banking Office payout of {$entity}",
             'stipend_signature_restored' => "Put {$who}'s signature back on {$entity}",
+            'stipend_stub_viewed' => "{$who} opened the DSA copy of {$entity}",
             'stipend_received' => "{$who} received {$entity} (" . (($new['via'] ?? 'download') === 'view' ? 'viewed' : 'downloaded') . ' the stub)',
             'stipend_reminder_sent' => "Reminded {$who} to " . Str::lcfirst(implode(' and ', array_map('lcfirst', (array) ($new['missing'] ?? ['finish their requirements'])))) . ' before their stipend can be released',
             'promoted_to_recipient' => "Made {$who} a recipient (application approved)" . (!empty($new['migrated']) ? ' — automatically, by the approval rule' : ''),

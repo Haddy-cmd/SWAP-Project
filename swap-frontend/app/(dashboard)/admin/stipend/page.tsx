@@ -16,6 +16,8 @@ import { useFeedback } from '@/components/feedback/FeedbackProvider'
 import { CountUp } from '@/components/ui/CountUp'
 import { AuditHistoryDrawer } from '@/components/admin/AuditHistory'
 import { ExportButtons } from '@/components/reports/ExportButtons'
+import { DocumentViewerModal, type ViewableDocument } from '@/components/shared/DocumentViewerModal'
+import { openBlob } from '@/lib/api/promissory.api'
 
 const CARD = 'rounded-[18px] border border-ink-900/[.08] bg-surface shadow-[0_1px_3px_rgba(20,40,30,.05)]'
 const peso = (n: number) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -466,13 +468,33 @@ function HistoryTab({ params, unlockToken, onDone, onMoneyError }: {
   onDone: () => void
   onMoneyError: (e: ApiError, fallback: string) => void
 }) {
-  const { notify } = useFeedback()
+  const { notify, notifyError } = useFeedback()
   const [chip, setChip] = useState<Chip>('all')
   const [sort, setSort] = useState<Sort>('new')
   const [page, setPage] = useState(1)
   const [voiding, setVoiding] = useState<StipendRecord | null>(null)
   const [reason, setReason] = useState('')
   const [history, setHistory] = useState<{ id: number; label: string } | null>(null)
+  // The DSA copy (Acknowledgment Receipt + Return Slip) open in the viewer; the student's copy is the Receiving Slip.
+  const [viewing, setViewing] = useState<ViewableDocument | null>(null)
+  const [openingId, setOpeningId] = useState<number | null>(null)
+
+  async function viewStub(r: StipendRecord) {
+    setOpeningId(r.id)
+    try {
+      const url = await openBlob(`/admin/stipend/${r.id}/stub`)
+      setViewing({ file_url: url, file_name: `DSA copy ${r.control_number ?? `#${r.id}`}.pdf`, mime_type: 'application/pdf', document_type: 'Claim stub · DSA copy' })
+    } catch (e) {
+      notifyError(e, "Couldn't open the DSA copy")
+    } finally {
+      setOpeningId(null)
+    }
+  }
+
+  function closeViewer() {
+    if (viewing) URL.revokeObjectURL(viewing.file_url)
+    setViewing(null)
+  }
 
   // Back to page 1 whenever the filters change.
   const paramsKey = JSON.stringify(params)
@@ -582,6 +604,12 @@ function HistoryTab({ params, unlockToken, onDone, onMoneyError }: {
                     {!isVoid && r.via_promissory && <p className="mt-1 truncate text-[11.5px] text-gold-700">Promissory · short {r.deficient_hours ?? '—'}h</p>}
                   </div>
                   <div className="order-6 ml-auto flex justify-end gap-1.5 sm:order-none">
+                    {r.status !== 'pending' && (
+                      <button onClick={() => void viewStub(r)} disabled={openingId === r.id} title="View the DSA copy" aria-label={`View the DSA copy of ${r.control_number ?? r.id}`}
+                        className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-ink-200 bg-surface text-ink-600 hover:border-accent hover:text-accent-strong disabled:opacity-60">
+                        {openingId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                      </button>
+                    )}
                     <button onClick={() => setHistory({ id: r.id, label: r.control_number ?? `#${r.id}` })} title="See history" aria-label={`History of ${r.control_number ?? r.id}`}
                       className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-ink-200 bg-surface text-ink-600 hover:border-accent hover:text-accent-strong">
                       <History className="h-4 w-4" />
@@ -634,6 +662,9 @@ function HistoryTab({ params, unlockToken, onDone, onMoneyError }: {
 
       {history && (
         <AuditHistoryDrawer scope={{ record: `stipend:${history.id}` }} title={`History · Stipend ${history.label}`} onClose={() => setHistory(null)} />
+      )}
+      {viewing && (
+        <DocumentViewerModal doc={viewing} onClose={closeViewer} />
       )}
     </div>
   )

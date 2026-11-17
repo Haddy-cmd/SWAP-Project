@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogOut, CheckCircle2, AlertTriangle, MapPin, MapPinOff, ScanLine, FileText, Loader2, LocateFixed, Navigation, Building2 } from 'lucide-react'
+import { Clock, LogOut, CheckCircle2, AlertTriangle, MapPin, MapPinOff, ScanLine, FileText, Loader2, LocateFixed, Navigation, Building2 } from 'lucide-react'
 import { attendanceApi } from '@/lib/api/attendance.api'
 import { NarrativeModal } from '@/components/attendance/NarrativeModal'
 import { SelfieCapture } from '@/components/attendance/SelfieCapture'
@@ -135,8 +135,11 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
   // Away from the office: the server's countdown (PremisesWatch reports the location on every page).
   const away = useAwayCountdown(currentLog)
 
+  // Off hours (Sunday / outside 6:00 AM–5:30 PM) the schedule is said first and no location is asked for.
+  const closed = !clockedIn ? assignment?.clock_in_closed ?? null : null
+
   // Before clocking in: where am I? (never blocks the button)
-  const { state: loc, check: recheck } = useLocationStatus(assignment?.office, !clockedIn && !!assignment && !completed)
+  const { state: loc, check: recheck } = useLocationStatus(assignment?.office, !clockedIn && !!assignment && !completed && !closed)
 
   const elapsed = (() => {
     if (!clockedIn || !currentLog?.time_in) return '00:00:00'
@@ -148,6 +151,7 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
     ? away
       ? { tone: 'warn', Icon: AlertTriangle, title: 'You appear to have left the premises', text: awayText(officeName, away) }
       : { tone: 'ok', Icon: MapPin, title: `On duty at ${officeName}`, text: monitoring ? 'Location is checked while you’re clocked in' : 'This office doesn’t watch your location' }
+    : closed ? { tone: 'warn', Icon: Clock, title: 'Clock-in is closed right now', text: closed }
     : loc.kind === 'checking' ? { tone: 'muted', Icon: Navigation, title: 'Checking your location…', text: 'Allow location if your browser asks.' }
     : loc.kind === 'inside' ? { tone: 'ok', Icon: MapPin, title: `You’re at ${officeName}`, text: 'Location on · inside the office area' }
     : loc.kind === 'outside' ? { tone: 'warn', Icon: MapPinOff, title: `About ${Math.round(loc.meters).toLocaleString()} m from ${officeName}`, text: 'Move closer to the office to clock in.' }
@@ -236,7 +240,7 @@ export function ClockCard({ summary, assignment }: { summary: HoursSummary | und
             <span className="block text-[13px] font-bold text-ink-950">{location.title}</span>
             <span className="mt-px block text-xs text-ink-500">{location.text}</span>
           </span>
-          {!clockedIn && loc.kind !== 'unchecked' && (
+          {!clockedIn && !closed && loc.kind !== 'unchecked' && (
             <button type="button" onClick={recheck} disabled={loc.kind === 'checking'} aria-label="Check my location again" title="Check again"
               className="flex h-8 flex-none items-center gap-1 rounded-lg px-2 text-xs font-semibold text-ink-600 hover:bg-surface disabled:opacity-50">
               {loc.kind === 'checking' ? <Loader2 className="h-4 w-4 animate-spin" /> : <LocateFixed className="h-4 w-4" />} Check

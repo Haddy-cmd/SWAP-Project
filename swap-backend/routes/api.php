@@ -227,6 +227,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/stipend', [StipendController::class, 'index']);
         Route::get('/stipend/eligible', [StipendController::class, 'eligible']);
         Route::get('/stipend/export', [StipendController::class, 'export'])->middleware('throttle:20,1');
+        // The DSA copy of a stub (Acknowledgment Receipt + Return Slip), viewed from History.
+        Route::get('/stipend/{id}/stub', [StipendController::class, 'stub'])->whereNumber('id')->middleware('throttle:30,1');
         // Page-level step-up gate (throttled like login): one password entry unlocks
         // the release/void calls for a short window instead of per-action passwords.
         Route::post('/stipend/unlock', [StipendController::class, 'unlock'])->middleware('throttle:6,1');

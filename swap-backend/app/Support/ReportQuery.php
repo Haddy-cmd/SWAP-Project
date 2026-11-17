@@ -125,6 +125,7 @@ final class ReportQuery
     /**
      * Each filterable column's values with how many rows carry them, over the
      * unfiltered rows, so a dropdown always offers every option of the term.
+     * Empty cells aren't offered: "(Blank)" isn't a value anyone filters by.
      *
      * @return array<string, list<array{value:string,count:int}>>
      */
@@ -136,6 +137,7 @@ final class ReportQuery
                 continue;
             }
             $out[$c['key']] = $rows->countBy(fn ($r) => self::key($r[$c['key']] ?? null))
+                ->forget(self::BLANK)
                 ->map(fn ($n, $v) => ['value' => (string) $v, 'count' => $n])
                 ->sortBy('value', SORT_NATURAL | SORT_FLAG_CASE)->values()->all();
         }
@@ -145,7 +147,8 @@ final class ReportQuery
 
     /**
      * The chart: one bar per value of the group column, sized by the row count or
-     * by the sum of the metric column, largest first.
+     * by the sum of the metric column, largest first. Rows with an empty group
+     * cell get no bar (they stay in the table).
      *
      * @return list<array{label:string,value:float|int,count:int}>
      */
@@ -156,6 +159,7 @@ final class ReportQuery
         }
 
         return $rows->groupBy(fn ($r) => self::key($r[$this->groupBy] ?? null))
+            ->forget(self::BLANK)
             ->map(fn (Collection $g, $label) => [
                 'label' => (string) $label,
                 'value' => $this->metric ? round($g->sum(fn ($r) => (float) ($r[$this->metric] ?? 0)), 2) : $g->count(),

@@ -139,10 +139,36 @@ class AttendanceTest extends TestCase
         $token = $this->qrForOffice($office);
 
         Sanctum::actingAs($recipient);
+        $this->travelTo(Carbon::create(2026, 7, 6, 9, 0, 0, 'Asia/Manila')); // Monday 9:00 AM: open
         // Coordinates on another continent — well outside the 100m radius.
         $this->postJson('/api/recipient/attendance/time-in-geofence', [
             'qr_token' => $token, 'latitude' => 40.0, 'longitude' => -74.0,
-        ])->assertStatus(422);
+        ])->assertStatus(422)->assertJsonPath('message', AttendanceService::MSG_OUTSIDE_PREMISES);
+    }
+
+    public function test_the_schedule_is_checked_before_the_location(): void
+    {
+        $recipient = $this->makeUser('recipient');
+        $office = $this->makeGeofencedOffice();
+        $this->makeAssignment($recipient, $this->makeSupervisorWithoutSelfie(), $office);
+        Sanctum::actingAs($recipient);
+
+        // Sunday and far away: the schedule is what they hear.
+        $this->travelTo(Carbon::create(2026, 7, 5, 9, 0, 0, 'Asia/Manila'));
+        $this->postJson('/api/recipient/attendance/time-in-geofence', [
+            'qr_token' => $this->qrForOffice($office), 'latitude' => 40.0, 'longitude' => -74.0,
+        ])->assertStatus(422)->assertJsonPath('message', AttendanceService::MSG_CLOSED_SUNDAY);
+        $this->getJson('/api/recipient/assignment')->assertJsonPath('data.clock_in_closed', AttendanceService::MSG_CLOSED_SUNDAY);
+
+        // Monday evening with no location at all: still the schedule, not "location required".
+        $this->travelTo(Carbon::create(2026, 7, 6, 18, 0, 0, 'Asia/Manila'));
+        $this->postJson('/api/recipient/attendance/time-in-geofence', ['qr_token' => $this->qrForOffice($office)])
+            ->assertStatus(422)->assertJsonPath('message', AttendanceService::MSG_CLOSED_HOURS);
+        $this->getJson('/api/recipient/assignment')->assertJsonPath('data.clock_in_closed', AttendanceService::MSG_CLOSED_HOURS);
+
+        // Monday morning: open.
+        $this->travelTo(Carbon::create(2026, 7, 6, 9, 0, 0, 'Asia/Manila'));
+        $this->getJson('/api/recipient/assignment')->assertJsonPath('data.clock_in_closed', null);
     }
 
     public function test_clock_in_is_blocked_on_sunday(): void
