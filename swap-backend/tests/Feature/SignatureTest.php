@@ -127,7 +127,7 @@ class SignatureTest extends TestCase
         $html = view('stipend.slip', ['stipend' => $stipend->load(['recipient.profile', 'signatures', 'certifiedBy'])])->render();
         $this->assertEquals(3, substr_count($html, 'data:image/png;base64,'));
         $student = view('stipend.slip', ['stipend' => $stipend, 'copy' => 'student'])->render();
-        $this->assertEquals(1, substr_count($student, 'data:image/png;base64,'));
+        $this->assertEquals(3, substr_count($student, 'data:image/png;base64,'), 'mentor, director and student on the student copy too');
     }
 
     public function test_release_without_staff_specimens_types_their_lines(): void
@@ -300,7 +300,8 @@ class SignatureTest extends TestCase
         $this->assertStringNotContainsString('(not yet signed)', $html);
         $this->assertSame(3, substr_count($html, 'signed '.now('Asia/Manila')->format('M j, Y')), 'mentor, director, beneficiary (DSA copy)');
         $student = view('stipend.slip', ['stipend' => $stipend, 'copy' => 'student'])->render();
-        $this->assertSame(1, substr_count($student, 'signed '.now('Asia/Manila')->format('M j, Y')), 'beneficiary (student copy)');
+        $this->assertSame(3, substr_count($student, 'signed '.now('Asia/Manila')->format('M j, Y')), 'mentor, director, beneficiary (student copy)');
+        $this->assertStringContainsString('SWAP Mentor', $student);
     }
 
     public function test_reminder_command_nudges_only_specimen_less_recipients_once(): void

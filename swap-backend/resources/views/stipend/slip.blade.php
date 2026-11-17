@@ -185,9 +185,15 @@
     @if ($promissory)
         <div class="body">Deficiency: <b>{{ $deficient }} hrs</b> · covered by a promissory note</div>
     @endif
+    {{-- The student's own copy carries every signature: the mentor and the director who
+         certified it, and the student who received it. --}}
     <table class="sigrow">
         <tr>
-            <td><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>
+            <td><div class="sigfree">{!! $line($sig('supervisor'), 'supervisor') !!}</div></td>
+            <td><div class="sigfree">{!! $line($sig('director'), 'director') !!}</div></td>
+        </tr>
+        <tr>
+            <td style="padding-top: 14px;"><div class="sigfree">{!! $line($sig('beneficiary'), 'beneficiary', $name) !!}</div></td>
             <td></td>
         </tr>
     </table>

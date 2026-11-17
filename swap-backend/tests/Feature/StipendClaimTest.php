@@ -181,7 +181,7 @@ class StipendClaimTest extends TestCase
 
         $this->assertSame(['1x1'], array_keys($this->pdfImages($disk->get($stipend->slip_path))));
         // The archived stub is the student's copy: the Receiving Slip alone.
-        $this->assertStringEndsWith('/student-copy.pdf', $stipend->slip_path);
+        $this->assertStringEndsWith('/receiving-slip.pdf', $stipend->slip_path);
         $this->assertSame(1, $this->pdfImages($disk->get($stipend->slip_path))['1x1']['draws'], 'Receiving Slip only');
 
         $html = view('stipend.slip', ['stipend' => $stipend->fresh()->load(['recipient.profile', 'signatures.user', 'certifiedBy'])])->render();
@@ -214,7 +214,7 @@ class StipendClaimTest extends TestCase
 
         $pdf = $this->get("/api/recipient/stipend/{$stipend->id}/slip")->assertOk()->streamedContent();
         $this->assertStringNotContainsString('old three-part stub', $pdf);
-        $this->assertSame("stipend-slips/{$stipend->id}/student-copy.pdf", $stipend->fresh()->slip_path);
+        $this->assertSame("stipend-slips/{$stipend->id}/receiving-slip.pdf", $stipend->fresh()->slip_path);
         $this->assertFalse($disk->exists($legacy), 'the old 3-part file is removed');
     }
 
@@ -659,11 +659,13 @@ class StipendClaimTest extends TestCase
         // …and the archived PDF is gone, so the download re-renders from the rows.
         Storage::disk(config('filesystems.documents_disk', 'public'))->delete($stipend->slip_path);
 
-        // The student copy carries the beneficiary's ink…
+        // The student copy carries the mentor's and the beneficiary's ink…
         Sanctum::actingAs($recipient);
         $pdf = $this->get("/api/recipient/stipend/{$stipend->id}/slip")->assertStatus(200)->streamedContent();
         $images = $this->pdfImages($pdf);
+        $this->assertArrayHasKey('320x121', $images, 'supervisor ink on the student copy too');
         $this->assertArrayHasKey('300x113', $images, 'beneficiary ink must be the one signed with');
+        $this->assertArrayNotHasKey('222x77', $images);
         $this->assertArrayNotHasKey('211x66', $images);
 
         // …and the DSA copy the mentor's too, both as signed.

@@ -19,7 +19,12 @@ use Illuminate\Support\Facades\Storage;
  */
 class StipendSlipService
 {
-    private const STUDENT_FILE = 'student-copy.pdf';
+    /**
+     * The archived student copy's file name. Changing the layout? Rename it: every stub
+     * stored under an older name is re-rendered the next time it's opened.
+     * (student-copy.pdf → receiving-slip.pdf: the mentor's and director's signatures added.)
+     */
+    private const STUDENT_FILE = 'receiving-slip.pdf';
 
     /** Render and archive the student copy; returns its path (kept in slip_path). */
     public function render(StipendHistory $stipend): ?string
